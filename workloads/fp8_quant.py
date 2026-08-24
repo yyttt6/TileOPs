@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import torch
 
 from workloads.workload_base import WorkloadBase
@@ -20,7 +21,7 @@ class FP8QuantWorkload(WorkloadBase):
             self.kv_group,
             self.index_dim,
             dtype=self.in_dtype,
-            device="cuda",
+            device=DEVICE,
         )
         return (input_tensor,)
 

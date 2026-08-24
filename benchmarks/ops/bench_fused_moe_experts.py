@@ -18,6 +18,7 @@ Baselines:
   - vllm-cutlass:      vLLM CUTLASS fused_experts (when importable)
   - torch-ref:         per-expert GEMM loop with index_add_ (fallback)
 """
+from workloads.device import DEVICE
 
 import warnings
 
@@ -113,9 +114,9 @@ def test_moe_experts_nopad_bench(
             num_experts_local, dtype=torch.int32, device=hidden.device
         )
 
-    output = torch.empty(num_tokens, hidden_size, dtype=dtype, device="cuda")
-    ws1 = torch.empty(0, dtype=dtype, device="cuda")
-    ws2 = torch.empty(0, dtype=dtype, device="cuda")
+    output = torch.empty(num_tokens, hidden_size, dtype=dtype, device=DEVICE)
+    ws1 = torch.empty(0, dtype=dtype, device=DEVICE)
+    ws2 = torch.empty(0, dtype=dtype, device=DEVICE)
 
     # -- TileOPs nopad (3WG persistent) --------------------------------------
     nopad = FusedMoEExpertsNopadPersistent3WGFwdOp(

@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 from dataclasses import dataclass
 
 import pytest
@@ -45,26 +46,26 @@ def _make_inputs(case: GQAFp8TensorCoreBenchCase) -> tuple[torch.Tensor, ...]:
     torch.manual_seed(0)
     q = (
         torch.randn(
-            case.batch, case.seq_len, case.heads, case.dim, device="cuda", dtype=torch.float16
+            case.batch, case.seq_len, case.heads, case.dim, device=DEVICE, dtype=torch.float16
         )
         * 0.25
     )
     k = (
         torch.randn(
-            case.batch, case.seq_len, case.heads_kv, case.dim, device="cuda", dtype=torch.float16
+            case.batch, case.seq_len, case.heads_kv, case.dim, device=DEVICE, dtype=torch.float16
         )
         * 0.25
     )
     v = (
         torch.randn(
-            case.batch, case.seq_len, case.heads_kv, case.dim, device="cuda", dtype=torch.float16
+            case.batch, case.seq_len, case.heads_kv, case.dim, device=DEVICE, dtype=torch.float16
         )
         * 0.25
     )
     q_fp8, q_descale = quantize_q_fa3_gqa_descale(q, case.heads_kv)
     k_fp8, k_descale = quantize_kv_fa3_descale(k)
     v_fp8, v_descale = quantize_kv_fa3_descale(v)
-    cu = torch.tensor([0, case.seq_len], device="cuda", dtype=torch.int32)
+    cu = torch.tensor([0, case.seq_len], device=DEVICE, dtype=torch.int32)
     return (
         q_fp8.reshape(case.batch * case.seq_len, case.heads, case.dim).contiguous(),
         k_fp8.reshape(case.batch * case.seq_len, case.heads_kv, case.dim).contiguous(),

@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import dataclasses
 import re
 from typing import Optional
@@ -262,8 +263,8 @@ def test_gqa_fwd_output_matches_the_declared_shape() -> None:
     """``H % H_kv`` keeps the validator's mocks away, so assert parity here."""
     batch, seq_len, heads, heads_kv, dim = 1, 128, 8, 2, 64
     op = GroupedQueryAttentionFwdOp(batch, heads, heads_kv, seq_len, dim, False)
-    q = torch.randn(batch, seq_len, heads, dim, device="cuda", dtype=torch.float16)
-    k = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16)
+    q = torch.randn(batch, seq_len, heads, dim, device=DEVICE, dtype=torch.float16)
+    k = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16)
     v = torch.randn_like(k)
 
     o = op(q, k, v)
@@ -362,9 +363,9 @@ def test_gqa_prefill_fwd(
     causal: bool,
     dtype: torch.dtype,
 ) -> None:
-    q = torch.randn(batch, seq_len_q, heads, dim, device="cuda", dtype=dtype).contiguous()
-    k = torch.randn(batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=dtype).contiguous()
-    v = torch.randn(batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=dtype).contiguous()
+    q = torch.randn(batch, seq_len_q, heads, dim, device=DEVICE, dtype=dtype).contiguous()
+    k = torch.randn(batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=dtype).contiguous()
+    v = torch.randn(batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=dtype).contiguous()
     ref = _gqa_prefill_ref(q, k, v, heads=heads, heads_kv=heads_kv, is_causal=causal)
 
     packed_inputs = uniform_packed_prefill_inputs(q, k, v)
@@ -387,12 +388,12 @@ def test_gqa_prefill_fwd(
 @pytest.mark.smoke
 def test_gqa_prefill_fwd_dense_backend_matches_reference() -> None:
     batch, seq_len_q, seq_len_kv, heads, heads_kv, dim = 1, 128, 256, 8, 2, 64
-    q = torch.randn(batch, seq_len_q, heads, dim, device="cuda", dtype=torch.float16).contiguous()
+    q = torch.randn(batch, seq_len_q, heads, dim, device=DEVICE, dtype=torch.float16).contiguous()
     k = torch.randn(
-        batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16
+        batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16
     ).contiguous()
     v = torch.randn(
-        batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16
+        batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16
     ).contiguous()
     ref = _gqa_prefill_ref(q, k, v, heads=heads, heads_kv=heads_kv, is_causal=True)
 
@@ -416,9 +417,9 @@ def test_gqa_prefill_fwd_dense_backend_matches_reference() -> None:
 @pytest.mark.smoke
 def test_gqa_prefill_fwd_uses_bottom_right_causal_mask() -> None:
     batch, seq_len_q, seq_len_kv, heads, heads_kv, dim = 1, 128, 256, 4, 2, 64
-    q = torch.zeros(batch, seq_len_q, heads, dim, device="cuda", dtype=torch.float16)
-    k = torch.zeros(batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16)
-    v = torch.zeros(batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16)
+    q = torch.zeros(batch, seq_len_q, heads, dim, device=DEVICE, dtype=torch.float16)
+    k = torch.zeros(batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16)
+    v = torch.zeros(batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16)
     q[..., 0] = 1
     k[..., 0] = 1
     v[:, :128, :, 0] = 1
@@ -538,11 +539,11 @@ def test_gqa_prefill_fwd_explicit_varlen_backends_accept_ragged_input(
     promise is that a ragged ``cu_seqlens`` is served rather than refused.
     """
     batch, seq_len, heads, heads_kv, dim = 2, 64, 8, 2, 64
-    q = torch.randn(batch * seq_len, heads, dim, device="cuda", dtype=torch.float16)
-    k = torch.randn(batch * seq_len, heads_kv, dim, device="cuda", dtype=torch.float16)
+    q = torch.randn(batch * seq_len, heads, dim, device=DEVICE, dtype=torch.float16)
+    k = torch.randn(batch * seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16)
     v = torch.randn_like(k)
-    cu_q = torch.tensor([0, seq_len // 2, batch * seq_len], device="cuda", dtype=torch.int32)
-    cu_kv = torch.arange(batch + 1, device="cuda", dtype=torch.int32) * seq_len
+    cu_q = torch.tensor([0, seq_len // 2, batch * seq_len], device=DEVICE, dtype=torch.int32)
+    cu_kv = torch.arange(batch + 1, device=DEVICE, dtype=torch.int32) * seq_len
     q_scale, k_scale, v_scale = _ones_prefill_scales(batch, heads_kv, device=q.device)
     op = GroupedQueryAttentionPrefillFwdOp(
         batch=batch,
@@ -572,11 +573,11 @@ def test_gqa_prefill_fwd_explicit_dense_backends_refuse_ragged_input(
     # backend='fp8' is reached by handing it FP8 tensors, not by telling the op
     # its inputs are FP8: the element type is what makes the request one.
     element_type = torch.float8_e4m3fn if backend == "fp8" else torch.float16
-    q = torch.zeros(batch * seq_len, heads, dim, device="cuda", dtype=element_type)
-    k = torch.zeros(batch * seq_len, heads_kv, dim, device="cuda", dtype=element_type)
+    q = torch.zeros(batch * seq_len, heads, dim, device=DEVICE, dtype=element_type)
+    k = torch.zeros(batch * seq_len, heads_kv, dim, device=DEVICE, dtype=element_type)
     v = torch.zeros_like(k)
-    cu_q = torch.tensor([0, seq_len // 2, batch * seq_len], device="cuda", dtype=torch.int32)
-    cu_kv = torch.arange(batch + 1, device="cuda", dtype=torch.int32) * seq_len
+    cu_q = torch.tensor([0, seq_len // 2, batch * seq_len], device=DEVICE, dtype=torch.int32)
+    cu_kv = torch.arange(batch + 1, device=DEVICE, dtype=torch.int32) * seq_len
     q_scale, k_scale, v_scale = _ones_prefill_scales(batch, heads_kv, device=q.device)
     op = GroupedQueryAttentionPrefillFwdOp(
         batch=batch,
@@ -607,10 +608,10 @@ def test_gqa_prefill_fwd_explicit_dense_backends_refuse_ragged_input(
 def test_gqa_prefill_fwd_explicit_dense_can_skip_uniform_validation() -> None:
     """Opting out of the range check still serves a uniform dense request."""
     batch, seq_len, heads, heads_kv, dim = 2, 64, 8, 2, 64
-    q = torch.randn(batch * seq_len, heads, dim, device="cuda", dtype=torch.float16)
-    k = torch.randn(batch * seq_len, heads_kv, dim, device="cuda", dtype=torch.float16)
+    q = torch.randn(batch * seq_len, heads, dim, device=DEVICE, dtype=torch.float16)
+    k = torch.randn(batch * seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16)
     v = torch.randn_like(k)
-    cu = torch.arange(batch + 1, device="cuda", dtype=torch.int32) * seq_len
+    cu = torch.arange(batch + 1, device=DEVICE, dtype=torch.int32) * seq_len
     q_scale, k_scale, v_scale = _ones_prefill_scales(batch, heads_kv, device=q.device)
     op = GroupedQueryAttentionPrefillFwdOp(
         batch=batch,
@@ -652,11 +653,11 @@ def test_gqa_prefill_fwd_auto_backend_requires_uniform_validation() -> None:
 def test_gqa_prefill_fwd_auto_backend_serves_uniform_input_dense() -> None:
     """``backend='auto'`` reads the ranges and lands on the dense key for uniform ones."""
     batch, seq_len, heads, heads_kv, dim = 2, 64, 8, 2, 64
-    q = torch.randn(batch * seq_len, heads, dim, device="cuda", dtype=torch.float16)
-    k = torch.randn(batch * seq_len, heads_kv, dim, device="cuda", dtype=torch.float16)
+    q = torch.randn(batch * seq_len, heads, dim, device=DEVICE, dtype=torch.float16)
+    k = torch.randn(batch * seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16)
     v = torch.randn_like(k)
-    cu_q = torch.arange(batch + 1, device="cuda", dtype=torch.int32) * seq_len
-    cu_kv = torch.arange(batch + 1, device="cuda", dtype=torch.int32) * seq_len
+    cu_q = torch.arange(batch + 1, device=DEVICE, dtype=torch.int32) * seq_len
+    cu_kv = torch.arange(batch + 1, device=DEVICE, dtype=torch.int32) * seq_len
     q_scale, k_scale, v_scale = _ones_prefill_scales(batch, heads_kv, device=q.device)
     op = GroupedQueryAttentionPrefillFwdOp(
         batch=batch,
@@ -684,12 +685,12 @@ def test_gqa_prefill_fwd_auto_backend_serves_uniform_input_dense() -> None:
 def test_gqa_prefill_fwd_respects_sm_scale() -> None:
     batch, seq_len_q, seq_len_kv, heads, heads_kv, dim = 1, 128, 256, 8, 2, 64
     sm_scale = 0.125
-    q = torch.randn(batch, seq_len_q, heads, dim, device="cuda", dtype=torch.float16).contiguous()
+    q = torch.randn(batch, seq_len_q, heads, dim, device=DEVICE, dtype=torch.float16).contiguous()
     k = torch.randn(
-        batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16
+        batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16
     ).contiguous()
     v = torch.randn(
-        batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16
+        batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16
     ).contiguous()
     ref = _gqa_prefill_ref(
         q, k, v, heads=heads, heads_kv=heads_kv, is_causal=True, sm_scale=sm_scale
@@ -716,12 +717,12 @@ def test_gqa_prefill_fwd_respects_sm_scale() -> None:
 def test_gqa_prefill_fwd_respects_softcap() -> None:
     batch, seq_len_q, seq_len_kv, heads, heads_kv, dim = 1, 128, 256, 8, 2, 64
     softcap = 2.0
-    q = torch.randn(batch, seq_len_q, heads, dim, device="cuda", dtype=torch.float16).contiguous()
+    q = torch.randn(batch, seq_len_q, heads, dim, device=DEVICE, dtype=torch.float16).contiguous()
     k = torch.randn(
-        batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16
+        batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16
     ).contiguous()
     v = torch.randn(
-        batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=torch.float16
+        batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=torch.float16
     ).contiguous()
     ref = _gqa_prefill_ref(q, k, v, heads=heads, heads_kv=heads_kv, is_causal=True, softcap=softcap)
 
@@ -762,9 +763,9 @@ def test_gqa_prefill_fwd_ws_path_matches_reference(
         pytest.skip("warp-specialized prefill path requires Hopper")
 
     batch, seq_len_q, seq_len_kv, heads, heads_kv, dim = 1, 128, 256, 8, 2, 128
-    q = torch.randn(batch, seq_len_q, heads, dim, device="cuda", dtype=dtype).contiguous()
-    k = torch.randn(batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=dtype).contiguous()
-    v = torch.randn(batch, seq_len_kv, heads_kv, dim, device="cuda", dtype=dtype).contiguous()
+    q = torch.randn(batch, seq_len_q, heads, dim, device=DEVICE, dtype=dtype).contiguous()
+    k = torch.randn(batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=dtype).contiguous()
+    v = torch.randn(batch, seq_len_kv, heads_kv, dim, device=DEVICE, dtype=dtype).contiguous()
     ref = _gqa_prefill_ref(
         q,
         k,
@@ -889,14 +890,14 @@ def test_gqa_prefill_varlen_fwd(
     batch = len(q_lens)
     total_q = sum(q_lens)
     total_kv = sum(kv_lens)
-    q = torch.randn(total_q, heads, dim, device="cuda", dtype=dtype).contiguous()
-    k = torch.randn(total_kv, heads_kv, dim, device="cuda", dtype=dtype).contiguous()
-    v = torch.randn(total_kv, heads_kv, dim, device="cuda", dtype=dtype).contiguous()
+    q = torch.randn(total_q, heads, dim, device=DEVICE, dtype=dtype).contiguous()
+    k = torch.randn(total_kv, heads_kv, dim, device=DEVICE, dtype=dtype).contiguous()
+    v = torch.randn(total_kv, heads_kv, dim, device=DEVICE, dtype=dtype).contiguous()
     cu_q = torch.tensor(
-        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     cu_kv = torch.tensor(
-        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     ref = _gqa_prefill_varlen_ref(
         q, k, v, cu_q, cu_kv, batch=batch, heads=heads, heads_kv=heads_kv, is_causal=causal
@@ -924,14 +925,14 @@ def test_gqa_prefill_varlen_respects_sm_scale() -> None:
     q_lens, kv_lens = [64, 96], [128, 160]
     batch, heads, heads_kv, dim = len(q_lens), 8, 2, 64
     sm_scale = 0.125
-    q = torch.randn(sum(q_lens), heads, dim, device="cuda", dtype=torch.float16).contiguous()
-    k = torch.randn(sum(kv_lens), heads_kv, dim, device="cuda", dtype=torch.float16).contiguous()
+    q = torch.randn(sum(q_lens), heads, dim, device=DEVICE, dtype=torch.float16).contiguous()
+    k = torch.randn(sum(kv_lens), heads_kv, dim, device=DEVICE, dtype=torch.float16).contiguous()
     v = torch.randn_like(k)
     cu_q = torch.tensor(
-        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     cu_kv = torch.tensor(
-        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     ref = _gqa_prefill_varlen_ref(
         q,
@@ -968,14 +969,14 @@ def test_gqa_prefill_varlen_respects_softcap() -> None:
     q_lens, kv_lens = [64, 96], [128, 160]
     batch, heads, heads_kv, dim = len(q_lens), 8, 2, 64
     softcap = 2.0
-    q = torch.randn(sum(q_lens), heads, dim, device="cuda", dtype=torch.float16).contiguous()
-    k = torch.randn(sum(kv_lens), heads_kv, dim, device="cuda", dtype=torch.float16).contiguous()
+    q = torch.randn(sum(q_lens), heads, dim, device=DEVICE, dtype=torch.float16).contiguous()
+    k = torch.randn(sum(kv_lens), heads_kv, dim, device=DEVICE, dtype=torch.float16).contiguous()
     v = torch.randn_like(k)
     cu_q = torch.tensor(
-        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     cu_kv = torch.tensor(
-        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     ref = _gqa_prefill_varlen_ref(
         q,
@@ -1011,14 +1012,14 @@ def test_gqa_prefill_varlen_respects_softcap() -> None:
 def test_gqa_prefill_varlen_rejects_bad_contract_inputs() -> None:
     q_lens, kv_lens = [64, 32], [128, 96]
     batch, heads, heads_kv, dim = len(q_lens), 8, 2, 64
-    q = torch.randn(sum(q_lens), heads, dim, device="cuda", dtype=torch.float16).contiguous()
-    k = torch.randn(sum(kv_lens), heads_kv, dim, device="cuda", dtype=torch.float16).contiguous()
+    q = torch.randn(sum(q_lens), heads, dim, device=DEVICE, dtype=torch.float16).contiguous()
+    k = torch.randn(sum(kv_lens), heads_kv, dim, device=DEVICE, dtype=torch.float16).contiguous()
     v = torch.randn_like(k)
     cu_q = torch.tensor(
-        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(q_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
     cu_kv = torch.tensor(
-        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device="cuda", dtype=torch.int32
+        [0] + torch.tensor(kv_lens).cumsum(0).tolist(), device=DEVICE, dtype=torch.int32
     )
 
     op = GroupedQueryAttentionPrefillVarlenFwdOp(
@@ -1033,7 +1034,7 @@ def test_gqa_prefill_varlen_rejects_bad_contract_inputs() -> None:
             batch, heads, heads_kv, dim, max(q_lens) - 1, max(kv_lens), True, validate_inputs=True
         )
         bad_op(q, k, v, cu_q, cu_kv)
-    bad_cu = torch.tensor([0, 128, 96], device="cuda", dtype=torch.int32)
+    bad_cu = torch.tensor([0, 128, 96], device=DEVICE, dtype=torch.int32)
     with pytest.raises(ValueError, match="cu_seqlens_q must be non-decreasing"):
         op(q, k, v, bad_cu, cu_kv)
 
@@ -1053,8 +1054,8 @@ def test_gqa_prefill_varlen_rejects_unsupported_dtype() -> None:
     q = torch.randn(64, 8, 64, **kwargs)
     k = torch.randn(128, 2, 64, **kwargs)
     v = torch.randn(128, 2, 64, **kwargs)
-    cu_q = torch.tensor([0, 64], device="cuda", dtype=torch.int32)
-    cu_kv = torch.tensor([0, 128], device="cuda", dtype=torch.int32)
+    cu_q = torch.tensor([0, 64], device=DEVICE, dtype=torch.int32)
+    cu_kv = torch.tensor([0, 128], device=DEVICE, dtype=torch.int32)
     with pytest.raises(ValueError, match="Expected dtype torch.float16 or torch.bfloat16"):
         op(q, k, v, cu_q, cu_kv)
 

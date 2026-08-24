@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import math
 
 import torch
@@ -29,10 +30,10 @@ class MHCPreWorkload(WorkloadBase):
         c_x = self.c_x
 
         phi = torch.randn(
-            [n_expand * c_x, n_expand * n_expand + 2 * n_expand], device="cuda", dtype=torch.float32
+            [n_expand * c_x, n_expand * n_expand + 2 * n_expand], device=DEVICE, dtype=torch.float32
         )
-        x = torch.randn([batch, n_expand * c_x], device="cuda", dtype=torch.bfloat16)
-        b = torch.randn([n_expand * n_expand + 2 * n_expand], device="cuda", dtype=torch.float32)
+        x = torch.randn([batch, n_expand * c_x], device=DEVICE, dtype=torch.bfloat16)
+        b = torch.randn([n_expand * n_expand + 2 * n_expand], device=DEVICE, dtype=torch.float32)
         alpha_pre = torch.randn(())
         alpha_post = torch.randn(())
         alpha_res = torch.randn(())
@@ -78,9 +79,9 @@ class MHCPostWorkload(WorkloadBase):
         n_expand = self.n_expand
         c_x = self.c_x
 
-        x_layer_out = torch.randn([batch, c_x], device="cuda", dtype=self.dtype)
-        h_post = torch.randn([batch, n_expand], device="cuda", dtype=torch.float32)
-        x_res = torch.randn([batch, n_expand * c_x], device="cuda", dtype=self.dtype)
+        x_layer_out = torch.randn([batch, c_x], device=DEVICE, dtype=self.dtype)
+        h_post = torch.randn([batch, n_expand], device=DEVICE, dtype=torch.float32)
+        x_res = torch.randn([batch, n_expand * c_x], device=DEVICE, dtype=self.dtype)
         return x_layer_out, h_post, x_res
 
     def ref_program(

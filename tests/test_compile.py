@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 # This test validates the compatibility of TileOps operators with torch.compile().
 # Check: https://docs.pytorch.org/tutorials/advanced/python_custom_ops.html
 
@@ -41,7 +42,7 @@ def test_mha_cold_fullgraph_trace_matches_eager():
     """The kernel is built inside the custom op, so a cold trace must still match."""
     B, S, H, D = 1, 128, 8, 64
     op = MultiHeadAttentionFwdOp(B, H, S, D, False)
-    q = torch.randn(B, S, H, D, device="cuda", dtype=torch.float16)
+    q = torch.randn(B, S, H, D, device=DEVICE, dtype=torch.float16)
     k, v = torch.randn_like(q), torch.randn_like(q)
 
     output = torch.compile(op, fullgraph=True)(q, k, v)

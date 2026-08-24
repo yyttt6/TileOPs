@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -413,16 +414,16 @@ def test_gemm_fp8_rejects_unsupported_scale_grids() -> None:
         op(
             a,
             b,
-            torch.ones((1, k // 128), device="cuda", dtype=torch.float32),
-            torch.ones((1, k // 128), device="cuda", dtype=torch.float32),
+            torch.ones((1, k // 128), device=DEVICE, dtype=torch.float32),
+            torch.ones((1, k // 128), device=DEVICE, dtype=torch.float32),
         )
 
     with pytest.raises(ValueError, match="supports scale shapes"):
         op(
             a,
             b,
-            torch.ones((m, 1), device="cuda", dtype=torch.float32),
-            torch.ones((n, 1), device="cuda", dtype=torch.float32),
+            torch.ones((m, 1), device=DEVICE, dtype=torch.float32),
+            torch.ones((n, 1), device=DEVICE, dtype=torch.float32),
         )
 
 

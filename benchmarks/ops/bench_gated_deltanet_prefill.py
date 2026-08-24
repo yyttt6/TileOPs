@@ -14,7 +14,10 @@ from typing import Any, Sequence
 
 import pytest
 import torch
-from fla.ops.gated_delta_rule import chunk_gated_delta_rule
+try:
+    from fla.ops.gated_delta_rule import chunk_gated_delta_rule
+except ModuleNotFoundError:
+    pytest.skip("FLA baseline unavailable on this platform", allow_module_level=True)
 
 from benchmarks.benchmark_base import (
     BenchmarkReport,

@@ -6,6 +6,7 @@ remaining contract worth asserting at this layer is that ops continue to
 reject fp8 dtypes (negative path) and accept the manifest-declared
 non-fp8 dtypes (positive path).
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -25,8 +26,8 @@ def test_where_rejects_fp8_dtype(bad_dtype: torch.dtype) -> None:
 
     shape = (4, 8)
     op = WhereFwdOp()
-    cond = torch.zeros(shape, device="cuda", dtype=torch.bool)
-    x = torch.zeros(shape, device="cuda").to(bad_dtype)
+    cond = torch.zeros(shape, device=DEVICE, dtype=torch.bool)
+    x = torch.zeros(shape, device=DEVICE).to(bad_dtype)
     with pytest.raises((ValueError, TypeError)):
         op(cond, x, x)
 
@@ -42,9 +43,9 @@ def test_where_accepts_manifest_dtypes(dtype: torch.dtype) -> None:
     from tileops.ops.elementwise import WhereFwdOp
 
     shape = (4, 8)
-    cond = torch.randint(0, 2, shape, device="cuda").bool()
-    inp = torch.randn(shape, device="cuda", dtype=dtype)
-    other = torch.randn(shape, device="cuda", dtype=dtype)
+    cond = torch.randint(0, 2, shape, device=DEVICE).bool()
+    inp = torch.randn(shape, device=DEVICE, dtype=dtype)
+    other = torch.randn(shape, device=DEVICE, dtype=dtype)
     op = WhereFwdOp()
     out = op(cond, inp, other)
     ref = torch.where(cond, inp, other)

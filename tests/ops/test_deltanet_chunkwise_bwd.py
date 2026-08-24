@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -105,17 +106,17 @@ def test_deltanet_bwd(
 ) -> None:
     torch.manual_seed(42)
     B, H, S, DK, DV, BC = batch, heads, seq_len, dim_k, dim_v, chunk_size
-    q = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
-    beta = torch.rand(B, H, S, device="cuda", dtype=dtype) * 0.5
+    q = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
+    beta = torch.rand(B, H, S, device=DEVICE, dtype=dtype) * 0.5
 
     # Forward to get S for backward kernel
     from tileops.ops import DeltaNetFwdOp
 
     fwd_op = DeltaNetFwdOp(chunk_size=BC)
     _o, S_fwd, Aw, Au, w_fwd, u_fwd = fwd_op.forward(q, k, v, beta)
-    do = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
+    do = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
 
     # Reference via autograd
     ref_dq, ref_dk, ref_dv, ref_dbeta = deltanet_autograd_bwd_torch(do, q, k, v, beta, BC)

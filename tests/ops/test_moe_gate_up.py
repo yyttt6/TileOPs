@@ -5,6 +5,7 @@ matches a per-expert PyTorch reference — at both schedule regimes. Kernel-leve
 coverage of activations, partial tiles and empty experts lives in
 tests/kernels/test_moe_grouped_gemm_3wg_fused_act.py.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -69,10 +70,10 @@ def test_moe_gate_up_op(numel, num_experts, ffn, k, distribution):
 def test_no_implementation_serves_an_activation_none_of_them_carry():
     """The activation is a fact of the call, so the candidates refuse it themselves."""
     numel, num_experts, ffn, k = 64, 4, 128, 128
-    a = torch.randn(numel, k, dtype=torch.bfloat16, device="cuda")
-    b = torch.randn(num_experts, 2 * ffn, k, dtype=torch.bfloat16, device="cuda")
-    sizes = torch.full((num_experts,), numel // num_experts, dtype=torch.int32, device="cuda")
-    offsets = torch.arange(num_experts, dtype=torch.int32, device="cuda") * (numel // num_experts)
+    a = torch.randn(numel, k, dtype=torch.bfloat16, device=DEVICE)
+    b = torch.randn(num_experts, 2 * ffn, k, dtype=torch.bfloat16, device=DEVICE)
+    sizes = torch.full((num_experts,), numel // num_experts, dtype=torch.int32, device=DEVICE)
+    offsets = torch.arange(num_experts, dtype=torch.int32, device=DEVICE) * (numel // num_experts)
 
     op = MoeGateUpFwdOp(numel, num_experts, ffn, k, activation="unknown_act")
     with pytest.raises(ValueError, match="no implementation serves this call"):
@@ -85,10 +86,10 @@ def test_the_op_rejects_a_dtype_the_manifest_does_not_declare():
     if not torch.cuda.is_available():
         pytest.skip("No CUDA device found.")
     numel, num_experts, ffn, k = 64, 4, 128, 128
-    a = torch.randn(numel, k, dtype=torch.float32, device="cuda")
-    b = torch.randn(num_experts, 2 * ffn, k, dtype=torch.float32, device="cuda")
-    sizes = torch.full((num_experts,), numel // num_experts, dtype=torch.int32, device="cuda")
-    offsets = torch.arange(num_experts, dtype=torch.int32, device="cuda") * (numel // num_experts)
+    a = torch.randn(numel, k, dtype=torch.float32, device=DEVICE)
+    b = torch.randn(num_experts, 2 * ffn, k, dtype=torch.float32, device=DEVICE)
+    sizes = torch.full((num_experts,), numel // num_experts, dtype=torch.int32, device=DEVICE)
+    offsets = torch.arange(num_experts, dtype=torch.int32, device=DEVICE) * (numel // num_experts)
 
     op = MoeGateUpFwdOp(numel, num_experts, ffn, k)
     with pytest.raises((ValueError, TypeError)):

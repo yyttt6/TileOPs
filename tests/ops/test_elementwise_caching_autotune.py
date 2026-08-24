@@ -7,6 +7,7 @@ Validates:
 - Custom kernels (LeakyRelu, Elu, etc.) also cache compiled functions.
 - Serialization-fallback autotune works for UnaryKernel and FusedGatedKernel.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -58,7 +59,7 @@ class TestUnaryCaching:
         """forward() should use _compiled_fn, not re-lookup the kernel."""
         k = ReluFwdKernel(N, torch.float16)
         fn1 = k._compiled_fn
-        x = torch.randn(N, dtype=torch.float16, device="cuda")
+        x = torch.randn(N, dtype=torch.float16, device=DEVICE)
         _ = k(x)
         # _compiled_fn should not change after forward
         assert k._compiled_fn is fn1
@@ -95,7 +96,7 @@ class TestFusedGatedCaching:
     def test_fused_gated_forward_uses_cached_fn(self):
         k = SiluAndMulFwdKernel(32, 64, torch.float16)
         fn1 = k._compiled_fn
-        x = torch.randn(32, 128, dtype=torch.float16, device="cuda")
+        x = torch.randn(32, 128, dtype=torch.float16, device=DEVICE)
         _ = k(x)
         assert k._compiled_fn is fn1
 
@@ -220,7 +221,7 @@ class TestCachingCorrectness:
     @pytest.mark.full
     def test_unary_relu_correctness(self):
         k = ReluFwdKernel(N, torch.float16)
-        x = torch.randn(N, dtype=torch.float16, device="cuda")
+        x = torch.randn(N, dtype=torch.float16, device=DEVICE)
         out = k(x)
         ref = torch.relu(x.float()).to(torch.float16)
         torch.testing.assert_close(out, ref, atol=1e-3, rtol=1e-3)
@@ -229,7 +230,7 @@ class TestCachingCorrectness:
     def test_fused_gated_silu_correctness(self):
         M, Nhalf = 32, 64
         k = SiluAndMulFwdKernel(M, Nhalf, torch.float16)
-        x = torch.randn(M, 2 * Nhalf, dtype=torch.float16, device="cuda")
+        x = torch.randn(M, 2 * Nhalf, dtype=torch.float16, device=DEVICE)
         out = k(x)
         gate = x[:, :Nhalf].float()
         value = x[:, Nhalf:].float()
@@ -239,7 +240,7 @@ class TestCachingCorrectness:
     @pytest.mark.full
     def test_custom_leaky_relu_correctness(self):
         k = LeakyReluFwdKernel(N, torch.float16, negative_slope=0.01)
-        x = torch.randn(N, dtype=torch.float16, device="cuda")
+        x = torch.randn(N, dtype=torch.float16, device=DEVICE)
         out = k(x)
         ref = torch.nn.functional.leaky_relu(x.float(), 0.01).to(torch.float16)
         torch.testing.assert_close(out, ref, atol=1e-3, rtol=1e-3)

@@ -6,8 +6,9 @@ entry resolution, construction smoke) is specified by
 file covers the load-bearing external behavior: bidirectional
 broadcast against a PyTorch reference.
 """
-
 from __future__ import annotations
+
+from workloads.device import DEVICE
 
 from dataclasses import dataclass
 
@@ -19,27 +20,27 @@ from tileops.perf import formulas
 
 
 def _randn(s, d):
-    return torch.randn(*s, dtype=d, device="cuda")
+    return torch.randn(*s, dtype=d, device=DEVICE)
 
 
 def _rand_pos(s, d):
-    return torch.rand(*s, dtype=d, device="cuda") + 0.1
+    return torch.rand(*s, dtype=d, device=DEVICE) + 0.1
 
 
 def _rand_bool(s, d):
-    return (torch.randn(*s, dtype=d, device="cuda") > 0).to(d)
+    return (torch.randn(*s, dtype=d, device=DEVICE) > 0).to(d)
 
 
 def _randint(s, d):
-    return torch.randint(-1000, 1000, s, dtype=d, device="cuda")
+    return torch.randint(-1000, 1000, s, dtype=d, device=DEVICE)
 
 
 def _pow_base(s, d):
-    return torch.rand(*s, dtype=d, device="cuda") + 0.5
+    return torch.rand(*s, dtype=d, device=DEVICE) + 0.5
 
 
 def _pow_exp(s, d):
-    return torch.rand(*s, dtype=d, device="cuda") * 2.0
+    return torch.rand(*s, dtype=d, device=DEVICE) * 2.0
 
 
 # (op_name, dtype, gen_a, gen_b, ref_fn).

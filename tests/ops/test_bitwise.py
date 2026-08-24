@@ -4,6 +4,7 @@ Bitwise ops operate on integer inputs. We use int32 tensors for testing
 binary bitwise ops, and all bool/integer dtypes for bitwise_not.
 Covers L1 smoke correctness.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -147,8 +148,8 @@ def test_bitwise_broadcast(
     a_shape,
     b_shape,
 ) -> None:
-    a = torch.randint(-1000, 1000, a_shape, dtype=torch.int32, device="cuda")
-    b = torch.randint(-1000, 1000, b_shape, dtype=torch.int32, device="cuda")
+    a = torch.randint(-1000, 1000, a_shape, dtype=torch.int32, device=DEVICE)
+    b = torch.randint(-1000, 1000, b_shape, dtype=torch.int32, device=DEVICE)
     op = op_cls()
     ref = ref_fn(a, b)
     with torch.no_grad():
@@ -187,8 +188,8 @@ def test_bool_bitwise_fast_path(
     a_shape,
     b_shape,
 ) -> None:
-    a = torch.randint(0, 2, a_shape, device="cuda").bool()
-    b = torch.randint(0, 2, b_shape, device="cuda").bool()
+    a = torch.randint(0, 2, a_shape, device=DEVICE).bool()
+    b = torch.randint(0, 2, b_shape, device=DEVICE).bool()
     op = op_cls()
     ref = ref_fn(a, b)
     with torch.no_grad():
@@ -267,6 +268,6 @@ def test_bitwise_binary_rejects_float_dtype(op_cls, dtype: torch.dtype) -> None:
     """Binary bitwise ops only support integer dtypes; floats must be rejected."""
     shape = (16,)
     op = op_cls()
-    x = torch.zeros(shape, device="cuda", dtype=dtype)
+    x = torch.zeros(shape, device=DEVICE, dtype=dtype)
     with pytest.raises(ValueError, match="has dtype|does not support dtype"):
         op(x, x)

@@ -7,6 +7,7 @@ import torch
 from tileops.backend import Target
 from tileops.kernels.elementwise import AlibiFwdKernel
 from tileops.kernels.kernel_base import Kernel
+from workloads.device import DEVICE
 
 from ..op_base import Op
 
@@ -33,6 +34,7 @@ class AlibiFwdOp(Op):
         seq_len: int,
         num_heads: int,
         dtype: torch.dtype,
+        device: Optional[torch.device | str] = None,
         target: Target = None,
         kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
@@ -52,6 +54,7 @@ class AlibiFwdOp(Op):
         self.seq_len = seq_len
         self.num_heads = num_heads
         self.dtype = dtype
+        self.device = DEVICE if device is None else device
         self.target = target
         self.dispatch_kernel(kernel_map)
 
@@ -87,9 +90,14 @@ class AlibiFwdOp(Op):
         """
         kernel = self.get_or_build_kernel(
             self._op_name,
-            (),  # no tensor input, so no device to detect: in-tree only
+            (torch.empty(self._infer_output_shapes()["output"], dtype=self.dtype, device=self.device),),
             key=self.dtype,
             build=lambda: self._build(self.dtype),
         )
-        out = kernel().reshape(self.num_heads, self.seq_len, self.seq_len)
+        probe = torch.empty(
+            self._infer_output_shapes()["output"], dtype=self.dtype, device=self.device
+        )
+        out = kernel() if self._builder is None else kernel(probe)
+        out = probe if out is None else out
+        out = out.reshape(self.num_heads, self.seq_len, self.seq_len)
         return out if out.dtype == self.dtype else out.to(self.dtype)

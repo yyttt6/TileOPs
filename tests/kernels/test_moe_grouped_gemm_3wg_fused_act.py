@@ -1,4 +1,5 @@
 """Correctness tests for MoeGroupedGemmPersistent3WGFusedActKernel."""
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -129,12 +130,12 @@ def test_an_activation_it_cannot_carry_is_outside_the_region():
 def test_cooperative_sparse_bottom_half_paths():
     """Exercise both partial and empty WG1 halves in one cooperative launch."""
     E, ffn, K = 2, 256, 128
-    sizes = torch.tensor([96, 32], dtype=torch.int32, device="cuda")
-    offsets = torch.tensor([0, 96], dtype=torch.int32, device="cuda")
+    sizes = torch.tensor([96, 32], dtype=torch.int32, device=DEVICE)
+    offsets = torch.tensor([0, 96], dtype=torch.int32, device=DEVICE)
     numel = int(sizes.sum())
     torch.manual_seed(17)
-    A = torch.randn(numel, K, dtype=torch.bfloat16, device="cuda") * 0.02
-    B = torch.randn(E, 2 * ffn, K, dtype=torch.bfloat16, device="cuda") * 0.02
+    A = torch.randn(numel, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
+    B = torch.randn(E, 2 * ffn, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
     config = {
         "block_m": 128,
         "block_n": 128,

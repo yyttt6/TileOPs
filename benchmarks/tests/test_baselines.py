@@ -26,7 +26,7 @@ _BOTH_LIBRARIES = (
     and torch.cuda.is_available()
 )
 _needs_both = pytest.mark.skipif(
-    not _BOTH_LIBRARIES, reason="needs both flag_gems and vllm installed, on a GPU"
+    not _BOTH_LIBRARIES, reason="needs both flag_gems and vllm installed with CUDA"
 )
 
 
@@ -82,7 +82,7 @@ def test_vllm_op_reports_the_order_instead_of_aborting(monkeypatch):
 
 
 @pytest.mark.skipif(find_spec("flag_gems") is None, reason="needs flag_gems installed")
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="flag_gems needs a device")
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="flag_gems requires CUDA")
 def test_flaggems_op_refuses_a_pointwise_entry_point():
     """A pointwise kernel would abort the process on the timing loop's second call."""
     with pytest.raises(RuntimeError, match="LibEntry"):

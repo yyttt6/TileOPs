@@ -4,6 +4,7 @@ Covers:
 - BatchNormFwdOp.forward() validates CUDA device, dtype, and shape
 - BatchNormFwdOp and BatchNormBwdOp pass torch.compile smoke tests
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -18,7 +19,7 @@ class TestBatchNormFwdValidation:
 
         return BatchNormFwdOp()
 
-    def _make_inputs(self, device="cuda", dtype=torch.float16):
+    def _make_inputs(self, device=DEVICE, dtype=torch.float16):
         x = torch.randn(4, 8, 4, 4, device=device, dtype=dtype)
         weight = torch.randn(8, device=device, dtype=torch.float32)
         bias = torch.randn(8, device=device, dtype=torch.float32)
@@ -37,14 +38,14 @@ class TestBatchNormFwdValidation:
         from tileops.ops.norm.batch_norm import BatchNormFwdOp
 
         op = BatchNormFwdOp()
-        x_wrong = torch.randn(4, 8, 4, 4, device="cuda", dtype=torch.float64)
+        x_wrong = torch.randn(4, 8, 4, 4, device=DEVICE, dtype=torch.float64)
         _, weight, bias, rm, rv = self._make_inputs()
         with pytest.raises(ValueError, match="dtype"):
             op(x_wrong, rm, rv, weight, bias)
 
     def test_rejects_wrong_shape(self):
         op = self._make_op()
-        x_wrong = torch.randn(4, 16, 4, 4, device="cuda", dtype=torch.float16)
+        x_wrong = torch.randn(4, 16, 4, 4, device=DEVICE, dtype=torch.float16)
         _, weight, bias, rm, rv = self._make_inputs()
         with pytest.raises(ValueError, match="shape|channel|Channel"):
             op(x_wrong, rm, rv, weight, bias)
@@ -60,11 +61,11 @@ class TestBatchNormCustomOp:
         from tileops.ops.norm.batch_norm import BatchNormFwdOp
 
         op = BatchNormFwdOp(training=True)
-        x = torch.randn(4, 8, 4, 4, device="cuda", dtype=torch.float16)
-        weight = torch.randn(8, device="cuda", dtype=torch.float32)
-        bias = torch.randn(8, device="cuda", dtype=torch.float32)
-        rm = torch.zeros(8, device="cuda", dtype=torch.float32)
-        rv = torch.ones(8, device="cuda", dtype=torch.float32)
+        x = torch.randn(4, 8, 4, 4, device=DEVICE, dtype=torch.float16)
+        weight = torch.randn(8, device=DEVICE, dtype=torch.float32)
+        bias = torch.randn(8, device=DEVICE, dtype=torch.float32)
+        rm = torch.zeros(8, device=DEVICE, dtype=torch.float32)
+        rv = torch.ones(8, device=DEVICE, dtype=torch.float32)
 
         compiled = torch.compile(op, fullgraph=False)
         # Manifest input order: (x, running_mean, running_var, weight, bias).
@@ -76,9 +77,9 @@ class TestBatchNormCustomOp:
 
         N, C, H, W = 4, 8, 4, 4
         op = BatchNormBwdOp()
-        grad_out = torch.randn(N, C, H, W, device="cuda", dtype=torch.float16)
-        x = torch.randn(N, C, H, W, device="cuda", dtype=torch.float16)
-        weight = torch.randn(C, device="cuda", dtype=torch.float32)
+        grad_out = torch.randn(N, C, H, W, device=DEVICE, dtype=torch.float16)
+        x = torch.randn(N, C, H, W, device=DEVICE, dtype=torch.float16)
+        weight = torch.randn(C, device=DEVICE, dtype=torch.float32)
         x32 = x.float()
         x_cl = x32.permute(1, 0, 2, 3).reshape(C, -1).contiguous()
         mean = x_cl.mean(dim=1)

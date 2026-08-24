@@ -5,6 +5,7 @@ normalization rows in one block and the last block runs past M. ``block_m`` is
 an autotune candidate but ``select_row_config`` pins the default to 1, so an
 op-level test cannot reach these configs deterministically.
 """
+from workloads.device import DEVICE
 
 import math
 
@@ -33,9 +34,9 @@ def test_affine_multi_row_block(n: int, c: int, spatial: tuple, g: int, block_m:
     dtype = torch.float16
     cpg = c // g
     d = cpg * math.prod(spatial)
-    x = torch.randn((n, c, *spatial), dtype=dtype, device="cuda")
-    weight = torch.randn(c, dtype=dtype, device="cuda")
-    bias = torch.randn(c, dtype=dtype, device="cuda")
+    x = torch.randn((n, c, *spatial), dtype=dtype, device=DEVICE)
+    weight = torch.randn(c, dtype=dtype, device=DEVICE)
+    bias = torch.randn(c, dtype=dtype, device=DEVICE)
 
     kernel = GroupNormKernel(
         d,
@@ -68,7 +69,7 @@ def test_affine_multi_row_block(n: int, c: int, spatial: tuple, g: int, block_m:
 def test_no_affine_multi_row_block(m: int, d: int, block_m: int) -> None:
     """No-affine rows stay correct when a row block runs past M."""
     dtype = torch.float16
-    x = torch.randn((m, d), dtype=dtype, device="cuda")
+    x = torch.randn((m, d), dtype=dtype, device=DEVICE)
 
     kernel = GroupNormNoAffineKernel(
         d,

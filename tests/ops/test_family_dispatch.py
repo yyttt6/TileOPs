@@ -24,7 +24,7 @@ from tileops.ops.linear_attention.gated_deltanet import (
 )
 
 pytestmark = pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="selection reads the device architecture"
+    not torch.cuda.is_available(), reason="selection reads CUDA architecture"
 )
 
 _SM90 = 90

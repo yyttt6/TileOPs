@@ -137,7 +137,7 @@ class Kernel(ABC):
         arch = get_sm_version(self.device_index)
         if arch not in cls.supported_archs:
             where = (
-                "the current device" if self.device_index is None else f"cuda:{self.device_index}"
+                "the current device" if self.device_index is None else f"device index {self.device_index}"
             )
             raise ValueError(
                 f"{cls.__name__} is built for architectures "

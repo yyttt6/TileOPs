@@ -13,6 +13,7 @@ Every row is timed against flag_gems' Triton convolutions, ``F.convNd`` eager
 (which is cuDNN, so cuDNN takes no tag of its own), and that reference through
 inductor.
 """
+from workloads.device import DEVICE
 
 import functools
 from dataclasses import asdict, dataclass
@@ -117,17 +118,17 @@ def _conv_inputs(
 ) -> tuple[torch.Tensor, ...]:
     """Generate ``(input, weight[, bias])`` for a convolution workload."""
     c_in = input_shape[1]
-    x = torch.randn(input_shape, device="cuda", dtype=dtype).contiguous()
+    x = torch.randn(input_shape, device=DEVICE, dtype=dtype).contiguous()
     weight = torch.randn(
         c_out,
         c_in // groups,
         *kernel_size,
-        device="cuda",
+        device=DEVICE,
         dtype=dtype,
     ).contiguous()
     if not with_bias:
         return x, weight
-    bias = torch.zeros(c_out, device="cuda", dtype=dtype).contiguous()
+    bias = torch.zeros(c_out, device=DEVICE, dtype=dtype).contiguous()
     return x, weight, bias
 
 

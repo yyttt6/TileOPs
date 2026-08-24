@@ -2,6 +2,7 @@
 
 Verifies 3WG matches a PyTorch grouped-GEMM oracle.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -117,12 +118,12 @@ def test_partial_m_tile():
     # Make every expert end on a partial tile (size = 1 full block_m tile + 17 rows).
     per_expert = block_m + 17
     numel = E * per_expert
-    sizes = torch.full((E,), per_expert, dtype=torch.int32, device="cuda")
-    offsets = torch.zeros(E, dtype=torch.int32, device="cuda")
+    sizes = torch.full((E,), per_expert, dtype=torch.int32, device=DEVICE)
+    offsets = torch.zeros(E, dtype=torch.int32, device=DEVICE)
     offsets[1:] = torch.cumsum(sizes[:-1], dim=0)
     torch.manual_seed(0)
-    A = torch.randn(numel, K, dtype=torch.bfloat16, device="cuda") * 0.02
-    B = torch.randn(E, N, K, dtype=torch.bfloat16, device="cuda") * 0.02
+    A = torch.randn(numel, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
+    B = torch.randn(E, N, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
     v2 = GroupedGemmPersistent3WGKernel(
         numel=numel, num_experts=E, N=N, K=K, dtype=torch.bfloat16, sm_count=sm
     )
@@ -241,14 +242,14 @@ def test_cooperative_partial_m_tile():
         "threads": 384,
         "group_size_m": 1,
     }
-    sizes = torch.tensor([40, 90, 128, 200], dtype=torch.int32, device="cuda")
+    sizes = torch.tensor([40, 90, 128, 200], dtype=torch.int32, device=DEVICE)
     numel = int(sizes.sum().item())
-    offsets = torch.zeros(4, dtype=torch.int32, device="cuda")
+    offsets = torch.zeros(4, dtype=torch.int32, device=DEVICE)
     offsets[1:] = torch.cumsum(sizes[:-1], dim=0)
     E, N, K = 4, 256, 128
     torch.manual_seed(0)
-    A = torch.randn(numel, K, dtype=torch.bfloat16, device="cuda") * 0.02
-    B = torch.randn(E, N, K, dtype=torch.bfloat16, device="cuda") * 0.02
+    A = torch.randn(numel, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
+    B = torch.randn(E, N, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
     v2 = GroupedGemmPersistent3WGKernel(
         numel=numel, num_experts=E, N=N, K=K, dtype=torch.bfloat16, sm_count=sm, config=cfg
     )
@@ -266,11 +267,11 @@ def _aligned_coop_inputs(seed=42):
     per = 256  # 2 full block_m=128 tiles per expert
     numel = E * per
     torch.manual_seed(seed)
-    sizes = torch.full((E,), per, dtype=torch.int32, device="cuda")
-    offsets = torch.zeros(E, dtype=torch.int32, device="cuda")
+    sizes = torch.full((E,), per, dtype=torch.int32, device=DEVICE)
+    offsets = torch.zeros(E, dtype=torch.int32, device=DEVICE)
     offsets[1:] = torch.cumsum(sizes[:-1], dim=0)
-    A = torch.randn(numel, K, dtype=torch.bfloat16, device="cuda") * 0.02
-    B = torch.randn(E, N, K, dtype=torch.bfloat16, device="cuda") * 0.02
+    A = torch.randn(numel, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
+    B = torch.randn(E, N, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
     return A, B, sizes, offsets, numel, N, K, E
 
 
@@ -284,7 +285,7 @@ def test_out_param_reuse():
         numel=numel, num_experts=E, N=N, K=K, dtype=torch.bfloat16, sm_count=sm
     )
     C_alloc = k3(A, B, sizes, offsets)
-    out = torch.empty(numel, N, dtype=torch.bfloat16, device="cuda")
+    out = torch.empty(numel, N, dtype=torch.bfloat16, device=DEVICE)
     C_out = k3(A, B, sizes, offsets, out=out)
     assert C_out.data_ptr() == out.data_ptr()
     torch.testing.assert_close(C_out, C_alloc, rtol=2e-2, atol=2e-2)
@@ -302,18 +303,18 @@ def test_out_buffer_validation():
     )
 
     with pytest.raises(ValueError, match="out shape"):
-        k3(A, B, sizes, offsets, out=torch.empty(numel, N + 1, dtype=torch.bfloat16, device="cuda"))
+        k3(A, B, sizes, offsets, out=torch.empty(numel, N + 1, dtype=torch.bfloat16, device=DEVICE))
     with pytest.raises(ValueError, match="out dtype"):
-        k3(A, B, sizes, offsets, out=torch.empty(numel, N, dtype=torch.float16, device="cuda"))
+        k3(A, B, sizes, offsets, out=torch.empty(numel, N, dtype=torch.float16, device=DEVICE))
     with pytest.raises(ValueError, match="out device"):
         k3(A, B, sizes, offsets, out=torch.empty(numel, N, dtype=torch.bfloat16, device="cpu"))
     # Non-contiguous view with the right logical shape (transpose of [N, numel]):
     # passes shape/dtype/device but must be rejected on layout.
     with pytest.raises(ValueError, match="contiguous"):
-        k3(A, B, sizes, offsets, out=torch.empty(N, numel, dtype=torch.bfloat16, device="cuda").t())
+        k3(A, B, sizes, offsets, out=torch.empty(N, numel, dtype=torch.bfloat16, device=DEVICE).t())
     # out overlapping the input: A and out are the same storage region. Passes
     # shape/dtype/device/contiguity but must be rejected (read/write race).
-    shared = torch.empty(numel * max(N, K), dtype=torch.bfloat16, device="cuda")
+    shared = torch.empty(numel * max(N, K), dtype=torch.bfloat16, device=DEVICE)
     a_alias = shared[: numel * K].view(numel, K)
     out_alias = shared[: numel * N].view(numel, N)  # overlaps a_alias from byte 0
     with pytest.raises(ValueError, match="overlap"):
@@ -322,7 +323,7 @@ def test_out_buffer_validation():
     # Disjoint slices of one workspace must be ACCEPTED (vLLM-style): a_ws and
     # out_ws share storage but their byte intervals do not overlap.
     C_ref = k3(A, B, sizes, offsets)
-    ws = torch.empty(numel * K + numel * N, dtype=torch.bfloat16, device="cuda")
+    ws = torch.empty(numel * K + numel * N, dtype=torch.bfloat16, device=DEVICE)
     a_ws = ws[: numel * K].view(numel, K)
     out_ws = ws[numel * K :].view(numel, N)
     a_ws.copy_(A)
@@ -339,12 +340,12 @@ def test_no_host_pad_on_unaligned(monkeypatch):
     """
     torch.manual_seed(0)
     num_experts, N, K = 4, 256, 128  # default block_m=128 (cooperative)
-    sizes = torch.tensor([130, 70, 200, 33], dtype=torch.int32, device="cuda")
+    sizes = torch.tensor([130, 70, 200, 33], dtype=torch.int32, device=DEVICE)
     numel = int(sizes.sum())
-    offsets = torch.zeros(num_experts, dtype=torch.int32, device="cuda")
+    offsets = torch.zeros(num_experts, dtype=torch.int32, device=DEVICE)
     offsets[1:] = torch.cumsum(sizes[:-1], 0)
-    A = torch.randn(numel, K, dtype=torch.bfloat16, device="cuda") * 0.02
-    B = torch.randn(num_experts, N, K, dtype=torch.bfloat16, device="cuda") * 0.02
+    A = torch.randn(numel, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
+    B = torch.randn(num_experts, N, K, dtype=torch.bfloat16, device=DEVICE) * 0.02
 
     calls = {"n": 0}
     real_pad = torch.nn.functional.pad

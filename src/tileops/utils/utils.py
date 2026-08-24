@@ -18,18 +18,33 @@ str2dtype = {
 
 @functools.lru_cache(maxsize=16)
 def _device_name(index: int) -> str:
-    return torch.cuda.get_device_name(index).upper()
+    if not torch.cuda.is_available():
+        return "NON-CUDA"
+    try:
+        return torch.cuda.get_device_name(index).upper()
+    except (RuntimeError, AssertionError):
+        return "NON-CUDA"
 
 
 @functools.lru_cache(maxsize=16)
 def _sm_version(index: int) -> int:
-    major, minor = torch.cuda.get_device_capability(index)
+    if not torch.cuda.is_available():
+        return -1
+    try:
+        major, minor = torch.cuda.get_device_capability(index)
+    except (RuntimeError, AssertionError):
+        return -1
     return major * 10 + minor
 
 
 @functools.lru_cache(maxsize=16)
 def _sm_count(index: int) -> int:
-    return torch.cuda.get_device_properties(index).multi_processor_count
+    if not torch.cuda.is_available():
+        return 0
+    try:
+        return torch.cuda.get_device_properties(index).multi_processor_count
+    except (RuntimeError, AssertionError):
+        return 0
 
 
 def is_h200(index: "int | None" = None) -> bool:
@@ -40,16 +55,20 @@ def is_h200(index: "int | None" = None) -> bool:
 
 
 def get_sm_version(index: "int | None" = None) -> int:
-    """Architecture of the device as ``major * 10 + minor``; defaults to current."""
+    """Architecture as ``major * 10 + minor``; ``-1`` means a non-CUDA device."""
+    if not torch.cuda.is_available():
+        return -1
     return _sm_version(torch.cuda.current_device() if index is None else index)
 
 
 def get_sm_count(index: "int | None" = None) -> int:
-    """Multiprocessors on the device; defaults to current.
+    """Multiprocessors on the device; ``0`` means a non-CUDA device.
 
     Persistent kernels size their grid by this, so it is read once per kernel
     construction rather than kept as a constant per kernel.
     """
+    if not torch.cuda.is_available():
+        return 0
     return _sm_count(torch.cuda.current_device() if index is None else index)
 
 

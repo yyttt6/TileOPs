@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 from typing import List, Optional
 
 import pytest
@@ -98,7 +99,7 @@ def test_mean_pooling_bench(
     if offsets is not None:
         assert batch_size == 1
         assert offsets[-1] == seq_len
-        offset_tensor = torch.tensor(offsets, dtype=torch.int32, device="cuda")
+        offset_tensor = torch.tensor(offsets, dtype=torch.int32, device=DEVICE)
         indices = prepare_chunk_indices(offset_tensor, chunk_size)
         chunks_per_batch = indices.shape[0]
         seq_num = offset_tensor.shape[0] - 1
@@ -109,11 +110,11 @@ def test_mean_pooling_bench(
             (batch_size + 1) * seq_len,
             seq_len,
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
             requires_grad=False,
         )
         chunks_per_batch = (seq_len + chunk_size - 1) // chunk_size
-        indices = torch.empty((chunks_per_batch, 2), dtype=torch.int32, device="cuda")
+        indices = torch.empty((chunks_per_batch, 2), dtype=torch.int32, device=DEVICE)
         seq_num = batch_size
         use_offsets = 0
 

@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 import torch.nn.functional as F
@@ -108,10 +109,10 @@ class AdaLayerNormZero3DFixture(FixtureBase):
 @AdaLayerNormZero3DFixture
 def test_ada_layer_norm_zero_3d(batch: int, seq: int, hidden: int, dtype: torch.dtype) -> None:
     """Test with 3D input (batch, seq, hidden)."""
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    scale = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    shift = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    gate = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    scale = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    shift = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    gate = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
 
     op = AdaLayerNormZeroFwdOp()
 

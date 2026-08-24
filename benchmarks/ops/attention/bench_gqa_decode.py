@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -23,7 +24,7 @@ def _fa3_gqa_decode_fwd(test):
     except ImportError:
         return None
 
-    cache_seqlens = torch.full((test.batch,), test.seq_len_kv, dtype=torch.int32, device="cuda")
+    cache_seqlens = torch.full((test.batch,), test.seq_len_kv, dtype=torch.int32, device=DEVICE)
 
     def baseline_fn(q, k, v):
         # Q is (B, H, D); FA3 KV-cache decode expects (B, S_q, H, D).

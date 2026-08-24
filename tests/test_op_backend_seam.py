@@ -5,6 +5,7 @@ manifest's inputs and params, its kernel is memoized under the input signature, 
 everything the op layer does for every target — validation, contiguity, output shape — still
 happens. Uses a fake target, so no vendor hardware is involved.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -148,7 +149,7 @@ def test_the_same_input_signature_is_built_once():
         (dict(dtype=torch.bfloat16), "a different dtype certainly does"),
         # A second real device, not meta: meta inputs dispatch to the op's fake, which
         # returns before a kernel is ever asked for.
-        (dict(device="cuda"), "a kernel may hold resources allocated on one device"),
+        (dict(device=DEVICE), "a kernel may hold resources allocated on one device"),
     ],
     ids=["shape", "dtype", "device"],
 )
@@ -336,8 +337,8 @@ def test_a_call_without_tensors_still_honours_an_explicit_target():
 def test_a_settled_instance_is_bound_to_that_target_s_devices():
     """One instance, one target. A kernel handed a foreign tensor is what says so."""
     op = RMSNormFwdOp(normalized_shape=NORMALIZED_SHAPE, target=BUILTIN)
-    x = torch.randn(4, *NORMALIZED_SHAPE, dtype=DTYPE, device="cuda")
-    weight = torch.randn(*NORMALIZED_SHAPE, dtype=DTYPE, device="cuda")
+    x = torch.randn(4, *NORMALIZED_SHAPE, dtype=DTYPE, device=DEVICE)
+    weight = torch.randn(*NORMALIZED_SHAPE, dtype=DTYPE, device=DEVICE)
     op(x, weight)
 
     with pytest.raises(ValueError, match="is a CUDA kernel"):

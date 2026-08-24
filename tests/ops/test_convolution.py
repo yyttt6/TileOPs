@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 import torch.nn.functional as F
@@ -268,8 +269,8 @@ def test_conv1d(
 @pytest.mark.smoke
 def test_conv1d_no_bias_matches_torch() -> None:
     op = Conv1dFwdOp(stride=2, padding=2)
-    x = torch.randn(1, 32, 256, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 5, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 256, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 5, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     ref = F.conv1d(x, weight, bias=None, stride=2, padding=2).contiguous()
     torch.testing.assert_close(out, ref, atol=1e-3, rtol=1e-3)
@@ -278,9 +279,9 @@ def test_conv1d_no_bias_matches_torch() -> None:
 @pytest.mark.smoke
 def test_conv1d_bias_matches_torch() -> None:
     op = Conv1dFwdOp(stride=2, padding=2)
-    x = torch.randn(1, 32, 256, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 5, device="cuda", dtype=torch.float16).contiguous()
-    bias = torch.zeros(64, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 256, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 5, device=DEVICE, dtype=torch.float16).contiguous()
+    bias = torch.zeros(64, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight, bias)
     ref = F.conv1d(x, weight, bias=bias, stride=2, padding=2).contiguous()
     torch.testing.assert_close(out, ref, atol=1e-3, rtol=1e-3)
@@ -301,9 +302,9 @@ def test_conv1d_dilation_matches_torch(dilation, use_bias: bool) -> None:
         padding=padding,
         dilation=dilation,
     )
-    x = torch.randn(n, c_in, l_in, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(c_out, c_in, kernel_size, device="cuda", dtype=torch.float16).contiguous()
-    bias = torch.randn(c_out, device="cuda", dtype=torch.float16).contiguous() if use_bias else None
+    x = torch.randn(n, c_in, l_in, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(c_out, c_in, kernel_size, device=DEVICE, dtype=torch.float16).contiguous()
+    bias = torch.randn(c_out, device=DEVICE, dtype=torch.float16).contiguous() if use_bias else None
     out = op(x, weight, bias) if use_bias else op(x, weight)
     ref = F.conv1d(
         x,
@@ -325,9 +326,9 @@ def test_conv1d_dilation_matches_torch(dilation, use_bias: bool) -> None:
 def test_conv1d_same_padding_even_kernel_matches_torch(use_bias: bool) -> None:
     n, c_in, l_in, c_out, kernel_size = 1, 16, 129, 32, 2
     op = Conv1dFwdOp(padding="same")
-    x = torch.randn(n, c_in, l_in, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(c_out, c_in, kernel_size, device="cuda", dtype=torch.float16).contiguous()
-    bias = torch.randn(c_out, device="cuda", dtype=torch.float16).contiguous() if use_bias else None
+    x = torch.randn(n, c_in, l_in, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(c_out, c_in, kernel_size, device=DEVICE, dtype=torch.float16).contiguous()
+    bias = torch.randn(c_out, device=DEVICE, dtype=torch.float16).contiguous() if use_bias else None
     out = op(x, weight, bias) if use_bias else op(x, weight)
     ref = F.conv1d(x, weight, bias=bias, padding="same").contiguous()
     torch.testing.assert_close(out, ref, atol=2e-3, rtol=3e-3)
@@ -353,8 +354,8 @@ def test_conv1d_dispatches_kernel(
         padding=padding,
         dilation=dilation,
     )
-    x = torch.randn(1, 32, 256, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, kernel_size, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 256, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, kernel_size, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     assert isinstance(op.kernel, expected_kernel)
     ref = F.conv1d(x, weight, bias=None, stride=stride, padding=padding, dilation=dilation)
@@ -637,8 +638,8 @@ def test_conv2d_no_bias_matches_torch() -> None:
         padding=4,
         dilation=2,
     )
-    x = torch.randn(1, 32, 16, 16, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 5, 5, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 5, 5, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     ref = F.conv2d(
         x,
@@ -659,8 +660,8 @@ def test_conv2d_no_bias_grouped_matches_torch() -> None:
         padding=1,
         groups=groups,
     )
-    x = torch.randn(1, 16, 16, 16, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(32, 2, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 16, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(32, 2, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     ref = F.conv2d(x, weight, bias=None, padding=1, groups=groups).contiguous()
     torch.testing.assert_close(out, ref, atol=1e-3, rtol=1e-3)
@@ -672,10 +673,10 @@ def test_conv2d_depthwise_dispatches_the_direct_kernel(use_bias: bool) -> None:
     """One channel per group is a GEMM with M=1, so it gets a direct kernel instead."""
     channels = 32
     op = Conv2dFwdOp(padding=1, groups=channels)
-    x = torch.randn(1, channels, 28, 28, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(channels, 1, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, channels, 28, 28, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(channels, 1, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     bias = (
-        torch.randn(channels, device="cuda", dtype=torch.float16).contiguous() if use_bias else None
+        torch.randn(channels, device=DEVICE, dtype=torch.float16).contiguous() if use_bias else None
     )
 
     out = op(x, weight, bias)
@@ -688,8 +689,8 @@ def test_conv2d_depthwise_dispatches_the_direct_kernel(use_bias: bool) -> None:
 @pytest.mark.smoke
 def test_conv2d_dispatches_1x1_kernel() -> None:
     op = Conv2dFwdOp()
-    x = torch.randn(1, 32, 32, 32, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 1, 1, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 32, 32, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 1, 1, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     assert isinstance(op.kernel, Conv2d1x1Kernel)
     ref = F.conv2d(x, weight, bias=None, padding=0)
@@ -702,8 +703,8 @@ def test_conv2d_does_not_dispatch_1x1_kernel_with_padding() -> None:
     # the general kernel handles the padded 1x1 case without the im2col-TMA
     # constraints that affect the symmetric path.
     op = Conv2dFwdOp(padding=1)
-    x = torch.randn(1, 16, 32, 32, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 16, 1, 1, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 16, 32, 32, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 16, 1, 1, device=DEVICE, dtype=torch.float16).contiguous()
     op(x, weight)
     assert not isinstance(op.kernel, Conv2d1x1Kernel)
 
@@ -711,8 +712,8 @@ def test_conv2d_does_not_dispatch_1x1_kernel_with_padding() -> None:
 @pytest.mark.smoke
 def test_conv2d_dispatches_3x3_kernel() -> None:
     op = Conv2dFwdOp(padding=1)
-    x = torch.randn(1, 32, 32, 32, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 32, 32, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     assert isinstance(op.kernel, Conv2dSymmetricKernel)
     ref = F.conv2d(x, weight, bias=None, padding=1)
@@ -722,8 +723,8 @@ def test_conv2d_dispatches_3x3_kernel() -> None:
 @pytest.mark.smoke
 def test_conv2d_dispatches_5x5_kernel() -> None:
     op = Conv2dFwdOp(padding=2)
-    x = torch.randn(1, 32, 32, 32, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 5, 5, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 32, 32, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 5, 5, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     assert isinstance(op.kernel, Conv2dSymmetricKernel)
     ref = F.conv2d(x, weight, bias=None, padding=2)
@@ -921,8 +922,8 @@ def test_conv3d_no_bias_matches_torch() -> None:
         padding=2,
         dilation=2,
     )
-    x = torch.randn(1, 8, 8, 16, 16, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(16, 8, 3, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 8, 8, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(16, 8, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     ref = F.conv3d(
         x,
@@ -943,8 +944,8 @@ def test_conv3d_no_bias_grouped_matches_torch() -> None:
         padding=1,
         groups=groups,
     )
-    x = torch.randn(1, 8, 4, 12, 12, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(16, 2, 3, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 8, 4, 12, 12, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(16, 2, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
     ref = F.conv3d(x, weight, bias=None, padding=1, groups=groups).contiguous()
     torch.testing.assert_close(out, ref, atol=1e-3, rtol=1e-3)
@@ -956,9 +957,9 @@ def test_conv3d_accepts_zero_bias() -> None:
         stride=2,
         padding=1,
     )
-    x = torch.randn(1, 8, 8, 16, 16, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(16, 8, 3, 3, 3, device="cuda", dtype=torch.float16).contiguous()
-    bias = torch.zeros(16, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 8, 8, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(16, 8, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
+    bias = torch.zeros(16, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight, bias)
     ref = F.conv3d(
         x,
@@ -974,8 +975,8 @@ def test_conv3d_accepts_zero_bias() -> None:
 @pytest.mark.smoke
 def test_conv3d_dispatches_kernel() -> None:
     op = Conv3dFwdOp(stride=1, padding=1)
-    x = torch.randn(1, 8, 8, 32, 32, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(16, 8, 3, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 8, 8, 32, 32, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(16, 8, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     op(x, weight)
     assert isinstance(op.kernel, Conv3dKernel)
 
@@ -983,10 +984,10 @@ def test_conv3d_dispatches_kernel() -> None:
 @pytest.mark.smoke
 def test_conv2d_dynamic_shape_kernel_cache_and_roofline() -> None:
     op = Conv2dFwdOp(stride=1, padding=1)
-    x1 = torch.randn(1, 16, 32, 32, dtype=torch.float16, device="cuda")
-    w1 = torch.randn(24, 16, 3, 3, dtype=torch.float16, device="cuda")
-    x2 = torch.randn(2, 16, 32, 32, dtype=torch.float16, device="cuda")
-    w2 = torch.randn(24, 16, 3, 3, dtype=torch.float16, device="cuda")
+    x1 = torch.randn(1, 16, 32, 32, dtype=torch.float16, device=DEVICE)
+    w1 = torch.randn(24, 16, 3, 3, dtype=torch.float16, device=DEVICE)
+    x2 = torch.randn(2, 16, 32, 32, dtype=torch.float16, device=DEVICE)
+    w2 = torch.randn(24, 16, 3, 3, dtype=torch.float16, device=DEVICE)
 
     with pytest.raises(RuntimeError, match="requires a prior forward"):
         op.eval_roofline()
@@ -1009,8 +1010,8 @@ def test_conv1d_depthwise_no_bias_matches_torch() -> None:
     """The depthwise-direct path is the one Conv1d variant no other no-bias case reaches."""
     groups = 32
     op = Conv1dFwdOp(padding=1, groups=groups)
-    x = torch.randn(1, groups, 128, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(groups, 1, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, groups, 128, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(groups, 1, 3, device=DEVICE, dtype=torch.float16).contiguous()
 
     out = op(x, weight)
 
@@ -1038,9 +1039,9 @@ def test_a_kernel_built_without_a_bias_refuses_one() -> None:
         pad_w=0,
         dtype=torch.float16,
     )
-    x = torch.randn(1, 32, 8, 8, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(32, 32, 1, 1, device="cuda", dtype=torch.float16).contiguous()
-    bias = torch.randn(32, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 8, 8, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(32, 32, 1, 1, device=DEVICE, dtype=torch.float16).contiguous()
+    bias = torch.randn(32, device=DEVICE, dtype=torch.float16).contiguous()
 
     with pytest.raises(ValueError, match="built without a bias"):
         kernel(x, weight, bias)
@@ -1050,7 +1051,7 @@ def test_a_kernel_built_without_a_bias_refuses_one() -> None:
 def test_inputs_on_different_devices_are_rejected() -> None:
     """The kernel memo lets the first input's device speak for the rest, so they agree."""
     op = Conv2dFwdOp(padding=1)
-    x = torch.randn(1, 8, 8, 8, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 8, 8, 8, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(4, 8, 3, 3, dtype=torch.float16).contiguous()
 
     with pytest.raises(ValueError, match="every input on cuda"):
@@ -1068,9 +1069,9 @@ def test_inputs_on_different_devices_are_rejected() -> None:
 def test_conv2d_cold_traces_fullgraph_and_owns_its_graph_nodes(use_bias: bool) -> None:
     """Cold is the whole contract: a warm op has nothing left for dynamo to trace into."""
     op = Conv2dFwdOp(padding=1)
-    x = torch.randn(1, 32, 16, 16, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 3, 3, device="cuda", dtype=torch.float16).contiguous()
-    bias = torch.randn(64, device="cuda", dtype=torch.float16).contiguous() if use_bias else None
+    x = torch.randn(1, 32, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
+    bias = torch.randn(64, device=DEVICE, dtype=torch.float16).contiguous() if use_bias else None
 
     assert_op_owns_graph_nodes(op, x, weight, bias)
     torch.testing.assert_close(
@@ -1082,8 +1083,8 @@ def test_conv2d_cold_traces_fullgraph_and_owns_its_graph_nodes(use_bias: bool) -
 @pytest.mark.usefixtures("isolated_dynamo")
 def test_conv1d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
     op = Conv1dFwdOp(padding=1)
-    x = torch.randn(1, 32, 128, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(64, 32, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 128, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(64, 32, 3, device=DEVICE, dtype=torch.float16).contiguous()
 
     assert_op_owns_graph_nodes(op, x, weight, None)
     torch.testing.assert_close(torch.compile(op, fullgraph=True)(x, weight), op(x, weight))
@@ -1093,8 +1094,8 @@ def test_conv1d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
 @pytest.mark.usefixtures("isolated_dynamo")
 def test_conv3d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
     op = Conv3dFwdOp(padding=1)
-    x = torch.randn(1, 16, 8, 8, 8, device="cuda", dtype=torch.float16).contiguous()
-    weight = torch.randn(32, 16, 3, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 16, 8, 8, 8, device=DEVICE, dtype=torch.float16).contiguous()
+    weight = torch.randn(32, 16, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
 
     assert_op_owns_graph_nodes(op, x, weight, None)
     torch.testing.assert_close(torch.compile(op, fullgraph=True)(x, weight), op(x, weight))
@@ -1105,8 +1106,8 @@ def test_conv3d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
 def test_a_non_contiguous_input_compiles_to_the_shape_the_fake_promised() -> None:
     """The fake speaks before the body normalizes contiguity, so it promises contiguous."""
     op = Conv2dFwdOp(padding=1)
-    x = torch.randn(1, 32, 16, 32, device="cuda", dtype=torch.float16)[:, :, :, ::2]
-    weight = torch.randn(64, 32, 3, 3, device="cuda", dtype=torch.float16).contiguous()
+    x = torch.randn(1, 32, 16, 32, device=DEVICE, dtype=torch.float16)[:, :, :, ::2]
+    weight = torch.randn(64, 32, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     assert not x.is_contiguous()
 
     output = torch.compile(op, fullgraph=True)(x, weight)

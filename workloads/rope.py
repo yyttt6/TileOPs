@@ -1,4 +1,5 @@
 """Workload definitions for the RoPE op family."""
+from workloads.device import DEVICE
 
 import torch
 
@@ -29,14 +30,14 @@ class RopeWorkload(WorkloadBase):
     def gen_inputs(self) -> tuple[torch.Tensor]:
         """Generate only x; cos/sin are computed by the op internally."""
         if self.layout == "1d":
-            x = torch.randn(self.seq_len, self.head_dim, device="cuda", dtype=self.dtype)
+            x = torch.randn(self.seq_len, self.head_dim, device=DEVICE, dtype=self.dtype)
         else:
             x = torch.randn(
                 self.batch,
                 self.seq_len,
                 self.num_heads,
                 self.head_dim,
-                device="cuda",
+                device=DEVICE,
                 dtype=self.dtype,
             )
         return (x,)

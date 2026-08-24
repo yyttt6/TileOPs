@@ -8,6 +8,7 @@ warm op has nothing left for dynamo to trace into.
 and logsumexp reduces everything, and either choice keeps the output shape while changing
 the values, so a case that does not say which axis it means proves little.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -70,7 +71,7 @@ for _op_cls in _OP_CLASSES:
 
 
 def _x(*shape, dtype=_DTYPE):
-    return torch.randn(*shape, dtype=dtype, device="cuda")
+    return torch.randn(*shape, dtype=dtype, device=DEVICE)
 
 
 def _cases():
@@ -107,7 +108,7 @@ def _cases():
         # result must still be a tensor of its own.
         "all-empty-dim-bool": lambda: (
             AllFwdOp(dim=[]),
-            (torch.randint(2, (_ROWS, _COLS), dtype=torch.bool, device="cuda"),),
+            (torch.randint(2, (_ROWS, _COLS), dtype=torch.bool, device=DEVICE),),
         ),
         "any": one_tensor(AnyFwdOp, dim=-1),
         # int64 out.

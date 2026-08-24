@@ -11,6 +11,7 @@ Interface note:
   fwd_idx [T*K] (forward mapping: flat_idx → padded slot).
   Tests use padded_batch_sum = T*K (no actual padding) for simplicity.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -81,10 +82,10 @@ def test_moe_unpermute_skewed():
     """All tokens routed to expert 0 — fwd_idx maps all slots to first K padded positions."""
     T, K, H = 32, 4, 64
     numel = T * K
-    mm2_pad = torch.randn(numel, H, dtype=torch.bfloat16, device="cuda")
+    mm2_pad = torch.randn(numel, H, dtype=torch.bfloat16, device=DEVICE)
     # All flat_idx map to padded_slot in [0, K): fwd_idx[i*K+k] = k
-    fwd_idx = torch.arange(numel, dtype=torch.int32, device="cuda") % K
-    topk_weights = torch.rand(T, K, dtype=torch.float32, device="cuda")
+    fwd_idx = torch.arange(numel, dtype=torch.int32, device=DEVICE) % K
+    topk_weights = torch.rand(T, K, dtype=torch.float32, device=DEVICE)
 
     op = MoeUnpermuteFwdOp(T, K, H, padded_batch_sum=numel)
     output = op(mm2_pad, fwd_idx, topk_weights)

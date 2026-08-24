@@ -27,7 +27,7 @@ from tileops.ops.moe import SharedFusedMoE
 # Skip entire module if fewer than 2 GPUs
 pytestmark = pytest.mark.skipif(
     torch.cuda.device_count() < 2,
-    reason="Distributed TP tests require at least 2 GPUs",
+    reason="Distributed TP tests require at least 2 CUDA devices",
 )
 
 # vLLM optional imports

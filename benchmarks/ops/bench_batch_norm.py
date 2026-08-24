@@ -5,6 +5,7 @@ forward row adds flag_gems' batch_norm and cuDNN through inductor. The backward 
 carries two torch tags: an autograd node driven on this thread, and aten's backward
 kernel by itself. The difference between them is the forward the autograd one rebuilds.
 """
+from workloads.device import DEVICE
 
 import math
 
@@ -32,7 +33,7 @@ _BWD_OP_NAME = "BatchNormBwdOp"
 # Benchmark helpers
 
 
-def _make_inputs(N, C, spatial, dtype, device="cuda"):
+def _make_inputs(N, C, spatial, dtype, device=DEVICE):
     shape = (N, C, *spatial)
     x = torch.randn(*shape, device=device, dtype=dtype)
     weight = torch.randn(C, device=device, dtype=torch.float32)
@@ -42,7 +43,7 @@ def _make_inputs(N, C, spatial, dtype, device="cuda"):
     return x, weight, bias, running_mean, running_var
 
 
-def _make_bwd_inputs(N, C, spatial, dtype, device="cuda"):
+def _make_bwd_inputs(N, C, spatial, dtype, device=DEVICE):
     x, weight, bias, running_mean, running_var = _make_inputs(N, C, spatial, dtype, device)
     grad_out = torch.randn_like(x)
     L = N * math.prod(spatial) if spatial else N

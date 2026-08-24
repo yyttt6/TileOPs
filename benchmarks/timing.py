@@ -11,6 +11,7 @@ protocol's one demand on a timed callable: it must launch its own work rather th
 it to another thread (``Tensor.backward`` hands it to autograd's engine thread;
 ``grad_fn.apply`` does not).
 """
+from workloads.device import DEVICE
 
 import contextlib
 import ctypes
@@ -67,6 +68,15 @@ _PREPARE_ID = 1 << 32
 
 # L2 cache flush buffer, allocated lazily.
 _l2_flush_cache: Optional[torch.Tensor] = None
+
+
+def _npu_runtime():
+    return getattr(torch, "npu", None)
+
+
+def _is_npu() -> bool:
+    npu = _npu_runtime()
+    return npu is not None and callable(getattr(npu, "is_available", None)) and npu.is_available()
 
 
 def _clamp_iters(raw: float, max_iters: int = _MAX_ITERS, min_iters: int = _MIN_ITERS) -> int:
@@ -141,7 +151,7 @@ def _drop_counter_is_live() -> bool:
     if _DROP_COUNTER_LIVE is not None:
         return _DROP_COUNTER_LIVE
     probe_kernels = 4
-    probe = torch.empty(1, device="cuda")
+    probe = torch.empty(1, device=DEVICE)
     with _phase_session(buffer_bytes=8):  # too small to hold one record
         for _ in range(probe_kernels):
             probe.zero_()
@@ -490,7 +500,7 @@ def _get_l2_flush_cache() -> torch.Tensor:
                 l2_bytes,
             )
             l2_bytes = int(256e6)
-        _l2_flush_cache = torch.empty(2 * l2_bytes, dtype=torch.int8, device="cuda")
+        _l2_flush_cache = torch.empty(2 * l2_bytes, dtype=torch.int8, device=DEVICE)
     return _l2_flush_cache
 
 
@@ -519,7 +529,13 @@ def _capture_bench_meta() -> dict:
     """Snapshot how the last measurement was taken."""
     return {
         key: value
-        for key in ("timing", "fallback_reason", "attribution_retries")
+        for key in (
+            "timing",
+            "fallback_reason",
+            "attribution_retries",
+            "l2_flushed",
+            "graph_attribution",
+        )
         if (value := getattr(_bench_meta, key, None)) is not None
     }
 
@@ -553,6 +569,49 @@ def bench_kernel(
     _bench_meta.timing = None
     _bench_meta.fallback_reason = None
     _bench_meta.attribution_retries = None
+    _bench_meta.l2_flushed = not _is_npu()
+    _bench_meta.graph_attribution = "cuda-CUPTI only" if not _is_npu() else "unimplemented (ACL Graph)"
+
+    if _is_npu():
+        npu = _npu_runtime()
+        synchronize = npu.synchronize
+        event_cls = npu.Event
+
+        def call_raw():
+            return fn(*args) if args else fn()
+
+        synchronize()
+        for _ in range(_CALIBRATION_ITERS):
+            call_raw()
+        synchronize()
+        start = event_cls(enable_timing=True)
+        end = event_cls(enable_timing=True)
+        start.record()
+        for _ in range(_CALIBRATION_ITERS):
+            call_raw()
+        end.record()
+        synchronize()
+        per_iter_ms = max(start.elapsed_time(end) / _CALIBRATION_ITERS, 1e-6)
+        n_warmup = _clamp_iters(dry_run_ms / per_iter_ms, max_iters, min_iters)
+        n_repeat = _clamp_iters(repeat_ms / per_iter_ms, max_iters, min_iters)
+        for _ in range(n_warmup):
+            synchronize()
+            call_raw()
+            synchronize()
+        samples: list[Sample] = []
+        for _ in range(n_repeat):
+            synchronize()
+            start = event_cls(enable_timing=True)
+            end = event_cls(enable_timing=True)
+            start.record()
+            call_raw()
+            end.record()
+            synchronize()
+            elapsed = start.elapsed_time(end)
+            samples.append(Sample(device_busy_ms=elapsed, latency_ms=elapsed, n_kernels=None))
+        _bench_meta.timing = "npu-events"
+        return samples
+
     cache = _get_l2_flush_cache()
 
     def _flush_l2():

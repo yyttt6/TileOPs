@@ -8,8 +8,9 @@ the ``dim`` shape picks a ``normalize_dim`` branch and ``keepdim`` an output-sha
 so those two are crossed; ``correction`` is a constant the kernel bakes in, where only
 "zero" and "nonzero" differ; and the element type has to be swept but changes no branch.
 """
-
 from __future__ import annotations
+
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -74,7 +75,7 @@ def _check(op_cls, ref_fn, x, dim, keepdim, correction) -> None:
 def test_the_output_shape_matches_torch(op_cls, ref_fn, dim, keepdim) -> None:
     """The two axes that pick branches, crossed: ``dim=None, keepdim=False`` is 0-D."""
     torch.manual_seed(0)
-    x = torch.randn(*_SHAPE, dtype=torch.float16, device="cuda")
+    x = torch.randn(*_SHAPE, dtype=torch.float16, device=DEVICE)
 
     _check(op_cls, ref_fn, x, dim, keepdim, correction=1)
 
@@ -87,7 +88,7 @@ def test_the_output_shape_matches_torch(op_cls, ref_fn, dim, keepdim) -> None:
 def test_every_declared_dtype_matches_torch(op_cls, ref_fn, dtype) -> None:
     """Swept, not crossed: the element type reaches no branch the shape axes do not."""
     torch.manual_seed(0)
-    x = torch.randn(*_SHAPE, dtype=dtype, device="cuda")
+    x = torch.randn(*_SHAPE, dtype=dtype, device=DEVICE)
 
     _check(op_cls, ref_fn, x, dim=-1, keepdim=False, correction=1)
 
@@ -97,7 +98,7 @@ def test_every_declared_dtype_matches_torch(op_cls, ref_fn, dtype) -> None:
 def test_a_zero_correction_matches_torch(op_cls, ref_fn) -> None:
     """The one ``correction`` that differs in kind: the denominator is ``N``, not ``N - c``."""
     torch.manual_seed(0)
-    x = torch.randn(*_SHAPE, dtype=torch.float16, device="cuda")
+    x = torch.randn(*_SHAPE, dtype=torch.float16, device=DEVICE)
 
     _check(op_cls, ref_fn, x, dim=-1, keepdim=False, correction=0)
 
@@ -108,7 +109,7 @@ def test_a_zero_correction_matches_torch(op_cls, ref_fn) -> None:
 def test_an_unaligned_innermost_dim_matches_torch(op_cls, ref_fn, dim) -> None:
     """255 flushes the masked-load boundary that a tile-multiple extent skips."""
     torch.manual_seed(0)
-    x = torch.randn(*_UNALIGNED_SHAPE, dtype=torch.float16, device="cuda")
+    x = torch.randn(*_UNALIGNED_SHAPE, dtype=torch.float16, device=DEVICE)
 
     _check(op_cls, ref_fn, x, dim, keepdim=False, correction=1)
 
@@ -117,7 +118,7 @@ def test_an_unaligned_innermost_dim_matches_torch(op_cls, ref_fn, dim) -> None:
 def test_var_mean_returns_the_pair_in_torch_s_order() -> None:
     """The only shape-of-return difference in the family, so the only test that needs it."""
     torch.manual_seed(0)
-    x = torch.randn(*_SHAPE, dtype=torch.float16, device="cuda")
+    x = torch.randn(*_SHAPE, dtype=torch.float16, device=DEVICE)
 
     out = VarMeanFwdOp(dim=-1)(x)
 

@@ -1,4 +1,5 @@
 """Workload definitions for the MHA attention ops."""
+from workloads.device import DEVICE
 
 import math
 
@@ -31,7 +32,7 @@ class MhaBwdWorkload(WorkloadBase):
             self.heads,
             self.dim,
             dtype=self.dtype,
-            device="cuda",
+            device=DEVICE,
             requires_grad=True,
         )
         k = torch.randn(
@@ -40,7 +41,7 @@ class MhaBwdWorkload(WorkloadBase):
             self.heads,
             self.dim,
             dtype=self.dtype,
-            device="cuda",
+            device=DEVICE,
             requires_grad=True,
         )
         v = torch.randn(
@@ -49,11 +50,11 @@ class MhaBwdWorkload(WorkloadBase):
             self.heads,
             self.dim,
             dtype=self.dtype,
-            device="cuda",
+            device=DEVICE,
             requires_grad=True,
         )
         grad_output = torch.randn(
-            self.batch, self.seq_len, self.heads, self.dim, dtype=self.dtype, device="cuda"
+            self.batch, self.seq_len, self.heads, self.dim, dtype=self.dtype, device=DEVICE
         )
 
         fwd_op = MultiHeadAttentionFwdOp(
@@ -107,13 +108,13 @@ class MhaFwdWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         q = torch.randn(
-            self.batch, self.seq_len, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         k = torch.randn(
-            self.batch, self.seq_len, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         v = torch.randn(
-            self.batch, self.seq_len, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         return q, k, v
 
@@ -142,13 +143,13 @@ class MhaDecodeWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         Q = torch.randn(
-            self.batch, self.seq_len_q, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len_q, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         K = torch.randn(
-            self.batch, self.seq_len_kv, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len_kv, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         V = torch.randn(
-            self.batch, self.seq_len_kv, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len_kv, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         return Q, K, V
 
@@ -188,16 +189,16 @@ class MhaDecodePagedWorkload(WorkloadBase):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         num_pages = self.seqlen_kv // self.page_size
         real_seqlen_kv = (
-            torch.ones((self.batch,), dtype=torch.int32, device="cuda") * self.seqlen_kv
+            torch.ones((self.batch,), dtype=torch.int32, device=DEVICE) * self.seqlen_kv
         )
         q = torch.randn(
-            self.batch, self.seqlen_q, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seqlen_q, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
-        k = torch.randn(self.seqlen_kv, self.heads, self.dim, device="cuda", dtype=self.dtype)
-        v = torch.randn(self.seqlen_kv, self.heads, self.dim, device="cuda", dtype=self.dtype)
+        k = torch.randn(self.seqlen_kv, self.heads, self.dim, device=DEVICE, dtype=self.dtype)
+        v = torch.randn(self.seqlen_kv, self.heads, self.dim, device=DEVICE, dtype=self.dtype)
         # Identity block_table: logical page i -> physical page i (contiguous layout)
         block_table = (
-            torch.arange(num_pages, dtype=torch.int32, device="cuda")
+            torch.arange(num_pages, dtype=torch.int32, device=DEVICE)
             .unsqueeze(0)
             .expand(self.batch, -1)
         )

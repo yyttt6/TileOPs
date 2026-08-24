@@ -8,10 +8,14 @@ torch reference is not a comparison worth recording.
 Layout convention:
     Both TileOPs and FLA use BTHD: q/k [B, T, H, K], v [B, T, H, V], g [B, T, H, K].
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
-from fla.ops.gla import chunk_gla
+try:
+    from fla.ops.gla import chunk_gla
+except ModuleNotFoundError:
+    pytest.skip("FLA baseline unavailable on this platform", allow_module_level=True)
 
 from benchmarks.benchmark_base import (
     ManifestBenchmark,
@@ -119,17 +123,17 @@ def test_gla_bwd_bench(
     B, T, H, K, V, BC = batch, seq_len, heads, dim_k, dim_v, chunk_size
     scale = K**-0.5
 
-    q = torch.randn(B, T, H, K, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, T, H, K, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, T, H, V, device="cuda", dtype=dtype) * 0.1
-    g = -torch.rand(B, T, H, K, device="cuda", dtype=dtype)
-    do = torch.randn(B, T, H, V, device="cuda", dtype=dtype) * 0.1
+    q = torch.randn(B, T, H, K, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, T, H, K, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, T, H, V, device=DEVICE, dtype=dtype) * 0.1
+    g = -torch.rand(B, T, H, K, device=DEVICE, dtype=dtype)
+    do = torch.randn(B, T, H, V, device=DEVICE, dtype=dtype) * 0.1
 
     # --- TileOPs: fwd to get h, then profile bwd only ---
     fwd_op = GLAFwdOp(chunk_size=BC, scale=scale)
     fwd_op.forward(q, k, v, g)
     h = fwd_op.kernel._h_out
-    dht = torch.zeros(B, H, K, V, device="cuda", dtype=torch.float32)
+    dht = torch.zeros(B, H, K, V, device=DEVICE, dtype=torch.float32)
 
     bwd_op = GLABwdOp(chunk_size=BC, scale=scale, tune=tune)
     bm = ManifestBenchmark(_BWD_OP_NAME, bwd_op, test)

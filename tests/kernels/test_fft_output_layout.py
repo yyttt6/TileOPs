@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -37,7 +38,7 @@ def test_fft_final_stage_writes_interleaved_output(
 ) -> None:
     n = 4096
     batch_size = 2
-    x = torch.randn(batch_size, n, device="cuda", dtype=dtype)
+    x = torch.randn(batch_size, n, device=DEVICE, dtype=dtype)
     lut_real, lut_imag = FFTC2CFwdOp._build_lut(n, dtype, x.device)
     kernel = FFTC2CKernel(n, batch_size, dtype, config=config)
 

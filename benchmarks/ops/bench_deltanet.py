@@ -11,10 +11,14 @@ Layout convention:
     Tensors are permuted before calling FLA to ensure both implementations
     compute the same function.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
-from fla.ops.delta_rule import chunk_delta_rule
+try:
+    from fla.ops.delta_rule import chunk_delta_rule
+except ModuleNotFoundError:
+    pytest.skip("FLA baseline unavailable on this platform", allow_module_level=True)
 
 from benchmarks.benchmark_base import (
     ManifestBenchmark,
@@ -105,11 +109,11 @@ def test_deltanet_vs_fla_bwd(
     test = DeltaNetFwdWorkload(batch, heads, seq_len, dim_k, dim_v, chunk_size, dtype)
 
     B, H, S, DK, DV, BC = batch, heads, seq_len, dim_k, dim_v, chunk_size
-    q = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
-    beta = torch.rand(B, H, S, device="cuda", dtype=dtype) * 0.5
-    do = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
+    q = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
+    beta = torch.rand(B, H, S, device=DEVICE, dtype=dtype) * 0.5
+    do = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
 
     # --- TileOPs: fwd to get S, Aw, Au, w, u; then profile bwd only ---
     fwd_op = DeltaNetFwdOp(chunk_size=BC)

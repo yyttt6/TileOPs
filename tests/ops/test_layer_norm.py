@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 import torch.nn.functional as F
@@ -94,10 +95,10 @@ class LayerNormNonContigFixture(FixtureBase):
 @LayerNormNonContigFixture
 def test_layer_norm_non_contiguous(m: int, n: int, dtype: torch.dtype) -> None:
     """Test with non-contiguous input (sliced tensor)."""
-    x_full = torch.randn(m, n * 2, dtype=dtype, device="cuda")
+    x_full = torch.randn(m, n * 2, dtype=dtype, device=DEVICE)
     x = x_full[:, :n]  # non-contiguous slice
-    weight = torch.randn(n, dtype=dtype, device="cuda")
-    bias = torch.randn(n, dtype=dtype, device="cuda")
+    weight = torch.randn(n, dtype=dtype, device=DEVICE)
+    bias = torch.randn(n, dtype=dtype, device=DEVICE)
 
     op = LayerNormFwdOp(normalized_shape=(n,))
 
@@ -134,9 +135,9 @@ class LayerNorm3DFixture(FixtureBase):
 @LayerNorm3DFixture
 def test_layer_norm_3d(batch: int, seq: int, hidden: int, dtype: torch.dtype) -> None:
     """Test with 3D input (batch, seq, hidden)."""
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    weight = torch.randn(hidden, dtype=dtype, device="cuda")
-    bias = torch.randn(hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    weight = torch.randn(hidden, dtype=dtype, device=DEVICE)
+    bias = torch.randn(hidden, dtype=dtype, device=DEVICE)
 
     op = LayerNormFwdOp(normalized_shape=(hidden,))
 
@@ -184,9 +185,9 @@ def test_layer_norm_large_offset(m: int, n: int, dtype: torch.dtype) -> None:
     catastrophic cancellation bug (which produced >100x error) while allowing
     the inherent fp32 parallel reduction precision limits.
     """
-    x = (10000.0 + 0.01 * torch.randn(m, n, device="cuda")).to(dtype)
-    weight = torch.ones(n, dtype=dtype, device="cuda")
-    bias = torch.zeros(n, dtype=dtype, device="cuda")
+    x = (10000.0 + 0.01 * torch.randn(m, n, device=DEVICE)).to(dtype)
+    weight = torch.ones(n, dtype=dtype, device=DEVICE)
+    bias = torch.zeros(n, dtype=dtype, device=DEVICE)
 
     op = LayerNormFwdOp(normalized_shape=(n,))
 
@@ -224,15 +225,15 @@ def test_layer_norm_serves_a_changed_leading_dims_product_from_one_kernel() -> N
     dtype = torch.float16
 
     op = LayerNormFwdOp(normalized_shape=(n,))
-    weight = torch.randn(n, dtype=dtype, device="cuda")
-    bias = torch.randn(n, dtype=dtype, device="cuda")
+    weight = torch.randn(n, dtype=dtype, device=DEVICE)
+    bias = torch.randn(n, dtype=dtype, device=DEVICE)
 
-    x1 = torch.randn(512, n, dtype=dtype, device="cuda")
+    x1 = torch.randn(512, n, dtype=dtype, device=DEVICE)
     y1 = op(x1, weight, bias)
     kernel = op.built_kernels("layer_norm")[dtype]
     assert y1.shape == x1.shape
 
-    x2 = torch.randn(1024, n, dtype=dtype, device="cuda")
+    x2 = torch.randn(1024, n, dtype=dtype, device=DEVICE)
     y2 = op(x2, weight, bias)
     assert y2.shape == x2.shape
     assert op.built_kernels("layer_norm")[dtype] is kernel

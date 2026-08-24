@@ -28,8 +28,9 @@ follow-up.
 Cases are real MoE prefill shapes (GLM-5 744B, Llama-4-17B-128E, qwen3.5 397B);
 see ``CASES`` below for the per-model parameters.
 """
-
 from __future__ import annotations
+
+from workloads.device import DEVICE
 
 import os
 import time
@@ -263,7 +264,7 @@ def _build_triton_ptrs(group_a, group_b, group_c):
 
 def _set_triton_allocator():
     def alloc_fn(size, alignment, stream):
-        return torch.empty(size, device="cuda", dtype=torch.int8)
+        return torch.empty(size, device=DEVICE, dtype=torch.int8)
 
     triton.set_allocator(alloc_fn)
 
@@ -295,8 +296,8 @@ def _warmup_gpu(seconds=2.0):
     CUBLAS_STATUS_INVALID_VALUE, so the measured baselines all avoid it and so
     must the warmup.
     """
-    a = torch.randn(4096, 4096, dtype=torch.float32, device="cuda")
-    b = torch.randn(4096, 4096, dtype=torch.float32, device="cuda")
+    a = torch.randn(4096, 4096, dtype=torch.float32, device=DEVICE)
+    b = torch.randn(4096, 4096, dtype=torch.float32, device=DEVICE)
     t0 = time.perf_counter()
     while time.perf_counter() - t0 < seconds:
         for _ in range(16):
@@ -491,7 +492,7 @@ def test_grouped_gemm_baselines(label, tokens, E, top_k, hidden, moe_inter, M, N
         k3 = GroupedGemmPersistent3WGKernel(
             numel=numel, num_experts=E, N=N, K=K, dtype=_DTYPE, sm_count=sm
         )
-        C_3wg = torch.empty(numel, N, dtype=_DTYPE, device="cuda")
+        C_3wg = torch.empty(numel, N, dtype=_DTYPE, device=DEVICE)
         # The 3WG kernel zero-fills the last partial tile's A over-read via TMA
         # OOB (no F.pad, no alignment host sync), so the profiled call measures
         # the GEMM alone — the GEMM-only fairness contract this benchmark needs.
@@ -532,7 +533,7 @@ def test_grouped_gemm_baselines(label, tokens, E, top_k, hidden, moe_inter, M, N
                 f"  [skip] deepgemm: per-expert M={per} not a multiple of 128 (contiguous layout)"
             )
         elif _HAS_DEEP_GEMM:
-            D = torch.empty(numel, N, dtype=_DTYPE, device="cuda")
+            D = torch.empty(numel, N, dtype=_DTYPE, device=DEVICE)
             try:
                 r = bm.profile(
                     _synced(lambda A=A, B=B, D=D, mi=m_indices: _deepgemm_launch(A, B, D, mi))
@@ -547,7 +548,7 @@ def test_grouped_gemm_baselines(label, tokens, E, top_k, hidden, moe_inter, M, N
 
         # ---- triton 08-grouped-gemm (ported, bf16; pre-allocated group_c) ----
         group_a = [A[e * per : (e + 1) * per] for e in range(E)]
-        group_c = [torch.empty(per, N, dtype=_DTYPE, device="cuda") for _ in range(E)]
+        group_c = [torch.empty(per, N, dtype=_DTYPE, device=DEVICE) for _ in range(E)]
         group_b_kn = [B_KN[e] for e in range(E)]  # non-TMA wants B[e] as [K, N]
         a_ptrs, b_ptrs, c_ptrs, g_sizes, g_lds = _build_triton_ptrs(group_a, group_b_kn, group_c)
         grid = lambda meta: (meta["NUM_SM"],)  # noqa: E731
@@ -576,7 +577,7 @@ def test_grouped_gemm_baselines(label, tokens, E, top_k, hidden, moe_inter, M, N
 
         # ---- triton + TMA (Hopper, NT layout = our B[e]) ----
         if _supports_tma():
-            group_c_tma = [torch.empty(per, N, dtype=_DTYPE, device="cuda") for _ in range(E)]
+            group_c_tma = [torch.empty(per, N, dtype=_DTYPE, device=DEVICE) for _ in range(E)]
             group_b_nk = [B[e] for e in range(E)]  # [N, K]
             a_p, b_p, c_p, gs, gl = _build_triton_ptrs(group_a, group_b_nk, group_c_tma)
             _set_triton_allocator()

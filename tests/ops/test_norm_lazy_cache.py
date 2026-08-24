@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -172,11 +173,11 @@ def test_batch_norm_fwd_lazy_cache_reuse_and_respecialization() -> None:
     )
 
     def run_case(N: int, C: int, spatial: tuple[int, ...], dtype: torch.dtype) -> None:
-        x = torch.randn((N, C, *spatial), device="cuda", dtype=dtype)
-        weight = torch.randn(C, device="cuda", dtype=torch.float32)
-        bias = torch.randn(C, device="cuda", dtype=torch.float32)
-        running_mean = torch.zeros(C, device="cuda", dtype=torch.float32)
-        running_var = torch.ones(C, device="cuda", dtype=torch.float32)
+        x = torch.randn((N, C, *spatial), device=DEVICE, dtype=dtype)
+        weight = torch.randn(C, device=DEVICE, dtype=torch.float32)
+        bias = torch.randn(C, device=DEVICE, dtype=torch.float32)
+        running_mean = torch.zeros(C, device=DEVICE, dtype=torch.float32)
+        running_var = torch.ones(C, device=DEVICE, dtype=torch.float32)
 
         y = op(x, running_mean, running_var, weight, bias)
         ref_y = _batch_norm_infer_ref(x, running_mean, running_var, weight, bias, op.eps)
@@ -218,11 +219,11 @@ def test_batch_norm_training_fwd_lazy_cache_reuse_and_respecialization() -> None
     )
 
     def run_case(N: int, C: int, spatial: tuple[int, ...], dtype: torch.dtype) -> None:
-        x = torch.randn((N, C, *spatial), device="cuda", dtype=dtype)
-        weight = torch.randn(C, device="cuda", dtype=torch.float32)
-        bias = torch.randn(C, device="cuda", dtype=torch.float32)
-        running_mean = torch.zeros(C, device="cuda", dtype=torch.float32)
-        running_var = torch.ones(C, device="cuda", dtype=torch.float32)
+        x = torch.randn((N, C, *spatial), device=DEVICE, dtype=dtype)
+        weight = torch.randn(C, device=DEVICE, dtype=torch.float32)
+        bias = torch.randn(C, device=DEVICE, dtype=torch.float32)
+        running_mean = torch.zeros(C, device=DEVICE, dtype=torch.float32)
+        running_var = torch.ones(C, device=DEVICE, dtype=torch.float32)
 
         y = op(x, running_mean, running_var, weight, bias)
         ref_y, _, _ = _batch_norm_train_ref(x, weight, bias, op.eps)
@@ -259,9 +260,9 @@ def test_batch_norm_bwd_lazy_cache_reuse_and_respecialization() -> None:
     op = BatchNormBwdOp(kernel_map={"bwd_kernel": _FakeBatchNormBwdKernel})
 
     def run_case(N: int, C: int, spatial: tuple[int, ...], dtype: torch.dtype) -> None:
-        x = torch.randn((N, C, *spatial), device="cuda", dtype=dtype)
-        grad_out = torch.randn((N, C, *spatial), device="cuda", dtype=dtype)
-        weight = torch.randn(C, device="cuda", dtype=torch.float32)
+        x = torch.randn((N, C, *spatial), device=DEVICE, dtype=dtype)
+        grad_out = torch.randn((N, C, *spatial), device=DEVICE, dtype=dtype)
+        weight = torch.randn(C, device=DEVICE, dtype=torch.float32)
         _y, mean, rstd = _batch_norm_train_ref(
             x, torch.ones_like(weight), torch.zeros_like(weight), eps
         )

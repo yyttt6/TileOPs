@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -57,9 +58,9 @@ def _run_canonical_fp8_prefill(
 @pytest.mark.smoke
 def test_gqa_fp8_bn224_kernel_accepts_fa3_descale_contract() -> None:
     batch, seq_len, heads, heads_kv, dim = 1, 896, 8, 2, 128
-    q = torch.randn(batch, seq_len, heads, dim, device="cuda", dtype=torch.float16) * 0.25
-    k = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * 0.25
-    v = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * 0.25
+    q = torch.randn(batch, seq_len, heads, dim, device=DEVICE, dtype=torch.float16) * 0.25
+    k = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * 0.25
+    v = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * 0.25
 
     q_fp8, q_descale = quantize_q_fa3_gqa_descale(q, heads_kv)
     k_fp8, k_descale = quantize_kv_fa3_descale(k)
@@ -106,9 +107,9 @@ def test_gqa_prefill_canonical_fp8_accepts_fa3_descale_contract(
     input_scale: float,
 ) -> None:
     batch, heads, heads_kv, dim = 1, 8, 2, 128
-    q = torch.randn(batch, seq_len, heads, dim, device="cuda", dtype=torch.float16) * input_scale
-    k = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * input_scale
-    v = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * input_scale
+    q = torch.randn(batch, seq_len, heads, dim, device=DEVICE, dtype=torch.float16) * input_scale
+    k = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * input_scale
+    v = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * input_scale
 
     q_fp8, q_descale = quantize_q_fa3_gqa_descale(q, heads_kv)
     k_fp8, k_descale = quantize_kv_fa3_descale(k)
@@ -139,14 +140,14 @@ def test_gqa_prefill_canonical_fp8_accepts_fa3_descale_contract(
 @pytest.mark.smoke
 def test_gqa_prefill_canonical_op_dispatches_fp8_tensor_core_path() -> None:
     batch, seq_len, heads, heads_kv, dim = 1, 896, 8, 2, 128
-    q = torch.randn(batch, seq_len, heads, dim, device="cuda", dtype=torch.float16) * 0.25
-    k = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * 0.25
-    v = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * 0.25
+    q = torch.randn(batch, seq_len, heads, dim, device=DEVICE, dtype=torch.float16) * 0.25
+    k = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * 0.25
+    v = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * 0.25
 
     q_fp8, q_scale = quantize_q_fa3_gqa_descale(q, heads_kv)
     k_fp8, k_scale = quantize_kv_fa3_descale(k)
     v_fp8, v_scale = quantize_kv_fa3_descale(v)
-    cu = torch.tensor([0, seq_len], device="cuda", dtype=torch.int32)
+    cu = torch.tensor([0, seq_len], device=DEVICE, dtype=torch.int32)
 
     op = GroupedQueryAttentionPrefillFwdOp(
         batch=batch,
@@ -190,9 +191,9 @@ def test_gqa_prefill_fp8_tensor_core_matches_dequantized_reference() -> None:
     batch, seq_len, heads, heads_kv, dim = 1, 896, 8, 2, 128
     group_size = heads // heads_kv
     torch.manual_seed(123)
-    q = torch.randn(batch, seq_len, heads, dim, device="cuda", dtype=torch.float16) * 0.25
-    k = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * 0.25
-    v = torch.randn(batch, seq_len, heads_kv, dim, device="cuda", dtype=torch.float16) * 0.25
+    q = torch.randn(batch, seq_len, heads, dim, device=DEVICE, dtype=torch.float16) * 0.25
+    k = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * 0.25
+    v = torch.randn(batch, seq_len, heads_kv, dim, device=DEVICE, dtype=torch.float16) * 0.25
 
     q_fp8, q_descale = quantize_q_fa3_gqa_descale(q, heads_kv)
     k_fp8, k_descale = quantize_kv_fa3_descale(k)

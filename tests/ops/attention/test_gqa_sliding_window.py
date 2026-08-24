@@ -1,4 +1,5 @@
 """Tests for GroupedQueryAttentionSlidingWindowFwdOp against a pure-PyTorch reference."""
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -179,9 +180,9 @@ class TestGroupedQueryAttentionSlidingWindowFwdOpMetrics:
             _ = op.total_memory
         dtype = torch.float16
         op(
-            torch.randn(B, S, H, D, dtype=dtype, device="cuda"),
-            torch.randn(B, S, Hkv, D, dtype=dtype, device="cuda"),
-            torch.randn(B, S, Hkv, D, dtype=dtype, device="cuda"),
+            torch.randn(B, S, H, D, dtype=dtype, device=DEVICE),
+            torch.randn(B, S, Hkv, D, dtype=dtype, device=DEVICE),
+            torch.randn(B, S, Hkv, D, dtype=dtype, device=DEVICE),
         )
         # Q read + O write: heads each; K read + V read: heads_kv each
         expected = 2 * B * S * (H + Hkv) * D * dtype.itemsize
@@ -230,9 +231,9 @@ class TestGroupedQueryAttentionSlidingWindowFwdOpValidation:
     @pytest.mark.smoke
     def test_dtype_mismatch_raises(self, float16_op):
         """q/k/v must agree with each other; q is the element-type anchor."""
-        q = torch.randn(1, 64, 4, 64, dtype=torch.bfloat16, device="cuda")
-        k = torch.randn(1, 64, 2, 64, dtype=torch.float16, device="cuda")
-        v = torch.randn(1, 64, 2, 64, dtype=torch.bfloat16, device="cuda")
+        q = torch.randn(1, 64, 4, 64, dtype=torch.bfloat16, device=DEVICE)
+        k = torch.randn(1, 64, 2, 64, dtype=torch.float16, device=DEVICE)
+        v = torch.randn(1, 64, 2, 64, dtype=torch.bfloat16, device=DEVICE)
         with pytest.raises(ValueError, match="dtype"):
             float16_op.forward(q, k, v)
 

@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
@@ -50,10 +51,10 @@ def test_gla_fwd(
     B, T, H, K, V, BC = batch, seq_len, heads, dim_k, dim_v, chunk_size
     scale = K**-0.5
 
-    q = torch.randn(B, T, H, K, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, T, H, K, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, T, H, V, device="cuda", dtype=dtype) * 0.1
-    g = -torch.rand(B, T, H, K, device="cuda", dtype=dtype)
+    q = torch.randn(B, T, H, K, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, T, H, K, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, T, H, V, device=DEVICE, dtype=dtype) * 0.1
+    g = -torch.rand(B, T, H, K, device=DEVICE, dtype=dtype)
 
     # --- Torch reference ---
     ref_o = gla_fwd_chunked_torch(q, k, v, g, BC, scale=scale)

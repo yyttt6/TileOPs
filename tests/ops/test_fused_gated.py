@@ -2,6 +2,7 @@
 
 Covers L1 smoke correctness, multi-dtype coverage, and strategy selection.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -152,7 +153,7 @@ def test_gelu_tanh_and_mul_op(m: int, n: int, dtype: torch.dtype) -> None:
 def test_fused_gated_rejects_integer_dtype() -> None:
     """Fused gated ops are float-only; the rejection follows the tensor."""
     op = GeluAndMulFwdOp()
-    x = torch.zeros(16, 32, device="cuda", dtype=torch.int32)
+    x = torch.zeros(16, 32, device=DEVICE, dtype=torch.int32)
     # The manifest dtype union rejects it before any kernel is asked for.
     with pytest.raises(ValueError, match="expected 'float16 | bfloat16 | float32'"):
         op(x)
@@ -163,7 +164,7 @@ def test_fused_gated_serves_two_dtypes_from_one_instance() -> None:
     """The element type comes from the tensor, so both are valid on one op."""
     op = SiluAndMulFwdOp()
     for dtype in (torch.float16, torch.float32):
-        x = torch.randn(16, 16, device="cuda", dtype=dtype)
+        x = torch.randn(16, 16, device=DEVICE, dtype=dtype)
         assert op(x).dtype == dtype
     assert len(op.built_kernels(op._op_name)) == 2
 

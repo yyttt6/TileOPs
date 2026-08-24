@@ -1,8 +1,14 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 
+pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+
 from tests.test_base import FixtureBase, TestBase
-from tileops.kernels.linear_attention.gated_deltanet.prefill import cp_fwd
+try:
+    from tileops.kernels.linear_attention.gated_deltanet.prefill import cp_fwd
+except (AssertionError, RuntimeError):
+    cp_fwd = None
 from tileops.ops import GatedDeltaNetPrefillBHTDFwdOp, GatedDeltaNetPrefillBTHDFwdOp
 from tileops.perf.formulas import gated_deltanet_prefill_fwd_roofline
 from workloads.linear_attention import (
@@ -427,13 +433,13 @@ def poisoned_empty(monkeypatch):
 
 def _inputs(fallback: bool):
     cp_batch = RAW_BATCH * PARTITIONS_PER_SEQUENCE
-    ht = torch.randn(cp_batch, CP_H, CP_DK, CP_DV, dtype=torch.float16, device="cuda")
-    mt = torch.randn(cp_batch, CP_H, CP_DK, CP_DK, dtype=torch.float16, device="cuda")
-    mask = torch.full((cp_batch, CP_H), fallback, dtype=torch.bool, device="cuda")
+    ht = torch.randn(cp_batch, CP_H, CP_DK, CP_DV, dtype=torch.float16, device=DEVICE)
+    mt = torch.randn(cp_batch, CP_H, CP_DK, CP_DK, dtype=torch.float16, device=DEVICE)
+    mask = torch.full((cp_batch, CP_H), fallback, dtype=torch.bool, device=DEVICE)
     seq_map_r2c = torch.tensor(
         [i * PARTITIONS_PER_SEQUENCE for i in range(RAW_BATCH + 1)],
         dtype=torch.int32,
-        device="cuda",
+        device=DEVICE,
     )
     return ht, mt, mask, seq_map_r2c
 
@@ -471,7 +477,7 @@ def test_every_partition_is_written_without_a_raw_initial_state(poisoned_empty, 
 def test_every_partition_is_written_with_a_raw_initial_state(poisoned_empty, fallback):
     """With an incoming state, each sequence's first partition carries it verbatim."""
     ht, mt, mask, seq_map_r2c = _inputs(fallback)
-    raw_h0 = torch.randn(RAW_BATCH, CP_H, CP_DK, CP_DV, dtype=torch.float32, device="cuda")
+    raw_h0 = torch.randn(RAW_BATCH, CP_H, CP_DK, CP_DV, dtype=torch.float32, device=DEVICE)
     cp_h0 = cp_fwd.correct_initial_states(raw_h0, ht, mt, mask, seq_map_r2c)
 
     unwritten = torch.isnan(cp_h0).flatten(1).any(dim=1).nonzero().flatten().tolist()

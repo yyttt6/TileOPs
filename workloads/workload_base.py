@@ -6,8 +6,9 @@ FixtureMeta / FixtureBase provide reusable pytest parametrize decorators.
 
 Tolerances, check() and roofline numbers stay in tests/ and benchmarks/.
 """
-
 from __future__ import annotations
+
+from workloads.device import DEVICE
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, TypeVar
@@ -42,7 +43,7 @@ class RandnWorkload(WorkloadBase):
         self.dtype = dtype
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
-        x = torch.randn(*self.shape, dtype=self.dtype, device="cuda")
+        x = torch.randn(*self.shape, dtype=self.dtype, device=DEVICE)
         return (x,)
 
 

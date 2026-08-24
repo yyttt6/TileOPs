@@ -6,6 +6,7 @@ analytical gradient via torch.autograd.
 Run:
     conda run -n tileops python -m pytest tests/ops/test_batch_norm.py -vvs
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -163,11 +164,11 @@ def test_batch_norm_fwd_returns_single_tensor() -> None:
 
     N, C, H, W = 4, 8, 4, 4
     op = BatchNormFwdOp(training=False)
-    x = torch.randn(N, C, H, W, device="cuda", dtype=torch.float16)
-    weight = torch.randn(C, device="cuda", dtype=torch.float32)
-    bias = torch.randn(C, device="cuda", dtype=torch.float32)
-    rm = torch.zeros(C, device="cuda", dtype=torch.float32)
-    rv = torch.ones(C, device="cuda", dtype=torch.float32)
+    x = torch.randn(N, C, H, W, device=DEVICE, dtype=torch.float16)
+    weight = torch.randn(C, device=DEVICE, dtype=torch.float32)
+    bias = torch.randn(C, device=DEVICE, dtype=torch.float32)
+    rm = torch.zeros(C, device=DEVICE, dtype=torch.float32)
+    rv = torch.ones(C, device=DEVICE, dtype=torch.float32)
 
     y = op(x, rm, rv, weight, bias)
     assert isinstance(y, torch.Tensor)
@@ -182,12 +183,12 @@ def test_training_updates_a_non_contiguous_running_stat() -> None:
 
     N, C, H, W = 4, 8, 4, 4
     op = BatchNormFwdOp(training=True)
-    x = torch.randn(N, C, H, W, device="cuda", dtype=torch.float16)
-    weight = torch.ones(C, device="cuda", dtype=torch.float32)
-    bias = torch.zeros(C, device="cuda", dtype=torch.float32)
+    x = torch.randn(N, C, H, W, device=DEVICE, dtype=torch.float16)
+    weight = torch.ones(C, device=DEVICE, dtype=torch.float32)
+    bias = torch.zeros(C, device=DEVICE, dtype=torch.float32)
     # Every other element of a wider buffer: a view the kernel cannot be handed as is.
-    rm = torch.zeros(2 * C, device="cuda", dtype=torch.float32)[::2]
-    rv = torch.ones(2 * C, device="cuda", dtype=torch.float32)[::2]
+    rm = torch.zeros(2 * C, device=DEVICE, dtype=torch.float32)[::2]
+    rv = torch.ones(2 * C, device=DEVICE, dtype=torch.float32)[::2]
     assert not rm.is_contiguous()
 
     op(x, rm, rv, weight, bias)

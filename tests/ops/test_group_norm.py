@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 import pytest
 import torch
 import torch.nn.functional as F
@@ -80,10 +81,10 @@ def test_group_norm_non_contiguous(
 ) -> None:
     """Test with non-contiguous input (sliced tensor)."""
     shape = (n, c * 2, *spatial)
-    x_full = torch.randn(shape, dtype=dtype, device="cuda")
+    x_full = torch.randn(shape, dtype=dtype, device=DEVICE)
     x = x_full[:, :c]  # non-contiguous slice
-    weight = torch.randn(c, dtype=dtype, device="cuda")
-    bias = torch.randn(c, dtype=dtype, device="cuda")
+    weight = torch.randn(c, dtype=dtype, device=DEVICE)
+    bias = torch.randn(c, dtype=dtype, device=DEVICE)
 
     op = GroupNormFwdOp(num_groups=g)
 
@@ -107,7 +108,7 @@ def test_group_norm_no_affine_matches_torch() -> None:
     """Omitting the affine pair is the torch.nn.GroupNorm(affine=False) path."""
     n, c, spatial, g, dtype = 2, 32, (8, 8), 8, torch.float16
     op = GroupNormFwdOp(num_groups=g)
-    x = torch.randn((n, c, *spatial), dtype=dtype, device="cuda")
+    x = torch.randn((n, c, *spatial), dtype=dtype, device=DEVICE)
     y = op(x)
     y_ref = F.group_norm(x.float(), g, weight=None, bias=None, eps=1e-5).to(dtype)
     atol, rtol = _get_tolerances(dtype)
@@ -148,9 +149,9 @@ def test_group_norm_lazy_cache_reuse_and_respecialization() -> None:
     op = GroupNormFwdOp(num_groups=4)
 
     def run_case(n: int, c: int, spatial: tuple[int, ...], dtype: torch.dtype) -> None:
-        x = torch.randn((n, c, *spatial), dtype=dtype, device="cuda")
-        weight = torch.randn((c,), dtype=dtype, device="cuda")
-        bias = torch.randn((c,), dtype=dtype, device="cuda")
+        x = torch.randn((n, c, *spatial), dtype=dtype, device=DEVICE)
+        weight = torch.randn((c,), dtype=dtype, device=DEVICE)
+        bias = torch.randn((c,), dtype=dtype, device=DEVICE)
 
         y = op(x, weight, bias)
         y_ref = F.group_norm(
@@ -236,7 +237,7 @@ def test_group_norm_no_affine_op(
 ) -> None:
     """No-affine GroupNorm op matches torch.nn.functional.group_norm with weight=bias=None."""
     op = GroupNormFwdOp(num_groups=g)
-    x = torch.randn((n, c, *spatial), dtype=dtype, device="cuda")
+    x = torch.randn((n, c, *spatial), dtype=dtype, device=DEVICE)
     y = op(x)
     y_ref = F.group_norm(x.float(), g, weight=None, bias=None, eps=1e-5).to(dtype)
     atol, rtol = _get_tolerances(dtype)
@@ -261,8 +262,8 @@ def test_group_norm_rejects_half_the_affine_switch(give: str) -> None:
     """weight and bias are one switch; half of it is an error."""
     n, c, spatial, g, dtype = 2, 32, (8, 8), 8, torch.float16
     op = GroupNormFwdOp(num_groups=g)
-    x = torch.randn((n, c, *spatial), dtype=dtype, device="cuda")
-    t = torch.randn((c,), dtype=dtype, device="cuda")
+    x = torch.randn((n, c, *spatial), dtype=dtype, device=DEVICE)
+    t = torch.randn((c,), dtype=dtype, device=DEVICE)
     kwargs = {give: t}
     with pytest.raises(ValueError, match="one switch"):
         op(x, **kwargs)
@@ -300,7 +301,7 @@ def test_group_norm_no_affine_tail_block(n: int, c: int, spatial: tuple, g: int)
     """No-affine GroupNorm handles a row count smaller than one grid block."""
     dtype = torch.float16
     op = GroupNormFwdOp(num_groups=g)
-    x = torch.randn((n, c, *spatial), dtype=dtype, device="cuda")
+    x = torch.randn((n, c, *spatial), dtype=dtype, device=DEVICE)
     y = op(x)
     y_ref = F.group_norm(x.float(), g, weight=None, bias=None, eps=1e-5).to(dtype)
     atol, rtol = _get_tolerances(dtype)

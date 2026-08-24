@@ -3,6 +3,7 @@
 One case per op: a cold ``torch.compile(op, fullgraph=True)`` must match eager and the
 traced graph must hold nothing but that op's own operator. RMSNorm has its own module.
 """
+from workloads.device import DEVICE
 
 import pytest
 import torch
@@ -25,7 +26,7 @@ _N = 256
 
 
 def _x(*shape, dtype=_DTYPE):
-    return torch.randn(*shape, dtype=dtype, device="cuda")
+    return torch.randn(*shape, dtype=dtype, device=DEVICE)
 
 
 def _cases():

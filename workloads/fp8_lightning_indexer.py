@@ -1,3 +1,4 @@
+from workloads.device import DEVICE
 from typing import Optional
 
 import torch
@@ -177,7 +178,7 @@ class FP8LightningIndexerWorkload(WorkloadBase):
             self.seq_len,
             self.heads,
             self.index_dim,
-            device="cuda",
+            device=DEVICE,
             dtype=torch.bfloat16,
         )
         IndexK = torch.randn(
@@ -185,10 +186,10 @@ class FP8LightningIndexerWorkload(WorkloadBase):
             self.seq_len_kv,
             self.kv_group,
             self.index_dim,
-            device="cuda",
+            device=DEVICE,
             dtype=torch.bfloat16,
         )
-        Weights = torch.randn(self.seq_len, self.heads, device="cuda", dtype=self.accum_dtype)
+        Weights = torch.randn(self.seq_len, self.heads, device=DEVICE, dtype=self.accum_dtype)
         CuSeqLenKS, CuSeqLenKE = self.generate_random_cu_seqlens(
             cp_size=4, cp_rank=3, kv_stride=1, average_q_len=2048
         )
@@ -213,8 +214,8 @@ class FP8LightningIndexerWorkload(WorkloadBase):
         k = k.view(batch, seq_len_kv, kv_group, index_dim)
         q = q.view(batch, seq_len, kv_group, heads_per_group, index_dim)
 
-        mask_lo = torch.arange(0, seq_len_kv, device="cuda")[None, :] >= cu_seqlen_ks[:, None]
-        mask_hi = torch.arange(0, seq_len_kv, device="cuda")[None, :] < cu_seqlen_ke[:, None]
+        mask_lo = torch.arange(0, seq_len_kv, device=DEVICE)[None, :] >= cu_seqlen_ks[:, None]
+        mask_hi = torch.arange(0, seq_len_kv, device=DEVICE)[None, :] < cu_seqlen_ke[:, None]
         mask = mask_lo & mask_hi
 
         score = torch.einsum("bsghd,bngd->bghsn", q, k)
