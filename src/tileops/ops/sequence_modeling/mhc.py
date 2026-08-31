@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 import torch
 
+from tileops.backend import Target
 from tileops.kernels.kernel_base import Kernel
 from tileops.kernels.mhc import MHCPostKernel, MHCPreKernel
 
@@ -14,7 +15,12 @@ __all__ = ["MHCPostFwdOp", "MHCPreFwdOp"]
 class MHCPreFwdOp(Op):
     """Layout: BSHD"""
 
-    def __init__(self, kernel_map: Optional[Dict[str, Kernel]] = None, tune: bool = False) -> None:
+    def __init__(
+        self,
+        kernel_map: Optional[Dict[str, Kernel]] = None,
+        tune: bool = False,
+        target: Target = None,
+    ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
@@ -27,6 +33,7 @@ class MHCPreFwdOp(Op):
         self.dtype = None
         self.weights_dtype = torch.float32
         self.tune = tune
+        self.target = target
 
         self.dispatch_kernel(kernel_map)
         self.kernel = None
@@ -116,6 +123,11 @@ class MHCPreFwdOp(Op):
         self.n_expand = n_expand
         self.c_x = c_x
         self.dtype = x.dtype
+        self.alpha_pre = alpha_pre
+        self.alpha_post = alpha_post
+        self.alpha_res = alpha_res
+        self.sinkhorn_repeat = sinkhorn_repeat
+        self.sinkhorn_eps = sinkhorn_eps
         self.kernel = self._get_kernel((phi, x, b), batch, n_expand, c_x, x.dtype, x.device.index)
         return self.kernel(
             phi, x, b, alpha_pre, alpha_post, alpha_res, sinkhorn_repeat, sinkhorn_eps

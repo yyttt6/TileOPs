@@ -2,6 +2,7 @@ from typing import Dict, Optional
 
 import torch
 
+from tileops.backend import Target
 from tileops.kernels.kernel_base import Kernel
 from tileops.kernels.topk_selector import TopkSelectorKernel
 
@@ -10,9 +11,24 @@ from .op_base import Op
 __all__ = ["TopkSelectorFwdOp"]
 
 
+def _require_one_device(op_name: str, **tensors: torch.Tensor) -> None:
+    """Require inputs to share a device; the selected kernel decides which devices it serves."""
+    first_name, first = next(iter(tensors.items()))
+    for name, tensor in tensors.items():
+        if tensor.device != first.device:
+            raise ValueError(
+                f"{op_name} needs every input on one device; got {first_name} on "
+                f"{first.device} and {name} on {tensor.device}"
+            )
+
+
 class TopkSelectorFwdOp(Op):
     def __init__(
-        self, topk: int, kernel_map: Optional[Dict[str, Kernel]] = None, tune: bool = False
+        self,
+        topk: int,
+        kernel_map: Optional[Dict[str, Kernel]] = None,
+        tune: bool = False,
+        target: Target = None,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -20,6 +36,7 @@ class TopkSelectorFwdOp(Op):
             topk: Manifest ``params.topk``, ``int``.
             kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
+            target: Optional backend target; ``None`` keeps device probing.
         """
         self.batch = None
         self.seq_len = None
@@ -29,6 +46,7 @@ class TopkSelectorFwdOp(Op):
         self.in_dtype = None
         self.out_dtype = torch.int32
         self.tune = tune
+        self.target = target
 
         self.dispatch_kernel(kernel_map)
         self.kernel = None
@@ -85,14 +103,16 @@ class TopkSelectorFwdOp(Op):
         Returns:
             ``indexes``, as the manifest declares.
         """
-        if not index_score.is_cuda:
-            raise ValueError("TopkSelectorFwdOp expects CUDA inputs")
+        _require_one_device(
+            type(self).__name__,
+            index_score=index_score,
+            starts=starts,
+            ends=ends,
+        )
         if index_score.ndim != 4:
             raise ValueError("TopkSelectorFwdOp expects index_score shape [B, S, S_kv, G]")
         if starts.ndim != 2 or ends.ndim != 2:
             raise ValueError("TopkSelectorFwdOp expects starts/ends shape [B, S]")
-        if not starts.is_cuda or not ends.is_cuda:
-            raise ValueError("starts and ends must be CUDA tensors")
         if starts.dtype != torch.int32 or ends.dtype != torch.int32:
             raise ValueError("TopkSelectorFwdOp expects int32 starts/ends tensors")
 

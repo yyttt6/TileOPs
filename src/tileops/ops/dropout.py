@@ -14,6 +14,7 @@ from typing import Dict, Optional
 
 import torch
 
+from tileops.backend import Target
 from tileops.kernels.dropout import DropoutKernel
 from tileops.kernels.kernel_base import Kernel
 
@@ -48,6 +49,7 @@ class DropoutFwdOp(Op):
         training: bool = True,
         kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
+        target: Target = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -66,6 +68,7 @@ class DropoutFwdOp(Op):
         self.seed = seed
         self.training = training
         self.tune = tune
+        self.target = target
 
         # Skip kernel build when dropout has no effect (identity or all-zeros)
         self._skip = not training or p == 0.0
@@ -135,8 +138,6 @@ class DropoutFwdOp(Op):
         Returns:
             ``output``, as the manifest declares.
         """
-        if not input.is_cuda:
-            raise ValueError("input must be a CUDA tensor")
         if input.dtype not in (torch.float16, torch.bfloat16, torch.float32):
             raise ValueError(
                 f"input.dtype must be float16, bfloat16, or float32, got {input.dtype}"

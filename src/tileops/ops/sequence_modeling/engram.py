@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 
 import torch
 
+from tileops.backend import Target
 from tileops.kernels.engram import EngramGateConvBwdKernel, EngramGateConvFwdKernel
 from tileops.kernels.kernel_base import Kernel
 
@@ -10,6 +11,17 @@ from ..op_base import Op
 __all__ = ["EngramGateConvBwdOp", "EngramGateConvFwdOp"]
 
 CONV_KERNEL_SIZE = 4
+
+
+def _require_one_device(op_name: str, **tensors: torch.Tensor) -> None:
+    """Require inputs to share a device; the selected kernel decides which devices it serves."""
+    first_name, first = next(iter(tensors.items()))
+    for name, tensor in tensors.items():
+        if tensor.device != first.device:
+            raise ValueError(
+                f"{op_name} needs every input on one device; got {first_name} on "
+                f"{first.device} and {name} on {tensor.device}"
+            )
 
 
 class EngramGateConvFwdOp(Op):
@@ -33,6 +45,7 @@ class EngramGateConvFwdOp(Op):
         eps: float = 1e-6,
         tune: bool = False,
         kernel_map: Optional[Dict[str, Kernel]] = None,
+        target: Target = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -47,6 +60,7 @@ class EngramGateConvFwdOp(Op):
         self.d = d
         self.eps = eps
         self.tune = tune
+        self.target = target
         self.dispatch_kernel(kernel_map)
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
@@ -115,8 +129,15 @@ class EngramGateConvFwdOp(Op):
               rrms_k: (M, seq_len) — RMSNorm reciprocal rms of k.
               rrms_v: (M, seq_len) — RMSNorm reciprocal rms of v_hat.
         """
-        if not H.is_cuda:
-            raise ValueError("H must be a CUDA tensor")
+        _require_one_device(
+            type(self).__name__,
+            H=H,
+            k=k,
+            v=v,
+            rms_w_h=rms_w_h,
+            rms_w_v=rms_w_v,
+            conv_w=conv_w,
+        )
         self._validate_dtypes(H, k, v, rms_w_h, rms_w_v, conv_w)
         self.dtype = H.dtype
         if H.shape[-1] != self.d:
@@ -154,6 +175,7 @@ class EngramGateConvBwdOp(Op):
         eps: float = 1e-6,
         tune: bool = False,
         kernel_map: Optional[Dict[str, Kernel]] = None,
+        target: Target = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -168,6 +190,7 @@ class EngramGateConvBwdOp(Op):
         self.d = d
         self.eps = eps
         self.tune = tune
+        self.target = target
         self.dispatch_kernel(kernel_map)
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
@@ -253,8 +276,21 @@ class EngramGateConvBwdOp(Op):
               drms_w_v: (d,) — fp32
               dconv_w:  (4, d) — fp32
         """
-        if not dY.is_cuda:
-            raise ValueError("dY must be a CUDA tensor")
+        _require_one_device(
+            type(self).__name__,
+            dY=dY,
+            H=H,
+            k=k,
+            v=v,
+            rms_w_h=rms_w_h,
+            rms_w_v=rms_w_v,
+            conv_w=conv_w,
+            vhat=vhat,
+            alpha=alpha,
+            rrms_h=rrms_h,
+            rrms_k=rrms_k,
+            rrms_v=rrms_v,
+        )
         self._validate_dtypes(
             dY,
             H,
