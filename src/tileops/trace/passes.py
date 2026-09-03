@@ -51,8 +51,16 @@ compiled kernel back to its maps without relying on object identity.
 # Importing tilelang first populates sys.path for the bundled tvm package.
 import tilelang  # noqa: F401  (loads tvm before the tvm imports below)
 import tilelang.language as T
-import tvm.tirx as tx
-from tvm.tirx.stmt_functor import ir_transform, post_order_visit
+# The pinned tilelang decides whether its tir module is called "tirx" or "tir";
+# kernels/quantize_utils.py already branches on that, this module did not, so a
+# checkout against a tilelang that names it "tir" could not import tileops.ops
+# at all. Every name used below exists under both spellings.
+try:
+    import tvm.tirx as tx
+    from tvm.tirx.stmt_functor import ir_transform, post_order_visit
+except ImportError:  # pinned tilelang names its tir module "tir"
+    import tvm.tir as tx
+    from tvm.tir.stmt_functor import ir_transform, post_order_visit
 
 from .device import _HELPER
 from .record import MAX_EVENTS_DEFAULT, pack_w1_tir
