@@ -1,9 +1,9 @@
 [project]
 name = "tileops"
 dynamic = ["version"]
-description = "TileOPs kernels for efficient LLM inference."
+description = "TileOPs kernels for efficient LLM inference on Ascend NPU."
 readme = "README.md"
-authors = [{ name="Tile-AI"}]
+authors = [{ name="yyttt6", email="1652272478@qq.com"}]
 dependencies = [
     "torch>=2.1.0,<2.14.0",
     # tilelang as a compatibility range, not a source or exact pin. CI does not resolve tilelang
@@ -19,7 +19,7 @@ dependencies = [
 requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
-keywords = ["llm", "inference", "gpu", "kernel", "tiling"]
+keywords = ["llm", "inference", "npu", "ascend", "kernel", "tiling"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -32,9 +32,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/tile-ai/TileOPs"
-Repository = "https://github.com/tile-ai/TileOPs"
-Issues = "https://github.com/tile-ai/TileOPs/issues"
+Homepage = "https://github.com/yyttt6/TileOPs"
+Repository = "https://github.com/yyttt6/TileOPs"
+Issues = "https://github.com/yyttt6/TileOPs/issues"
 
 [project.optional-dependencies]
 dev = [

@@ -1,0 +1,50 @@
+name: NPU Smoke
+
+# Runs the smoke tier on a self-hosted Ascend runner.  There is no hosted NPU, so this
+# workflow is a no-op unless a runner with the `ascend-910b` label is online; that is
+# deliberate -- a green check from a job that never touched a device is worse than no check.
+#
+# The nightly benchmark is NOT here: it is driven by the harness
+# (`tileops-ascend-harness/publish/daily_snapshot.sh`), which publishes a snapshot to the
+# `nightly-bench` branch, and the docs site renders from that.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  smoke:
+    if: github.event.pull_request.draft != true
+    runs-on: [self-hosted, ascend-910b]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record the device and the stack
+        run: |
+          npu-smi info
+          python -c "import torch, torch_npu; print(torch.__version__, torch_npu.__version__)"
+          echo "CANN: ${ASCEND_HOME_PATH:-unset}"
+
+      - name: Install
+        run: pip install -e '.[dev]' -c constraints.txt --no-deps
+
+      - name: Manifest validator
+        run: python scripts/validate_manifest.py
+
+      - name: Smoke tier
+        env:
+          # Renumbers the devices: after this, the visible card is logical id 0.
+          ASCEND_RT_VISIBLE_DEVICES: "0"
+        run: python -m pytest -q tests -m smoke

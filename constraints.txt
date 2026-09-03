@@ -2,7 +2,8 @@
 # deps) or the runner Dockerfile's install lists (CI-only tooling); the resolved closure lives in
 # constraints-runner-lock.txt.
 #
-# No `+cu132`: the CUDA variant comes from the install index, so this file also fits the CPU
+# No accelerator suffix: the torch_npu variant comes from the install index, so this file
+# also fits the CPU
 # preflight. torch/torchvision follow vllm 0.27.1's exact pins; see requirements.in for torchaudio.
 torch==2.13.0
 torchvision==0.28.0
@@ -40,7 +41,7 @@ vllm==0.27.1
 flag_gems==5.0.2
 # flag_gems imports it at module load.
 sqlalchemy==2.0.52
-# Tracks the image CUDA version; bump with it.
+# Tracks the image CANN version; bump with it.
 cupti-python==13.2.0
 # Stack dump of a hung benchmark child before the runner kills it.
 py-spy==0.4.2

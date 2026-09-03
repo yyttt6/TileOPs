@@ -6,16 +6,16 @@ Commands here are the ones CI runs. Where CI passes `-c constraints.txt`, use it
 
 ## Install from source
 
-A CUDA-capable GPU is required to run the test suite. See [Prerequisites](../README.md#prerequisites) for supported Python, PyTorch, CUDA, and TileLang versions.
+An Ascend NPU is required to run the test suite. See [Prerequisites](../README.md#installation) for supported Python, PyTorch, CANN, and TileLang versions.
 
 ```bash
-git clone https://github.com/tile-ai/TileOPs
+git clone https://github.com/yyttt6/TileOPs
 cd TileOPs
 pip install -e '.[dev]' -c constraints.txt
 pre-commit install
 ```
 
-If CUDA and TileLang are already installed system-wide and the build fails while re-resolving them, skip build isolation:
+If CANN and TileLang are already installed system-wide and the build fails while re-resolving them, skip build isolation:
 
 ```bash
 PIP_NO_BUILD_ISOLATION=1 pip install -e '.[dev]' -c constraints.txt
@@ -23,25 +23,33 @@ PIP_NO_BUILD_ISOLATION=1 pip install -e '.[dev]' -c constraints.txt
 
 `[dev]` adds ruff, codespell, pytest, pytest-xdist, and pyyaml. `[bench]` adds the baseline libraries the benchmarks compare against — see [Benchmarks](#benchmarks).
 
-## Dev Docker image
+## Environment
 
-The prebuilt dev image ships the whole stack — CUDA 13.2, PyTorch 2.13 (cu132), the TileLang commit CI validates, and the benchmark baselines — so nothing needs resolving locally:
+There is no container: an Ascend NPU is a host device, and CANN is installed system-wide.
+Work in a virtualenv (or the shared conda env the benchmark machine uses) against the
+already-installed toolkit:
+
+| | |
+|---|---|
+| Device | Ascend 910B1 (Atlas A2 training series) |
+| Toolkit | CANN 8.5.0 (`$ASCEND_HOME_PATH`) |
+| PyTorch | 2.7.1 with the matching `torch_npu` |
+| Compiler | TileLang with the Ascend backend, `bishengir-compile` |
 
 ```bash
-docker run --rm -it --gpus all \
-  -v "$(pwd)":/workspace -w /workspace \
-  ghcr.io/tile-ai/tileops-runner:cu132-torch2.13-tl-afcebed1-dev
-
-# inside the container
-pip install -e . --no-deps
+pip install -e . --no-deps          # the environment already carries the pinned stack
 python -m pytest -q tests -m smoke
 ```
 
-`--no-deps` is deliberate: the image already carries the pinned stack, and letting pip resolve dependencies would replace it.
+`--no-deps` is deliberate: letting pip resolve `torch` here would replace the build that
+`torch_npu` was compiled against.
 
-Tags follow `<tilelang-sha>-torch<version>-dev`. The `-dev` tag tracks the TileLang commit CI validates; pull the one matching the Prerequisites line in the README rather than a floating tag. The image is also what the self-hosted CI runners use, so a green run inside it is the same environment CI reports on.
+⚠️ **Never `pip install` into a shared environment while a benchmark is running** — a
+replaced `torch` mid-run silently changes what the numbers mean. Build your own venv or use
+`--target`.
 
-To build the image, roll out a new one, or bump the TileLang commit, see [`.github/runner/README.md`](../.github/runner/README.md).
+⚠️ `ASCEND_RT_VISIBLE_DEVICES` **renumbers** the devices: after setting it, the visible card
+is logical id `0`. Pin one card per concurrent run so two runs do not share a device.
 
 ## Tests
 
@@ -56,7 +64,7 @@ Tests are tiered by marker. Pick the tier by how much you need to cover, not by 
 
 Narrow to one file or case the usual way — `python -m pytest -q tests/ops/test_gemm.py -k tuned`.
 
-Two suites do not need a GPU and are worth running before pushing:
+Two suites do not need a NPU and are worth running before pushing:
 
 ```bash
 python -m pytest -q tests/test_validate_manifest.py   # manifest spec validator
@@ -76,7 +84,7 @@ pre-commit run --all-files
 ## Docstrings
 
 Docstrings are the API reference on
-[the docs site](https://tile-ai.github.io/TileOPs.github.io/), and mkdocstrings
+[the docs site](https://yyttt6.github.io/TileOPs.github.io/), and mkdocstrings
 renders them **as Markdown** — reStructuredText reaches the page as literal text.
 
 Three docstrings per op, each answering one question:
@@ -126,7 +134,7 @@ PIP_NO_BUILD_ISOLATION=1 pip install -e '.[dev,bench]' -c constraints.txt
 
 `PIP_NO_BUILD_ISOLATION=1` is required here: several baselines build against the installed PyTorch, and an isolated build environment would fetch a different one.
 
-Prefer the dev Docker image, which carries FlashAttention-2/3, flash-linear-attention, vLLM and flashinfer prebuilt against its own CUDA and PyTorch — the FA3 build in particular takes a long time from source. It does not install `sgl-kernel`, so a benchmark that needs that baseline has to install it in the container.
+The Ascend baselines are separate checkouts, not pip packages: the handwritten AscendC libraries (`catlass`, `ops-nn`, `ops-math`, `ops-transformer`, `sgl-kernel-npu`) are built in place and reached through a C shim or `torch.ops.npu.*`. A baseline is only usable once its kernel binaries are actually compiled for `ascend910b` — an `aclnn` entry point whose kernel was not built **silently falls back to the CANN built-in**.
 
 ```bash
 python -m pytest benchmarks/            # all benchmarks

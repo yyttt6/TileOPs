@@ -5,7 +5,7 @@
 set -euo pipefail
 
 PR="${1:?usage: preflight.sh <PR_NUMBER>}"
-REPO="tile-ai/TileOPs"
+REPO="yyttt6/TileOPs"
 
 if ! command -v codex >/dev/null 2>&1; then
   echo "error: codex CLI not found in PATH." >&2

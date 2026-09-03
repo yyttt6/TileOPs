@@ -29,7 +29,7 @@ Per-family protocol variables, declared by L2 bases and overridden by L3 ops.
 | `kernel`       | `Kernel`                             | Set only by an op that holds one kernel; an op that builds per specialization uses a role    |
 | `kernel_map`   | `Optional[Dict[str, Kernel]]`        | Dispatched kernels keyed by name                                                             |
 | `dtype`        | `Optional[torch.dtype]`              | Dtype of the most recent `forward()`; `None` before the first one                            |
-| `device`       | `Optional[Union[torch.device, str]]` | Device (default `'cuda'`)                                                                    |
+| `device`       | `Optional[Union[torch.device, str]]` | Device (default `'npu'`)                                                                    |
 | `input_shapes` | `Optional[list[tuple]]`              | Expected input tensor shapes (for introspection and non-runtime consumers)                   |
 | `tune`         | `bool`                               | Whether kernels this op builds tune themselves; read by a factory when it runs               |
 | `_static_axes` | `frozenset[tuple[int, int]]`         | Static axes as `(input_index, axis)` pairs (default `frozenset()`); consumed by `_cache_key` |
@@ -57,7 +57,7 @@ Unlike `Op`, a `Kernel` **is** constructed for one element type — it compiles 
 | `dtype`                              | `Optional[torch.dtype]` | Element type this kernel is specialized for                         |
 | `config`                             | `Dict[str, Any]`        | Tile configuration (block sizes, stages, etc.)                      |
 | `autotune_configs`                   | `Optional[list[dict]]`  | Search space for autotuning                                         |
-| `supported_archs`                    | `Optional[list[int]]`   | GPU SM versions (e.g., `[80, 86, 89, 90]`)                          |
+| `supported_archs`                    | `Optional[list[int]]`   | NPU SM versions (e.g., `[80, 86, 89, 90]`)                          |
 | `kernel`                             | `Callable`              | Compiled TileLang kernel function                                   |
 | `autotune_accepts_random_int_inputs` | `bool`                  | Whether autotuning may generate the integer tensor inputs at random |
 

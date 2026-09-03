@@ -30,4 +30,4 @@ Design-first, spec-driven documentation for TileOPs. [`src/tileops/manifest/`](.
 
 ## External
 
-- [TileOPs.github.io](https://tile-ai.github.io/TileOPs.github.io/) — auto-generated documentation site (API reference, perf tables, support matrix).
+- [TileOPs.github.io](https://yyttt6.github.io/TileOPs.github.io/) — auto-generated documentation site (API reference, perf tables, support matrix).

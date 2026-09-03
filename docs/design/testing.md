@@ -55,7 +55,7 @@ Rules:
 - Tests must cover FP16 and BF16 data types.
 - Tests must parameterize over common shapes (batch size, heads, sequence length).
 - Tests must encode the dtype contract: supported dtypes are covered, unsupported dtypes are rejected, output dtypes are asserted when they differ from input.
-- GPU-dependent tests must run on a real machine with host-visible CUDA devices. Sandbox-only results are not final correctness evidence.
+- NPU-dependent tests must run on a real machine with host-visible Ascend devices. Sandbox-only results are not final correctness evidence.
 
 ### Test case policy
 
@@ -111,7 +111,7 @@ python scripts/test_node_delta.py --base origin/release   # different base branc
 
 - Changes to shared test infrastructure ([`tests/test_base.py`](../../tests/test_base.py), common fixtures, shared comparators) must preserve existing default semantics unless all affected tests are migrated in the same PR.
 - If a PR touches shared test infrastructure, run a broader `pytest -m smoke` pass before merge.
-- Run full targeted test files for the affected op family on a real GPU before claiming readiness.
+- Run full targeted test files for the affected op family on a real NPU before claiming readiness.
 
 ## Benchmarks
 
@@ -145,10 +145,10 @@ fields its own benchmark reads.
 
 ### Reporting rules
 
-- Numbers must come from a real GPU machine, not a sandbox.
+- Numbers must come from a real NPU machine, not a sandbox.
 - Include small, medium, and large representative shapes.
 - Do not cherry-pick favorable shapes; report regressions as-is.
-- Run the targeted correctness suite on the same GPU before reporting benchmark numbers.
+- Run the targeted correctness suite on the same NPU before reporting benchmark numbers.
 - `BenchmarkReport.record()` first argument may be the Op instance or a string name; stay consistent within a given benchmark file.
 - `calculate_flops()` and `calculate_memory()` should return numeric values when the metric is available; return `None` only if the metric is not applicable, in which case it will be omitted from the report.
 - Every benchmark must record at least one non-`"tileops"` baseline. Use existing tags (`"baseline"`, `"torch"`, `"fa3"`, `"fla"`, `"triton"`) and avoid introducing ad-hoc tags without updating downstream consumers.

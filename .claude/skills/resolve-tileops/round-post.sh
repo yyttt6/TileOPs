@@ -17,7 +17,7 @@ PR="${1:?usage: round-post.sh <PR_NUMBER>}"
 command -v gh >/dev/null 2>&1 || { echo "round-post: missing gh" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "round-post: missing jq" >&2; exit 1; }
 
-REPO="tile-ai/TileOPs"
+REPO="yyttt6/TileOPs"
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Anchor state lookup to the main checkout (see preflight.sh).
 GIT_COMMON_DIR="$(git -C "$SKILL_DIR" rev-parse --git-common-dir 2>/dev/null)" \
@@ -68,7 +68,7 @@ while :; do
           }
         }
       }
-    }' -F owner=tile-ai -F repo=TileOPs -F pr="$PR" \
+    }' -F owner=yyttt6 -F repo=TileOPs -F pr="$PR" \
       ${cursor:+-f after="$cursor"})
   page_unresolved=$(printf '%s' "$page" \
     | jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved==false)]|length')

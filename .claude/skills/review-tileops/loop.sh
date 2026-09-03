@@ -23,7 +23,7 @@ PR="${1:?usage: loop.sh <PR_NUMBER>}"
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=signals.sh
 source "$SKILL_DIR/signals.sh"
-REPO="tile-ai/TileOPs"
+REPO="yyttt6/TileOPs"
 MAX_ROUNDS=15
 POLL_INTERVAL=180
 CODEX_RETRY=3
@@ -73,13 +73,13 @@ PROCEDURE_PATH="$SKILL_DIR/procedure.md"
 LOADING_YAML="$SKILL_DIR/loading.yaml"
 CHECKLISTS_DIR="$SOURCE_ROOT/.claude/review-checklists"
 
-# Discover the local remote that points at tile-ai/TileOPs. Different clones
+# Discover the local remote that points at yyttt6/TileOPs. Different clones
 # use different remote names (origin in clones, upstream in forks, anything
 # in CI environments) so we never hard-code.
 TILEOPS_REMOTE=$(git -C "$REPO_PATH" remote -v \
-  | awk '/tile-ai\/TileOPs(\.git)?[[:space:]]+\(fetch\)/ {print $1; exit}')
+  | awk '/yyttt6\/TileOPs(\.git)?[[:space:]]+\(fetch\)/ {print $1; exit}')
 if [[ -z "$TILEOPS_REMOTE" ]]; then
-  echo "loop.sh: no git remote in $REPO_PATH points at tile-ai/TileOPs" >&2
+  echo "loop.sh: no git remote in $REPO_PATH points at yyttt6/TileOPs" >&2
   exit 1
 fi
 
@@ -844,7 +844,7 @@ while true; do
           }
         }
       }
-    }' -F owner=tile-ai -F repo=TileOPs -F pr="$PR" \
+    }' -F owner=yyttt6 -F repo=TileOPs -F pr="$PR" \
     --jq '.data.repository.pullRequest.reviewThreads.nodes|map(select(.isResolved==false))' \
     > "$SNAP.unresolved-threads.json" 2>/dev/null || echo '[]' > "$SNAP.unresolved-threads.json"
 

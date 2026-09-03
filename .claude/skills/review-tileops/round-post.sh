@@ -23,7 +23,7 @@
 #                    artifact — it explicitly filters out the reviewer
 #                    and contains human comments instead.
 #   REPO           — "owner/repo" string for `gh` operations.
-#                    Default: tile-ai/TileOPs.
+#                    Default: yyttt6/TileOPs.
 #   PR             — PR number for `gh pr edit`.
 #
 # Positional fallback: round-post.sh <RUN_DIR> <ROUND> <COMMENTS_JSON> <REPO> <PR>
@@ -40,7 +40,7 @@ set -euo pipefail
 RUN_DIR="${RUN_DIR:-${1:-}}"
 ROUND="${ROUND:-${2:-}}"
 COMMENTS_JSON="${COMMENTS_JSON:-${3:-}}"
-REPO="${REPO:-${4:-tile-ai/TileOPs}}"
+REPO="${REPO:-${4:-yyttt6/TileOPs}}"
 PR="${PR:-${5:-}}"
 GH_BIN="${GH_BIN:-gh}"
 

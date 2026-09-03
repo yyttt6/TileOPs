@@ -20,8 +20,8 @@ efficiency   = sol_time / actual_time
 Inputs:
 
 - `bytes_moved`, `total_flops` — manifest `roofline` (§2).
-- `hbm_bandwidth` — GPU profile (§5.1), `hbm` section, effective value.
-- `peak_flops` — GPU profile section named by `op.compute_roof()` (§1.4), effective value.
+- `hbm_bandwidth` — device profile (§5.1), `hbm` section, effective value.
+- `peak_flops` — device profile section named by `op.compute_roof()` (§1.4), effective value.
 - `actual_time` — benchmark output (§5.2): device-busy time plus any device copies excluded from it (`uncounted_copy_ms`).
 
 Bound type is whichever term dominates `sol_time` (memory-bound if `memory_time > compute_time`, else compute-bound). It depends on shape, not on the op; the roofline tool computes it per-workload and the manifest does not declare it.
@@ -34,7 +34,7 @@ The metric is **algorithmic** SOL efficiency. Three statements delimit what a re
 
 Rows the model cannot price honestly are handled three ways:
 
-- **Blank, never guessed** — timed without CUPTI, `bytes` formula yields zero, or no GPU profile matches the device.
+- **Blank, never guessed** — timed without device activity, `bytes` formula yields zero, or no device profile matches the device.
 - **Labeled latency-bound** — `sol_time` and measured time both below the latency floor: launch overhead dominates and the model has no traction; regression detection still covers the row.
 - **Reported as a formula error, never as a fast kernel** — the row implies a rate above a *theoretical* ceiling.
 
@@ -51,12 +51,12 @@ Composite ops sum their primitives — `sigmoid = neg + exp + add + recip = 4` F
 
 ### 1.4 Compute Roof
 
-`Op.compute_roof()` returns the GPU-profile key (§5.1) of the unit that prices the op's FLOPs — `"cuda_core.fp32"`, `"tensor_core.bf16"`, `"tensor_core.fp8"`, ….
+`Op.compute_roof()` returns the NPU-profile key (§5.1) of the unit that prices the op's FLOPs — `"cuda_core.fp32"`, `"tensor_core.bf16"`, `"tensor_core.fp8"`, ….
 
 - The key states the unit an **optimal** implementation would use, declared by the op author in code. It is never inferred from the running kernel — that would price a kernel on the wrong unit against the wrong ceiling and hide exactly the gap the metric exists to expose. Nor from the input dtype alone — an fp8-backend attention takes fp16/bf16 tensors.
 - The `Op` base defaults to `"cuda_core.fp32"`, which covers every op whose arithmetic runs on CUDA cores in fp32 (elementwise, reductions, norms, scans). An op whose FLOPs are matmul contractions overrides it, normally with `tensor_core_roof(self.dtype)`; one whose unit depends on instance state (a backend switch, a quantized path) branches on that state.
 - The declaration is valid whenever `eval_roofline()` is — after the op's dtype is bound.
-- A wrong or missing override is caught by the nightly physics check (§4.3): a tensor-core kernel priced against the CUDA-core ceiling implies a FLOP rate above that ceiling's theoretical value, reported as a formula error on the next run.
+- A wrong or missing override is caught by the nightly physics check (§4.3): a Cube-unit kernel priced against the Vector-unit ceiling implies a FLOP rate above that ceiling's theoretical value, reported as a formula error on the next run.
 
 ## 2. Field Specification
 
@@ -102,7 +102,7 @@ roofline:
 
 - **Schema validator / CI** — structural checks only (schema, mode exclusivity, `func` importability). Does **not** execute formulas or hold a helper whitelist. Spec: §4.1.
 - **Benchmark layer** — instantiates an Op per workload and reads `(flops, bytes)` from `op.eval_roofline()`. Hardcoded formulas in benchmark files are a CI failure. Spec: §4.2.
-- **Roofline tool (M5)** — reads per-workload `(flops, bytes)`, the roof key, and timing from benchmark output, prices them against the GPU profile (§5.1), and emits SOL efficiency and verdicts. Spec: §4.3.
+- **Roofline tool (M5)** — reads per-workload `(flops, bytes)`, the roof key, and timing from benchmark output, prices them against the device profile (§5.1), and emits SOL efficiency and verdicts. Spec: §4.3.
 - **Op codegen** — generates each op's `eval_roofline()` method; is the authoritative gate for name and form correctness. Spec: §4.4.
 
 Two auditors check the field's values rather than consume them: the structural oracle (§4.6) and the NCU bytes audit (§4.5).
@@ -144,7 +144,7 @@ Contract:
 Inputs:
 
 - Benchmark output produced by M4, carrying per-workload timing, the `(flops, bytes)` from `op.eval_roofline()`, and the roof key from `op.compute_roof()`.
-- GPU profile (§5.1), selected by matching the profile's `gpu` field against the measured device name; no match leaves every SOL reading blank.
+- device profile (§5.1), selected by matching the profile's `npu` field against the measured device name; no match leaves every SOL reading blank.
 
 Per-workload outputs: SOL efficiency, bound type, latency-bound labels, anomaly reports.
 
@@ -305,12 +305,12 @@ A completeness test keeps the classification total: every implemented op is audi
 
 ## 5. Reference
 
-### 5.1 GPU Profile
+### 5.1 NPU Profile
 
 Hardware parameters use theoretical values with calibration factors from one-time microbenchmark measurements. A bandwidth calibration is the **envelope** over the measured access mixes (copy, Triad, pure read, pure write): a ceiling some legitimate mix can exceed is not a ceiling, and readings above 100% must stay reserved for formula errors; each mix's own measured fraction is kept as data (`calibration_mixes`), so a future per-mix ceiling reads it instead of re-measuring. YAML files store only measured values; `effective = theoretical × calibration` is computed by `load_profile()`:
 
 ```yaml
-# src/tileops/perf/profiles/<gpu>.yaml
+# src/tileops/perf/profiles/<npu>.yaml
 hbm:
   theoretical: 4800e9       # bytes/s, from spec sheet
   calibration: 0.938        # microbench envelope over access mixes
@@ -324,8 +324,8 @@ Profiles are stored in `src/tileops/perf/profiles/`. Microbenchmarks for calibra
 
 ### 5.2 Benchmark–Roofline Decoupling
 
-Benchmark (M4) produces per-workload records containing raw time and the `(flops, bytes)` from `op.eval_roofline()`. Roofline (M5) is a separate tool that reads those records + GPU profile to compute efficiency. This separation enables:
+Benchmark (M4) produces per-workload records containing raw time and the `(flops, bytes)` from `op.eval_roofline()`. Roofline (M5) is a separate tool that reads those records + device profile to compute efficiency. This separation enables:
 
-- Re-analyzing historical data when GPU profiles are updated
+- Re-analyzing historical data when device profiles are updated
 - Multiple consumers of raw benchmark data (roofline, regression detection, dashboards)
 - Benchmark module has no third-party dependencies beyond the project itself

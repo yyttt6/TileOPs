@@ -13,7 +13,7 @@ warp-specialized kernels, where overlapping the producer (TMA) and consumer
 1. Markers are **always emitted** as placeholders. At build time the kernel is
    either **lowered** (markers become real `clock64()`-recording code plus a
    trailing `slots` output) or **stripped** (markers become no-ops — the
-   generated CUDA is identical to an un-instrumented build).
+   generated AscendC is identical to an un-instrumented build).
 1. At runtime, `trace.run` executes the kernel, decodes the `slots` buffer, and
    writes a self-contained Plotly HTML timeline.
 1. A process-local switch (`trace.enable()`) decides lowered-vs-stripped, so
@@ -27,7 +27,7 @@ Below is a complete (illustrative, single-buffer) warp-specialized GEMM with
 tracing wired in. The numbered markers `(1)`–`(7)` are the only trace-specific
 additions; each is explained below, linked to its API doc. The production
 multi-stage version lives in
-[`src/tileops/kernels/gemm/dense.py`](https://github.com/tile-ai/TileOPs/blob/main/src/tileops/kernels/gemm/dense.py).
+[`src/tileops/kernels/gemm/dense.py`](https://github.com/yyttt6/TileOPs/blob/main/src/tileops/kernels/gemm/dense.py).
 
 ```{ .python .annotate }
 import functools

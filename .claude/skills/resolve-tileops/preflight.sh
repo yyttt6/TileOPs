@@ -15,7 +15,7 @@ set -euo pipefail
 PR="${1:?usage: preflight.sh <PR_NUMBER>}"
 [[ "$PR" =~ ^[0-9]+$ ]] || { echo "preflight: PR must be a positive integer" >&2; exit 1; }
 
-REPO="tile-ai/TileOPs"
+REPO="yyttt6/TileOPs"
 # Dependency checks first — both branches below use jq/gh.
 command -v gh >/dev/null 2>&1 || { echo "preflight: missing gh" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "preflight: missing jq" >&2; exit 1; }
@@ -54,8 +54,8 @@ fi
 
 # Round 1 cold start: validate repo remote, resolve TASK_ROOT, create state.
 git -C "$REPO_PATH" remote -v \
-  | awk '/tile-ai\/TileOPs(\.git)?[[:space:]]+\(fetch\)/ {found=1; exit} END{exit !found}' \
-  || { echo "preflight: no git remote in $REPO_PATH points to tile-ai/TileOPs" >&2; exit 1; }
+  | awk '/yyttt6\/TileOPs(\.git)?[[:space:]]+\(fetch\)/ {found=1; exit} END{exit !found}' \
+  || { echo "preflight: no git remote in $REPO_PATH points to yyttt6/TileOPs" >&2; exit 1; }
 
 PR_BODY=$(gh pr view "$PR" --repo "$REPO" --json body --jq .body) \
   || { echo "preflight: gh pr view failed for PR #$PR (auth? missing?)" >&2; exit 1; }

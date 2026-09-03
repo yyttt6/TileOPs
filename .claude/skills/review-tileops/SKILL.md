@@ -1,11 +1,11 @@
 ---
 name: review-tileops
-description: Single-shot review of a tile-ai/TileOPs PR as a separate GitHub identity from the PR author. Manual / interactive — for autonomous multi-round review until APPROVE, run `bash .claude/skills/review-tileops/loop.sh <PR>` instead.
+description: Single-shot review of a yyttt6/TileOPs PR as a separate GitHub identity from the PR author. Manual / interactive — for autonomous multi-round review until APPROVE, run `bash .claude/skills/review-tileops/loop.sh <PR>` instead.
 ---
 
 ## Input
 
-`$ARGUMENTS`: integer PR number in `tile-ai/TileOPs`. E.g. `1122`.
+`$ARGUMENTS`: integer PR number in `yyttt6/TileOPs`. E.g. `1122`.
 
 ## Step 0: Preflight
 
@@ -17,9 +17,9 @@ export GH_CONFIG_DIR="$TILEOPS_REVIEW_GH_CONFIG_DIR"
 ## Step 1: Gather inputs
 
 ```bash
-gh pr view <PR> --repo tile-ai/TileOPs \
+gh pr view <PR> --repo yyttt6/TileOPs \
   --json number,title,body,files,headRefOid,state
-gh pr diff <PR> --repo tile-ai/TileOPs
+gh pr diff <PR> --repo yyttt6/TileOPs
 ```
 
 Parse the title's first two bracket tokens — `[type][scope] description`. Look both up in `loading.yaml`:
