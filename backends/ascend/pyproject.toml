@@ -1,0 +1,19 @@
+[project]
+name = "tileops-ascend"
+version = "0.0.1"
+description = "TileOPs backend for Huawei Ascend NPU, with kernels written in TileLang-Ascend."
+requires-python = ">=3.10"
+# tileops is deliberately absent: this package extends an installation that already
+# exists, and a version floor here would resolve a release predating tileops.backend.
+# See TileOPs.github.io/docs/backends.md.
+dependencies = []
+
+[project.entry-points."tileops.backends"]
+ascend = "tileops_ascend"
+
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

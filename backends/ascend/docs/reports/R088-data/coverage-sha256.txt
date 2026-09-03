@@ -1,0 +1,6 @@
+6a129b6f9eb12d81a16ae0d631c63c12552d814028eede6d41bb3a96f0db7d12  /home/dyq/workspace/tileops-ascend-harness/coverage/VarFwdOp.json
+5210a795e4e5ac8b80dafa705c6c9c69a12a6c261728b5c75299d68d2cf20667  /home/dyq/workspace/tileops-ascend-harness/coverage/StdFwdOp.json
+ec84702ad9ac37ab23d38c3de0ec173e83e5b7602ecf9338f48fa50292cea91a  /home/dyq/workspace/tileops-ascend-harness/coverage/VarMeanFwdOp.json
+667542d1c501780c74b03fd695af8ebd5bb13fc75a6adbab911fbdb9669a1fee  /home/dyq/workspace/tileops-ascend-harness/coverage/ProdFwdOp.json
+28636c015ae7776058f39bc214087fdb725581402c8b9d2ea62118652b678f84  /home/dyq/workspace/tileops-ascend-harness/coverage/LogSumExpFwdOp.json
+602fc16c6b00caa64744b5a27ddde1e1037c633f938f1f8ad9392bfb37b6827c  /home/dyq/workspace/tileops-ascend-harness/coverage/LogSoftmaxFwdOp.json
