@@ -1,0 +1,11 @@
+# Attribution
+
+This project began from [TileOPs](https://github.com/tile-ai/TileOPs) by Tile-AI, and still
+carries substantial code from it under the MIT License: the operator layer
+(`src/tileops/ops/`), the manifest framework (`src/tileops/manifest/`), the performance model
+(`src/tileops/perf/`), the tracer (`src/tileops/trace/`), and most of `docs/design/`.
+
+The Ascend NPU work -- `backends/ascend/`, the AscendC kernels, the device-time measurement
+basis and the handwritten-baseline provenance machinery -- is ours.
+
+Both copyright notices are retained in [LICENSE](LICENSE), as the MIT License requires.
