@@ -27,18 +27,10 @@ from typing import Dict, Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.rope import (
-    RopeLlama31Kernel,
-    RopeLongRopeKernel,
-    RopeNeoxKernel,
-    RopeNeoxPositionIdsKernel,
-    RopeNonNeoxKernel,
-    RopeYarnKernel,
-)
 
 from .compile_boundary import get_instance
 from .op_base import Op
+from tileops.backend import Kernel
 
 # torch.compile registration factory: a @torch.library.custom_op +
 # register_fake pair per RoPE op (see module docstring).
@@ -99,7 +91,7 @@ def base_freqs(
     seq_len: int,
     base: float = 10000.0,
     dtype: torch.dtype = torch.float32,
-    device: str = "cuda",
+    device: str = "npu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Standard RoPE cos/sin tables.
 
@@ -129,7 +121,7 @@ def _llama31_freqs(
     high_freq_factor: float = 4.0,
     original_max_position: int = 8192,
     dtype: torch.dtype = torch.float32,
-    device: str = "cuda",
+    device: str = "npu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Llama 3.1 piecewise-scaled frequency computation.
 
@@ -205,7 +197,7 @@ def _yarn_freqs(
     beta_slow: float = 1.0,
     attn_factor: float = 1.0,
     dtype: torch.dtype = torch.float32,
-    device: str = "cuda",
+    device: str = "npu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """YaRN frequency computation with NTK-aware interpolation.
 
@@ -279,7 +271,7 @@ def _longrope_freqs(
     max_position_embeddings: int = 4096,
     original_max_position_embeddings: int = 4096,
     dtype: torch.dtype = torch.float32,
-    device: str = "cuda",
+    device: str = "npu",
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """LongRoPE per-dimension rescaled frequency computation.
 
@@ -352,21 +344,18 @@ class _RopeOpBase(Op):
 
     """
 
-    kernel_cls: type
     _op_name: str
     _wrapped = None  # Set by _register_rope_custom_op at class definition
 
     def __init__(
         self,
         layout: str = "1d",
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             layout: "1d" or "2d".
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.seq_len = None
@@ -379,7 +368,7 @@ class _RopeOpBase(Op):
 
         self._freq_cache: Dict[tuple, tuple[torch.Tensor, torch.Tensor]] = {}
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
     def _get_cos_sin(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
@@ -403,9 +392,6 @@ class _RopeOpBase(Op):
         """
         raise NotImplementedError("Subclass must implement _compute_cos_sin(device)")
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._op_name: self.kernel_cls}
 
     @property
     def total_memory(self) -> float:
@@ -424,39 +410,16 @@ class _RopeOpBase(Op):
     def _get_kernel(
         self, inputs: "tuple[torch.Tensor | None, ...]", device_index: int | None
     ) -> Kernel:
-        key = (
-            self.seq_len,
-            self.head_dim,
-            self.dtype,
-            self.layout,
-            self.batch,
-            self.num_heads,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            self._op_name,
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map[self._op_name](
-                seq_len=self.seq_len,
-                head_dim=self.head_dim,
-                dtype=self.dtype,
-                layout=self.layout,
-                batch=self.batch,
-                num_heads=self.num_heads,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel(self._op_name, inputs)
 
     def _validate_and_prepare(self, x: torch.Tensor) -> torch.Tensor:
         """Validate input shape/dtype/device and return a contiguous tensor.
 
         Raises:
-            ValueError: If x is not CUDA, has wrong dtype, or wrong shape.
+            ValueError: If x is not on the NPU, has wrong dtype, or wrong shape.
         """
-        if not x.is_cuda:
-            raise ValueError("Input must be a CUDA tensor")
+        if x.device.type != "npu":
+            raise ValueError("Input must be an NPU tensor")
         if self.layout == "1d":
             if x.ndim != 2:
                 raise ValueError("RoPE 1d layout expects input shape [seq_len, head_dim]")
@@ -521,13 +484,11 @@ class RopeNeoxFwdOp(_RopeOpBase):
     """
 
     _op_name = "rope_neox"
-    kernel_cls = RopeNeoxKernel
 
     def __init__(
         self,
         layout: str = "1d",
         base: float = 10000.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -535,11 +496,10 @@ class RopeNeoxFwdOp(_RopeOpBase):
         Args:
             layout: "1d" or "2d".
             base: Frequency base (default 10000).
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.base = base
-        super().__init__(layout, kernel_map, tune)
+        super().__init__(layout, tune)
 
     def _compute_cos_sin(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         return base_freqs(
@@ -558,7 +518,6 @@ class RopeNeoxPositionIdsFwdOp(Op):
         max_position: int,
         base: float = 10000.0,
         rotary_dim: Optional[int] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -567,7 +526,6 @@ class RopeNeoxPositionIdsFwdOp(Op):
             max_position: Manifest ``params.max_position``, ``int``.
             base: Manifest ``params.base``, ``float``, default ``10000.0``.
             rotary_dim: Manifest ``params.rotary_dim``, ``int | None``, default ``None``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         if rotary_dim is not None and rotary_dim <= 0:
@@ -585,12 +543,9 @@ class RopeNeoxPositionIdsFwdOp(Op):
         self.tune = tune
         self._freq_cache: Dict[tuple, tuple[torch.Tensor, torch.Tensor]] = {}
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._op_name: RopeNeoxPositionIdsKernel}
 
     @property
     def total_memory(self) -> float:
@@ -623,38 +578,15 @@ class RopeNeoxPositionIdsFwdOp(Op):
     def _get_kernel(
         self, inputs: "tuple[torch.Tensor | None, ...]", device_index: int | None
     ) -> Kernel:
-        key = (
-            self.num_tokens,
-            self.num_heads,
-            self.head_dim,
-            self.rotary_dim,
-            self.max_position,
-            self.dtype,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            self._op_name,
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map[self._op_name](
-                num_tokens=self.num_tokens,
-                num_heads=self.num_heads,
-                head_dim=self.head_dim,
-                rotary_dim=self.rotary_dim,
-                max_position=self.max_position,
-                dtype=self.dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel(self._op_name, inputs)
 
     def _validate_and_prepare(
         self,
         x: torch.Tensor,
         position_ids: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        if not x.is_cuda:
-            raise ValueError("Input must be a CUDA tensor")
+        if x.device.type != "npu":
+            raise ValueError("Input must be an NPU tensor")
         if x.ndim != 3:
             raise ValueError(
                 "RopeNeoxPositionIdsFwdOp expects input shape [tokens, heads, head_dim]"
@@ -669,8 +601,8 @@ class RopeNeoxPositionIdsFwdOp(Op):
             raise ValueError("rotary_dim must not exceed head_dim")
         self.rotary_dim = rotary_dim
         self.dtype = x.dtype
-        if not position_ids.is_cuda:
-            raise ValueError("position_ids must be a CUDA tensor")
+        if position_ids.device.type != "npu":
+            raise ValueError("position_ids must be an NPU tensor")
         if tuple(position_ids.shape) != (self.num_tokens,):
             raise ValueError(
                 f"Expected position_ids shape {(self.num_tokens,)}, got {tuple(position_ids.shape)}"
@@ -726,13 +658,11 @@ class RopeNonNeoxFwdOp(_RopeOpBase):
     """
 
     _op_name = "rope_non_neox"
-    kernel_cls = RopeNonNeoxKernel
 
     def __init__(
         self,
         layout: str = "1d",
         base: float = 10000.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -740,11 +670,10 @@ class RopeNonNeoxFwdOp(_RopeOpBase):
         Args:
             layout: "1d" or "2d".
             base: Frequency base (default 10000).
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.base = base
-        super().__init__(layout, kernel_map, tune)
+        super().__init__(layout, tune)
 
     def _compute_cos_sin(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         return base_freqs(
@@ -763,7 +692,6 @@ class RopeLlama31FwdOp(_RopeOpBase):
     """
 
     _op_name = "rope_llama31"
-    kernel_cls = RopeLlama31Kernel
 
     def __init__(
         self,
@@ -773,7 +701,6 @@ class RopeLlama31FwdOp(_RopeOpBase):
         low_freq_factor: float = 1.0,
         high_freq_factor: float = 4.0,
         original_max_position: int = 8192,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -785,7 +712,6 @@ class RopeLlama31FwdOp(_RopeOpBase):
             low_freq_factor: Low-frequency wavelen threshold (default 1.0).
             high_freq_factor: High-frequency wavelen threshold (default 4.0).
             original_max_position: Original max position (default 8192).
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.base = base
@@ -793,7 +719,7 @@ class RopeLlama31FwdOp(_RopeOpBase):
         self.low_freq_factor = low_freq_factor
         self.high_freq_factor = high_freq_factor
         self.original_max_position = original_max_position
-        super().__init__(layout, kernel_map, tune)
+        super().__init__(layout, tune)
 
     def _compute_cos_sin(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         return _llama31_freqs(
@@ -820,7 +746,6 @@ class RopeYarnFwdOp(_RopeOpBase):
     """
 
     _op_name = "rope_yarn"
-    kernel_cls = RopeYarnKernel
 
     def __init__(
         self,
@@ -831,7 +756,6 @@ class RopeYarnFwdOp(_RopeOpBase):
         beta_fast: float = 32.0,
         beta_slow: float = 1.0,
         attn_factor: float = 1.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -844,7 +768,6 @@ class RopeYarnFwdOp(_RopeOpBase):
             beta_fast: Fast decay boundary (default 32.0).
             beta_slow: Slow decay boundary (default 1.0).
             attn_factor: Attention scaling factor (default 1.0).
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.base = base
@@ -853,7 +776,7 @@ class RopeYarnFwdOp(_RopeOpBase):
         self.beta_fast = beta_fast
         self.beta_slow = beta_slow
         self.attn_factor = attn_factor
-        super().__init__(layout, kernel_map, tune)
+        super().__init__(layout, tune)
 
     def _compute_cos_sin(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         return _yarn_freqs(
@@ -883,7 +806,6 @@ class RopeLongRopeFwdOp(_RopeOpBase):
     """
 
     _op_name = "rope_longrope"
-    kernel_cls = RopeLongRopeKernel
 
     def __init__(
         self,
@@ -892,7 +814,6 @@ class RopeLongRopeFwdOp(_RopeOpBase):
         rescale_factors: Optional[torch.Tensor] = None,
         max_position_embeddings: int = 4096,
         original_max_position_embeddings: int = 4096,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -905,14 +826,13 @@ class RopeLongRopeFwdOp(_RopeOpBase):
             max_position_embeddings: Extended max position length (default 4096).
             original_max_position_embeddings: Original max position length
                 (default 4096).
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.base = base
         self.rescale_factors = rescale_factors
         self.max_position_embeddings = max_position_embeddings
         self.original_max_position_embeddings = original_max_position_embeddings
-        super().__init__(layout, kernel_map, tune)
+        super().__init__(layout, tune)
 
     def _compute_cos_sin(self, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         return _longrope_freqs(

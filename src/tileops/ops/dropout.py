@@ -10,15 +10,13 @@ Edge cases:
 - training=False: identity pass-through
 """
 
-from typing import Dict, Optional
 
 import torch
 
-from tileops.kernels.dropout import DropoutKernel
-from tileops.kernels.kernel_base import Kernel
 
 from .compile_boundary import get_instance
 from .op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["DropoutFwdOp"]
 
@@ -39,14 +37,12 @@ class DropoutFwdOp(Op):
     """
 
     _op_name = "dropout"
-    kernel_cls = DropoutKernel
 
     def __init__(
         self,
         p: float = 0.5,
         seed: int = 0,
         training: bool = True,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -55,7 +51,6 @@ class DropoutFwdOp(Op):
             p: Drop probability in [0, 1].
             seed: Integer seed for RNG.
             training: If False, dropout is disabled (identity pass-through).
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         if not (0.0 <= p <= 1.0):
@@ -71,13 +66,8 @@ class DropoutFwdOp(Op):
         self._skip = not training or p == 0.0
         self._all_zero = training and p == 1.0
 
-        # Always populate kernel_map for Op base class consistency
-        self.dispatch_kernel(kernel_map)
-        self.kernel = None
+        self.dispatch_kernel()
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._op_name: self.kernel_cls}
 
     @property
     def total_memory(self) -> float:
@@ -93,18 +83,7 @@ class DropoutFwdOp(Op):
 
         *rows* is the flat view the kernel wants; *x* is what the signature declares.
         """
-        return self.get_or_build_kernel(
-            self._op_name,
-            (x,),
-            key=(rows.numel(), rows.dtype, rows.device.index),
-            build=lambda: self.kernel_map[self._op_name](
-                rows.numel(),
-                rows.dtype,
-                p=self.p,
-                seed=self.seed,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel(self._op_name, (x,))
 
     def _eager_forward(self, x: torch.Tensor) -> torch.Tensor:
         self.N_total = x.numel()
@@ -135,8 +114,8 @@ class DropoutFwdOp(Op):
         Returns:
             ``output``, as the manifest declares.
         """
-        if not input.is_cuda:
-            raise ValueError("input must be a CUDA tensor")
+        if input.device.type != "npu":
+            raise ValueError("input must be an NPU tensor")
         if input.dtype not in (torch.float16, torch.bfloat16, torch.float32):
             raise ValueError(
                 f"input.dtype must be float16, bfloat16, or float32, got {input.dtype}"

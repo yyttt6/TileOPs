@@ -37,11 +37,7 @@ MultiHeadAttentionFwdOp:
     func: "tileops.perf.formulas.mha_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_fwd.py
-    kernel_map:
-      gqa_prefill_fwd_kernel: GQAPrefillFwdKernel
-      gqa_prefill_causal_fwd_kernel: GQAPrefillFwdWsPersistentCausalKernel
-      gqa_prefill_square_fwd_kernel: GQAFwdWsPersistentCausalKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention.py
     op: tileops/ops/attention/mha.py
     test: tests/ops/attention/test_mha.py
     bench: benchmarks/ops/attention/bench_mha.py
@@ -89,10 +85,7 @@ MultiHeadAttentionBwdOp:
     func: "tileops.perf.formulas.mha_bwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_bwd.py
-    kernel_map:
-      gqa_bwd_preprocess_kernel: FlashAttnBwdPreprocessKernel
-      gqa_bwd_kernel: GQABwdWgmmaPipelinedKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_bwd.py
     op: tileops/ops/attention/mha.py
     test: tests/ops/attention/test_mha.py
     bench: benchmarks/ops/attention/bench_mha.py
@@ -162,7 +155,8 @@ GroupedQueryAttentionDenseFwdOp:
     func: "tileops.perf.formulas.gqa_fwd_roofline"
 
   source:
-    kernel: []
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa.py
     bench: benchmarks/ops/attention/bench_gqa.py
@@ -200,11 +194,7 @@ GroupedQueryAttentionFwdOp:
     func: "tileops.perf.formulas.gqa_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_fwd.py
-    kernel_map:
-      gqa_prefill_fwd_kernel: GQAPrefillFwdKernel
-      gqa_prefill_causal_fwd_kernel: GQAPrefillFwdWsPersistentCausalKernel
-      gqa_prefill_square_fwd_kernel: GQAFwdWsPersistentCausalKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa.py
     bench: benchmarks/ops/attention/bench_gqa.py
@@ -276,14 +266,7 @@ GroupedQueryAttentionPrefillFwdOp:
     func: "tileops.perf.formulas.gqa_prefill_varlen_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_fwd.py
-    kernel_map:
-      gqa_prefill_fwd_kernel: GQAPrefillFwdKernel
-      gqa_prefill_causal_fwd_kernel: GQAPrefillFwdWsPersistentCausalKernel
-      gqa_prefill_square_fwd_kernel: GQAFwdWsPersistentCausalKernel
-      gqa_prefill_varlen_fwd_kernel: GQAPrefillVarlenFwdKernel
-      gqa_sliding_window_varlen_fwd_kernel: GQASlidingWindowVarlenFwdWgmmaPipelinedKernel
-      gqa_prefill_fp8_tensor_core_fwd_kernel: GQAFwdFP8Fa3ContractPtxAccBN224WsTmaVKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa.py
     bench: benchmarks/ops/attention/bench_gqa.py
@@ -361,12 +344,7 @@ GroupedQueryAttentionPrefillPagedWithKVCacheFwdOp:
     func: "tileops.perf.formulas.gqa_prefill_paged_with_kv_cache_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_fwd.py
-    kernel_map:
-      gqa_prefill_paged_with_kv_cache_fwd_kernel: GQAPrefillPagedWithKVCacheFwdKernel
-      gqa_prefill_paged_with_kv_cache_rope_append_kernel: GQAPrefillPagedWithKVCacheRopeAppendKernel
-      gqa_prefill_paged_with_kv_cache_rope_fwd_kernel: GQAPrefillPagedWithKVCacheRopeFwdKernel
-      gqa_prefill_paged_with_fp8_kv_cache_fwd_kernel: GQAPrefillPagedWithFP8KVCacheFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_decode.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa_prefill_paged.py
     bench: benchmarks/ops/attention/bench_gqa.py
@@ -415,10 +393,7 @@ GroupedQueryAttentionBwdOp:
     func: "tileops.perf.formulas.gqa_bwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_bwd.py
-    kernel_map:
-      gqa_bwd_preprocess_kernel: FlashAttnBwdPreprocessKernel
-      gqa_bwd_kernel: GQABwdWgmmaPipelinedKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_bwd.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa.py
     bench: benchmarks/ops/attention/bench_gqa.py
@@ -460,9 +435,7 @@ MultiHeadAttentionDecodeWithKVCacheFwdOp:
     func: "tileops.perf.formulas.mha_decode_roofline"
 
   source:
-    kernel: tileops/kernels/attention/mha_decode.py
-    kernel_map:
-      mha_decode_kernel: MHADecodeKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_decode.py
     op: tileops/ops/attention/mha.py
     test: tests/ops/attention/test_mha_decode.py
     bench: benchmarks/ops/attention/bench_mha_decode.py
@@ -503,9 +476,7 @@ MultiHeadAttentionDecodePagedWithKVCacheFwdOp:
     func: "tileops.perf.formulas.mha_decode_paged_roofline"
 
   source:
-    kernel: tileops/kernels/attention/mha_decode_paged.py
-    kernel_map:
-      mha_decode_paged_kernel: MHADecodePagedKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_decode.py
     op: tileops/ops/attention/mha.py
     test: tests/ops/attention/test_mha_decode_paged.py
     bench: benchmarks/ops/attention/bench_mha_decode_paged.py
@@ -555,10 +526,7 @@ GroupedQueryAttentionDecodeWithKVCacheFwdOp:
     func: "tileops.perf.formulas.gqa_decode_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_decode.py
-    kernel_map:
-      gqa_decode_kernel: GQADecodeKernel
-      gqa_decode_bs1_kernel: GQADecodeBs1Kernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_decode.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa_decode.py
     bench: benchmarks/ops/attention/bench_gqa_decode.py
@@ -608,10 +576,7 @@ GroupedQueryAttentionDecodePagedWithKVCacheFwdOp:
     func: "tileops.perf.formulas.gqa_decode_paged_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_decode_paged.py
-    kernel_map:
-      gqa_decode_paged_kernel: GQADecodePagedKernel
-      gqa_decode_paged_bs1_kernel: GQADecodePagedBs1Kernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_decode.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa_decode_paged.py
     bench: benchmarks/ops/attention/bench_gqa_decode_paged.py
@@ -656,9 +621,7 @@ GroupedQueryAttentionSlidingWindowFwdOp:
     func: "tileops.perf.formulas.gqa_sliding_window_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_sliding_window_fwd.py
-    kernel_map:
-      gqa_sliding_window_fwd_kernel: GQASlidingWindowFwdWgmmaPipelinedKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa_sliding_window.py
     bench: benchmarks/ops/attention/bench_gqa_sliding_window.py
@@ -704,9 +667,7 @@ GroupedQueryAttentionSlidingWindowVarlenFwdOp:
     func: "tileops.perf.formulas.gqa_sliding_window_varlen_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/attention/gqa_sliding_window_varlen_fwd.py
-    kernel_map:
-      gqa_sliding_window_varlen_fwd_kernel: GQASlidingWindowVarlenFwdWgmmaPipelinedKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention.py
     op: tileops/ops/attention/gqa.py
     test: tests/ops/attention/test_gqa_sliding_window_varlen.py
     bench: benchmarks/ops/attention/bench_gqa_sliding_window_varlen.py
@@ -752,9 +713,7 @@ MultiHeadLatentAttentionDecodeWithKVCacheFwdOp:
     func: "tileops.perf.formulas.deepseek_mla_decode_roofline"
 
   source:
-    kernel: tileops/kernels/attention/deepseek_mla_decode.py
-    kernel_map:
-      mla_decode_kernel: MLADecodeWsKernel
+    kernel: backends/ascend/src/tileops_ascend/families/attention_decode.py
     op: tileops/ops/attention/deepseek_mla.py
     test: tests/ops/attention/test_deepseek_mla_decode.py
     bench: benchmarks/ops/attention/bench_deepseek_mla_decode.py
@@ -793,9 +752,8 @@ DeepSeekSparseAttentionDecodeWithKVCacheFwdOp:
     func: "tileops.perf.formulas.deepseek_dsa_decode_roofline"
 
   source:
-    kernel: tileops/kernels/attention/deepseek_dsa_decode.py
-    kernel_map:
-      sparse_mla_kernel: SparseMlaKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/attention/deepseek_dsa.py
     test: tests/ops/attention/test_deepseek_dsa_decode.py
     bench: benchmarks/ops/attention/bench_deepseek_dsa_decode.py

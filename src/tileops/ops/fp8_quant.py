@@ -1,21 +1,19 @@
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 import torch
 
-from tileops.kernels.fp8_quant import FP8QuantKernel
-from tileops.kernels.kernel_base import Kernel
 
 from .op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["FP8QuantFwdOp"]
 
 
 class FP8QuantFwdOp(Op):
-    def __init__(self, kernel_map: Optional[Dict[str, Kernel]] = None, tune: bool = False):
+    def __init__(self, tune: bool = False):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -24,12 +22,9 @@ class FP8QuantFwdOp(Op):
         self.index_dim = None
         self.in_dtype = None
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"fp8_quant_kernel": FP8QuantKernel}
 
     def _get_kernel(
         self,
@@ -41,15 +36,7 @@ class FP8QuantFwdOp(Op):
         in_dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, seq_len_kv, kv_group, index_dim, in_dtype, device_index, self.tune)
-        return self.get_or_build_kernel(
-            "fp8_quant_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["fp8_quant_kernel"](
-                batch, seq_len_kv, kv_group, index_dim, in_dtype, tune=self.tune
-            ),
-        )
+        return self.get_or_build_kernel("fp8_quant_kernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -70,8 +57,8 @@ class FP8QuantFwdOp(Op):
         Returns:
             ``scale_tensor``, ``output_tensor``, as the manifest declares.
         """
-        if not input_tensor.is_cuda:
-            raise ValueError("FP8QuantFwdOp expects a CUDA input tensor")
+        if input_tensor.device.type != "npu":
+            raise ValueError("FP8QuantFwdOp expects an NPU input tensor")
         if input_tensor.ndim != 4:
             raise ValueError("FP8QuantFwdOp expects input_tensor shape [B, S, G, D]")
         if input_tensor.dtype not in (torch.float16, torch.bfloat16, torch.float32):

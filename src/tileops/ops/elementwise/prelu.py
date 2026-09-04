@@ -6,8 +6,6 @@ from typing import Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import PreluFwdKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -35,16 +33,13 @@ class PreluFwdOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional dispatch override mapping kernel keys to
-                ``Kernel`` subclasses. Falls back to ``default_kernel_map``.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         self.target = target
@@ -53,20 +48,13 @@ class PreluFwdOp(_PerDtypeKernels, Op):
         # self.<name>_shape (docs/design/roofline.md §4.4.3); the first forward binds them.
         self.input_shape: Optional[tuple] = None
         self.weight_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     @staticmethod
     def _inner_size(shape: tuple) -> int:
         """Elements per channel per row: PyTorch puts the channel at dim 1."""
         return (prod(shape[2:]) if len(shape) > 2 else 1) if len(shape) >= 2 else 1
 
-    def _build(self, dtype: torch.dtype, n_total: int, num_channels: int, inner_size: int):
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(n_total, num_channels, inner_size, ctor_dtype)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"prelu": PreluFwdKernel}
 
     def _infer_output_shapes(self, input_shape: tuple, weight_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: ``output.shape == input.shape``."""

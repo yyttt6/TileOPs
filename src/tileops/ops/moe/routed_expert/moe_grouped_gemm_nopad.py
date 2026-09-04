@@ -1,22 +1,21 @@
 """MoE grouped GEMM op (no-pad variant): NT GEMM with precomputed tile scheduling."""
 
-from typing import ClassVar, Dict, Optional, Tuple
+from typing import ClassVar, Dict, Tuple
 
 import torch
 
-from tileops.kernels.grouped_gemm import GroupedGemmCall, GroupedGemmPersistent3WGKernel
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe.moe_grouped_gemm_nopad import MoeGroupedGemmNopadKernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ...compile_boundary import get_instance
 from ...op_base import Op
 from ._common import GroupedOperandEagerForward
+from tileops.backend import Kernel
 
 __all__ = ["MoeGroupedGemmNopadFwdOp"]
 
 #: The implementations of this role; each states its own region.
-_GEMM_KEYS = ("moe_grouped_gemm_kernel", "moe_grouped_gemm_persistent_kernel")
+#: The slot this op asks its target for.
+_GEMM_SLOT = "moe_grouped_gemm"
 
 
 class MoeGroupedGemmNopadFwdOp(GroupedOperandEagerForward, Op):
@@ -45,7 +44,6 @@ class MoeGroupedGemmNopadFwdOp(GroupedOperandEagerForward, Op):
         num_experts: int,
         n: int,
         k: int,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -55,7 +53,6 @@ class MoeGroupedGemmNopadFwdOp(GroupedOperandEagerForward, Op):
             num_experts: Total number of experts E.
             n: Output feature dimension N (e.g. 2*ffn_size or hidden_size).
             k: Input feature dimension K (hidden_size or ffn_size).
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune.
         """
         self.numel = numel
@@ -64,30 +61,11 @@ class MoeGroupedGemmNopadFwdOp(GroupedOperandEagerForward, Op):
         self.k = k
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: tuple, dtype: torch.dtype) -> Kernel:
-        call = GroupedGemmCall(
-            numel=self.numel,
-            num_experts=self.num_experts,
-            n=self.n,
-            k=self.k,
-            dtype=dtype,
-        )
-        name = self.select_kernel_key(_GEMM_KEYS, call)
-        return self.get_or_build_kernel(
-            name,
-            inputs,
-            key=(name, dtype),
-            build=lambda: self.kernel_map[name](
-                self.numel,
-                self.num_experts,
-                self.n,
-                self.k,
-                dtype=dtype,
-                tune=self.tune,
-            ),
-        )
+        del dtype  # on the tensors the target is handed
+        return self.get_or_build_kernel(_GEMM_SLOT, inputs)
 
     def _infer_output_shapes(
         self,
@@ -99,12 +77,6 @@ class MoeGroupedGemmNopadFwdOp(GroupedOperandEagerForward, Op):
         # b is [num_experts, N, K]; the tight output keeps a's row count.
         return {"c": (a_shape[0], b_shape[1])}
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "moe_grouped_gemm_kernel": MoeGroupedGemmNopadKernel,
-            "moe_grouped_gemm_persistent_kernel": GroupedGemmPersistent3WGKernel,
-        }
 
     def forward(
         self,
@@ -127,8 +99,8 @@ class MoeGroupedGemmNopadFwdOp(GroupedOperandEagerForward, Op):
         return _moe_grouped_gemm_nopad_fwd(a, b, true_sizes, true_offsets, self._instance_key)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 @torch.library.custom_op("tileops::moe_grouped_gemm_nopad_fwd", mutates_args=())

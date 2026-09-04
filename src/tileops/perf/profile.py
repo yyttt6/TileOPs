@@ -1,10 +1,15 @@
-"""GPU profile loader.
+"""Hardware profile loader.
 
 Reads YAML profiles from src/tileops/perf/profiles/ and returns them as dicts.
 This is the M6 -> M5 data contract interface (see docs/design/architecture.md).
 
 YAML files store only ``theoretical`` and ``calibration`` values.
 ``effective = theoretical * calibration`` is computed at load time.
+
+**Roof keys name Ascend compute units.** A 910B1 AI Core is a Cube unit for
+matrix contractions and a Vector unit for everything else, so a roof key is
+``"cube.<dtype>"`` or ``"vector.<dtype>"``. The two names are the hardware's
+own; nothing here invents a third vocabulary for them.
 """
 
 from pathlib import Path
@@ -18,11 +23,11 @@ _PROFILES_DIR = Path(__file__).parent / "profiles"
 _NUMERIC_KEYS = frozenset({"theoretical", "calibration", "calibration_burst", "effective"})
 
 
-def get_profile_path(gpu_name: str) -> Path:
-    """Return the path to a GPU profile YAML.
+def get_profile_path(soc_name: str) -> Path:
+    """Return the path to a hardware profile YAML.
 
     Args:
-        gpu_name: Profile name without extension (e.g. "h200").
+        soc_name: Profile name without extension (e.g. "ascend910b1").
 
     Returns:
         Path to the YAML file.
@@ -30,10 +35,10 @@ def get_profile_path(gpu_name: str) -> Path:
     Raises:
         FileNotFoundError: If no profile exists for the given name.
     """
-    path = _PROFILES_DIR / f"{gpu_name}.yaml"
+    path = _PROFILES_DIR / f"{soc_name}.yaml"
     if not path.exists():
         available = [p.stem for p in _PROFILES_DIR.glob("*.yaml")]
-        raise FileNotFoundError(f"No GPU profile '{gpu_name}'. Available: {available}")
+        raise FileNotFoundError(f"No hardware profile '{soc_name}'. Available: {available}")
     return path
 
 
@@ -62,55 +67,59 @@ def _inject_effective(profile):
     datasheet numbers first and calibrated by benchmarks/hardware/ afterwards.
     """
     sections = [profile.get("hbm")]
-    for group in ("tensor_core", "cuda_core"):
+    for group in ("cube", "vector"):
         sections.extend(profile.get(group, {}).values())
     for section in sections:
         if isinstance(section, dict) and "effective" not in section and "calibration" in section:
             section["effective"] = section["theoretical"] * section["calibration"]
 
 
-# Tensor-core dtype keys, by the dtype the contraction consumes. fp32 maps to
-# tf32 because that is the unit an fp32 contraction runs on when tensor cores
-# serve it. Encode side of the roof-key format; ``resolve_roof`` is the decode.
-_TENSOR_CORE_DTYPE_KEYS = {
+# Cube dtype keys, by the dtype the contraction consumes. Encode side of the
+# roof-key format; ``resolve_roof`` is the decode.
+#
+# 910B1 has no FP8 Cube path, so ``float8_*`` is deliberately absent: a soft-FP8
+# contraction computes in fp16 and is priced there (see the handwritten-baseline
+# fairness clause on soft-FP8). Asking for an fp8 roof raises rather than
+# quoting a ceiling the hardware does not have.
+_CUBE_DTYPE_KEYS = {
     "float16": "fp16",
     "bfloat16": "bf16",
-    "float32": "tf32",
-    "float8_e4m3fn": "fp8",
-    "float8_e5m2": "fp8",
+    "float32": "fp32",
 }
 
 
-def tensor_core_roof(dtype) -> str:
-    """Tensor-core roof key for a contraction computing at *dtype*.
+def cube_roof(dtype) -> str:
+    """Cube roof key for a contraction computing at *dtype*.
+
+    The Cube unit is the 910B1's matrix engine: it is what prices a matmul's
+    FLOPs, the way tensor cores do on a GPU.
 
     Args:
         dtype: The dtype the matmul consumes — a ``torch.dtype`` or its
             string name. Ops pass ``self.dtype`` directly.
 
     Returns:
-        A GPU-profile key such as ``"tensor_core.bf16"``.
+        A profile key such as ``"cube.bf16"``.
 
     Raises:
-        ValueError: If *dtype* has no tensor-core section in the profile
-            schema (including ``None`` — the op has not bound a dtype yet).
+        ValueError: If *dtype* has no Cube section in the profile schema
+            (including ``None`` — the op has not bound a dtype yet).
     """
     name = str(dtype).removeprefix("torch.") if dtype is not None else None
-    key = _TENSOR_CORE_DTYPE_KEYS.get(name) if name is not None else None
+    key = _CUBE_DTYPE_KEYS.get(name) if name is not None else None
     if key is None:
         raise ValueError(
-            f"no tensor-core roof for dtype {dtype!r}; known dtypes: "
-            f"{sorted(_TENSOR_CORE_DTYPE_KEYS)}"
+            f"no Cube roof for dtype {dtype!r}; known dtypes: {sorted(_CUBE_DTYPE_KEYS)}"
         )
-    return f"tensor_core.{key}"
+    return f"cube.{key}"
 
 
 def find_profile(device_name: str) -> dict | None:
-    """Load the profile whose ``gpu`` field names *device_name*, or ``None``.
+    """Load the profile whose ``device`` field names *device_name*, or ``None``.
 
     Args:
-        device_name: The device name as CUDA reports it
-            (``torch.cuda.get_device_name()``), e.g. ``"NVIDIA H200"``.
+        device_name: The device name the runtime reports
+            (``torch.npu.get_device_name()``), e.g. ``"Ascend910B1"``.
 
     Returns:
         The loaded profile dict, or ``None`` when no profile claims the
@@ -119,13 +128,13 @@ def find_profile(device_name: str) -> dict | None:
     """
     for path in _PROFILES_DIR.glob("*.yaml"):
         profile = load_profile(path.stem)
-        if profile.get("gpu") == device_name:
+        if profile.get("device") == device_name:
             return profile
     return None
 
 
 def resolve_roof(profile: dict, key: str) -> dict | None:
-    """Resolve a roof key like ``"tensor_core.bf16"`` to its profile section.
+    """Resolve a roof key like ``"cube.bf16"`` to its profile section.
 
     Args:
         profile: A dict from :func:`load_profile`.
@@ -142,17 +151,17 @@ def resolve_roof(profile: dict, key: str) -> dict | None:
     return None
 
 
-def load_profile(gpu_name: str) -> dict:
-    """Load a GPU profile as a dict.
+def load_profile(soc_name: str) -> dict:
+    """Load a hardware profile as a dict.
 
     Args:
-        gpu_name: Profile name without extension (e.g. "h200").
+        soc_name: Profile name without extension (e.g. "ascend910b1").
 
     Returns:
-        Dict with keys: gpu, compute_capability, hbm, tensor_core.
-        Each hbm/tensor_core section includes a computed ``effective`` field.
+        Dict with keys: device, soc, hbm, cube, vector. Each rate section
+        includes a computed ``effective`` field.
     """
-    path = get_profile_path(gpu_name)
+    path = get_profile_path(soc_name)
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     data = _coerce_numeric_strings(data)

@@ -1,13 +1,12 @@
 import functools
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.mamba import DaCumsumFwdKernel
 from tileops.manifest import load_manifest
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["DaCumsumFwdOp"]
 
@@ -42,7 +41,6 @@ class DaCumsumFwdOp(Op):
         dt_min: float = 0.0,
         dt_max: float = float("inf"),
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -69,12 +67,9 @@ class DaCumsumFwdOp(Op):
         self.dt_min = dt_min
         self.dt_max = dt_max
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"da_cumsum_fwd": DaCumsumFwdKernel}
 
     def _get_kernel(
         self,
@@ -86,38 +81,7 @@ class DaCumsumFwdOp(Op):
         has_dt_bias: bool,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            batch,
-            num_chunks,
-            self.chunk_len,
-            n_heads,
-            seq_len,
-            self.dtype,
-            self.dt_softplus,
-            has_dt_bias,
-            self.dt_min,
-            self.dt_max,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            "da_cumsum_fwd",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["da_cumsum_fwd"](
-                batch,
-                num_chunks,
-                self.chunk_len,
-                n_heads,
-                seq_len,
-                self.dtype,
-                dt_softplus=self.dt_softplus,
-                has_dt_bias=has_dt_bias,
-                dt_min=self.dt_min,
-                dt_max=self.dt_max,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("da_cumsum_fwd", inputs)
 
     def _infer_output_shapes(
         self,
@@ -148,8 +112,8 @@ class DaCumsumFwdOp(Op):
             dA_cumsum: (batch, n_heads, num_chunks, chunk_len) float32 — inclusive prefix sum
                 of dA = dt_val * A, computed from fp32 dt_val before casting dt_out.
         """
-        if not dt.is_cuda:
-            raise ValueError("dt must be a CUDA tensor")
+        if dt.device.type != "npu":
+            raise ValueError("dt must be an NPU tensor")
         if dt.dtype != torch.float32:
             raise ValueError(f"Expected float32 dt, got {dt.dtype}")
         if dt.ndim != 3:

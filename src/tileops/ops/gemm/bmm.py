@@ -5,15 +5,14 @@ batch item is an independent GEMM, no broadcasting.
 """
 
 import warnings
-from typing import ClassVar, Dict, Hashable, Optional, Set, Tuple
+from typing import ClassVar, Hashable, Optional, Set, Tuple
 
 import torch
 
-from tileops.kernels.gemm.bmm import BmmFp8Kernel, BmmKernel
-from tileops.kernels.kernel_base import Kernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["BmmFp8KNFwdOp", "BmmFp8NKFwdOp", "BmmFwdOp"]
 
@@ -30,17 +29,15 @@ class BmmFwdOp(Op):
 
     def __init__(
         self,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. No shape or dtype is bound until the first call.
 
         Args:
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         # (batch, m, n, k, dtype) -> Kernel instance; built lazily on first use.
         # Fast path: skip re-inference when the input signature is unchanged.
         self._active_sig: Optional[tuple] = None
@@ -52,9 +49,6 @@ class BmmFwdOp(Op):
         self.k: Optional[int] = None
         self.dtype: Optional[torch.dtype] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"bmm_kernel": BmmKernel}
 
     def _infer_bmnk(
         self,
@@ -111,12 +105,7 @@ class BmmFwdOp(Op):
         dtype: torch.dtype,
     ) -> Kernel:
         """Return the cached BmmKernel for the given dims, building lazily."""
-        return self.get_or_build_kernel(
-            "bmm_kernel",
-            inputs,
-            key=(batch, m, n, k, dtype),
-            build=lambda: self.kernel_map["bmm_kernel"](batch, m, n, k, dtype, tune=self.tune),
-        )
+        return self.get_or_build_kernel("bmm_kernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -167,8 +156,8 @@ class BmmFwdOp(Op):
         return self._active_kernel(a, b)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class BmmFp8KNFwdOp(Op):
@@ -186,14 +175,12 @@ class BmmFp8KNFwdOp(Op):
     def __init__(
         self,
         out_dtype: torch.dtype | str = "bfloat16",
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             out_dtype: Output tensor dtype (``torch.float16`` or ``torch.bfloat16``).
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune (applied when a kernel is first built).
         """
         if isinstance(out_dtype, str):
@@ -204,7 +191,7 @@ class BmmFp8KNFwdOp(Op):
             )
         self.out_dtype = out_dtype
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._active_sig: Optional[tuple] = None
         self._active: Optional[Kernel] = None
         # Shape-signatures for which we've already emitted the "slow path"
@@ -217,11 +204,6 @@ class BmmFp8KNFwdOp(Op):
         self.k: Optional[int] = None
         self.dtype: Optional[torch.dtype] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "bmm_fp8_kernel": BmmFp8Kernel,
-        }
 
     def _validate_dtypes(
         self,
@@ -284,13 +266,13 @@ class BmmFp8KNFwdOp(Op):
         scale_a: torch.Tensor,
         scale_b: torch.Tensor,
     ) -> Tuple[int, int, int, int, bool]:
-        if not a.is_cuda:
+        if a.device.type != "npu":
             raise ValueError(
-                f"BmmFp8KNFwdOp expects all inputs to be on CUDA, got device {a.device}"
+                f"BmmFp8KNFwdOp expects all inputs to be on the NPU, got device {a.device}"
             )
         if b.device != a.device or scale_a.device != a.device or scale_b.device != a.device:
             raise ValueError(
-                f"BmmFp8KNFwdOp expects all inputs to be on the same CUDA device, got "
+                f"BmmFp8KNFwdOp expects all inputs to be on the same NPU device, got "
                 f"a: {a.device}, b: {b.device}, scale_a: {scale_a.device}, "
                 f"scale_b: {scale_b.device}"
             )
@@ -314,14 +296,7 @@ class BmmFp8KNFwdOp(Op):
         dtype: torch.dtype,
         device: torch.device,
     ) -> Kernel:
-        return self.get_or_build_kernel(
-            "bmm_fp8_kernel",
-            inputs,
-            key=(batch, m, n, k, dtype, self.out_dtype, device),
-            build=lambda: self.kernel_map["bmm_fp8_kernel"](
-                batch, m, n, k, dtype, self.out_dtype, device=device, tune=self.tune
-            ),
-        )
+        return self.get_or_build_kernel("bmm_fp8_kernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -352,7 +327,7 @@ class BmmFp8KNFwdOp(Op):
             The scaled product, $[B \\times M \\times N]$, in ``out_dtype``.
 
         Raises:
-            ValueError: An input is not on CUDA, a dtype is not the one listed above,
+            ValueError: An input is not on the NPU, a dtype is not the one listed above,
                 a scale is not 0-dim, the batch or contraction dims do not match, or
                 $K$ is not a multiple of 32 — the FP8 WGMMA K-step.
 
@@ -413,8 +388,8 @@ class BmmFp8KNFwdOp(Op):
         return self._active(a, b, scale_a, scale_b)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class BmmFp8NKFwdOp(BmmFp8KNFwdOp):

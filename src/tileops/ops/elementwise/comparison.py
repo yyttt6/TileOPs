@@ -2,17 +2,6 @@
 
 import torch
 
-from tileops.kernels.elementwise import (
-    EqFwdKernel,
-    GeFwdKernel,
-    GtFwdKernel,
-    IsfiniteFwdKernel,
-    IsinfFwdKernel,
-    IsnanFwdKernel,
-    LeFwdKernel,
-    LtFwdKernel,
-    NeFwdKernel,
-)
 
 from ._base import (
     _PREDICATE_FALLBACK_DTYPES,
@@ -25,42 +14,36 @@ class EqFwdOp(BinaryOp):
     """Element-wise equality with broadcast: y = (a == b)."""
 
     _op_name = "eq"
-    kernel_cls = EqFwdKernel
 
 
 class NeFwdOp(BinaryOp):
     """Element-wise not-equal with broadcast: y = (a != b)."""
 
     _op_name = "ne"
-    kernel_cls = NeFwdKernel
 
 
 class GtFwdOp(BinaryOp):
     """Element-wise greater-than with broadcast: y = (a > b)."""
 
     _op_name = "gt"
-    kernel_cls = GtFwdKernel
 
 
 class LtFwdOp(BinaryOp):
     """Element-wise less-than with broadcast: y = (a < b)."""
 
     _op_name = "lt"
-    kernel_cls = LtFwdKernel
 
 
 class GeFwdOp(BinaryOp):
     """Element-wise greater-equal with broadcast: y = (a >= b)."""
 
     _op_name = "ge"
-    kernel_cls = GeFwdKernel
 
 
 class LeFwdOp(BinaryOp):
     """Element-wise less-equal with broadcast: y = (a <= b)."""
 
     _op_name = "le"
-    kernel_cls = LeFwdKernel
 
 
 class IsnanFwdOp(_IntIdentityUnaryOp):
@@ -71,7 +54,6 @@ class IsnanFwdOp(_IntIdentityUnaryOp):
     """
 
     _op_name = "isnan"
-    kernel_cls = IsnanFwdKernel
     _int_output_dtype = torch.bool
     _fallback_dtypes = _PREDICATE_FALLBACK_DTYPES
 
@@ -88,7 +70,6 @@ class IsinfFwdOp(_IntIdentityUnaryOp):
     """
 
     _op_name = "isinf"
-    kernel_cls = IsinfFwdKernel
     _int_output_dtype = torch.bool
     _fallback_dtypes = _PREDICATE_FALLBACK_DTYPES
 
@@ -105,7 +86,6 @@ class IsfiniteFwdOp(_IntIdentityUnaryOp):
     """
 
     _op_name = "isfinite"
-    kernel_cls = IsfiniteFwdKernel
     _int_output_dtype = torch.bool
     _fallback_dtypes = _PREDICATE_FALLBACK_DTYPES
 

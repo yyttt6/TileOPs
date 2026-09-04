@@ -35,13 +35,11 @@ BmmFwdOp:
     func: "tileops.perf.formulas.bmm_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/gemm/bmm.py
+    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
     op: tileops/ops/gemm/bmm.py
     test: tests/ops/test_bmm.py
     bench: benchmarks/ops/bench_bmm.py
     bench_manifest_driven: true
-    kernel_map:
-      bmm_kernel: BmmKernel
 
 # BmmFp8KNFwdOp: strict 3D-3D batched FP8 GEMM with per-tensor scaling.
 # A single fp32 scalar per operand is shared across the whole batch,
@@ -87,13 +85,12 @@ BmmFp8KNFwdOp:
     func: "tileops.perf.formulas.bmm_fp8_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/gemm/bmm.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/gemm/bmm.py
     test: tests/ops/test_bmm.py
     bench: benchmarks/ops/bench_bmm.py
     bench_manifest_driven: true
-    kernel_map:
-      bmm_fp8_kernel: BmmFp8Kernel
 
 BmmFp8NKFwdOp:
   # K innermost, the order the fp8-TN kernel reads, so b arrives without a
@@ -138,10 +135,9 @@ BmmFp8NKFwdOp:
     func: "tileops.perf.formulas.bmm_fp8_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/gemm/bmm.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/gemm/bmm.py
     test: tests/ops/test_bmm.py
     bench: benchmarks/ops/bench_bmm.py
     bench_manifest_driven: true
-    kernel_map:
-      bmm_fp8_kernel: BmmFp8Kernel

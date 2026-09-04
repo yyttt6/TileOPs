@@ -47,14 +47,14 @@ from .errors import (
     OpNotAvailableError,
     UnknownTargetError,
 )
-from .protocol import BUILTIN, BuildKernel, KernelResult, Target, TensorSpec
+from .protocol import BuildKernel, Kernel, KernelResult, Target, TensorSpec
 from .registry import register_detector, register_kernel_builder
 
 __all__ = [
-    "BUILTIN",
     "AmbiguousTargetError",
     "BackendError",
     "BuildKernel",
+    "Kernel",
     "KernelResult",
     "OpNotAvailableError",
     "Target",

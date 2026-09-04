@@ -6,13 +6,12 @@ so its graph is its leaves' operators.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 from torch import Tensor
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ...op_base import Op
 from ..abc import (
@@ -57,7 +56,6 @@ class FusedMoEExpertsNopadPersistent3WGFwdOp(FusedMoEExpertsModular):
         hidden_size: int,
         ffn_size: int,
         routed_scaling_factor: float = 1.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         *,
         activation: str = "silu_and_mul",
     ):
@@ -75,11 +73,10 @@ class FusedMoEExpertsNopadPersistent3WGFwdOp(FusedMoEExpertsModular):
             ffn_size: Per-expert FFN intermediate dimension F.
             routed_scaling_factor: Scalar applied to the final reduced output.
                 Defaults to 1.0 (no scaling).
-            kernel_map: Optional kernel overrides forwarded to the inner Ops.
             activation: Gated activation applied to gate_up: 'silu_and_mul' or
                 'gelu_and_mul'.
         """
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.num_tokens = num_tokens
         self.num_experts = num_experts
         self.num_experts_local = num_experts_local
@@ -96,27 +93,23 @@ class FusedMoEExpertsNopadPersistent3WGFwdOp(FusedMoEExpertsModular):
             ffn=ffn_size,
             k=hidden_size,
             activation=activation,
-            kernel_map=kernel_map,
         )
         self._gemm_down = MoeGroupedGemmNopadFwdOp(
             numel=numel,
             num_experts=num_experts_local,
             n=hidden_size,
             k=ffn_size,
-            kernel_map=kernel_map,
         )
         self._unpermute = MoeUnpermuteFwdOp(
             total_tokens=num_tokens,
             top_k=top_k,
             hidden_size=hidden_size,
             padded_batch_sum=numel,
-            kernel_map=kernel_map,
             routed_scaling_factor=routed_scaling_factor,
         )
         self._permute = MoePermuteNopadFwdOp(
             num_experts=num_experts,
             num_experts_local=num_experts_local,
-            kernel_map=kernel_map,
         )
 
     def kernel_delegates(self) -> tuple[Op, ...]:
@@ -196,10 +189,6 @@ class FusedMoEExpertsNopadPersistent3WGFwdOp(FusedMoEExpertsModular):
     def make_weighted_reduce(self) -> WeightedReduce:
         return WeightedReduceNoOp()
 
-    @property
-    def default_kernel_map(self) -> dict:
-        # All sub-kernels are owned by the inner Ops (permute / GEMM / activation / unpermute).
-        return {}
 
     def _infer_output_shapes(
         self,
@@ -259,5 +248,5 @@ class FusedMoEExpertsNopadPersistent3WGFwdOp(FusedMoEExpertsModular):
         self._unpermute(mm2, fwd_idx, topk_weights, out=output)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)

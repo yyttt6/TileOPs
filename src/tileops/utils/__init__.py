@@ -1,19 +1,12 @@
-from .utils import (
-    WARP_LANES,
-    device_busy_of,
-    forget_device_properties,
-    get_sm_count,
-    get_sm_version,
-    is_h200,
-    str2dtype,
-)
+"""Helpers with no home of their own.
 
-__all__ = [
-    "WARP_LANES",
-    "device_busy_of",
-    "forget_device_properties",
-    "get_sm_count",
-    "get_sm_version",
-    "is_h200",
-    "str2dtype",
-]
+Device probes used to live here -- architecture, multiprocessor count, device
+name -- because in-tree kernels selected on them. Kernels now come from backend
+distributions, and a backend reads its own hardware inside its ``build_kernel``,
+where the shapes and dtypes it needs are also in scope. Nothing in this package
+touches a device any more.
+"""
+
+from .utils import str2dtype
+
+__all__ = ["str2dtype"]

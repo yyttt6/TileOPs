@@ -1,15 +1,10 @@
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 import torch
 
-from tileops.kernels.attention import (
-    NSACmpFwdVarlenKernel,
-    NSAFwdVarlenKernel,
-    NSATopkVarlenKernel,
-)
-from tileops.kernels.kernel_base import Kernel
 
 from ..op_base import UnmanifestedOp
+from tileops.backend import Kernel
 
 __all__ = [
     "NSACmpFwdVarlenOp",
@@ -33,35 +28,22 @@ class NSATopkVarlenOp(UnmanifestedOp):
         bs: int,
         accum_dtype: torch.dtype,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             tune: Whether to autotune, applied when a kernel is first built.
-            kernel_map: Optional kernel override dict.
         """
-        params = {k: v for k, v in locals().items() if k not in ("self", "kernel_map")}
+        params = {k: v for k, v in locals().items() if k != "self"}
         for key, value in params.items():
             setattr(self, key, value)
 
         self._kernel_params = params
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "nsa_topk_varlen_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["nsa_topk_varlen_kernel"](
-                **self._kernel_params,
-                dtype=dtype,
-            ),
-        )
+        return self.get_or_build_kernel("nsa_topk_varlen_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"nsa_topk_varlen_kernel": NSATopkVarlenKernel}
 
     def forward(
         self,
@@ -92,35 +74,22 @@ class NSAFwdVarlenOp(UnmanifestedOp):
         selected_blocks: int,
         accum_dtype: torch.dtype,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             tune: Whether to autotune, applied when a kernel is first built.
-            kernel_map: Optional kernel override dict.
         """
-        params = {k: v for k, v in locals().items() if k not in ("self", "kernel_map")}
+        params = {k: v for k, v in locals().items() if k != "self"}
         for key, value in params.items():
             setattr(self, key, value)
 
         self._kernel_params = params
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "nsa_fwd_varlen_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["nsa_fwd_varlen_kernel"](
-                **self._kernel_params,
-                dtype=dtype,
-            ),
-        )
+        return self.get_or_build_kernel("nsa_fwd_varlen_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"nsa_fwd_varlen_kernel": NSAFwdVarlenKernel}
 
     def forward(
         self,
@@ -153,13 +122,11 @@ class NSACmpFwdVarlenOp(UnmanifestedOp):
         bs: int,
         accum_dtype: torch.dtype,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             tune: Whether to autotune, applied when a kernel is first built.
-            kernel_map: Optional kernel override dict.
         """
         params = {
             "seq_num": seq_num,
@@ -179,22 +146,11 @@ class NSACmpFwdVarlenOp(UnmanifestedOp):
             setattr(self, key, value)
 
         self._kernel_params = params
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "nsa_cmp_fwd_varlen_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["nsa_cmp_fwd_varlen_kernel"](
-                **self._kernel_params,
-                dtype=dtype,
-            ),
-        )
+        return self.get_or_build_kernel("nsa_cmp_fwd_varlen_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"nsa_cmp_fwd_varlen_kernel": NSACmpFwdVarlenKernel}
 
     def forward(
         self,

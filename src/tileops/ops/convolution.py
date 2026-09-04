@@ -3,22 +3,11 @@ from typing import ClassVar, Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.convolution import (
-    Conv1dKernel,
-    Conv1dPointwiseKernel,
-    Conv2d1x1Kernel,
-    Conv2dKernel,
-    Conv2dSymmetricKernel,
-    Conv3dKernel,
-    GroupConv1dKernel,
-    GroupConv2dKernel,
-    GroupConv3dKernel,
-)
-from tileops.kernels.kernel_base import Kernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from .compile_boundary import get_instance
 from .op_base import Op
+from tileops.backend import Kernel
 
 __all__ = [
     "Conv1dFwdOp",
@@ -240,7 +229,6 @@ class Conv1dFwdOp(Op):
         groups: int = 1,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -251,7 +239,6 @@ class Conv1dFwdOp(Op):
             dilation: Manifest ``params.dilation``, ``int | tuple[int]``, default ``1``.
             groups: Manifest ``params.groups``, ``int``, default ``1``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         _validate_positive_int("groups", groups, "Conv1d")
@@ -268,16 +255,9 @@ class Conv1dFwdOp(Op):
         self.target = target
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_roofline_spec: Optional[tuple] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "conv1d_pointwise_kernel": Conv1dPointwiseKernel,
-            "conv1d_kernel": Conv1dKernel,
-            "group_conv1d_kernel": GroupConv1dKernel,
-        }
 
     def _resolve_spec_1d(
         self,
@@ -329,74 +309,7 @@ class Conv1dFwdOp(Op):
         has_bias: bool,
         inputs: tuple[torch.Tensor, ...],
     ) -> Kernel:
-        use_pointwise = (
-            self.groups == 1
-            and kernel_l == 1
-            and self.stride == 1
-            and pad_left == 0
-            and pad_right == 0
-            and self.dilation == 1
-            and "conv1d_pointwise_kernel" in self.kernel_map
-        )
-        use_group = self.groups > 1 and "group_conv1d_kernel" in self.kernel_map
-        if use_pointwise:
-            variant = "pointwise"
-        elif use_group:
-            variant = "group"
-        else:
-            variant = "general"
-        key = (
-            variant,
-            n,
-            c_in,
-            l_in,
-            c_out,
-            c_in_g,
-            kernel_l,
-            self.stride,
-            pad_left,
-            pad_right,
-            self.dilation,
-            self.groups,
-            dtype,
-            device_index,
-            has_bias,
-            self.tune,
-        )
-
-        def build() -> Kernel:
-            kernel_kwargs = dict(
-                n=n,
-                c_in=c_in,
-                l_in=l_in,
-                c_out=c_out,
-                dtype=dtype,
-                has_bias=has_bias,
-                tune=self.tune,
-            )
-            if use_pointwise:
-                return self.kernel_map["conv1d_pointwise_kernel"](**kernel_kwargs)
-            elif use_group:
-                return self.kernel_map["group_conv1d_kernel"](
-                    **kernel_kwargs,
-                    kernel_l=kernel_l,
-                    stride_l=self.stride,
-                    pad_l=(pad_left, pad_right),
-                    dilation_l=self.dilation,
-                    groups=self.groups,
-                    c_in_g=c_in_g,
-                    c_out_g=c_out // self.groups,
-                )
-            else:
-                return self.kernel_map["conv1d_kernel"](
-                    **kernel_kwargs,
-                    kernel_l=kernel_l,
-                    stride_l=self.stride,
-                    pad_l=(pad_left, pad_right),
-                    dilation_l=self.dilation,
-                )
-
-        return self.get_or_build_kernel("conv1d_kernel", inputs, key=key, build=build)
+        return self.get_or_build_kernel("conv1d_kernel", inputs)
 
     def forward(
         self,
@@ -557,8 +470,8 @@ class Conv1dFwdOp(Op):
         return int(flops), int(bytes_)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 def _pair(value: int | Tuple[int, int]) -> Tuple[int, int]:
@@ -587,7 +500,6 @@ class Conv2dFwdOp(Op):
         groups: int = 1,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -598,7 +510,6 @@ class Conv2dFwdOp(Op):
             dilation: Manifest ``params.dilation``, ``int | tuple[int, int]``, default ``1``.
             groups: Manifest ``params.groups``, ``int``, default ``1``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         _validate_positive_int("groups", groups, "Conv2d")
@@ -616,17 +527,9 @@ class Conv2dFwdOp(Op):
         self.target = target
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_roofline_spec: Optional[tuple] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "conv2d_1x1_kernel": Conv2d1x1Kernel,
-            "conv2d_symmetric_kernel": Conv2dSymmetricKernel,
-            "conv2d_kernel": Conv2dKernel,
-            "group_conv2d_kernel": GroupConv2dKernel,
-        }
 
     def _resolve_spec_2d(
         self,
@@ -707,110 +610,7 @@ class Conv2dFwdOp(Op):
         has_bias: bool,
         inputs: tuple[torch.Tensor, ...],
     ) -> Kernel:
-        is_symmetric = (
-            kernel_h == kernel_w
-            and self.stride[0] == self.stride[1]
-            and pad_h == pad_w
-            and self.dilation[0] == self.dilation[1]
-        )
-        can_use_symmetric_kernel = is_symmetric and c_in % 32 == 0
-        use_pointwise = (
-            self.groups == 1
-            and kernel_h == 1
-            and kernel_w == 1
-            and self.stride == (1, 1)
-            and pad_h == 0
-            and pad_w == 0
-            and self.dilation == (1, 1)
-            and "conv2d_1x1_kernel" in self.kernel_map
-        )
-        use_symmetric = (
-            self.groups == 1
-            and can_use_symmetric_kernel
-            and "conv2d_symmetric_kernel" in self.kernel_map
-        )
-        use_group = self.groups > 1 and "group_conv2d_kernel" in self.kernel_map
-        if use_pointwise:
-            variant = "1x1"
-        elif use_symmetric:
-            variant = "symmetric"
-        elif use_group:
-            variant = "group"
-        else:
-            variant = "general"
-        key = (
-            variant,
-            n,
-            c_in,
-            h,
-            w,
-            c_out,
-            c_in_g,
-            kernel_h,
-            kernel_w,
-            self.stride,
-            (pad_h, pad_w),
-            self.dilation,
-            self.groups,
-            dtype,
-            device_index,
-            has_bias,
-            self.tune,
-        )
-
-        def build() -> Kernel:
-            kernel_kwargs = dict(
-                n=n,
-                c_in=c_in,
-                h=h,
-                w=w,
-                c_out=c_out,
-                stride_h=self.stride[0],
-                stride_w=self.stride[1],
-                pad_h=pad_h,
-                pad_w=pad_w,
-                dtype=dtype,
-                has_bias=has_bias,
-                tune=self.tune,
-            )
-            if use_pointwise:
-                return self.kernel_map["conv2d_1x1_kernel"](**kernel_kwargs)
-            elif use_symmetric:
-                return self.kernel_map["conv2d_symmetric_kernel"](
-                    n=n,
-                    c_in=c_in,
-                    h=h,
-                    w=w,
-                    c_out=c_out,
-                    kernel_size=kernel_h,
-                    stride=self.stride[0],
-                    pad=pad_h,
-                    dilation=self.dilation[0],
-                    dtype=dtype,
-                    has_bias=has_bias,
-                    tune=self.tune,
-                )
-            elif use_group:
-                return self.kernel_map["group_conv2d_kernel"](
-                    **kernel_kwargs,
-                    kernel_h=kernel_h,
-                    kernel_w=kernel_w,
-                    dilation_h=self.dilation[0],
-                    dilation_w=self.dilation[1],
-                    groups=self.groups,
-                    c_in_g=c_in_g,
-                    c_out_g=c_out // self.groups,
-                )
-            else:
-                return self.kernel_map["conv2d_kernel"](
-                    **kernel_kwargs,
-                    kernel_h=kernel_h,
-                    kernel_w=kernel_w,
-                    dilation_h=self.dilation[0],
-                    dilation_w=self.dilation[1],
-                )
-
-        return self.get_or_build_kernel("conv2d_kernel", inputs, key=key, build=build)
+        return self.get_or_build_kernel("conv2d_kernel", inputs)
 
     def forward(
         self,
@@ -984,8 +784,8 @@ class Conv2dFwdOp(Op):
         return int(flops), int(bytes_)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 def _triple(value: int | Tuple[int, int, int]) -> Tuple[int, int, int]:
@@ -1004,7 +804,6 @@ class Conv3dFwdOp(Op):
         groups: int = 1,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1015,7 +814,6 @@ class Conv3dFwdOp(Op):
             dilation: Manifest ``params.dilation``, ``int | tuple[int, int, int]``, default ``1``.
             groups: Manifest ``params.groups``, ``int``, default ``1``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         _validate_positive_int("groups", groups, "Conv3d")
@@ -1034,15 +832,9 @@ class Conv3dFwdOp(Op):
         self.target = target
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_roofline_spec: Optional[tuple] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "conv3d_kernel": Conv3dKernel,
-            "group_conv3d_kernel": GroupConv3dKernel,
-        }
 
     def _resolve_spec_3d(
         self,
@@ -1138,65 +930,7 @@ class Conv3dFwdOp(Op):
         has_bias: bool,
         inputs: tuple[torch.Tensor, ...],
     ) -> Kernel:
-        use_group = self.groups > 1 and "group_conv3d_kernel" in self.kernel_map
-        variant = "group" if use_group else "general"
-        key = (
-            variant,
-            n,
-            c_in,
-            d,
-            h,
-            w,
-            c_out,
-            c_in_g,
-            kernel_d,
-            kernel_h,
-            kernel_w,
-            self.stride,
-            (pad_d, pad_h, pad_w),
-            self.dilation,
-            self.groups,
-            dtype,
-            device_index,
-            has_bias,
-            self.tune,
-        )
-
-        def build() -> Kernel:
-            kernel_kwargs = dict(
-                n=n,
-                c_in=c_in,
-                d_in=d,
-                h_in=h,
-                w_in=w,
-                c_out=c_out,
-                kernel_d=kernel_d,
-                kernel_h=kernel_h,
-                kernel_w=kernel_w,
-                stride_d=self.stride[0],
-                stride_h=self.stride[1],
-                stride_w=self.stride[2],
-                pad_d=pad_d,
-                pad_h=pad_h,
-                pad_w=pad_w,
-                dilation_d=self.dilation[0],
-                dilation_h=self.dilation[1],
-                dilation_w=self.dilation[2],
-                dtype=dtype,
-                has_bias=has_bias,
-                tune=self.tune,
-            )
-            if use_group:
-                return self.kernel_map["group_conv3d_kernel"](
-                    **kernel_kwargs,
-                    groups=self.groups,
-                    c_in_g=c_in_g,
-                    c_out_g=c_out // self.groups,
-                )
-            else:
-                return self.kernel_map["conv3d_kernel"](**kernel_kwargs)
-
-        return self.get_or_build_kernel("conv3d_kernel", inputs, key=key, build=build)
+        return self.get_or_build_kernel("conv3d_kernel", inputs)
 
     def forward(
         self,
@@ -1389,8 +1123,8 @@ class Conv3dFwdOp(Op):
         return int(flops), int(bytes_)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 # The compile boundary, one operator per op. Module-level because registration happens once

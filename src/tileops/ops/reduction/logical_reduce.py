@@ -1,12 +1,10 @@
 """Logical reduction operators (all, any, count_nonzero)."""
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.reduction.logical_reduce import LogicalReduceKernel
 from tileops.manifest.shape_rules import reduced_shape
 
 from ._boundary import register_reduction_op
@@ -34,7 +32,6 @@ class AllFwdOp(_ReduceOpBase):
 
     _op_kind = "all"
     _kernel_key = "logical_reduce"
-    _kernel_cls = LogicalReduceKernel
     _empty_dim_policy: EmptyDimPolicy = "noop"
 
     def __init__(
@@ -43,7 +40,6 @@ class AllFwdOp(_ReduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Construct AllFwdOp.
@@ -53,9 +49,8 @@ class AllFwdOp(_ReduceOpBase):
                 Accepts ``int``, ``list[int]``, ``tuple[int, ...]``, or
                 ``None``.
             keepdim: Whether to retain reduced dims as size 1.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional override for kernel dispatch.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default ``False``).
 
         Args:
@@ -63,18 +58,11 @@ class AllFwdOp(_ReduceOpBase):
                 Accepts ``int``, ``list[int]``, or ``tuple[int, ...]`` for
                 multi-dim reduction.
             keepdim: Whether to retain the reduced dimension as size 1.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
     def _noop_output_dtype(self) -> torch.dtype:
         """All returns bool per manifest contract."""
@@ -99,7 +87,6 @@ class AnyFwdOp(_ReduceOpBase):
 
     _op_kind = "any"
     _kernel_key = "logical_reduce"
-    _kernel_cls = LogicalReduceKernel
     _empty_dim_policy: EmptyDimPolicy = "noop"
 
     def __init__(
@@ -108,7 +95,6 @@ class AnyFwdOp(_ReduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Construct AnyFwdOp.
@@ -118,9 +104,8 @@ class AnyFwdOp(_ReduceOpBase):
                 Accepts ``int``, ``list[int]``, ``tuple[int, ...]``, or
                 ``None``.
             keepdim: Whether to retain reduced dims as size 1.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional override for kernel dispatch.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default ``False``).
 
         Args:
@@ -128,18 +113,11 @@ class AnyFwdOp(_ReduceOpBase):
                 Accepts ``int``, ``list[int]``, or ``tuple[int, ...]`` for
                 multi-dim reduction.
             keepdim: Whether to retain the reduced dimension as size 1.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
     def _noop_output_dtype(self) -> torch.dtype:
         """Any returns bool per manifest contract."""
@@ -162,7 +140,6 @@ class CountNonzeroFwdOp(_ReduceOpBase):
 
     _op_kind = "count_nonzero"
     _kernel_key = "logical_reduce"
-    _kernel_cls = LogicalReduceKernel
     _empty_dim_policy: EmptyDimPolicy = "full"
 
     def __init__(
@@ -170,7 +147,6 @@ class CountNonzeroFwdOp(_ReduceOpBase):
         dim: Union[int, List[int], Tuple[int, ...], None] = None,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         # count_nonzero never keeps dim (matches torch.count_nonzero)
@@ -180,18 +156,11 @@ class CountNonzeroFwdOp(_ReduceOpBase):
             dim: Reduction dimension (default ``None``, i.e. full reduction).
                 Accepts ``int``, ``list[int]``, or ``tuple[int, ...]`` for
                 multi-dim reduction.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
-        super().__init__(
-            dim=dim,
-            keepdim=False,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=False, target=target, tune=tune)
 
     def _infer_output_shapes(self, x_shape: Tuple[int, ...]) -> Dict[str, Tuple[int, ...]]:
         """Manifest ``shape_rules``: no ``keepdim`` param, so a reduced axis always goes."""

@@ -52,7 +52,11 @@ from tileops.manifest.shape_rules import (  # noqa: E402
 )
 
 PACKAGE_ROOT = "src"
-DISTRIBUTION_RELATIVE_KEYS = frozenset({"kernel", "op"})
+# ``op`` ships in this wheel next to the manifest, so it is written as it appears
+# inside the distribution and resolves under ``src/``. ``kernel`` no longer does:
+# the kernels live in a backend distribution of their own (backends/ascend), so it
+# is repo-relative like ``test`` and ``bench``.
+DISTRIBUTION_RELATIVE_KEYS = frozenset({"op"})
 
 MANIFEST_DIR = REPO_ROOT / PACKAGE_ROOT / "tileops" / "manifest"
 
@@ -592,32 +596,6 @@ def _l0_source(op_name: str, entry: dict, source: dict) -> list[str]:
     return errors
 
 
-def _l0_kernel_map(
-    op_name: str,
-    entry: dict,
-    warnings: list[str] | None,
-) -> list[str]:
-    """kernel_map (under source): mapping of str -> str, required when implemented.
-
-    An implemented op dispatches through ``default_kernel_map``; omitting the
-    declaration hides that dispatch table from the spec.
-    """
-    errors: list[str] = []
-    err = _emit_to(errors, "schema", op_name)
-    source = entry.get("source", {})
-    kernel_map = source.get("kernel_map") if isinstance(source, dict) else None
-    if kernel_map is not None:
-        if not isinstance(kernel_map, dict):
-            err(f"kernel_map must be a mapping, got {type(kernel_map).__name__}")
-        else:
-            for k, v in kernel_map.items():
-                if not isinstance(k, str) or not isinstance(v, str):
-                    err(f"kernel_map entries must be str -> str, got {k!r}: {v!r}")
-    elif entry.get("status") == "implemented":
-        err("status is 'implemented' but kernel_map is missing (must be a mapping of str -> str)")
-    return errors
-
-
 # Table-driven L0 sections, in emission order. Each row: (field, expected
 # container type, type-error phrase, section validator run on type match).
 # Genuinely custom rules (key format, scalar fields, kernel_map) stay as
@@ -1154,17 +1132,17 @@ def check_l0(
                 "implementation"
             )
 
-    errors.extend(_l0_kernel_map(op_name, entry, warnings))
     return errors
 
 
 def check_source_paths(op_name: str, entry: dict, repo_root: Path) -> list[str]:
     """Check that string ``source`` values of non-spec-only ops are real files.
 
-    ``kernel`` and ``op`` are written as they appear inside the distribution,
-    because the manifest ships in the wheel and a path it names must exist
-    there; on disk they resolve under ``src/``. ``test`` and ``bench`` name
-    trees that never ship, so they are repo-relative and resolve as written.
+    ``op`` is written as it appears inside this distribution, because the manifest
+    ships in the same wheel and a path it names must exist there; on disk it
+    resolves under ``src/``. ``kernel`` names a module in a *backend*
+    distribution, and ``test`` / ``bench`` name trees that never ship, so all
+    three are repo-relative and resolve as written.
 
     Spec-only entries are skipped — their source paths are placeholders
     until implementation. Non-string values (e.g. ``kernel_map`` mappings,
@@ -3668,7 +3646,7 @@ def check_l4_benchmark(
 # Infrastructure params that the validator filters out of ctor parity:
 # they never appear in manifest ``signature.params`` but are part of the
 # Op interface contract.
-_CTOR_INFRA_PARAMS = frozenset({"self", "kernel_map", "tune"})
+_CTOR_INFRA_PARAMS = frozenset({"self", "tune"})
 
 # Sentinel for "manifest did not declare this attribute" — distinct from
 # any legitimate manifest value (including the string "REQUIRED" used to
@@ -3884,46 +3862,27 @@ def check_c5_dispatch_kernel_invariant(
 ) -> list[str]:
     """C5: ``__init__`` complies with the dispatch-kernel slot contract.
 
-    Two static checks per ``docs/design/ops-design-reference.md``:
+    One static check per ``docs/design/ops-design-reference.md``:
 
-    - **S12** — ``__init__`` accepts a ``kernel_map`` keyword (or
-      ``**kwargs`` that absorbs it).
-    - **S13** — ``__init__`` body contains a call ``self.dispatch_kernel(...)``.
+    - **S13** — ``__init__`` body contains a call ``self.dispatch_kernel()``.
 
-    Pure inspection: ``inspect.signature`` for S12, AST walk for S13.
-    No runtime construction, no GPU, no JIT — both contracts are
-    declarative properties of the source code.
+    That call is what loads the backend registry and joins the op to the
+    ``torch.compile`` dispatch boundary, so an ``__init__`` that skips it
+    produces an instance no target can serve and no compiled caller can
+    recover. Pure inspection: an AST walk, no runtime construction and no
+    device.
+
+    The former S12 -- ``__init__`` accepts a ``kernel_map`` keyword -- is gone
+    with the in-tree kernels it selected among: there is no shipped kernel to
+    override, and which kernel runs is the target's decision.
 
     Source-unavailable ``__init__`` (built-in / dynamically generated /
-    decorator-wrapped without ``__wrapped__``) degrades S13 to advisory;
-    S12 always runs.
+    decorator-wrapped without ``__wrapped__``) degrades S13 to advisory.
     """
     errors: list[str] = []
     if cls is None:
         return errors
 
-    # S12: signature carries kernel_map (or **kwargs).
-    try:
-        sig = inspect.signature(cls.__init__)
-    except (ValueError, TypeError) as exc:
-        if warnings is not None:
-            warnings.append(
-                f"[dispatch] {op_name}: inspect.signature(__init__) raised "
-                f"{exc.__class__.__name__}: {exc}; advisory"
-            )
-        return errors
-    has_kernel_map_kw = "kernel_map" in sig.parameters or any(
-        p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-    )
-    if not has_kernel_map_kw:
-        errors.append(
-            f"[dispatch] {op_name}: __init__ does not accept a "
-            f"'kernel_map' parameter (Slot S12) — kernel-map override is "
-            f"unreachable"
-        )
-        return errors
-
-    # S13: body calls self.dispatch_kernel(...).
     body_calls = _init_calls_dispatch_kernel(cls)
     if body_calls is None:
         if warnings is not None:
@@ -3935,8 +3894,8 @@ def check_c5_dispatch_kernel_invariant(
     if not body_calls:
         errors.append(
             f"[dispatch] {op_name}: __init__ body does not call "
-            f"self.dispatch_kernel(...) (Slot S13) — kernel_map override "
-            f"is silently dropped"
+            f"self.dispatch_kernel() (Slot S13) — the op never joins the backend "
+            f"registry or the compile boundary"
         )
     return errors
 

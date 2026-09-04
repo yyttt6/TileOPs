@@ -6,21 +6,6 @@ from typing import Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import (
-    AddFwdKernel,
-    DivFwdKernel,
-    DivTruncFwdKernel,
-    FloorDivideFwdKernel,
-    LerpFwdKernel,
-    LerpTensorFwdKernel,
-    MaximumFwdKernel,
-    MinimumFwdKernel,
-    MulFwdKernel,
-    PowFwdKernel,
-    RemainderFwdKernel,
-    SubFwdKernel,
-)
-from tileops.kernels.kernel_base import Kernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -44,7 +29,6 @@ class AddFwdOp(_AlphaScaledBinaryOp):
     """
 
     _op_name = "add"
-    kernel_cls = AddFwdKernel
 
 
 class SubFwdOp(_AlphaScaledBinaryOp):
@@ -56,21 +40,18 @@ class SubFwdOp(_AlphaScaledBinaryOp):
     """
 
     _op_name = "sub"
-    kernel_cls = SubFwdKernel
 
 
 class MulFwdOp(BinaryOp):
     """Element-wise multiplication with broadcast: y = input * other."""
 
     _op_name = "mul"
-    kernel_cls = MulFwdKernel
 
 
-_DIV_KERNEL_BY_ROUNDING_MODE = {
-    None: DivFwdKernel,
-    "trunc": DivTruncFwdKernel,
-    "floor": FloorDivideFwdKernel,
-}
+#: The rounding modes ``torch.div`` defines, which is what the manifest declares.
+#: ``rounding_mode`` is a manifest param, so it reaches a target's ``build_kernel``
+#: by name; this is only the input check.
+_DIV_ROUNDING_MODES = (None, "trunc", "floor")
 
 
 class DivFwdOp(BinaryOp):
@@ -84,14 +65,12 @@ class DivFwdOp(BinaryOp):
     """
 
     _op_name = "div"
-    kernel_cls = DivFwdKernel
 
     def __init__(
         self,
         *,
         rounding_mode: Optional[str] = None,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -99,28 +78,21 @@ class DivFwdOp(BinaryOp):
         Args:
             rounding_mode: Manifest ``params.rounding_mode``, ``str | None``, default ``None``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
-        if rounding_mode not in _DIV_KERNEL_BY_ROUNDING_MODE:
+        if rounding_mode not in _DIV_ROUNDING_MODES:
             raise ValueError(
                 f"DivFwdOp received rounding_mode={rounding_mode!r}; "
                 "manifest allows None, 'trunc', or 'floor'"
             )
         self.rounding_mode = rounding_mode
-        # ``self.kernel_cls`` becomes an instance attribute that shadows the
-        # class attribute so ``BinaryOp.default_kernel_map`` (and the
-        # SUPPORTED_DTYPES check in ``BinaryOp.__init__``) pick the variant
-        # matching ``rounding_mode``.
-        self.kernel_cls = _DIV_KERNEL_BY_ROUNDING_MODE[rounding_mode]
-        super().__init__(target=target, kernel_map=kernel_map, tune=tune)
+        super().__init__(target=target, tune=tune)
 
 
 class RemainderFwdOp(BinaryOp):
     """Element-wise remainder with broadcast: y = a % b."""
 
     _op_name = "remainder"
-    kernel_cls = RemainderFwdKernel
 
 
 class PowFwdOp(BinaryOp):
@@ -132,7 +104,6 @@ class PowFwdOp(BinaryOp):
     """
 
     _op_name = "pow"
-    kernel_cls = PowFwdKernel
     _other_name = "exponent"
 
     def _infer_output_shapes(self, input_shape: tuple, exponent_shape: tuple) -> Dict[str, tuple]:
@@ -146,7 +117,6 @@ class FloorDivideFwdOp(BinaryOp):
     """Element-wise floor division with broadcast: y = floor(a / b)."""
 
     _op_name = "floor_divide"
-    kernel_cls = FloorDivideFwdKernel
 
 
 class LerpFwdOp(BinaryOp):
@@ -160,7 +130,6 @@ class LerpFwdOp(BinaryOp):
     """
 
     _op_name = "lerp"
-    kernel_cls = LerpFwdKernel
     _other_name = "end"
 
     def _infer_output_shapes(self, input_shape: tuple, end_shape: tuple) -> Dict[str, tuple]:
@@ -172,7 +141,6 @@ class LerpFwdOp(BinaryOp):
         *,
         weight: float = 0.5,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -181,28 +149,22 @@ class LerpFwdOp(BinaryOp):
             weight: Scalar interpolation weight, fixed at construction (manifest
                 ``params.weight``, default 0.5).
             target: Which set of kernels serves this op.
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.weight = weight
-        super().__init__(target=target, kernel_map=kernel_map, tune=tune)
-
-    def _build_kernel_instance(self, tune, dtype, impl, a_shape, b_shape):
-        return impl(a_shape, b_shape, dtype, tune=tune, weight=self.weight)
+        super().__init__(target=target, tune=tune)
 
 
 class MaximumFwdOp(BinaryOp):
     """Element-wise maximum with broadcast: y = max(a, b)."""
 
     _op_name = "maximum"
-    kernel_cls = MaximumFwdKernel
 
 
 class MinimumFwdOp(BinaryOp):
     """Element-wise minimum with broadcast: y = min(a, b)."""
 
     _op_name = "minimum"
-    kernel_cls = MinimumFwdKernel
 
 
 class LerpTensorFwdOp(_PerDtypeKernels, Op):
@@ -227,14 +189,12 @@ class LerpTensorFwdOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Which set of kernels serves this op.
-            kernel_map: Optional kernel dispatch override.
             tune: Whether to autotune.
         """
         self.target = target
@@ -242,7 +202,7 @@ class LerpTensorFwdOp(_PerDtypeKernels, Op):
         self.input_shape: Optional[tuple] = None
         self.end_shape: Optional[tuple] = None
         self.weight_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _infer_output_shapes(
         self,
@@ -257,18 +217,6 @@ class LerpTensorFwdOp(_PerDtypeKernels, Op):
             )
         }
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        if dtype not in self._SUPPORTED_DTYPES:
-            names = ", ".join(str(dt) for dt in self._SUPPORTED_DTYPES)
-            raise ValueError(
-                f"LerpTensorFwdOp does not support dtype {dtype}. Supported: [{names}]"
-            )
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(n_total, ctor_dtype, tune=self.tune)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"lerp_tensor": LerpTensorFwdKernel}
 
     @property
     def out_shape(self) -> tuple:

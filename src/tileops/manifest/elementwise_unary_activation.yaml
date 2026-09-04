@@ -39,9 +39,7 @@ ReluFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      relu: ReluFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -77,9 +75,7 @@ GeluFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      gelu: GeluFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -114,9 +110,7 @@ SiluFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      silu: SiluFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -151,9 +145,7 @@ HardswishFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      hardswish: HardswishFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -188,9 +180,7 @@ HardsigmoidFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      hardsigmoid: HardsigmoidFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -225,9 +215,7 @@ MishFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      mish: MishFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -262,9 +250,7 @@ SeluFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      selu: SeluFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -300,9 +286,7 @@ LeakyReluFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      leaky_relu: LeakyReluFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -338,9 +322,7 @@ EluFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      elu: EluFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -379,9 +361,7 @@ HardtanhFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      hardtanh: HardtanhFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -417,9 +397,7 @@ SoftplusFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/activations.py
-    kernel_map:
-      softplus: SoftplusFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -464,9 +442,7 @@ ClampFwdOp:
     func: "tileops.perf.formulas.clamp_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/elementwise/clamp.py
-    kernel_map:
-      clamp_tensor: ClampTensorFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/clamp.py
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_independent_elementwise.py
@@ -506,9 +482,7 @@ ClampScalarFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/clamp.py
-    kernel_map:
-      clamp: ClampFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/clamp.py
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -544,9 +518,7 @@ NanToNumFwdOp:
     bytes: "2 * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/nan_to_num.py
-    kernel_map:
-      nan_to_num: NanToNumFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
     op: tileops/ops/elementwise/nan_to_num.py
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py

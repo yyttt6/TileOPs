@@ -1,11 +1,10 @@
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.linear_attention.gla_recurrence import GLADecodeFP32Kernel, GLADecodeKernel
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["GLADecodeFwdOp"]
 
@@ -27,14 +26,12 @@ class GLADecodeFwdOp(Op):
     def __init__(
         self,
         scale: float = -1.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             scale: Manifest ``params.scale``, ``float``, default ``-1.0``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -45,15 +42,9 @@ class GLADecodeFwdOp(Op):
         self.dtype = None
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "GLADecodeKernel": GLADecodeKernel,
-            "GLADecodeFP32Kernel": GLADecodeFP32Kernel,
-        }
 
     def _get_kernel(
         self,
@@ -65,24 +56,9 @@ class GLADecodeFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, heads, dim_k, dim_v, self.scale, dtype, device_index, self.tune)
 
-        def build() -> Kernel:
-            if dtype == torch.float32:
-                kernel_cls = self.kernel_map["GLADecodeFP32Kernel"]
-            else:
-                kernel_cls = self.kernel_map["GLADecodeKernel"]
-            return kernel_cls(
-                batch,
-                heads,
-                dim_k,
-                dim_v,
-                scale=self.scale,
-                dtype=Kernel.dtype_to_str(dtype),
-                tune=self.tune,
-            )
 
-        return self.get_or_build_kernel("GLADecodeKernel", inputs, key=key, build=build)
+        return self.get_or_build_kernel("GLADecodeKernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -140,8 +116,8 @@ class GLADecodeFwdOp(Op):
         for name, tensor, expected in expected_shapes:
             if tuple(tensor.shape) != expected:
                 raise ValueError(f"{name} must have shape {expected}, got {tuple(tensor.shape)}")
-        if not all(tensor.is_cuda for tensor in (q, k, v, gk, state)):
-            raise ValueError("q, k, v, gk, and state must be CUDA tensors")
+        if not all(tensor.device.type == "npu" for tensor in (q, k, v, gk, state)):
+            raise ValueError("q, k, v, gk, and state must be NPU tensors")
         self.batch = batch
         self.heads = heads
         self.dim_k = dim_k

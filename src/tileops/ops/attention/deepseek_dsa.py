@@ -1,12 +1,11 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 
-from tileops.kernels.attention import SparseMlaKernel
-from tileops.kernels.kernel_base import Kernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["DeepSeekSparseAttentionDecodeWithKVCacheFwdOp"]
 
@@ -36,7 +35,6 @@ class DeepSeekSparseAttentionDecodeWithKVCacheFwdOp(Op):
         q_start_index_s: int,
         sm_scale: Optional[float] = None,
         is_causal: bool = True,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -55,8 +53,6 @@ class DeepSeekSparseAttentionDecodeWithKVCacheFwdOp(Op):
             sm_scale (Optional[float], default=None): Scaling factor for the softmax function.
             is_causal (bool, default=True): Whether the attention is causal
                         (True for causal, False for non-causal).
-            kernel_map (Optional[Dict[str, Kernel]], default=None):
-                        Optional mapping for custom kernels.
             tune (bool, default=False): Whether to enable kernel tuning.
         """
         self.batch = batch
@@ -85,42 +81,11 @@ class DeepSeekSparseAttentionDecodeWithKVCacheFwdOp(Op):
 
         self._cp0 = cp0
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "sparse_mla_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["sparse_mla_kernel"](
-                self.batch,
-                self.seq_len,
-                self.seq_len_kv,
-                self.heads,
-                self.dim,
-                self.dim_tail,
-                dtype,
-                self.topk,
-                self.stride_kv,
-                self.q_start_index_s,
-                self.heads_kv,
-                self.sm_scale,
-                self.is_causal,
-                self._cp0,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("sparse_mla_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        """
-        Provides the default kernel map for the operation.
-
-        Returns:
-            Dict[str, Kernel]: A dictionary mapping kernel names to kernel functions.
-            The default map includes the "sparse_mla_kernel".
-        """
-        return {"sparse_mla_kernel": SparseMlaKernel}
 
     def _infer_output_shapes(
         self,
@@ -151,5 +116,5 @@ class DeepSeekSparseAttentionDecodeWithKVCacheFwdOp(Op):
         return self._get_kernel((q, kv, indices), q.dtype)(q, kv, indices)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)

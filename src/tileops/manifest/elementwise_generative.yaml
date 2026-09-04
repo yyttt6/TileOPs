@@ -38,9 +38,7 @@ AlibiFwdOp:
     bytes: "H * S * S * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/alibi.py
-    kernel_map:
-      alibi: AlibiFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
     op: tileops/ops/elementwise/alibi.py
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_independent_elementwise.py
@@ -86,9 +84,7 @@ SinusoidalFwdOp:
     bytes: "S * D * elem_bytes"
 
   source:
-    kernel: tileops/kernels/elementwise/sinusoidal.py
-    kernel_map:
-      sinusoidal: SinusoidalFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
     op: tileops/ops/elementwise/sinusoidal.py
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_independent_elementwise.py

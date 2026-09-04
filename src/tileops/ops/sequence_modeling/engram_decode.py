@@ -1,11 +1,10 @@
-from typing import Dict, List, Optional
+from typing import List
 
 import torch
 
-from tileops.kernels.engram import EngramDecodeKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["EngramDecodeFwdOp"]
 
@@ -31,7 +30,6 @@ class EngramDecodeFwdOp(Op):
         dilation: int,
         eps: float = 1e-6,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -52,29 +50,11 @@ class EngramDecodeFwdOp(Op):
         self.dilation = dilation
         self.eps = eps
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "engram_decode",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["engram_decode"](
-                self.batch,
-                self.d_mem,
-                self.d,
-                self.max_conv_len,
-                self.conv_kernel_size,
-                self.dilation,
-                self.eps,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("engram_decode", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"engram_decode": EngramDecodeKernel}
 
     def _infer_output_shapes(
         self,
@@ -118,8 +98,8 @@ class EngramDecodeFwdOp(Op):
               y_t:            (B, d) — output to add as residual.
               new_conv_state: (B, max_conv_len, d) — updated state for next step.
         """
-        if not e_t.is_cuda:
-            raise ValueError("e_t must be a CUDA tensor")
+        if e_t.device.type != "npu":
+            raise ValueError("e_t must be an NPU tensor")
         self._validate_dtypes(
             e_t,
             h_t,

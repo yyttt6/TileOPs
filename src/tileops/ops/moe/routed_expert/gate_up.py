@@ -1,26 +1,21 @@
 """The gate/up stage of the MoE expert pipeline, activation included."""
 
-from typing import ClassVar, Dict, Optional, Tuple
+from typing import ClassVar, Dict, Tuple
 
 import torch
 
-from tileops.kernels.grouped_gemm import GroupedGemmCall, GroupedGemmPersistent3WGKernel
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe import (
-    MoeGroupedGemmNopadKernel,
-    MoeGroupedGemmPersistent3WGFusedActKernel,
-    MoeGroupedGemmSeparateActKernel,
-)
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ...compile_boundary import get_instance
 from ...op_base import Op
 from ._common import GroupedOperandEagerForward
+from tileops.backend import Kernel
 
 __all__ = ["MoeGateUpFwdOp"]
 
 #: The implementations of this role; each states its own region.
-_GATE_UP_KEYS = ("moe_grouped_gemm_fused_act_kernel", "moe_grouped_gemm_act_kernel")
+#: The slot this op asks its target for.
+_GATE_UP_SLOT = "moe_gate_up"
 
 #: The grouped GEMM the separate-activation implementation composes with.
 _GEMM_KEYS = ("moe_grouped_gemm_kernel", "moe_grouped_gemm_persistent_kernel")
@@ -49,7 +44,6 @@ class MoeGateUpFwdOp(GroupedOperandEagerForward, Op):
         ffn: int,
         k: int,
         activation: str = "silu_and_mul",
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -60,7 +54,6 @@ class MoeGateUpFwdOp(GroupedOperandEagerForward, Op):
             ffn: FFN width; ``b`` holds 2*ffn rows (gate||up).
             k: Hidden size K.
             activation: 'silu_and_mul' or 'gelu_and_mul'.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune.
         """
         self.numel = numel
@@ -70,42 +63,12 @@ class MoeGateUpFwdOp(GroupedOperandEagerForward, Op):
         self.activation = activation
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
-
-    def _call(self, n: int, dtype: torch.dtype, activation: str) -> GroupedGemmCall:
-        return GroupedGemmCall(
-            numel=self.numel,
-            num_experts=self.num_experts,
-            n=n,
-            k=self.k,
-            dtype=dtype,
-            activation=activation,
-        )
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: tuple, dtype: torch.dtype) -> Kernel:
-        name = self.select_kernel_key(_GATE_UP_KEYS, self._call(self.ffn, dtype, self.activation))
-        gemm_key, extra = None, {}
-        if name == "moe_grouped_gemm_act_kernel":
-            # The GEMM it composes with is a role of its own, selected here because
-            # this is where the map holding those candidates lives. That role applies
-            # no activation, so its call describes none.
-            gemm_key = self.select_kernel_key(_GEMM_KEYS, self._call(2 * self.ffn, dtype, ""))
-            extra["gemm_cls"] = self.kernel_map[gemm_key]
-        return self.get_or_build_kernel(
-            name,
-            inputs,
-            key=(name, gemm_key, dtype),
-            build=lambda: self.kernel_map[name](
-                self.numel,
-                self.num_experts,
-                self.ffn,
-                self.k,
-                dtype=dtype,
-                activation=self.activation,
-                tune=self.tune,
-                **extra,
-            ),
-        )
+        """The fused gate/up GEMM for this call, built once per input signature."""
+        del dtype  # read off the tensors by the base class, which keys on them
+        return self.get_or_build_kernel(_GATE_UP_SLOT, inputs)
 
     def _infer_output_shapes(
         self,
@@ -117,14 +80,6 @@ class MoeGateUpFwdOp(GroupedOperandEagerForward, Op):
         # b is [num_experts, 2 * ffn, K]; the gated activation halves that width.
         return {"c": (a_shape[0], b_shape[1] // 2)}
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "moe_grouped_gemm_fused_act_kernel": MoeGroupedGemmPersistent3WGFusedActKernel,
-            "moe_grouped_gemm_act_kernel": MoeGroupedGemmSeparateActKernel,
-            "moe_grouped_gemm_kernel": MoeGroupedGemmNopadKernel,
-            "moe_grouped_gemm_persistent_kernel": GroupedGemmPersistent3WGKernel,
-        }
 
     def forward(
         self,
@@ -147,8 +102,8 @@ class MoeGateUpFwdOp(GroupedOperandEagerForward, Op):
         return _moe_gate_up_fwd(a, b, true_sizes, true_offsets, self._instance_key)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 @torch.library.custom_op("tileops::moe_gate_up_fwd", mutates_args=())

@@ -10,11 +10,10 @@ The shared core (`FusedMoe`) wires `FusedTopKOp` (routing),
 expert handling belongs to `SharedFusedMoE`.
 """
 
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
 from tileops.ops.moe.abc import (
     FusedMoEExpertsModular,
     FusedMoEPrepareAndFinalize,
@@ -23,7 +22,7 @@ from tileops.ops.moe.fused_topk import FusedTopKOp
 from tileops.ops.moe.prepare_finalize.no_dp_ep import MoEPrepareAndFinalizeNoDPEP
 from tileops.ops.moe.routed_expert import FusedMoEExpertsNopadPersistent3WGFwdOp
 from tileops.ops.op_base import Op
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 __all__ = ["FusedMoe", "FusedMoeFwdOp"]
 
@@ -50,7 +49,6 @@ class FusedMoe(Op):
         num_experts_local: Optional[int] = None,
         prepare_finalize: Optional[FusedMoEPrepareAndFinalize] = None,
         experts: Optional[FusedMoEExpertsModular] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         *,
         activation: str = "silu_and_mul",
     ):
@@ -72,7 +70,6 @@ class FusedMoe(Op):
                 map would mean a device read at construction.
             prepare_finalize: Override the PrepareAndFinalize implementation.
             experts: Override the Experts implementation.
-            kernel_map: Override the dispatched kernel map.
         """
         if (expert_map is None) != (num_experts_local is None):
             raise ValueError(
@@ -94,13 +91,12 @@ class FusedMoe(Op):
         self.expert_map = expert_map
         self.num_experts_local = num_experts if num_experts_local is None else num_experts_local
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
         self._fused_topk = FusedTopKOp(
             top_k=top_k,
             scoring_func=scoring_func,
             renormalize=renormalize,
-            kernel_map=kernel_map,
         )
 
         self._prepare: FusedMoEPrepareAndFinalize = (
@@ -152,13 +148,9 @@ class FusedMoe(Op):
                 hidden_size=hidden_size,
                 ffn_size=ffn_size,
                 routed_scaling_factor=routed_scaling_factor,
-                kernel_map=kernel_map,
                 activation=activation,
             )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {}
 
     def _infer_output_shapes(
         self,
@@ -239,8 +231,8 @@ class FusedMoe(Op):
         return output
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class FusedMoeFwdOp(FusedMoe):
@@ -267,7 +259,6 @@ class FusedMoeFwdOp(FusedMoe):
         num_experts_local: Optional[int] = None,
         prepare_finalize: Optional[FusedMoEPrepareAndFinalize] = None,
         experts: Optional[FusedMoEExpertsModular] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         *,
         activation: str = "silu_and_mul",
     ):
@@ -282,7 +273,6 @@ class FusedMoeFwdOp(FusedMoe):
             scoring_func: Manifest ``params.scoring_func``, ``str``, default ``'softmax'``.
             renormalize: Manifest ``params.renormalize``, ``bool``, default ``False``.
             routed_scaling_factor: Manifest ``params.routed_scaling_factor``, ``float``, default ``1.0``.
-            kernel_map: Optional kernel override dict.
             activation: Manifest ``params.activation``, ``str``, default ``'silu_and_mul'``.
         """
         super().__init__(
@@ -298,6 +288,5 @@ class FusedMoeFwdOp(FusedMoe):
             num_experts_local=num_experts_local,
             prepare_finalize=prepare_finalize,
             experts=experts,
-            kernel_map=kernel_map,
             activation=activation,
         )

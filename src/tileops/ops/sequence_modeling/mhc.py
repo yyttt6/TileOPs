@@ -1,13 +1,11 @@
 import math
-from typing import Dict, Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.mhc import MHCPostKernel, MHCPreKernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["MHCPostFwdOp", "MHCPreFwdOp"]
 
@@ -15,11 +13,10 @@ __all__ = ["MHCPostFwdOp", "MHCPreFwdOp"]
 class MHCPreFwdOp(Op):
     """Layout: BSHD"""
 
-    def __init__(self, kernel_map: Optional[Dict[str, Kernel]] = None, tune: bool = False) -> None:
+    def __init__(self, tune: bool = False) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -29,12 +26,9 @@ class MHCPreFwdOp(Op):
         self.weights_dtype = torch.float32
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"mhc_pre_kernel": MHCPreKernel}
 
     @staticmethod
     def _n_expand_from_phi_dim(phi_dim: int) -> int:
@@ -54,19 +48,7 @@ class MHCPreFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, n_expand, c_x, dtype, device_index, self.tune)
-        return self.get_or_build_kernel(
-            "mhc_pre_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["mhc_pre_kernel"](
-                batch,
-                n_expand,
-                c_x,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("mhc_pre_kernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -123,18 +105,17 @@ class MHCPreFwdOp(Op):
         )
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class MHCPostFwdOp(Op):
     """Layout: BSHD"""
 
-    def __init__(self, kernel_map: Optional[Dict[str, Kernel]] = None, tune: bool = False) -> None:
+    def __init__(self, tune: bool = False) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -144,12 +125,9 @@ class MHCPostFwdOp(Op):
         self.weights_dtype = torch.float32
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"mhc_post_kernel": MHCPostKernel}
 
     def _get_kernel(
         self,
@@ -160,19 +138,7 @@ class MHCPostFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, n_expand, c_x, dtype, device_index, self.tune)
-        return self.get_or_build_kernel(
-            "mhc_post_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["mhc_post_kernel"](
-                batch,
-                n_expand,
-                c_x,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("mhc_post_kernel", inputs)
 
     def _infer_output_shapes(
         self,

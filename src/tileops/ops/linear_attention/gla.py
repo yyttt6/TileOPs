@@ -1,13 +1,12 @@
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.linear_attention.gla import GLABwdKernel, GLAFwdKernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from .._validation import check_tensor_shape
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["GLABwdOp", "GLAFwdOp"]
 
@@ -20,8 +19,8 @@ def _resolve_gla_bthd(
     chunk_size: int,
     do: Optional[torch.Tensor] = None,
 ) -> tuple[int, int, int, int, int, torch.dtype]:
-    if not all(tensor.is_cuda for tensor in (q, k, v, g)):
-        raise ValueError("q, k, v, and g must be CUDA tensors")
+    if not all(tensor.device.type == "npu" for tensor in (q, k, v, g)):
+        raise ValueError("q, k, v, and g must be NPU tensors")
     if q.ndim != 4:
         raise ValueError("q must have shape [batch, seq_len, heads, dim_k]")
     batch, seq_len, heads, dim_k = q.shape
@@ -53,7 +52,6 @@ class GLAFwdOp(Op):
         self,
         chunk_size: int = 64,
         scale: float = -1.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -61,7 +59,6 @@ class GLAFwdOp(Op):
         Args:
             chunk_size: Chunk size for chunked linear attention.
             scale: Query scale factor (default: dim_k**-0.5).
-            kernel_map: Optional kernel overrides.
             tune: Whether to autotune kernels.
         """
         self.batch = None
@@ -74,14 +71,9 @@ class GLAFwdOp(Op):
         self.dtype = None
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "GLAFwdKernel": GLAFwdKernel,
-        }
 
     def _get_kernel(
         self,
@@ -94,35 +86,7 @@ class GLAFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            batch,
-            seq_len,
-            heads,
-            dim_k,
-            dim_v,
-            self.chunk_size,
-            self.scale,
-            dtype,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            "GLAFwdKernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["GLAFwdKernel"](
-                batch,
-                seq_len,
-                heads,
-                dim_k,
-                dim_v,
-                self.chunk_size,
-                scale=self.scale,
-                output_final_state=True,
-                dtype=dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("GLAFwdKernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -174,8 +138,8 @@ class GLAFwdOp(Op):
         return self.kernel(q, k, v, g, initial_state)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class GLABwdOp(Op):
@@ -193,7 +157,6 @@ class GLABwdOp(Op):
         self,
         chunk_size: int = 64,
         scale: float = -1.0,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -201,7 +164,6 @@ class GLABwdOp(Op):
         Args:
             chunk_size: Chunk size for chunked linear attention.
             scale: Query scale factor (default: dim_k**-0.5).
-            kernel_map: Optional kernel overrides.
             tune: Whether to autotune kernels.
         """
         self.batch = None
@@ -214,14 +176,9 @@ class GLABwdOp(Op):
         self.dtype = None
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "GLABwdKernel": GLABwdKernel,
-        }
 
     def _get_kernel(
         self,
@@ -234,34 +191,7 @@ class GLABwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            batch,
-            seq_len,
-            heads,
-            dim_k,
-            dim_v,
-            self.chunk_size,
-            self.scale,
-            dtype,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            "GLABwdKernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["GLABwdKernel"](
-                batch,
-                seq_len,
-                heads,
-                dim_k,
-                dim_v,
-                self.chunk_size,
-                scale=self.scale,
-                dtype=dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("GLABwdKernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -326,5 +256,5 @@ class GLABwdOp(Op):
         return self.kernel(q, k, v, g, h, do, dht, has_initial_state)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)

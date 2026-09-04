@@ -1,13 +1,9 @@
 """Arg-reduction operators (argmax, argmin)."""
 
-from math import prod
-from typing import Dict, Optional
+from typing import Optional
 
-import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.reduction.argreduce import ArgreduceKernel
 
 from ._boundary import register_reduction_op
 from .reduce import _ReduceOpBase
@@ -26,16 +22,6 @@ class _ArgreduceOpBase(_ReduceOpBase):
     This op's part is the stride, which the shape and the reduced axis decide.
     """
 
-    def _build_kernel_kwargs(self, x: torch.Tensor, axes: "tuple[int, ...]") -> dict:
-        """Elements between two neighbours along the reduced axis, on top of the shared set.
-
-        One for the last axis and for a full reduction, which is the flattened buffer.
-        """
-        return {
-            **super()._build_kernel_kwargs(x, axes),
-            "inner_stride": prod(x.shape[axes[-1] + 1 :]) if len(axes) == 1 else 1,
-        }
-
 
 class ArgmaxFwdOp(_ArgreduceOpBase):
     """Argmax reduction along an arbitrary dim, returning int64 indices.
@@ -46,7 +32,6 @@ class ArgmaxFwdOp(_ArgreduceOpBase):
 
     _op_kind = "argmax"
     _kernel_key = "argreduce"
-    _kernel_cls = ArgreduceKernel
 
     def __init__(
         self,
@@ -54,7 +39,6 @@ class ArgmaxFwdOp(_ArgreduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -65,18 +49,11 @@ class ArgmaxFwdOp(_ArgreduceOpBase):
                 contiguous flattened 1D buffer and the returned index is into
                 that flattened tensor.
             keepdim: Whether to retain the reduced dimension as size 1.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
     def _validate_dim(self) -> None:
         """Argmax accepts a scalar ``int`` dim or ``None`` (full-tensor reduction).
@@ -102,7 +79,6 @@ class ArgminFwdOp(_ArgreduceOpBase):
 
     _op_kind = "argmin"
     _kernel_key = "argreduce"
-    _kernel_cls = ArgreduceKernel
 
     def __init__(
         self,
@@ -110,7 +86,6 @@ class ArgminFwdOp(_ArgreduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -121,18 +96,11 @@ class ArgminFwdOp(_ArgreduceOpBase):
                 contiguous flattened 1D buffer and the returned index is into
                 that flattened tensor.
             keepdim: Whether to retain the reduced dimension as size 1.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
     def _validate_dim(self) -> None:
         """Argmin accepts a scalar ``int`` dim or ``None`` (full-tensor reduction).

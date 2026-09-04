@@ -6,8 +6,6 @@ from typing import Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import ClampFwdKernel, ClampTensorFwdKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -15,7 +13,6 @@ from ._base import (
     _PerDtypeKernels,
     _require_one_device,
     _require_shape_inference,
-    _validate_scalar_param_repr,
     broadcast_or_raise,
     resolve_output_dtype,
 )
@@ -44,15 +41,13 @@ class ClampFwdOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel dispatch override.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         self.target = target
@@ -60,21 +55,8 @@ class ClampFwdOp(_PerDtypeKernels, Op):
         self.input_shape: Optional[tuple] = None
         self.min_shape: Optional[tuple] = None
         self.max_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    def _build(self, dtype: torch.dtype, n_total: int, has_min: bool, has_max: bool):
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(
-            n_total,
-            ctor_dtype,
-            has_min=has_min,
-            has_max=has_max,
-            tune=self.tune,
-        )
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"clamp_tensor": ClampTensorFwdKernel}
 
     def _infer_output_shapes(
         self,
@@ -176,7 +158,6 @@ class ClampScalarFwdOp(_PerDtypeKernels, Op):
         min: Optional[float] = None,
         max: Optional[float] = None,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -184,9 +165,8 @@ class ClampScalarFwdOp(_PerDtypeKernels, Op):
         Args:
             min: Lower bound (Number or None).
             max: Upper bound (Number or None).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel dispatch override.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         if min is None and max is None:
@@ -199,26 +179,8 @@ class ClampScalarFwdOp(_PerDtypeKernels, Op):
         self.target = target
         self.tune = tune
         self.input_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        """The bounds are baked into the kernel, so they are checked per dtype."""
-        if self.min is not None:
-            _validate_scalar_param_repr("min", self.min, dtype, self._op_name)
-        if self.max is not None:
-            _validate_scalar_param_repr("max", self.max, dtype, self._op_name)
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(
-            n_total,
-            ctor_dtype,
-            min_val=self.min,
-            max_val=self.max,
-            tune=self.tune,
-        )
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"clamp": ClampFwdKernel}
 
     def _infer_output_shapes(self, input_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: ``output.shape == input.shape``."""

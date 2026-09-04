@@ -4,11 +4,10 @@ from typing import ClassVar, Dict, Optional, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe import MoeUnpermuteKernel
 
 from ...compile_boundary import get_instance
 from ...op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["MoeUnpermuteFwdOp"]
 
@@ -38,7 +37,6 @@ class MoeUnpermuteFwdOp(Op):
         top_k: int,
         hidden_size: int,
         padded_batch_sum: Optional[int] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         routed_scaling_factor: float = 1.0,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -53,7 +51,6 @@ class MoeUnpermuteFwdOp(Op):
                 Defaults to total_tokens * top_k for standalone testing only — do NOT
                 use the default when mm2_pad comes from MoePermuteOp, as the padded
                 buffer will be larger and the kernel will index out of bounds.
-            kernel_map: Optional kernel override dict.
             routed_scaling_factor: Scalar applied to the reduced output, folded into
                 the unpermute kernel. Defaults to 1.0 (no scaling).
         """
@@ -65,26 +62,11 @@ class MoeUnpermuteFwdOp(Op):
         )
 
         self._routed_scaling_factor = routed_scaling_factor
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "unpermute_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["unpermute_kernel"](
-                self.total_tokens,
-                self.top_k,
-                self.hidden_size,
-                self.padded_batch_sum,
-                scaling=self._routed_scaling_factor,
-                dtype=dtype,
-            ),
-        )
+        return self.get_or_build_kernel("unpermute_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"unpermute_kernel": MoeUnpermuteKernel}
 
     def _infer_output_shapes(
         self,

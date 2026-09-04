@@ -41,9 +41,8 @@ FP8LightningIndexerFwdOp:
     func: "tileops.perf.formulas.fp8_lightning_indexer_roofline"
 
   source:
-    kernel: tileops/kernels/fp8_lightning_indexer.py
-    kernel_map:
-      fp8_lightning_indexer_kernel: FP8LightningIndexerKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/fp8_lightning_indexer.py
     test: tests/ops/test_fp8_lightning_indexer.py
     bench: benchmarks/ops/bench_fp8_lightning_indexer.py
@@ -77,9 +76,8 @@ TopkSelectorFwdOp:
     func: "tileops.perf.formulas.topk_selector_roofline"
 
   source:
-    kernel: tileops/kernels/topk_selector.py
-    kernel_map:
-      topk_selector_kernel: TopkSelectorKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/topk_selector.py
     test: tests/ops/test_topk_selector.py
     bench: benchmarks/ops/bench_topk_selector.py

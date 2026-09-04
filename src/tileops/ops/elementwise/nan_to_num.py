@@ -6,11 +6,9 @@ from typing import Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import NanToNumFwdKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..op_base import Op
-from ._base import _PerDtypeKernels, _validate_scalar_param_repr
+from ._base import _PerDtypeKernels
 
 
 class NanToNumFwdOp(_PerDtypeKernels, Op):
@@ -26,7 +24,6 @@ class NanToNumFwdOp(_PerDtypeKernels, Op):
         posinf: Optional[float] = None,
         neginf: Optional[float] = None,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -43,9 +40,8 @@ class NanToNumFwdOp(_PerDtypeKernels, Op):
             neginf: Replacement for -Inf. Manifest default ``None`` resolves
                 to the smallest (most negative) finite value representable
                 in the element type of the call.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel dispatch override.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
         self.nan = nan
@@ -56,36 +52,8 @@ class NanToNumFwdOp(_PerDtypeKernels, Op):
         # Manifest input binding for the synthesized eval_roofline
         # (docs/design/roofline.md §4.4.3); bound by the first forward.
         self.input_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        """Resolve the replacement values against *dtype*, then build.
-
-        A ``None`` bound means "this dtype's largest finite value", so it
-        cannot be resolved before the element type is known. Picking
-        ``finfo(dtype).max`` keeps the replacement finite end-to-end and
-        matches ``torch.nan_to_num``; forwarding ``+inf`` would resolve to
-        fp16's 65504.0 and resurface as ``+Inf`` after an e5m2 post-cast.
-        """
-        _validate_scalar_param_repr("nan", self.nan, dtype, self._op_name)
-        if self.posinf is None:
-            posinf = torch.finfo(dtype).max
-        else:
-            _validate_scalar_param_repr("posinf", self.posinf, dtype, self._op_name)
-            posinf = self.posinf
-        if self.neginf is None:
-            neginf = torch.finfo(dtype).min
-        else:
-            _validate_scalar_param_repr("neginf", self.neginf, dtype, self._op_name)
-            neginf = self.neginf
-        # Replacement values are positional; the kernel constructor's
-        # parameter naming is encapsulated below the Op layer.
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(n_total, ctor_dtype, self.nan, posinf, neginf, tune=self.tune)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"nan_to_num": NanToNumFwdKernel}
 
     def _infer_output_shapes(self, input_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: ``output.shape == input.shape``."""

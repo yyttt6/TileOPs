@@ -1,13 +1,12 @@
 """MoE fused top-k routing operator."""
 
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe.fused_topk import FusedTopKKernel
 
 from ..op_base import UnmanifestedOp
+from tileops.backend import Kernel
 
 __all__ = ["FusedTopKOp"]
 
@@ -34,7 +33,6 @@ class FusedTopKOp(UnmanifestedOp):
         top_k: Optional[int] = None,
         scoring_func: str = "softmax",
         renormalize: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         config: Optional[dict] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -50,7 +48,6 @@ class FusedTopKOp(UnmanifestedOp):
             scoring_func: see above. Passing ``correction_bias`` to ``forward``
                 requires ``"sigmoid"``: the bias is added to sigmoid scores for
                 selection only, and the output weights stay the original scores.
-            kernel_map: Optional kernel map override.
             config: Optional kernel config dict.
         """
         self.num_tokens = num_tokens
@@ -61,12 +58,9 @@ class FusedTopKOp(UnmanifestedOp):
         self.scoring_func = scoring_func
         self.renormalize = renormalize
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.config = config
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"fused_topk_kernel": FusedTopKKernel}
 
     def _get_kernel(
         self,
@@ -77,21 +71,7 @@ class FusedTopKOp(UnmanifestedOp):
         device_index: int | None,
         with_correction_bias: bool,
     ) -> Kernel:
-        key = (num_tokens, num_experts, top_k, device_index, with_correction_bias)
-        return self.get_or_build_kernel(
-            "fused_topk_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["fused_topk_kernel"](
-                num_tokens=num_tokens,
-                num_experts=num_experts,
-                top_k=top_k,
-                scoring_func=self.scoring_func,
-                renormalize=self.renormalize,
-                with_correction_bias=with_correction_bias,
-                config=self.config,
-            ),
-        )
+        return self.get_or_build_kernel("fused_topk_kernel", inputs)
 
     def forward(
         self,
@@ -109,10 +89,10 @@ class FusedTopKOp(UnmanifestedOp):
             topk_weights: [T, K] float32.
             topk_ids:     [T, K] int32.
         """
-        if not gating_output.is_cuda:
-            raise ValueError("gating_output must be a CUDA tensor")
-        if correction_bias is not None and not correction_bias.is_cuda:
-            raise ValueError("correction_bias must be a CUDA tensor")
+        if gating_output.device.type != "npu":
+            raise ValueError("gating_output must be an NPU tensor")
+        if correction_bias is not None and correction_bias.device.type != "npu":
+            raise ValueError("correction_bias must be an NPU tensor")
         if correction_bias is not None and gating_output.device != correction_bias.device:
             raise ValueError(
                 f"Expected gating_output and correction_bias to be on the same device, "

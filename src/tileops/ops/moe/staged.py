@@ -6,10 +6,7 @@ from typing import Mapping
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe.call_spec import MGroupedGemmCall, PostPermuteCall, PrePermuteCall
 from tileops.ops.op_base import Op
-from tileops.utils import get_sm_version
 
 from ..elementwise import SiluAndMulFwdOp
 from .contracts import (
@@ -21,6 +18,7 @@ from .contracts import (
     PrePermuteOutput,
     RoutingEpilogueSpec,
 )
+from tileops.ops.moe.call_spec import MGroupedGemmCall, PostPermuteCall, PrePermuteCall
 
 __all__ = [
     "MoeExpertMLPFwdOp",
@@ -39,11 +37,16 @@ def _same_device(named_tensors: Mapping[str, torch.Tensor]) -> torch.device:
 
 
 class _SpecOnlyStagedOp(Op):
-    """Common behavior for a staged boundary with no shipped implementation yet."""
+    """Common behaviour for a staged boundary the manifest declares but nothing serves.
 
-    @property
-    def default_kernel_map(self) -> dict[str, Kernel]:
-        return {}
+    These four ops are ``status: spec-only``: the boundary, its call record, and its
+    input contract are specified, and no target registers a builder for them. So a
+    construction succeeds, ``make_call`` still validates the request as specified, and
+    the call then fails with `~tileops.backend.OpNotAvailableError` naming the op --
+    the same error any op gets on a device no target claims. Closing one of these is a
+    matter of registering a builder, and nothing here has to change for that.
+    """
+
 
     def _infer_output_shapes(self, **shape_kwargs: tuple[int, ...]) -> dict[str, tuple[int, ...]]:
         raise NotImplementedError("staged output shape depends on materialized layout metadata")
@@ -63,7 +66,6 @@ class MoePrePermuteFwdOp(_SpecOnlyStagedOp):
         layout: MGroupedLayoutSpec,
         num_experts: int,
         *,
-        kernel_map: dict[str, Kernel] | None = None,
         target: object = None,
     ) -> None:
         """Configure a pre-permute boundary for one layout and expert domain."""
@@ -72,13 +74,13 @@ class MoePrePermuteFwdOp(_SpecOnlyStagedOp):
         self.layout = layout
         self.num_experts = num_experts
         self.target = target
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def make_call(self, hidden_states: torch.Tensor, topk_ids: torch.Tensor) -> PrePermuteCall:
         """Validate inputs and construct the immutable selection record."""
         device = _same_device({"hidden_states": hidden_states, "topk_ids": topk_ids})
-        if device.type != "cuda":
-            raise ValueError("staged pre-permute currently requires CUDA tensors")
+        if device.type != "npu":
+            raise ValueError("staged pre-permute requires Ascend NPU tensors")
         if hidden_states.ndim != 2:
             raise ValueError("hidden_states must have shape [tokens, hidden_size]")
         if topk_ids.ndim != 2 or topk_ids.shape[0] != hidden_states.shape[0]:
@@ -92,7 +94,6 @@ class MoePrePermuteFwdOp(_SpecOnlyStagedOp):
         if hidden_states.dtype is not torch.bfloat16:
             raise TypeError("the current staged pre-permute contract accepts BF16 only")
         return PrePermuteCall(
-            arch=get_sm_version(device.index),
             layout=self.layout,
             device_type=hidden_states.device.type,
             input_dtype=hidden_states.dtype,
@@ -109,14 +110,8 @@ class MoePrePermuteFwdOp(_SpecOnlyStagedOp):
         out: torch.Tensor | None = None,
     ) -> PrePermuteOutput:
         """Materialize token rows and return expert layout plus inverse state."""
-        call = self.make_call(hidden_states, topk_ids)
-        name = self.select_kernel_key(tuple((self.kernel_map or {}).keys()), call)
-        kernel = self.get_or_build_kernel(
-            name,
-            inputs=(hidden_states, topk_ids),
-            key=call,
-            build=lambda: self.kernel_map[name](call),
-        )
+        self.make_call(hidden_states, topk_ids)
+        kernel = self.get_or_build_kernel("moe_pre_permute", (hidden_states, topk_ids))
         return kernel(hidden_states, topk_ids, out=out)
 
 
@@ -127,7 +122,6 @@ class MoeGroupedGemmFwdOp(_SpecOnlyStagedOp):
         self,
         compute: NoScaleComputeSpec | None = None,
         *,
-        kernel_map: dict[str, Kernel] | None = None,
         target: object = None,
     ) -> None:
         """Configure the current BF16/NoScale M-grouped GEMM semantic."""
@@ -136,7 +130,7 @@ class MoeGroupedGemmFwdOp(_SpecOnlyStagedOp):
             raise TypeError("the current public manifest supports only NoScaleComputeSpec")
         self.compute = compute
         self.target = target
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def make_call(
         self,
@@ -151,8 +145,8 @@ class MoeGroupedGemmFwdOp(_SpecOnlyStagedOp):
         if out is not None:
             tensors["out"] = out
         device = _same_device(tensors)
-        if device.type != "cuda":
-            raise ValueError("staged grouped GEMM currently requires CUDA tensors")
+        if device.type != "npu":
+            raise ValueError("staged grouped GEMM requires Ascend NPU tensors")
         expert_layout.validate_structure(a)
         if b.ndim != 3 or b.shape[0] != expert_layout.num_experts:
             raise ValueError("b must have shape [num_experts, n, k]")
@@ -160,11 +154,10 @@ class MoeGroupedGemmFwdOp(_SpecOnlyStagedOp):
             raise ValueError("b must be contiguous")
         if a.shape[-1] != b.shape[-1]:
             raise ValueError("a and b must have the same reduction dimension")
-        arch = get_sm_version(device.index)
         if scales is not None:
             raise ValueError("NoScaleComputeSpec forbids scales")
-        if arch != 90 or a.dtype is not torch.bfloat16 or b.dtype is not torch.bfloat16:
-            raise ValueError("NoScale currently supports only SM90 BF16 operands")
+        if a.dtype is not torch.bfloat16 or b.dtype is not torch.bfloat16:
+            raise ValueError("NoScaleComputeSpec supports BF16 operands only")
         output_shape = (*a.shape[:-1], b.shape[1])
         if out is not None and not out.is_contiguous():
             raise ValueError("out must be contiguous")
@@ -173,7 +166,6 @@ class MoeGroupedGemmFwdOp(_SpecOnlyStagedOp):
         ):
             raise ValueError("out shape and dtype must match the resolved grouped-GEMM output")
         return MGroupedGemmCall(
-            arch=arch,
             layout_key=expert_layout.selection_key,
             max_m=expert_layout.max_m,
             device_type=a.device.type,
@@ -195,14 +187,8 @@ class MoeGroupedGemmFwdOp(_SpecOnlyStagedOp):
         out: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Run one grouped GEMM using the supplied materialized expert layout."""
-        call = self.make_call(a, b, expert_layout, scales, out)
-        name = self.select_kernel_key(tuple((self.kernel_map or {}).keys()), call)
-        kernel = self.get_or_build_kernel(
-            name,
-            inputs=(a, b),
-            key=call,
-            build=lambda: self.kernel_map[name](call),
-        )
+        self.make_call(a, b, expert_layout, scales, out)
+        kernel = self.get_or_build_kernel("moe_grouped_gemm_staged", (a, b))
         return kernel(a, b, expert_layout, scales=scales, out=out)
 
 
@@ -214,7 +200,6 @@ class MoeExpertMLPFwdOp(_SpecOnlyStagedOp):
         activation: str = "silu_and_mul",
         *,
         compute: NoScaleComputeSpec | None = None,
-        kernel_map: dict[str, Kernel] | None = None,
         target: object = None,
     ) -> None:
         """Configure two grouped GEMMs around the selected gated activation."""
@@ -223,19 +208,10 @@ class MoeExpertMLPFwdOp(_SpecOnlyStagedOp):
         self.activation = activation
         self.compute = NoScaleComputeSpec() if compute is None else compute
         self.target = target
-        self.dispatch_kernel(kernel_map)
-        overrides = self.forwarded_overrides()
-        grouped_overrides = (
-            {key: value for key, value in overrides.items() if key != "silu_and_mul"}
-            if overrides
-            else None
-        )
-        self.gate_up = MoeGroupedGemmFwdOp(
-            self.compute, kernel_map=grouped_overrides, target=target
-        )
-        self.activation_op = SiluAndMulFwdOp(kernel_map=overrides)
-        self.activation_op.target = target
-        self.down = MoeGroupedGemmFwdOp(self.compute, kernel_map=grouped_overrides, target=target)
+        self.dispatch_kernel()
+        self.gate_up = MoeGroupedGemmFwdOp(self.compute, target=target)
+        self.activation_op = SiluAndMulFwdOp(target=target)
+        self.down = MoeGroupedGemmFwdOp(self.compute, target=target)
 
     def kernel_delegates(self) -> tuple[Op, Op, Op]:
         return self.gate_up, self.activation_op, self.down
@@ -283,7 +259,6 @@ class MoePostPermuteFwdOp(_SpecOnlyStagedOp):
         self,
         epilogue: RoutingEpilogueSpec | None = None,
         *,
-        kernel_map: dict[str, Kernel] | None = None,
         target: object = None,
     ) -> None:
         """Configure inverse permutation and the exactly-once routing epilogue."""
@@ -292,7 +267,7 @@ class MoePostPermuteFwdOp(_SpecOnlyStagedOp):
             raise TypeError("epilogue must be RoutingEpilogueSpec")
         self.epilogue = epilogue
         self.target = target
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def make_call(
         self,
@@ -310,8 +285,8 @@ class MoePostPermuteFwdOp(_SpecOnlyStagedOp):
         if out is not None:
             tensors["out"] = out
         device = _same_device(tensors)
-        if device.type != "cuda":
-            raise ValueError("staged post-permute currently requires CUDA tensors")
+        if device.type != "npu":
+            raise ValueError("staged post-permute requires Ascend NPU tensors")
         context = inverse_permute_context
         if not expert_output.is_contiguous():
             raise ValueError("expert_output must be contiguous")
@@ -338,7 +313,6 @@ class MoePostPermuteFwdOp(_SpecOnlyStagedOp):
         ):
             raise ValueError("out shape and dtype must match the routing epilogue output")
         return PostPermuteCall(
-            arch=get_sm_version(device.index),
             layout_key=context.selection_key,
             max_m=context.layout.max_m,
             epilogue=self.epilogue,
@@ -361,14 +335,8 @@ class MoePostPermuteFwdOp(_SpecOnlyStagedOp):
         out: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Restore token order, apply routing weights, reduce top-k, and cast."""
-        call = self.make_call(expert_output, inverse_permute_context, topk_weights, out)
-        name = self.select_kernel_key(tuple((self.kernel_map or {}).keys()), call)
-        kernel = self.get_or_build_kernel(
-            name,
-            inputs=(expert_output, topk_weights),
-            key=call,
-            build=lambda: self.kernel_map[name](call),
-        )
+        self.make_call(expert_output, inverse_permute_context, topk_weights, out)
+        kernel = self.get_or_build_kernel("moe_post_permute", (expert_output, topk_weights))
         return kernel(
             expert_output,
             inverse_permute_context,

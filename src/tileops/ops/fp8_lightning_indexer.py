@@ -1,12 +1,11 @@
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
-from tileops.kernels.constants import FP8_E4M3_MAX
-from tileops.kernels.fp8_lightning_indexer import FP8LightningIndexerKernel
-from tileops.kernels.kernel_base import Kernel
 
 from .op_base import Op
+from tileops.backend import Kernel
+from tileops.ops._constants import FP8_E4M3_MAX
 
 __all__ = ["FP8LightningIndexerFwdOp"]
 
@@ -16,7 +15,6 @@ class FP8LightningIndexerFwdOp(Op):
         self,
         clean_logits=True,
         config: Optional[dict] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune=False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -24,7 +22,6 @@ class FP8LightningIndexerFwdOp(Op):
         Args:
             clean_logits: Manifest ``params.clean_logits``, ``bool``, default ``True``.
             config: Manifest ``params.config``, ``dict | None``, default ``None``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -37,12 +34,9 @@ class FP8LightningIndexerFwdOp(Op):
         self.config = config
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"fp8_lightning_indexer_kernel": FP8LightningIndexerKernel}
 
     @property
     def _config_cache_key(self) -> tuple:
@@ -61,34 +55,7 @@ class FP8LightningIndexerFwdOp(Op):
         kv_group: int,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            batch,
-            seq_len,
-            heads,
-            index_dim,
-            seq_len_kv,
-            kv_group,
-            self.clean_logits,
-            self._config_cache_key,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            "fp8_lightning_indexer_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["fp8_lightning_indexer_kernel"](
-                batch,
-                seq_len,
-                heads,
-                index_dim,
-                seq_len_kv,
-                kv_group,
-                self.clean_logits,
-                config=self.config,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("fp8_lightning_indexer_kernel", inputs)
 
     def _resolve_and_bind(
         self,
@@ -99,8 +66,8 @@ class FP8LightningIndexerFwdOp(Op):
         cu_seqlen_ke: torch.Tensor,
         index_k_scale: Optional[torch.Tensor],
     ) -> None:
-        if not index_q.is_cuda or not index_k.is_cuda:
-            raise ValueError("FP8LightningIndexerFwdOp expects CUDA inputs")
+        if index_q.device.type != "npu" or index_k.device.type != "npu":
+            raise ValueError("FP8LightningIndexerFwdOp expects NPU inputs")
         if index_q.ndim != 4 or index_k.ndim != 4:
             raise ValueError("FP8LightningIndexerFwdOp expects index_q/index_k to be 4D tensors")
         batch, seq_len, heads, index_dim = index_q.shape
@@ -222,5 +189,12 @@ class FP8LightningIndexerFwdOp(Op):
         return x_scaled, sf.squeeze(-1)
 
     def compute_roof(self) -> str:
-        """Index scores contract at fp8 regardless of the input form."""
-        return "tensor_core.fp8"
+        """Index scores contract at fp8, which 910B1 has no Cube path for.
+
+        FP8 here is a storage format, not a compute mode: the card's Cube unit
+        stops at 16-bit, so a soft-FP8 implementation dequantizes and contracts
+        in fp16. It is therefore priced at the fp16 ceiling — quoting an fp8
+        peak the hardware does not have would understate the gap, and the
+        soft-FP8 clause requires the substitution to be stated where it is made.
+        """
+        return "cube.fp16"

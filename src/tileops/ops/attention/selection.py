@@ -1,54 +1,34 @@
-"""Which dispatch key an attention call takes.
+"""What an attention request may and may not say.
 
-The keys implementing each attention slot, and the check that a request does not
-contradict the user-visible ``backend`` parameter. Choosing among the keys is
-``Op.select_kernel_key``; see docs/design/ops-design.md § Kernel selection.
+The slot names each attention op asks its target for, and the check that a
+request does not contradict the user-visible ``backend`` parameter. Which
+implementation then serves the slot is the target's answer, not this module's.
 """
 
-from tileops.kernels.attention.call_spec import AttentionCall, fp8_dtype, uses_sliding_window
+from .call_spec import AttentionCall, fp8_dtype, uses_sliding_window
 
 __all__ = [
-    "DECODE_KEYS",
-    "PACKED_PREFILL_KEYS",
-    "PAGED_DECODE_KEYS",
-    "PAGED_PREFILL_KEYS",
+    "DECODE_SLOT",
+    "DENSE_PREFILL_SLOT",
+    "MHA_PAGED_DECODE_SLOT",
+    "PACKED_PREFILL_SLOT",
+    "PAGED_DECODE_SLOT",
+    "PAGED_PREFILL_SLOT",
     "AttentionCall",
     "check_packed_prefill_request",
     "fp8_dtype",
 ]
 
-#: Implementations of packed GQA prefill, as ``kernel_map`` keys.
-PACKED_PREFILL_KEYS = (
-    "gqa_prefill_fp8_tensor_core_fwd_kernel",
-    "gqa_sliding_window_varlen_fwd_kernel",
-    "gqa_prefill_square_fwd_kernel",
-    "gqa_prefill_causal_fwd_kernel",
-    "gqa_prefill_fwd_kernel",
-    "gqa_prefill_varlen_fwd_kernel",
-)
-
-#: The subset serving a uniform dense request, for the fixed-shape wrapper.
-DENSE_PREFILL_KEYS = (
-    "gqa_prefill_square_fwd_kernel",
-    "gqa_prefill_causal_fwd_kernel",
-    "gqa_prefill_fwd_kernel",
-)
-
-#: Implementations of paged GQA prefill.
-PAGED_PREFILL_KEYS = (
-    "gqa_prefill_paged_with_kv_cache_rope_fwd_kernel",
-    "gqa_prefill_paged_with_fp8_kv_cache_fwd_kernel",
-    "gqa_prefill_paged_with_kv_cache_fwd_kernel",
-)
-
-#: Implementations of contiguous GQA decode.
-DECODE_KEYS = ("gqa_decode_bs1_kernel", "gqa_decode_kernel")
-
-#: Implementations of paged GQA decode.
-PAGED_DECODE_KEYS = ("gqa_decode_paged_bs1_kernel", "gqa_decode_paged_kernel")
-
-#: Implementations of paged MHA decode.
-MHA_PAGED_DECODE_KEYS = ("mha_decode_paged_ws_kernel", "mha_decode_paged_kernel")
+#: The slot each attention op asks its target for. One name per computation, not per
+#: implementation: which schedule serves a shape is the target's decision, made inside
+#: its ``build_kernel`` where the shapes and dtypes are, so the op layer names the
+#: computation and stops there.
+PACKED_PREFILL_SLOT = "gqa_packed_prefill"
+DENSE_PREFILL_SLOT = "gqa_dense_prefill"
+PAGED_PREFILL_SLOT = "gqa_paged_prefill"
+DECODE_SLOT = "gqa_decode"
+PAGED_DECODE_SLOT = "gqa_paged_decode"
+MHA_PAGED_DECODE_SLOT = "mha_paged_decode"
 
 
 def check_packed_prefill_request(call: AttentionCall) -> None:

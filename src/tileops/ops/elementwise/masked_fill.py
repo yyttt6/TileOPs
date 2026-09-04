@@ -6,11 +6,6 @@ from typing import Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import (
-    MaskedFillFwdKernel,
-    MaskedFillTensorValueFwdKernel,
-)
-from tileops.kernels.kernel_base import Kernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -18,7 +13,6 @@ from ._base import (
     _PerDtypeKernels,
     _require_one_device,
     _require_shape_inference,
-    _validate_scalar_param_repr,
     broadcast_or_raise,
     resolve_output_dtype,
 )
@@ -40,36 +34,19 @@ class MaskedFillFwdOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional dispatch override mapping kernel keys to
-                ``Kernel`` subclasses. Falls back to ``default_kernel_map``.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
         """
         self.target = target
         self.input_shape: Optional[tuple] = None
         self.mask_shape: Optional[tuple] = None
         self.value_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        """The kernel names the implementation and storage for this dtype."""
-        impl, compute = self._selected_kernel_cls().specialize(dtype)
-        supported = impl.SUPPORTED_DTYPES
-        if supported is not None and compute not in supported:
-            names = ", ".join(str(dt) for dt in (torch.bool, *supported))
-            raise ValueError(
-                f"{self._op_name} does not support dtype {dtype}. Supported: [{names}]"
-            )
-        return impl(n_total, compute)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"masked_fill_tensor_value": MaskedFillTensorValueFwdKernel}
 
     def _infer_output_shapes(
         self,
@@ -163,7 +140,6 @@ class MaskedFillScalarFwdOp(_PerDtypeKernels, Op):
         *,
         value: bool | int | float = 0,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -175,41 +151,15 @@ class MaskedFillScalarFwdOp(_PerDtypeKernels, Op):
                 ``torch.iinfo`` and truncate floats toward zero (``1.5 -> 1``);
                 ``torch.uint8`` additionally wraps Python ints in ``[-255, 0)``
                 via two's complement.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional dispatch override mapping kernel keys to
-                ``Kernel`` subclasses. Falls back to ``default_kernel_map``.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
         """
         self.value = value
         self.target = target
         self.input_shape: Optional[tuple] = None
         self.mask_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        """The fill value is baked in, so it is checked against each dtype."""
-        impl, compute = self._selected_kernel_cls().specialize(dtype)
-        supported = impl.SUPPORTED_DTYPES
-        if supported is not None and compute not in supported:
-            names = ", ".join(str(dt) for dt in (torch.bool, *supported))
-            raise ValueError(
-                f"{self._op_name} does not support dtype {dtype}. Supported: [{names}]"
-            )
-        _validate_scalar_param_repr(
-            "value",
-            self.value,
-            dtype,
-            self._op_name,
-            allow_nonfinite_float=True,
-        )
-        # The scalar is baked in, so it is normalized to the semantic dtype's
-        # value set — bool takes 0 or 1 whatever storage the kernel picked.
-        value = (1 if bool(self.value) else 0) if dtype == torch.bool else self.value
-        return impl(n_total, compute, value)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"masked_fill": MaskedFillFwdKernel}
 
     def _infer_output_shapes(self, input_shape: tuple, mask_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: the broadcast of ``input`` and ``mask``."""

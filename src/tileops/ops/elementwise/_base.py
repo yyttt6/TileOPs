@@ -33,7 +33,6 @@ from typing import Callable, Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
 
 from .._output_dtype import resolve_output_dtype
 from ..compile_boundary import get_instance
@@ -332,19 +331,13 @@ class _PerDtypeKernels:
 
     @property
     def _slot(self) -> str:
-        """The one dispatch key this op's ``kernel_map`` declares; also its memory role."""
-        ((slot, _),) = self.kernel_map.items()
-        return slot
+        """The name this op asks its target for; also its memory role.
 
-    def _selected_kernel_cls(self):
-        """The kernel class that will run, honoring a ``kernel_map`` override.
-
-        Capability questions must go to this class, never to the family default:
-        an override that supports a different dtype set is the whole point of
-        supplying one.
+        The family's ops each hold exactly one, and it is the manifest ``_op_name``:
+        one op, one thing to build.
         """
-        ((_, kernel_cls),) = self.kernel_map.items()
-        return kernel_cls
+        return self._op_name
+
 
     def _kernel(self, inputs: tuple, dtype: torch.dtype, *dims):
         """Return what serves this call, building it once per specialization.
@@ -354,20 +347,10 @@ class _PerDtypeKernels:
                 ``signature.inputs`` entry, in that order; an optional input this call
                 did not pass keeps its slot as ``None``.
             dtype: This call's element type.
-            dims: What else the *in-tree* kernel is compiled for — the dimensions it
-                bakes in, plus any presence that changes what gets built. A target's
-                kernel is keyed on the input signature instead, by the base class.
+            dims: Kept for the callers that compute them; the kernel is keyed on the
+                input signature by the base class, which reads it off *inputs*.
         """
-        return self.get_or_build_kernel(
-            self._slot,
-            inputs,
-            key=(dtype, *dims),
-            build=lambda: self._build(dtype, *dims),
-        )
-
-    def _build(self, dtype: torch.dtype, *dims):
-        """Construct the in-tree kernel for one specialization."""
-        raise NotImplementedError(f"{type(self).__name__} must implement _build")
+        return self.get_or_build_kernel(self._slot, inputs)
 
 
 class UnaryOp(_PerDtypeKernels, Op):
@@ -378,7 +361,6 @@ class UnaryOp(_PerDtypeKernels, Op):
 
     """
 
-    kernel_cls: type
     _op_name: str
     _wrapped = None  # Set by _register_unary_custom_op at class definition
     # Per-element FLOP count, matching the manifest's ``roofline.flops``
@@ -391,50 +373,24 @@ class UnaryOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel dispatch override.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         self.target = target
         self.tune = tune
         self.input_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _infer_output_shapes(self, input_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: ``output.shape == input.shape``."""
         return {"output": tuple(input_shape)}
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        """Build one specialization for the semantic *dtype*."""
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return self._build_kernel_instance(
-            N_total=n_total,
-            dtype=ctor_dtype,
-            tune=self.tune,
-            impl=impl,
-        )
-
-    def _build_kernel_instance(
-        self,
-        *,
-        N_total: int,
-        dtype: torch.dtype,
-        tune: bool,
-        impl: type,
-    ):
-        """Construct the kernel. Subclasses override to specialize construction."""
-        return impl(N_total, dtype, tune=tune)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._op_name: self.kernel_cls}
 
     @property
     def N_total(self) -> int:
@@ -498,7 +454,6 @@ class BinaryOp(_PerDtypeKernels, Op):
 
     """
 
-    kernel_cls: type
     _op_name: str
     _wrapped = None  # Set by _register_binary_custom_op at class definition
     # Subclasses may set ``_other_name`` to a manifest-aligned parameter
@@ -536,22 +491,20 @@ class BinaryOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel dispatch override.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         self.target = target
         self.tune = tune
         self.input_shape: Optional[tuple] = None
         self.other_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _infer_output_shapes(self, input_shape: tuple, other_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: ``output.shape == broadcast_shapes(...)``."""
@@ -562,24 +515,6 @@ class BinaryOp(_PerDtypeKernels, Op):
             )
         }
 
-    def _build(self, dtype: torch.dtype, a_shape: tuple, b_shape: tuple):
-        """Build one specialization for the semantic *dtype* and this broadcast."""
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        supported = impl.SUPPORTED_DTYPES
-        if supported is not None and ctor_dtype not in supported:
-            names = ", ".join(str(dt) for dt in supported)
-            raise ValueError(
-                f"{self._op_name} does not support dtype {dtype}. Supported: [{names}]"
-            )
-        return self._build_kernel_instance(self.tune, ctor_dtype, impl, a_shape, b_shape)
-
-    def _build_kernel_instance(self, tune, dtype, impl, a_shape, b_shape):
-        """Construct the kernel. Subclasses override to inject extra kwargs."""
-        return impl(a_shape, b_shape, dtype, tune=tune)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._op_name: self.kernel_cls}
 
     @property
     def out_shape(self) -> tuple:
@@ -659,7 +594,6 @@ class FusedGatedOp(_PerDtypeKernels, Op):
 
     """
 
-    kernel_cls: type
     _op_name: str
     _wrapped = None  # Set by _register_fused_gated_custom_op at class definition
     FLOPS_PER_ELEM: int = 6
@@ -668,29 +602,24 @@ class FusedGatedOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel dispatch override.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         self.target = target
         self.tune = tune
         self.x_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _infer_output_shapes(self, x_shape: tuple) -> Dict[str, tuple]:
         """Manifest ``shape_rules``: ``output.shape == [x.shape[0], x.shape[1] // 2]``."""
         return {"output": (int(x_shape[0]), int(x_shape[1]) // 2)}
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._op_name: self.kernel_cls}
 
     @property
     def M(self) -> int:
@@ -725,15 +654,6 @@ class FusedGatedOp(_PerDtypeKernels, Op):
         m, n = self._dims()
         return self.FLOPS_PER_ELEM * m * n, int(self.total_memory)
 
-    def _build(self, dtype: torch.dtype, m: int, n: int):
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        supported = impl.SUPPORTED_DTYPES
-        if supported is not None and ctor_dtype not in supported:
-            names = ", ".join(str(dt) for dt in supported)
-            raise ValueError(
-                f"{self._op_name} does not support dtype {dtype}. Supported: [{names}]"
-            )
-        return impl(m, n, ctor_dtype, tune=self.tune)
 
     def _validate_input(self, x: torch.Tensor) -> None:
         self._validate_dtypes(x)
@@ -800,17 +720,15 @@ class _ParamFreeActivationOp(_UnaryActivationMixin, UnaryOp):
         *,
         inplace: bool = False,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
-        super().__init__(target=target, kernel_map=kernel_map, tune=tune)
+        super().__init__(target=target, tune=tune)
         self.inplace = inplace
 
 
@@ -834,15 +752,6 @@ class _ParametricActivationOp(_UnaryActivationMixin, UnaryOp):
     #: tensor arrives.
     _scalar_params: tuple[str, ...] = ()
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        kwargs = {}
-        for name in type(self)._scalar_params:
-            value = getattr(self, name)
-            _validate_scalar_param_repr(name, value, dtype, self._op_name)
-            kwargs[name] = value
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(n_total, ctor_dtype, tune=self.tune, **kwargs)
-
 
 class _AlphaScaledBinaryOp(BinaryOp):
     """Shared base for ops that take a scalar ``alpha`` multiplier on ``other``.
@@ -860,21 +769,16 @@ class _AlphaScaledBinaryOp(BinaryOp):
         *,
         alpha: int | float = 1,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.alpha = alpha
-        super().__init__(target=target, kernel_map=kernel_map, tune=tune)
-
-    def _build_kernel_instance(self, tune, dtype, impl, a_shape, b_shape):
-        return impl(a_shape, b_shape, dtype, tune=tune, alpha=self.alpha)
+        super().__init__(target=target, tune=tune)
 
 
 _MANIFEST_INT_DTYPES = (
@@ -918,7 +822,7 @@ class _IntIdentityUnaryOp(UnaryOp):
 
     Such a dtype builds ``_IntFallbackCall``; subclasses set ``_int_handler`` and
     ``_int_output_dtype``. Every other dtype goes to the kernel, which raises on its
-    own dtype check. A ``kernel_map`` override that declares integer support in
+    own dtype check. A target whose kernel declares integer support in
     ``SUPPORTED_DTYPES`` is used instead — the choice is made in ``_build``, which
     only the in-tree path reaches.
     """
@@ -929,15 +833,6 @@ class _IntIdentityUnaryOp(UnaryOp):
     # signature includes additional non-float dtypes (e.g. torch.bool for
     # the is{nan,inf,finite} predicates).
     _fallback_dtypes: tuple = _MANIFEST_INT_DTYPES
-
-    def _build(self, dtype: torch.dtype, n_total: int):
-        if dtype in type(self)._fallback_dtypes:
-            impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-            supported = impl.SUPPORTED_DTYPES
-            if supported is None or ctor_dtype in supported:
-                return super()._build(dtype, n_total)
-            return _IntFallbackCall(type(self)._int_handler)
-        return super()._build(dtype, n_total)
 
 
 class _GeluApproximateBase(UnaryOp):
@@ -955,14 +850,12 @@ class _GeluApproximateBase(UnaryOp):
         *,
         approximate: str = "none",
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         if approximate not in ("none", "tanh"):
@@ -970,4 +863,4 @@ class _GeluApproximateBase(UnaryOp):
                 f"{type(self).__name__}: approximate must be 'none' or 'tanh', got {approximate!r}"
             )
         self.approximate = approximate
-        super().__init__(target=target, kernel_map=kernel_map, tune=tune)
+        super().__init__(target=target, tune=tune)

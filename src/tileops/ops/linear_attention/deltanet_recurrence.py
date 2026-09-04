@@ -1,25 +1,15 @@
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.linear_attention.deltanet_call import DeltaNetDecodeCall
-from tileops.kernels.linear_attention.deltanet_recurrence import (
-    DeltaNetDecodeFP32Kernel,
-    DeltaNetDecodeKernel,
-    DeltaNetDecodeRawCudaFlaStyleKernel,
-)
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["DeltaNetDecodeFwdOp"]
 
-#: Implementations of the DeltaNet decode slot.
-DELTANET_DECODE_KEYS = (
-    "DeltaNetDecodeFP32Kernel",
-    "DeltaNetDecodeRawCudaFlaStyleKernel",
-    "DeltaNetDecodeKernel",
-)
+#: The slot this op asks its target for.
+DELTANET_DECODE_SLOT = "deltanet_decode"
 
 
 class DeltaNetDecodeFwdOp(Op):
@@ -39,13 +29,11 @@ class DeltaNetDecodeFwdOp(Op):
 
     def __init__(
         self,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -55,17 +43,10 @@ class DeltaNetDecodeFwdOp(Op):
         self.dtype = None
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._active_sig: Optional[tuple] = None
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "DeltaNetDecodeKernel": DeltaNetDecodeKernel,
-            "DeltaNetDecodeFP32Kernel": DeltaNetDecodeFP32Kernel,
-            "DeltaNetDecodeRawCudaFlaStyleKernel": DeltaNetDecodeRawCudaFlaStyleKernel,
-        }
 
     def _get_kernel(
         self,
@@ -77,23 +58,8 @@ class DeltaNetDecodeFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, heads, dim_k, dim_v, dtype, device_index, self.tune)
-        call = DeltaNetDecodeCall(
-            batch=batch, heads=heads, dim_k=dim_k, dim_v=dim_v, dtype=dtype, tune=self.tune
-        )
-        chosen = self.select_kernel_key(DELTANET_DECODE_KEYS, call)
-
-        def build() -> Kernel:
-            return self.kernel_map[chosen](
-                batch,
-                heads,
-                dim_k,
-                dim_v,
-                dtype=Kernel.dtype_to_str(dtype),
-                tune=self.tune,
-            )
-
-        return self.get_or_build_kernel(chosen, inputs, key=key, build=build)
+        del batch, heads, dim_k, dim_v, dtype, device_index  # all on the tensors
+        return self.get_or_build_kernel(DELTANET_DECODE_SLOT, inputs)
 
     def _infer_output_shapes(
         self,
@@ -152,8 +118,8 @@ class DeltaNetDecodeFwdOp(Op):
         for name, tensor, expected in expected_shapes:
             if tuple(tensor.shape) != expected:
                 raise ValueError(f"{name} must have shape {expected}, got {tuple(tensor.shape)}")
-        if not all(tensor.is_cuda for tensor in (q, k, v, beta, state)):
-            raise ValueError("q, k, v, beta, and state must be CUDA tensors")
+        if not all(tensor.device.type == "npu" for tensor in (q, k, v, beta, state)):
+            raise ValueError("q, k, v, beta, and state must be NPU tensors")
         self.batch = batch
         self.heads = heads
         self.dim_k = dim_k

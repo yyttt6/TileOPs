@@ -6,8 +6,6 @@ from typing import Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.reduction.cumulative import CumulativeKernel
 
 from ..op_base import Op
 from ._boundary import register_reduction_op
@@ -33,7 +31,6 @@ class CumulativeOp(Op):
         dim: int = -1,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -41,25 +38,21 @@ class CumulativeOp(Op):
         Args:
             dim: Reduction axis (default -1). Negative values are normalized at
                 forward time (`dim % x.ndim`).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If True, autotune tile configs.
         """
         self.N = None
         self.dim = dim
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_roofline_mn: Optional[Tuple[int, int]] = None
 
     def _infer_output_shapes(self, x_shape: Tuple[int, ...]) -> Dict[str, Tuple[int, ...]]:
         """Manifest ``shape_rules``: a scan writes one element per input element."""
         return {"y": tuple(x_shape)}
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"cumulative_fwd": CumulativeKernel}
 
     def eval_roofline(self) -> Tuple[int, int]:
         if self._last_roofline_mn is None:
@@ -113,21 +106,7 @@ class CumulativeOp(Op):
         # From the shape, not from ``numel``: an empty scanned axis makes ``n`` zero.
         m = prod(d for i, d in enumerate(x.shape) if i != axis)
         self._last_roofline_mn = (m, n)
-        kernel = self.get_or_build_kernel(
-            "cumulative_fwd",
-            (x,),
-            # The kernel owns the permute, so the whole shape decides which kernel it is.
-            key=(tuple(x.shape), axis, x.dtype, x.device.index),
-            build=lambda: self.kernel_map["cumulative_fwd"](
-                m,
-                n,
-                self._op_kind,
-                x.dtype,
-                scan_axis=axis,
-                tune=self.tune,
-                device_index=x.device.index,
-            ),
-        )
+        kernel = self.get_or_build_kernel("cumulative_fwd", (x,))
         return kernel(x)
 
 
@@ -144,15 +123,14 @@ class CumsumFwdOp(CumulativeOp):
     Args:
         dim: Reduction axis (default -1). Negative values are normalized
             at forward time.
-        target: Which set of kernels serves this op — a target name, ``BUILTIN``
-            for the in-tree kernels, or ``None`` to decide from the input device.
-        kernel_map: Optional override for kernel dispatch.
+        target: Which set of kernels serves this op — a target name, or ``None`` to
+            decide from the input device.
         tune: Whether to autotune (default False).
 
     Example:
         ```python linenums="1"
         op = CumsumFwdOp()
-        x = torch.randn(1024, 4096, dtype=torch.float16, device="cuda")
+        x = torch.randn(1024, 4096, dtype=torch.float16, device="npu")
         y = op(x)  # shape: (1024, 4096)
         ```
     """
@@ -169,15 +147,14 @@ class CumprodFwdOp(CumulativeOp):
     Args:
         dim: Reduction axis (default -1). Negative values are normalized
             at forward time.
-        target: Which set of kernels serves this op — a target name, ``BUILTIN``
-            for the in-tree kernels, or ``None`` to decide from the input device.
-        kernel_map: Optional override for kernel dispatch.
+        target: Which set of kernels serves this op — a target name, or ``None`` to
+            decide from the input device.
         tune: Whether to autotune (default False).
 
     Example:
         ```python linenums="1"
         op = CumprodFwdOp()
-        x = torch.randn(1024, 4096, dtype=torch.float16, device="cuda") * 0.01 + 0.99
+        x = torch.randn(1024, 4096, dtype=torch.float16, device="npu") * 0.01 + 0.99
         y = op(x)  # shape: (1024, 4096)
         ```
     """

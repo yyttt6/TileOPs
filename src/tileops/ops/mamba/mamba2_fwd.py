@@ -25,12 +25,11 @@ Design notes
 * All intermediate tensors remain on-device; no host syncs between sub-ops.
 """
 
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ..op_base import Op
 from .cb_producer import CBProducerFwdOp
@@ -56,7 +55,6 @@ class Mamba2FwdOp(Op):
         chunk_size: int = 256,
         dt_softplus: bool = True,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -77,25 +75,19 @@ class Mamba2FwdOp(Op):
         self.dt_softplus = dt_softplus
         self.tune = tune
         # This composite owns no kernel; the override reaches the sub-ops that do.
-        self.dispatch_kernel(kernel_map)
-        self._kernel_map_override = kernel_map
+        self.dispatch_kernel()
 
         self._da_cumsum_ops: dict[torch.dtype, DaCumsumFwdOp] = {}
-        self._chunk_state_op = SSDChunkStateFwdOp(tune=tune, kernel_map=kernel_map)
+        self._chunk_state_op = SSDChunkStateFwdOp(tune=tune)
 
         # chunk_states output is float32 (B, C, H, P, N).
         # Flatten P*N into a single state dim so SSDStatePassingFwdOp is used
         # instead of a Python loop, keeping everything on the GPU.
-        self._state_passing_op = SSDStatePassingFwdOp(tune=tune, kernel_map=kernel_map)
+        self._state_passing_op = SSDStatePassingFwdOp(tune=tune)
 
-        self._chunk_scan_op = SSDChunkScanFwdOp(tune=tune, kernel_map=kernel_map)
+        self._chunk_scan_op = SSDChunkScanFwdOp(tune=tune)
         self._cb_producer_ops: dict[tuple, CBProducerFwdOp] = {}
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        # A composite registers no kernel of its own: the five it drives belong
-        # to the sub-ops it builds, and each of those is a replacement point.
-        return {}
 
     def eval_roofline(self) -> tuple[int, int]:
         from tileops.perf.formulas import mamba2_fwd_roofline
@@ -135,7 +127,6 @@ class Mamba2FwdOp(Op):
                 dtype=dtype,
                 dt_softplus=self.dt_softplus,
                 tune=self.tune,
-                kernel_map=self._kernel_map_override,
             )
         return self._da_cumsum_ops[dtype]
 
@@ -166,7 +157,6 @@ class Mamba2FwdOp(Op):
                 chunk_len=self.chunk_size,
                 d_state=d_state,
                 tune=self.tune,
-                kernel_map=self._kernel_map_override,
             )
         return self._cb_producer_ops[key]
 
@@ -211,8 +201,8 @@ class Mamba2FwdOp(Op):
             y:            (batch, seqlen, n_heads, d_head)   float32
             final_states: (batch, n_heads, d_head, d_state)  float32, or None
         """
-        if not x.is_cuda:
-            raise ValueError("x must be a CUDA tensor")
+        if x.device.type != "npu":
+            raise ValueError("x must be an NPU tensor")
         if x.ndim != 4:
             raise ValueError("x must have shape [batch, seqlen, n_heads, d_head]")
         batch, seqlen, n_heads, d_head = x.shape
@@ -296,5 +286,5 @@ class Mamba2FwdOp(Op):
         return y, final_states_flat.reshape(batch, n_heads, d_head, d_state)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)

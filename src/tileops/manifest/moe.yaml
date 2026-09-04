@@ -43,13 +43,11 @@ MoePermuteAlignFwdOp:
     bytes: "total_tokens * top_k * 4 + (total_tokens * top_k + (num_experts + 1) * (block_size - 1)) * 4 + ceil((total_tokens * top_k + (num_experts + 1) * (block_size - 1)) / block_size) * 4 + 4"
 
   source:
-    kernel: tileops/kernels/moe/permute_align.py
+    kernel: backends/ascend/src/tileops_ascend/families/moe.py
     op: tileops/ops/moe/permute_align.py
     test: tests/ops/test_moe_permute_align.py
     bench: benchmarks/ops/bench_moe_permute_align.py
     bench_manifest_driven: true
-    kernel_map:
-      permute_align_kernel: MoePermuteAlignKernel
 
 MoePermuteNopadFwdOp:
   ref_api: "none"
@@ -120,13 +118,11 @@ MoePermuteNopadFwdOp:
     func: "tileops.perf.formulas.moe_permute_nopad_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/moe/permute_nopad.py
+    kernel: backends/ascend/src/tileops_ascend/families/moe.py
     op: tileops/ops/moe/routed_expert/permute_nopad.py
     test: tests/ops/test_moe_permute_nopad.py
     bench: benchmarks/ops/bench_moe_permute_nopad.py
     bench_manifest_driven: true
-    kernel_map:
-      permute_nopad_kernel: MoePermuteNopadKernel
 
 MoeUnpermuteFwdOp:
   ref_api: "none"
@@ -171,13 +167,11 @@ MoeUnpermuteFwdOp:
     bytes: "(total_tokens * top_k * hidden_size + total_tokens * hidden_size) * elem_bytes + total_tokens * top_k * 4 + total_tokens * top_k * 4"
 
   source:
-    kernel: tileops/kernels/moe/unpermute.py
+    kernel: backends/ascend/src/tileops_ascend/families/moe.py
     op: tileops/ops/moe/routed_expert/unpermute.py
     test: tests/ops/test_moe_unpermute.py
     bench: benchmarks/ops/bench_moe_unpermute.py
     bench_manifest_driven: true
-    kernel_map:
-      unpermute_kernel: MoeUnpermuteKernel
 
 MoeGroupedGemmNopadFwdOp:
   ref_api: "none"
@@ -212,14 +206,11 @@ MoeGroupedGemmNopadFwdOp:
     bytes: "(numel * k + num_experts * n * k + numel * n) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/moe/moe_grouped_gemm_nopad.py
+    kernel: backends/ascend/src/tileops_ascend/families/moe.py
     op: tileops/ops/moe/routed_expert/moe_grouped_gemm_nopad.py
     test: tests/ops/test_moe_grouped_gemm_nopad.py
     bench: benchmarks/ops/bench_moe_grouped_gemm_nopad.py
     bench_manifest_driven: true
-    kernel_map:
-      moe_grouped_gemm_kernel: MoeGroupedGemmNopadKernel
-      moe_grouped_gemm_persistent_kernel: GroupedGemmPersistent3WGKernel
 
 MoeGateUpFwdOp:
   ref_api: "none"
@@ -266,11 +257,6 @@ MoeGateUpFwdOp:
     test: tests/ops/test_moe_gate_up.py
     bench: benchmarks/ops/bench_moe_gate_up.py
     bench_manifest_driven: true
-    kernel_map:
-      moe_grouped_gemm_fused_act_kernel: MoeGroupedGemmPersistent3WGFusedActKernel
-      moe_grouped_gemm_act_kernel: MoeGroupedGemmSeparateActKernel
-      moe_grouped_gemm_kernel: MoeGroupedGemmNopadKernel
-      moe_grouped_gemm_persistent_kernel: GroupedGemmPersistent3WGKernel
 
 FusedMoEExpertsNopadPersistent3WGFwdOp:
   ref_api: "none"
@@ -342,19 +328,11 @@ FusedMoEExpertsNopadPersistent3WGFwdOp:
     bytes: "(num_experts_local * 3 * ffn_size * hidden_size + 2 * num_tokens * hidden_size) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/moe/moe_grouped_gemm_nopad.py
+    kernel: backends/ascend/src/tileops_ascend/families/moe.py
     op: tileops/ops/moe/routed_expert/fused_routed_expert.py
     test: tests/ops/test_fused_moe_experts.py
     bench: benchmarks/ops/bench_fused_moe_experts.py
     bench_manifest_driven: true
-    kernel_map:
-      permute_nopad_kernel: MoePermuteNopadKernel
-      moe_grouped_gemm_kernel: MoeGroupedGemmNopadKernel
-      moe_grouped_gemm_persistent_kernel: GroupedGemmPersistent3WGKernel
-      moe_grouped_gemm_fused_act_kernel: MoeGroupedGemmPersistent3WGFusedActKernel
-      silu_and_mul: SiluAndMulFwdKernel
-      gelu_and_mul: GeluAndMulFwdKernel
-      unpermute_kernel: MoeUnpermuteKernel
 
 FusedMoeFwdOp:
   ref_api: "none"
@@ -403,20 +381,11 @@ FusedMoeFwdOp:
     func: "tileops.perf.formulas.fused_moe_fwd_bytes"
 
   source:
-    kernel: tileops/ops/moe/fused_moe.py
+    kernel: backends/ascend/src/tileops_ascend/families/moe.py
     op: tileops/ops/moe/fused_moe.py
     test: tests/ops/test_moe_fused_moe.py
     bench: benchmarks/ops/bench_moe_fused_moe.py
     bench_manifest_driven: true
-    kernel_map:
-      fused_topk_kernel: FusedTopKKernel
-      permute_nopad_kernel: MoePermuteNopadKernel
-      moe_grouped_gemm_kernel: MoeGroupedGemmNopadKernel
-      moe_grouped_gemm_persistent_kernel: GroupedGemmPersistent3WGKernel
-      moe_grouped_gemm_fused_act_kernel: MoeGroupedGemmPersistent3WGFusedActKernel
-      silu_and_mul: SiluAndMulFwdKernel
-      gelu_and_mul: GeluAndMulFwdKernel
-      unpermute_kernel: MoeUnpermuteKernel
 
 MoePrePermuteFwdOp:
   ref_api: "none"
@@ -440,7 +409,8 @@ MoePrePermuteFwdOp:
   workloads: []
   roofline: {flops: "0", bytes: "hidden_states.numel() * elem_bytes + topk_ids.numel() * 4"}
   source:
-    kernel: tileops/ops/moe/staged.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/moe/staged.py
     test: tests/ops/test_moe_staged_contracts.py
     bench: benchmarks/ops/bench_moe_staged.py
@@ -468,7 +438,8 @@ MoeGroupedGemmFwdOp:
   workloads: []
   roofline: {flops: "2 * a.numel() * b.shape[1]", bytes: "(a.numel() + b.numel() + output.numel()) * elem_bytes"}
   source:
-    kernel: tileops/ops/moe/staged.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/moe/staged.py
     test: tests/ops/test_moe_staged_contracts.py
     bench: benchmarks/ops/bench_moe_staged.py
@@ -501,7 +472,8 @@ MoeExpertMLPFwdOp:
     flops: "(expert_input.numel() // expert_input.shape[-1]) * (2 * w_gate_up.shape[1] * w_gate_up.shape[2] + 6 * w_down.shape[2] + 2 * w_down.shape[1] * w_down.shape[2])"
     bytes: "(expert_input.numel() + w_gate_up.numel() + w_down.numel() + output.numel()) * elem_bytes"
   source:
-    kernel: tileops/ops/moe/staged.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/moe/staged.py
     test: tests/ops/test_moe_staged_contracts.py
     bench: benchmarks/ops/bench_moe_staged.py
@@ -527,7 +499,8 @@ MoePostPermuteFwdOp:
   workloads: []
   roofline: {flops: "2 * topk_weights.numel() * expert_output.shape[-1]", bytes: "0"}
   source:
-    kernel: tileops/ops/moe/staged.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/moe/staged.py
     test: tests/ops/test_moe_staged_contracts.py
     bench: benchmarks/ops/bench_moe_staged.py

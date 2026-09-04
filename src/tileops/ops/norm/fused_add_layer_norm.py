@@ -3,8 +3,6 @@ from typing import ClassVar, Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.norm import FusedAddLayerNormKernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -47,27 +45,22 @@ class FusedAddLayerNormFwdOp(Op):
         eps: float = 1e-5,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             eps: Epsilon for numerical stability (manifest ``params.eps``).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If ``True``, autotune tile configurations.
         """
         self.eps = eps
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_roofline_mn: Optional[tuple[int, int]] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"fused_add_layer_norm": FusedAddLayerNormKernel}
 
     def _infer_output_shapes(
         self,
@@ -144,17 +137,7 @@ class FusedAddLayerNormFwdOp(Op):
         residual = residual.contiguous()
         weight = weight.contiguous()
         bias = bias.contiguous()
-        kernel = self.get_or_build_kernel(
-            "fused_add_layer_norm",
-            (x, residual, weight, bias),
-            key=(n, x.dtype),  # this instance's in-tree cache key
-            build=lambda: self.kernel_map["fused_add_layer_norm"](
-                n,
-                self.eps,
-                x.dtype,
-                tune=self.tune,
-            ),
-        )
+        kernel = self.get_or_build_kernel("fused_add_layer_norm", (x, residual, weight, bias))
         self._last_roofline_mn = (x.numel() // n, n)
         y, residual_out = kernel(x, residual, weight, bias)
         return y, residual_out

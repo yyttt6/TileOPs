@@ -45,9 +45,7 @@ SoftmaxFwdOp:
     bytes: "2 * M * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/softmax.py
-    kernel_map:
-      softmax_fwd: SoftmaxKernel
+    kernel: backends/ascend/src/tileops_ascend/families/two_pass.py
     op: tileops/ops/reduction/softmax.py
     test: tests/ops/test_softmax.py
     bench: benchmarks/ops/bench_softmax.py
@@ -98,9 +96,7 @@ LogSoftmaxFwdOp:
     bytes: "2 * M * N * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/softmax.py
-    kernel_map:
-      softmax_fwd: SoftmaxKernel
+    kernel: backends/ascend/src/tileops_ascend/families/two_pass.py
     op: tileops/ops/reduction/softmax.py
     test: tests/ops/test_softmax.py
     bench: benchmarks/ops/bench_softmax.py
@@ -146,9 +142,7 @@ LogSumExpFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/logsumexp.py
-    kernel_map:
-      logsumexp_fwd: LogSumExpKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/softmax.py
     test: tests/ops/test_softmax.py
     bench: benchmarks/ops/bench_softmax.py
@@ -202,9 +196,7 @@ SumFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -250,9 +242,7 @@ MeanFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -294,9 +284,7 @@ AmaxFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -338,9 +326,7 @@ AminFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -390,9 +376,7 @@ ProdFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -439,9 +423,7 @@ VarFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -484,9 +466,7 @@ StdFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -531,9 +511,7 @@ VarMeanFwdOp:
     bytes: "(M * N + 2 * M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/reduce.py
-    kernel_map:
-      reduce: ReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/reduce.py
     test: tests/ops/test_reduce.py
     bench: benchmarks/ops/bench_reduce.py
@@ -580,9 +558,7 @@ ArgmaxFwdOp:
     bytes: "M * N * elem_bytes + M * 8"
 
   source:
-    kernel: tileops/kernels/reduction/argreduce.py
-    kernel_map:
-      argreduce: ArgreduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/indexed_reduce.py
     op: tileops/ops/reduction/argreduce.py
     test: tests/ops/test_argreduce.py
     bench: benchmarks/ops/bench_argreduce.py
@@ -622,9 +598,7 @@ ArgminFwdOp:
     bytes: "M * N * elem_bytes + M * 8"
 
   source:
-    kernel: tileops/kernels/reduction/argreduce.py
-    kernel_map:
-      argreduce: ArgreduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/indexed_reduce.py
     op: tileops/ops/reduction/argreduce.py
     test: tests/ops/test_argreduce.py
     bench: benchmarks/ops/bench_argreduce.py
@@ -672,9 +646,7 @@ AllFwdOp:
     bytes: "M * N * elem_bytes + M"
 
   source:
-    kernel: tileops/kernels/reduction/logical_reduce.py
-    kernel_map:
-      logical_reduce: LogicalReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/logical_reduce.py
     test: tests/ops/test_logical_reduce.py
     bench: benchmarks/ops/bench_logical_reduce.py
@@ -718,9 +690,7 @@ AnyFwdOp:
     bytes: "M * N * elem_bytes + M"
 
   source:
-    kernel: tileops/kernels/reduction/logical_reduce.py
-    kernel_map:
-      logical_reduce: LogicalReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/logical_reduce.py
     test: tests/ops/test_logical_reduce.py
     bench: benchmarks/ops/bench_logical_reduce.py
@@ -761,9 +731,7 @@ CountNonzeroFwdOp:
     bytes: "M * N * elem_bytes + M * 8"
 
   source:
-    kernel: tileops/kernels/reduction/logical_reduce.py
-    kernel_map:
-      logical_reduce: LogicalReduceKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction_count_nonzero.py
     op: tileops/ops/reduction/logical_reduce.py
     test: tests/ops/test_logical_reduce.py
     bench: benchmarks/ops/bench_logical_reduce.py
@@ -815,9 +783,7 @@ L1NormFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/vector_norm.py
-    kernel_map:
-      vector_norm: VectorNormKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/vector_norm.py
     test: tests/ops/test_vector_norm.py
     bench: benchmarks/ops/bench_vector_norm.py
@@ -865,9 +831,7 @@ L2NormFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/vector_norm.py
-    kernel_map:
-      vector_norm: VectorNormKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/vector_norm.py
     test: tests/ops/test_vector_norm.py
     bench: benchmarks/ops/bench_vector_norm.py
@@ -915,9 +879,7 @@ InfNormFwdOp:
     bytes: "(M * N + M) * elem_bytes"
 
   source:
-    kernel: tileops/kernels/reduction/vector_norm.py
-    kernel_map:
-      vector_norm: VectorNormKernel
+    kernel: backends/ascend/src/tileops_ascend/families/reduction.py
     op: tileops/ops/reduction/vector_norm.py
     test: tests/ops/test_vector_norm.py
     bench: benchmarks/ops/bench_vector_norm.py

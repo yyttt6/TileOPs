@@ -1,25 +1,15 @@
-from typing import ClassVar, Dict, Optional, Tuple
+from typing import ClassVar, Dict, Tuple
 
 import torch
 import torch.nn.functional as F
 
-from tileops.kernels.attention import (
-    FlashAttnBwdPreprocessKernel,
-    GQABwdWgmmaPipelinedKernel,
-    GQAFwdWsPersistentCausalKernel,
-    GQAPrefillFwdKernel,
-    GQAPrefillFwdWsPersistentCausalKernel,
-    MHADecodeKernel,
-    MHADecodePagedKernel,
-    MHADecodePagedWsKernel,
-)
-from tileops.kernels.kernel_base import Kernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.backend import Kernel
+from tileops.perf.profile import cube_roof
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
 from .gqa import GroupedQueryAttentionBwdOp, GroupedQueryAttentionFwdOp
-from .selection import MHA_PAGED_DECODE_KEYS, AttentionCall
+from .selection import MHA_PAGED_DECODE_SLOT, AttentionCall
 
 __all__ = [
     "MultiHeadAttentionBwdOp",
@@ -46,14 +36,12 @@ class MultiHeadAttentionFwdOp(Op):
         seq_len: int,
         dim: int,
         is_causal: bool = True,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             is_causal: Manifest ``params.is_causal``, ``bool``, default ``True``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = batch
@@ -62,7 +50,7 @@ class MultiHeadAttentionFwdOp(Op):
         self.dim = dim
         self.is_causal = is_causal
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._gqa_op = GroupedQueryAttentionFwdOp(
             batch=batch,
             heads=heads,
@@ -70,17 +58,9 @@ class MultiHeadAttentionFwdOp(Op):
             seq_len=seq_len,
             dim=dim,
             is_causal=is_causal,
-            kernel_map=self.forwarded_overrides(),
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "gqa_prefill_fwd_kernel": GQAPrefillFwdKernel,
-            "gqa_prefill_causal_fwd_kernel": GQAPrefillFwdWsPersistentCausalKernel,
-            "gqa_prefill_square_fwd_kernel": GQAFwdWsPersistentCausalKernel,
-        }
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
         return self._gqa_op._get_kernel(inputs, dtype)
@@ -106,8 +86,8 @@ class MultiHeadAttentionFwdOp(Op):
         return self._gqa_op(q, k, v)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class MultiHeadAttentionBwdOp(Op):
@@ -132,14 +112,12 @@ class MultiHeadAttentionBwdOp(Op):
         seq_len: int,
         dim: int,
         is_causal: bool = True,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             is_causal: Manifest ``params.is_causal``, ``bool``, default ``True``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = batch
@@ -148,7 +126,7 @@ class MultiHeadAttentionBwdOp(Op):
         self.dim = dim
         self.is_causal = is_causal
 
-        self.dispatch_kernel(self._gqa_kernel_map(kernel_map))
+        self.dispatch_kernel()
         self._gqa_op = GroupedQueryAttentionBwdOp(
             batch=batch,
             heads=heads,
@@ -156,35 +134,12 @@ class MultiHeadAttentionBwdOp(Op):
             seq_len=seq_len,
             dim=dim,
             is_causal=is_causal,
-            kernel_map=self.forwarded_overrides(),
             tune=tune,
         )
-        self.kernel_map = self._gqa_op.kernel_map
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "gqa_bwd_preprocess_kernel": FlashAttnBwdPreprocessKernel,
-            "gqa_bwd_kernel": GQABwdWgmmaPipelinedKernel,
-        }
 
     def kernel_delegates(self) -> tuple[GroupedQueryAttentionBwdOp, ...]:
         """Every kernel this op runs is built by GQA backward."""
         return (self._gqa_op,)
-
-    @staticmethod
-    def _gqa_kernel_map(kernel_map: Optional[Dict[str, Kernel]]) -> Optional[Dict[str, Kernel]]:
-        if kernel_map is None:
-            return None
-        legacy_keys = MultiHeadAttentionBwdOp._LEGACY_KERNEL_MAP_KEYS.intersection(kernel_map)
-        if legacy_keys:
-            keys = ", ".join(sorted(legacy_keys))
-            raise ValueError(
-                "MultiHeadAttentionBwdOp delegates to GroupedQueryAttentionBwdOp; "
-                f"legacy MHA backward kernel_map keys are not compatible: {keys}. "
-                "Use gqa_bwd_* keys with kernels that implement the GQA backward ABI."
-            )
-        return dict(kernel_map)
 
     def _infer_output_shapes(
         self,
@@ -224,8 +179,8 @@ class MultiHeadAttentionBwdOp(Op):
         return self._gqa_op(q, k, v, o, do, lse)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class MultiHeadAttentionDecodeWithKVCacheFwdOp(Op):
@@ -238,13 +193,11 @@ class MultiHeadAttentionDecodeWithKVCacheFwdOp(Op):
         seqlen_q: int,
         seqlen_kv: int,
         dim: int,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = batch
@@ -254,28 +207,11 @@ class MultiHeadAttentionDecodeWithKVCacheFwdOp(Op):
         self.dim = dim
 
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "mha_decode_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["mha_decode_kernel"](
-                self.batch,
-                self.heads,
-                self.seqlen_q,
-                self.seqlen_kv,
-                self.dim,
-                False,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("mha_decode_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"mha_decode_kernel": MHADecodeKernel}
 
     def _infer_output_shapes(
         self,
@@ -309,8 +245,8 @@ class MultiHeadAttentionDecodeWithKVCacheFwdOp(Op):
         return self._get_kernel((q, k, v), q.dtype)(q, k, v, real_seqlen_kv)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 class MultiHeadAttentionDecodePagedWithKVCacheFwdOp(Op):
@@ -327,7 +263,6 @@ class MultiHeadAttentionDecodePagedWithKVCacheFwdOp(Op):
         dim: int,
         page_size: int,
         is_causal: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -335,7 +270,6 @@ class MultiHeadAttentionDecodePagedWithKVCacheFwdOp(Op):
         Args:
             page_size: Manifest ``params.page_size``, ``int``.
             is_causal: Manifest ``params.is_causal``, ``bool``, default ``False``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = batch
@@ -346,33 +280,13 @@ class MultiHeadAttentionDecodePagedWithKVCacheFwdOp(Op):
         self.page_size = page_size
         self.is_causal = is_causal
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
         call = self._attention_call(dtype)
-        key = self.select_kernel_key(MHA_PAGED_DECODE_KEYS, call)
+        del call  # the target reads the shapes and dtypes off the tensors
+        return self.get_or_build_kernel(MHA_PAGED_DECODE_SLOT, inputs)
 
-        def build() -> Kernel:
-            return self.kernel_map[key](
-                call.batch,
-                call.heads,
-                call.max_seqlen_q,
-                call.seqlen_kv,
-                call.dim,
-                call.page_size,
-                call.is_causal,
-                dtype,
-                tune=call.tune,
-            )
-
-        return self.get_or_build_kernel(key, inputs, key=dtype, build=build)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "mha_decode_paged_kernel": MHADecodePagedKernel,
-            "mha_decode_paged_ws_kernel": MHADecodePagedWsKernel,
-        }
 
     def _attention_call(self, dtype: torch.dtype) -> AttentionCall:
         """State what one paged decode call is, for selection to filter against.
@@ -432,8 +346,8 @@ class MultiHeadAttentionDecodePagedWithKVCacheFwdOp(Op):
         )
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)
 
 
 # torch.compile dispatch boundary (see src/tileops/ops/compile_boundary.py)

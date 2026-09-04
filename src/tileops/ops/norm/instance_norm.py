@@ -22,11 +22,10 @@ from typing import ClassVar, Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.norm import InstanceNormKernel, InstanceNormNoAffineKernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["InstanceNormFwdOp"]
 
@@ -68,7 +67,6 @@ class InstanceNormFwdOp(Op):
         eps: float = 1e-5,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -82,9 +80,8 @@ class InstanceNormFwdOp(Op):
                 op instance for API parity with PyTorch but unused: neither path
                 updates the running stats.
             eps: Epsilon for numerical stability (manifest ``params.eps``).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If ``True``, autotune tile configurations.
         """
         self.dtype: Optional[torch.dtype] = None
@@ -94,16 +91,10 @@ class InstanceNormFwdOp(Op):
         self.target = target
         self.tune = tune
         self._running_stats_broadcast_shape: Optional[list[int]] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel: Optional[Kernel] = None
         self._last_roofline_spec: Optional[tuple] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "instance_norm": InstanceNormKernel,
-            "instance_norm_no_affine": InstanceNormNoAffineKernel,
-        }
 
     def _infer_output_shapes(
         self,
@@ -328,20 +319,10 @@ class InstanceNormFwdOp(Op):
         if tracks_stats:
             running_mean = running_mean.contiguous()
             running_var = running_var.contiguous()
-        # The affine pair picks the implementation, so it belongs in the key; both are
-        # fetched under one name, which is what a target is asked to serve. One group per
-        # channel, so a row's every element belongs to the same channel.
-        slot = "instance_norm" if affine else "instance_norm_no_affine"
         kernel = self.get_or_build_kernel(
-            "instance_norm",
-            (x, running_mean, running_var, weight, bias),
-            key=(D, dtype, affine),  # this instance's in-tree cache key
-            build=lambda: (
-                self.kernel_map[slot](D, self.eps, dtype, C, 1, tune=self.tune)
-                if affine
-                else self.kernel_map[slot](D, self.eps, dtype, tune=self.tune)
-            ),
-        )
+                     "instance_norm",
+                     (x, running_mean, running_var, weight, bias),
+                 )
         self.kernel = kernel
 
         # Row m of the (N*C, spatial_size) view is channel m % C throughout, so the affine

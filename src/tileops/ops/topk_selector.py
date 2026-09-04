@@ -1,24 +1,19 @@
-from typing import Dict, Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.topk_selector import TopkSelectorKernel
 
 from .op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["TopkSelectorFwdOp"]
 
 
 class TopkSelectorFwdOp(Op):
-    def __init__(
-        self, topk: int, kernel_map: Optional[Dict[str, Kernel]] = None, tune: bool = False
-    ) -> None:
+    def __init__(self, topk: int, tune: bool = False) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             topk: Manifest ``params.topk``, ``int``.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.batch = None
@@ -30,12 +25,9 @@ class TopkSelectorFwdOp(Op):
         self.out_dtype = torch.int32
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"topk_selector_kernel": TopkSelectorKernel}
 
     def _get_kernel(
         self,
@@ -47,22 +39,7 @@ class TopkSelectorFwdOp(Op):
         in_dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, seq_len, seq_len_kv, kv_group, self.topk, in_dtype, device_index, self.tune)
-        return self.get_or_build_kernel(
-            "topk_selector_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["topk_selector_kernel"](
-                batch,
-                seq_len,
-                seq_len_kv,
-                kv_group,
-                self.topk,
-                in_dtype,
-                self.out_dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("topk_selector_kernel", inputs)
 
     def _infer_output_shapes(
         self,
@@ -85,14 +62,14 @@ class TopkSelectorFwdOp(Op):
         Returns:
             ``indexes``, as the manifest declares.
         """
-        if not index_score.is_cuda:
-            raise ValueError("TopkSelectorFwdOp expects CUDA inputs")
+        if index_score.device.type != "npu":
+            raise ValueError("TopkSelectorFwdOp expects NPU inputs")
         if index_score.ndim != 4:
             raise ValueError("TopkSelectorFwdOp expects index_score shape [B, S, S_kv, G]")
         if starts.ndim != 2 or ends.ndim != 2:
             raise ValueError("TopkSelectorFwdOp expects starts/ends shape [B, S]")
-        if not starts.is_cuda or not ends.is_cuda:
-            raise ValueError("starts and ends must be CUDA tensors")
+        if starts.device.type != "npu" or ends.device.type != "npu":
+            raise ValueError("starts and ends must be NPU tensors")
         if starts.dtype != torch.int32 or ends.dtype != torch.int32:
             raise ValueError("TopkSelectorFwdOp expects int32 starts/ends tensors")
 

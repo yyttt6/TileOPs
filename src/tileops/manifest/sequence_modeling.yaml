@@ -44,9 +44,7 @@ EngramGateConvFwdOp:
     func: "tileops.perf.formulas.engram_gate_conv_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/engram/engram_fwd.py
-    kernel_map:
-      engram_gate_conv_fwd: EngramGateConvFwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/engram.py
     test: tests/ops/test_engram.py
     bench: benchmarks/ops/bench_engram.py
@@ -104,9 +102,7 @@ EngramGateConvBwdOp:
     func: "tileops.perf.formulas.engram_gate_conv_bwd_roofline"
 
   source:
-    kernel: tileops/kernels/engram/engram_bwd.py
-    kernel_map:
-      engram_gate_conv_bwd: EngramGateConvBwdKernel
+    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/engram.py
     test: tests/ops/test_engram.py
     bench: benchmarks/ops/bench_engram.py
@@ -156,9 +152,8 @@ EngramDecodeFwdOp:
     func: "tileops.perf.formulas.engram_decode_roofline"
 
   source:
-    kernel: tileops/kernels/engram/engram_decode.py
-    kernel_map:
-      engram_decode: EngramDecodeKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/sequence_modeling/engram_decode.py
     test: tests/ops/test_engram.py
     bench: benchmarks/ops/bench_engram.py
@@ -187,9 +182,8 @@ FFTC2CFwdOp:
     func: "tileops.perf.formulas.fft_c2c_roofline"
 
   source:
-    kernel: tileops/kernels/fft.py
-    kernel_map:
-      fft_c2c_kernel: FFTC2CKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/fft.py
     test: tests/ops/test_fft.py
     bench: benchmarks/ops/bench_fft.py
@@ -230,9 +224,7 @@ MHCPreFwdOp:
     func: "tileops.perf.formulas.mhc_pre_roofline"
 
   source:
-    kernel: tileops/kernels/mhc/mhc_pre.py
-    kernel_map:
-      mhc_pre_kernel: MHCPreKernel
+    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/mhc.py
     test: tests/ops/test_mhc.py
     bench: benchmarks/ops/bench_mhc.py
@@ -265,9 +257,7 @@ MHCPostFwdOp:
     func: "tileops.perf.formulas.mhc_post_roofline"
 
   source:
-    kernel: tileops/kernels/mhc/mhc_post.py
-    kernel_map:
-      mhc_post_kernel: MHCPostKernel
+    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/mhc.py
     test: tests/ops/test_mhc.py
     bench: benchmarks/ops/bench_mhc.py

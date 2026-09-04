@@ -20,8 +20,6 @@ from typing import ClassVar, Dict, Optional, Sequence, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.norm import RMSNormKernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -43,8 +41,8 @@ class RMSNormFwdOp(Op):
     Example:
         ```python linenums="1"
         op = RMSNormFwdOp(normalized_shape=(4096,))
-        x = torch.randn(1024, 4096, dtype=torch.float16, device="cuda")
-        w = torch.randn(4096, dtype=torch.float16, device="cuda")
+        x = torch.randn(1024, 4096, dtype=torch.float16, device="npu")
+        w = torch.randn(4096, dtype=torch.float16, device="npu")
         y = op(x, w)  # shape: (1024, 4096)
         ```
     """
@@ -62,7 +60,6 @@ class RMSNormFwdOp(Op):
         eps: Optional[float] = DEFAULT_EPS,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -73,9 +70,8 @@ class RMSNormFwdOp(Op):
             eps: Epsilon for numerical stability (manifest ``params.eps``). ``None``
                 selects the same default the signature carries. Normalized here, so a
                 backend is handed the number rather than ``None``.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default ``False``).
         """
         self.N = normalized_shape_to_n(normalized_shape)
@@ -85,12 +81,9 @@ class RMSNormFwdOp(Op):
         self.eps = self.DEFAULT_EPS if eps is None else float(eps)
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_m: Optional[int] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"rms_norm": RMSNormKernel}
 
     def _infer_output_shapes(
         self,
@@ -152,17 +145,7 @@ class RMSNormFwdOp(Op):
         # Handed over as the manifest declares it; the layout a kernel wants is its own business.
         x = x.contiguous()
         weight = weight.contiguous()
-        kernel = self.get_or_build_kernel(
-            "rms_norm",
-            (x, weight),
-            key=x.dtype,  # this instance's in-tree cache key
-            build=lambda: self.kernel_map["rms_norm"](
-                self.N,
-                self.eps,
-                x.dtype,
-                tune=self.tune,
-            ),
-        )
+        kernel = self.get_or_build_kernel("rms_norm", (x, weight))
         self._last_m = x.numel() // self.N
         return kernel(x, weight)
 

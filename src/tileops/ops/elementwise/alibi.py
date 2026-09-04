@@ -1,12 +1,9 @@
 """ALiBi position-encoding generative op."""
 
-from typing import Dict, Optional
 
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import AlibiFwdKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..op_base import Op
 
@@ -34,7 +31,6 @@ class AlibiFwdOp(Op):
         num_heads: int,
         dtype: torch.dtype,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -42,22 +38,15 @@ class AlibiFwdOp(Op):
             seq_len: Sequence length.
             num_heads: Number of attention heads.
             dtype: Torch dtype.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None``. Nothing is probed: with no tensor input
-                there is no device to detect, so the in-tree kernels serve unless a target
-                is named.
-            kernel_map: Optional dispatch override mapping kernel keys to
-                ``Kernel`` subclasses. Falls back to ``default_kernel_map``.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
         """
         self.seq_len = seq_len
         self.num_heads = num_heads
         self.dtype = dtype
         self.target = target
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    @property
-    def default_kernel_map(self):
-        return {"alibi": AlibiFwdKernel}
 
     def _infer_output_shapes(self) -> dict[str, tuple[int, ...]]:
         return {"output": (self.num_heads, self.seq_len, self.seq_len)}
@@ -73,9 +62,6 @@ class AlibiFwdOp(Op):
         n_elem = self.num_heads * self.seq_len * self.seq_len
         return 3 * n_elem, self.total_memory
 
-    def _build(self, dtype: torch.dtype):
-        impl, ctor_dtype = self.kernel_map[self._op_name].specialize(dtype)
-        return impl(self.seq_len, self.num_heads, ctor_dtype)
 
     def forward(self) -> torch.Tensor:
         # The op promised ``self.dtype``; whichever storage the backend chose to
@@ -85,11 +71,6 @@ class AlibiFwdOp(Op):
         Returns:
             ``output``, as the manifest declares.
         """
-        kernel = self.get_or_build_kernel(
-            self._op_name,
-            (),  # no tensor input, so no device to detect: in-tree only
-            key=self.dtype,
-            build=lambda: self._build(self.dtype),
-        )
+        kernel = self.get_or_build_kernel(self._op_name, ())
         out = kernel().reshape(self.num_heads, self.seq_len, self.seq_len)
         return out if out.dtype == self.dtype else out.to(self.dtype)

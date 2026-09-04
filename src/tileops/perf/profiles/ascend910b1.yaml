@@ -1,0 +1,51 @@
+# Hardware profile: Huawei Ascend 910B1 (64 GB).
+#
+# Only measured or derived inputs are stored: `theoretical` (the physical
+# ceiling) and `calibration` (measured / theoretical). `effective =
+# theoretical * calibration` is computed by load_profile(); it is the line a
+# real kernel is compared against, while `theoretical` is the
+# physical-possibility gate a measurement may never beat.
+#
+# Provenance: every number below was produced by
+# `tileops-ascend-harness/calibrate_hw.py` on this machine's card 0 and is
+# reproduced verbatim from `tileops-ascend-harness/hw/ascend910b1.yaml`, which
+# is the file the harness itself reads. The two must stay identical; the
+# harness copy is the one the measurements were taken against.
+#
+# The unit names are the hardware's: an AI Core runs matrix contractions on its
+# Cube unit and everything else on its Vector unit. Roof keys are `cube.<dtype>`
+# and `vector.<dtype>` (docs/design/roofline.md §1.4).
+
+device: Ascend910B1
+soc: ascend910b1
+
+hbm:
+  # source: estimated from the measured 1-4 GiB STREAM-Triad plateau (1.068 TB/s)
+  # with a 1.5x margin, then rounded to 1.65 TB/s so it exceeds the 1.424 TB/s
+  # maximum sample. The installed CANN/OPP files carry no HBM bus geometry, so
+  # there is no datasheet figure to use instead. See R106.
+  theoretical: 1.650000e+12
+  calibration: 0.647322974118   # measured 1-4 GiB STREAM-Triad plateau / estimate
+
+# Matrix contractions. 378.88 TFLOPS = 25 AI Cores (npu-smi) x 1850 MHz x the
+# CANN 16x16x16 MMAD tile x 2 FLOP per FMA. See R013.
+cube:
+  fp16:
+    theoretical: 3.788800e+14
+    calibration: 0.768044158423  # measured 290.996570743178 TFLOPS / derived ceiling
+  bf16:
+    # Equal to FP16: the same 16-bit Cube path, and the measured throughput agrees.
+    theoretical: 3.788800e+14
+    calibration: 0.771878592835  # measured 292.449361253197 TFLOPS / derived ceiling
+  fp32:
+    # 378.88 / 4, the FP32:FP16 1:4 rate assumption. HF32 disabled.
+    theoretical: 9.472000e+13
+    calibration: 0.946510792628  # measured 89.653502277721 TFLOPS / derived ceiling
+
+# Elementwise, reduction, norm and scan arithmetic. Not yet calibrated: no
+# Vector-unit microbenchmark has been run on this card, and a datasheet figure
+# without a measurement behind it is the kind of number this file exists to
+# avoid. Ops that price their FLOPs on `vector.*` therefore resolve to no
+# section, and the harness leaves their compute ceiling blank rather than
+# guessing one -- they are memory-bound in practice, so the HBM roof binds.
+vector: {}

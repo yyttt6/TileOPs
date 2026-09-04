@@ -1,11 +1,10 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.mamba import SSDStatePassingFwdKernel
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["SSDStatePassingFwdOp"]
 
@@ -24,7 +23,6 @@ class SSDStatePassingFwdOp(Op):
     def __init__(
         self,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -37,12 +35,9 @@ class SSDStatePassingFwdOp(Op):
         self.d_state = None
         self.dtype = None
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"ssd_state_passing_fwd": SSDStatePassingFwdKernel}
 
     def _get_kernel(
         self,
@@ -55,30 +50,7 @@ class SSDStatePassingFwdOp(Op):
         has_initial_states: bool,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            batch,
-            num_chunks,
-            n_heads,
-            d_state,
-            has_initial_states,
-            dtype,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            "ssd_state_passing_fwd",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["ssd_state_passing_fwd"](
-                batch,
-                num_chunks,
-                n_heads,
-                d_state,
-                has_initial_states=has_initial_states,
-                dtype=dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("ssd_state_passing_fwd", inputs)
 
     def _infer_output_shapes(
         self,
@@ -107,8 +79,8 @@ class SSDStatePassingFwdOp(Op):
             out:          (batch, num_chunks, n_heads, d_state) float32
             final_states: (batch, n_heads, d_state) float32
         """
-        if not states.is_cuda:
-            raise ValueError("states must be a CUDA tensor")
+        if states.device.type != "npu":
+            raise ValueError("states must be an NPU tensor")
         if states.ndim != 4:
             raise ValueError("states must have shape [batch, num_chunks, n_heads, d_state]")
         batch, num_chunks, n_heads, d_state = states.shape

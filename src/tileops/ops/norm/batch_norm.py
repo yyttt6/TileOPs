@@ -25,15 +25,10 @@ from typing import ClassVar, Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.norm.batch_norm import (
-    BatchNormBwdKernel,
-    BatchNormFwdInferKernel,
-    BatchNormFwdTrainKernel,
-)
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["BatchNormBwdOp", "BatchNormFwdOp"]
 
@@ -72,7 +67,6 @@ class BatchNormFwdOp(Op):
         eps: float = 1e-5,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -83,9 +77,8 @@ class BatchNormFwdOp(Op):
                 ``params.training``).
             momentum: Running-stat update momentum (used in training mode).
             eps: Epsilon for numerical stability.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If ``True``, autotune tile configurations.
         """
         self.dtype: Optional[torch.dtype] = None
@@ -95,16 +88,10 @@ class BatchNormFwdOp(Op):
         self.target = target
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel: Optional[Kernel] = None
         self._last_roofline_spec: Optional[tuple[int, int, torch.dtype]] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "fwd_train_kernel": BatchNormFwdTrainKernel,
-            "fwd_infer_kernel": BatchNormFwdInferKernel,
-        }
 
     def _infer_output_shapes(
         self,
@@ -182,19 +169,10 @@ class BatchNormFwdOp(Op):
         stats = (running_mean, running_var)
         running_mean, running_var = (stat.contiguous() for stat in stats)
 
-        # ``training`` decides which implementation serves the call, so it belongs in the
-        # key; both are fetched under one name, which is what a target is asked to serve.
-        slot = "fwd_train_kernel" if self.training else "fwd_infer_kernel"
         kernel = self.get_or_build_kernel(
-            "batch_norm_fwd",
-            (x, running_mean, running_var, weight, bias),
-            key=(C, L, dtype, self.training),  # this instance's in-tree cache key
-            build=lambda: (
-                self.kernel_map[slot](C, L, dtype, self.eps, self.momentum, tune=self.tune)
-                if self.training
-                else self.kernel_map[slot](C, L, dtype, self.eps, tune=self.tune)
-            ),
-        )
+                     "batch_norm_fwd",
+                     (x, running_mean, running_var, weight, bias),
+                 )
         self.kernel = kernel
 
         # The training kernel also returns the batch statistics, which the manifest keeps
@@ -222,16 +200,16 @@ class BatchNormFwdOp(Op):
         op instance to switch between training and inference.
 
         Args:
-            x: Input tensor of shape ``(N, C, *spatial)`` on CUDA.
-            running_mean: Running mean of shape $[C]$ on the same CUDA
+            x: Input tensor of shape ``(N, C, *spatial)`` on the NPU.
+            running_mean: Running mean of shape $[C]$ on the same NPU
                 device as ``x``, with dtype ``torch.float32``. Updated
                 in-place during training.
             running_var: Running variance of shape $[C]$ on the same
-                CUDA device as ``x``, with dtype ``torch.float32``. Updated
+                NPU device as ``x``, with dtype ``torch.float32``. Updated
                 in-place during training.
-            weight: Affine scale (gamma) of shape $[C]$ on the same CUDA
+            weight: Affine scale (gamma) of shape $[C]$ on the same NPU
                 device as ``x``.
-            bias: Affine shift (beta) of shape $[C]$ on the same CUDA
+            bias: Affine shift (beta) of shape $[C]$ on the same NPU
                 device as ``x``.
 
         Returns:
@@ -260,28 +238,23 @@ class BatchNormBwdOp(Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If ``True``, autotune tile configurations.
         """
         self.dtype: Optional[torch.dtype] = None
         self.target = target
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel: Optional[Kernel] = None
         self._last_roofline_spec: Optional[tuple[int, int, torch.dtype]] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"bwd_kernel": BatchNormBwdKernel}
 
     def _infer_output_shapes(
         self,
@@ -367,12 +340,7 @@ class BatchNormBwdOp(Op):
         weight = weight.contiguous()
         mean = mean.contiguous()
         rstd = rstd.contiguous()
-        kernel = self.get_or_build_kernel(
-            "batch_norm_bwd",
-            (grad_out, x, weight, mean, rstd),
-            key=(C, L, dtype),  # this instance's in-tree cache key
-            build=lambda: self.kernel_map["bwd_kernel"](C, L, dtype, tune=self.tune),
-        )
+        kernel = self.get_or_build_kernel("batch_norm_bwd", (grad_out, x, weight, mean, rstd))
         self.kernel = kernel
         return kernel(grad_out, x, weight, mean, rstd)
 
@@ -386,12 +354,12 @@ class BatchNormBwdOp(Op):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Run batch normalization backward pass.
 
-        All inputs must reside on the same CUDA device.
+        All inputs must reside on the same NPU device.
 
         Args:
             grad_out: Upstream gradient of shape ``(N, C, *spatial)``.
             x: Original input tensor of shape ``(N, C, *spatial)``.
-            weight: Affine scale (gamma) of shape $[C]$ on the same CUDA
+            weight: Affine scale (gamma) of shape $[C]$ on the same NPU
                 device as ``x``. Internally cast to ``torch.float32`` for the
                 backward kernel.
             mean: Per-channel batch mean from the forward pass, shape

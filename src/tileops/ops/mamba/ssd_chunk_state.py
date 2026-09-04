@@ -1,12 +1,11 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.mamba import SSDChunkStateFwdKernel
-from tileops.perf.profile import tensor_core_roof
+from tileops.perf.profile import cube_roof
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["SSDChunkStateFwdOp"]
 
@@ -29,7 +28,6 @@ class SSDChunkStateFwdOp(Op):
     def __init__(
         self,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -45,14 +43,9 @@ class SSDChunkStateFwdOp(Op):
         self.n_groups = None
         self.dtype = None
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "ssd_chunk_state_fwd": SSDChunkStateFwdKernel,
-        }
 
     def _get_kernel(
         self,
@@ -69,38 +62,7 @@ class SSDChunkStateFwdOp(Op):
         has_seq_idx: bool,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            batch,
-            num_chunks,
-            chunk_len,
-            n_heads,
-            d_head,
-            d_state,
-            n_groups,
-            dtype,
-            dt_dtype,
-            has_seq_idx,
-            device_index,
-            self.tune,
-        )
-        return self.get_or_build_kernel(
-            "ssd_chunk_state_fwd",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["ssd_chunk_state_fwd"](
-                batch,
-                num_chunks,
-                chunk_len,
-                n_heads,
-                d_head,
-                d_state,
-                n_groups,
-                dtype,
-                has_seq_idx=has_seq_idx,
-                dt_dtype=dt_dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("ssd_chunk_state_fwd", inputs)
 
     def _infer_output_shapes(
         self,
@@ -134,8 +96,8 @@ class SSDChunkStateFwdOp(Op):
         Returns:
             out: (batch, num_chunks, n_heads, d_head, d_state) float32
         """
-        if not x.is_cuda:
-            raise ValueError("x must be a CUDA tensor")
+        if x.device.type != "npu":
+            raise ValueError("x must be an NPU tensor")
         if x.ndim != 4:
             raise ValueError("x must have shape [batch, seq_len, n_heads, d_head]")
         batch, seq_len, n_heads, d_head = x.shape
@@ -199,5 +161,5 @@ class SSDChunkStateFwdOp(Op):
         return self.kernel(x, Bmat, dt, dA_cumsum, seq_idx)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on tensor cores."""
-        return tensor_core_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the Cube unit."""
+        return cube_roof(self.dtype)

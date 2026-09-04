@@ -1,11 +1,9 @@
 """MoE permute-align op: routes tokens to experts and pads to tile boundary."""
 
-from typing import ClassVar, Dict, Optional, Tuple
+from typing import ClassVar, Dict, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe import MoePermuteAlignKernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -36,7 +34,6 @@ class MoePermuteAlignFwdOp(Op):
         top_k: int,
         num_experts: int,
         block_size: int = 64,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -46,7 +43,6 @@ class MoePermuteAlignFwdOp(Op):
             top_k: Number of experts selected per token K.
             num_experts: Number of experts.
             block_size: GEMM tile size (M dimension); default 64.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune the kernel.
         """
         self.total_tokens = total_tokens
@@ -55,14 +51,9 @@ class MoePermuteAlignFwdOp(Op):
         self.block_size = block_size
         self.numel = total_tokens * top_k
 
-        self.dispatch_kernel(kernel_map)
-        self.kernel = self.kernel_map["permute_align_kernel"](
-            self.numel, num_experts, block_size, tune=tune
-        )
+        self.tune = tune
+        self.dispatch_kernel()
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"permute_align_kernel": MoePermuteAlignKernel}
 
     def _padded_extents(self, numel: int) -> Tuple[int, int]:
         """``(max_padded, num_blocks)`` — the two padded extents the manifest states.

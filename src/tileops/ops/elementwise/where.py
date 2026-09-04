@@ -6,8 +6,6 @@ from typing import Dict, Optional
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.elementwise import WhereFwdKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -42,16 +40,13 @@ class WhereFwdOp(_PerDtypeKernels, Op):
         self,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for
-                the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional dispatch override mapping kernel keys to
-                ``Kernel`` subclasses. Falls back to ``default_kernel_map``.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune.
         """
         self.target = target
@@ -59,18 +54,8 @@ class WhereFwdOp(_PerDtypeKernels, Op):
         self.condition_shape: Optional[tuple] = None
         self.input_shape: Optional[tuple] = None
         self.other_shape: Optional[tuple] = None
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
-    def _build(self, dtype: torch.dtype, n_total: int):
-        if dtype not in self._SUPPORTED_DTYPES:
-            names = ", ".join(str(dt) for dt in self._SUPPORTED_DTYPES)
-            raise ValueError(f"WhereFwdOp does not support dtype {dtype}. Supported: [{names}]")
-        impl, ctor_dtype = self._selected_kernel_cls().specialize(dtype)
-        return impl(n_total, ctor_dtype)
-
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"where": WhereFwdKernel}
 
     def _infer_output_shapes(
         self,

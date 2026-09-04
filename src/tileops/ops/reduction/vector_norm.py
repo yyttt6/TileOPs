@@ -1,11 +1,9 @@
 """Vector-norm reduction operators (L1, L2, inf)."""
 
 from math import inf
-from typing import Dict, List, Optional, Union
+from typing import List, Union
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.reduction.vector_norm import VectorNormKernel
 
 from ._boundary import register_reduction_op
 from ._multidim import EmptyDimPolicy
@@ -23,7 +21,6 @@ class L1NormFwdOp(_ReduceOpBase):
 
     _op_kind = "l1"
     _kernel_key = "vector_norm"
-    _kernel_cls = VectorNormKernel
     _required_ord: Union[int, float] = 1
     _empty_dim_policy: EmptyDimPolicy = "full"
 
@@ -34,7 +31,6 @@ class L1NormFwdOp(_ReduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -47,9 +43,8 @@ class L1NormFwdOp(_ReduceOpBase):
             ord: Norm order. Must equal 1 for ``L1NormFwdOp`` (manifest fixes
                 ``ord == 1``); accepted as a kwarg to mirror
                 ``torch.linalg.vector_norm``.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
         if ord != self._required_ord:
@@ -57,13 +52,7 @@ class L1NormFwdOp(_ReduceOpBase):
                 f"{type(self).__name__} only supports ord={self._required_ord!r}, got ord={ord!r}"
             )
         self.ord = ord
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
 
 class L2NormFwdOp(_ReduceOpBase):
@@ -75,7 +64,6 @@ class L2NormFwdOp(_ReduceOpBase):
 
     _op_kind = "l2"
     _kernel_key = "vector_norm"
-    _kernel_cls = VectorNormKernel
     _required_ord: Union[int, float] = 2
     _empty_dim_policy: EmptyDimPolicy = "full"
 
@@ -86,7 +74,6 @@ class L2NormFwdOp(_ReduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -99,9 +86,8 @@ class L2NormFwdOp(_ReduceOpBase):
             ord: Norm order. Must equal 2 for ``L2NormFwdOp`` (manifest fixes
                 ``ord == 2``); accepted as a kwarg to mirror
                 ``torch.linalg.vector_norm``.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
         if ord != self._required_ord:
@@ -109,13 +95,7 @@ class L2NormFwdOp(_ReduceOpBase):
                 f"{type(self).__name__} only supports ord={self._required_ord!r}, got ord={ord!r}"
             )
         self.ord = ord
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
 
 class InfNormFwdOp(_ReduceOpBase):
@@ -131,7 +111,6 @@ class InfNormFwdOp(_ReduceOpBase):
 
     _op_kind = "inf"
     _kernel_key = "vector_norm"
-    _kernel_cls = VectorNormKernel
     _required_ord: Union[int, float] = inf
     _empty_dim_policy: EmptyDimPolicy = "full"
 
@@ -142,7 +121,6 @@ class InfNormFwdOp(_ReduceOpBase):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -155,9 +133,8 @@ class InfNormFwdOp(_ReduceOpBase):
             ord: Norm order. Must equal ``float('inf')`` for ``InfNormFwdOp``
                 (manifest fixes ``ord == float('inf')``); accepted as a kwarg to
                 mirror ``torch.linalg.vector_norm``.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional custom kernel map.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune the kernel.
         """
         if ord != self._required_ord:
@@ -165,13 +142,7 @@ class InfNormFwdOp(_ReduceOpBase):
                 f"{type(self).__name__} only supports ord={self._required_ord!r}, got ord={ord!r}"
             )
         self.ord = ord
-        super().__init__(
-            dim=dim,
-            keepdim=keepdim,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(dim=dim, keepdim=keepdim, target=target, tune=tune)
 
 
 for _op_cls in (

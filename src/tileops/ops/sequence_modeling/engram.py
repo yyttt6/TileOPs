@@ -1,11 +1,10 @@
-from typing import Dict, List, Optional
+from typing import List
 
 import torch
 
-from tileops.kernels.engram import EngramGateConvBwdKernel, EngramGateConvFwdKernel
-from tileops.kernels.kernel_base import Kernel
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["EngramGateConvBwdOp", "EngramGateConvFwdOp"]
 
@@ -32,7 +31,6 @@ class EngramGateConvFwdOp(Op):
         d: int,
         eps: float = 1e-6,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -47,26 +45,11 @@ class EngramGateConvFwdOp(Op):
         self.d = d
         self.eps = eps
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "engram_gate_conv_fwd",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["engram_gate_conv_fwd"](
-                self.M,
-                self.seq_len,
-                self.d,
-                self.eps,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("engram_gate_conv_fwd", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"engram_gate_conv_fwd": EngramGateConvFwdKernel}
 
     def _infer_output_shapes(
         self,
@@ -115,8 +98,8 @@ class EngramGateConvFwdOp(Op):
               rrms_k: (M, seq_len) — RMSNorm reciprocal rms of k.
               rrms_v: (M, seq_len) — RMSNorm reciprocal rms of v_hat.
         """
-        if not H.is_cuda:
-            raise ValueError("H must be a CUDA tensor")
+        if H.device.type != "npu":
+            raise ValueError("H must be an NPU tensor")
         self._validate_dtypes(H, k, v, rms_w_h, rms_w_v, conv_w)
         self.dtype = H.dtype
         if H.shape[-1] != self.d:
@@ -153,7 +136,6 @@ class EngramGateConvBwdOp(Op):
         d: int,
         eps: float = 1e-6,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -168,26 +150,11 @@ class EngramGateConvBwdOp(Op):
         self.d = d
         self.eps = eps
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
-        return self.get_or_build_kernel(
-            "engram_gate_conv_bwd",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["engram_gate_conv_bwd"](
-                self.M,
-                self.seq_len,
-                self.d,
-                self.eps,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("engram_gate_conv_bwd", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"engram_gate_conv_bwd": EngramGateConvBwdKernel}
 
     def _infer_output_shapes(
         self,
@@ -253,8 +220,8 @@ class EngramGateConvBwdOp(Op):
               drms_w_v: (d,) — fp32
               dconv_w:  (4, d) — fp32
         """
-        if not dY.is_cuda:
-            raise ValueError("dY must be a CUDA tensor")
+        if dY.device.type != "npu":
+            raise ValueError("dY must be an NPU tensor")
         self._validate_dtypes(
             dY,
             H,

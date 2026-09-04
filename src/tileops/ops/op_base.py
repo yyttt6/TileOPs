@@ -3,21 +3,18 @@ import warnings
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from typing import (
-    Callable,
     ClassVar,
     Hashable,
     Iterator,
     Mapping,
     Optional,
     Sequence,
-    TypeVar,
     Union,
 )
 
 import torch
 
 from tileops.backend import (
-    BUILTIN,
     BuildKernel,
     OpNotAvailableError,
     Target,
@@ -26,15 +23,11 @@ from tileops.backend import (
 )
 from tileops.backend.dispatch import registered_kernel_builder, select_target
 from tileops.backend.registry import ensure_loaded
-from tileops.kernels.kernel_base import Kernel
 
 from .compile_boundary import register_instance
 
 # Module-level dedup for empty-static_dims warnings; keyed by Op subclass.
 _EMPTY_STATIC_DIMS_WARNED: set = set()
-
-_Entry = TypeVar("_Entry")
-
 
 class _Unresolved:
     """The type of :data:`_UNRESOLVED`, so a traceback says what it is."""
@@ -73,7 +66,7 @@ class Op(ABC):
         kernel: single kernel, for ops that hold one; ops that build per
             specialization use ``get_or_build_kernel`` instead
         dtype: Data type for computation (e.g., torch.float16)
-        device: Device for computation (e.g., 'cuda')
+        device: Device for computation (e.g., 'npu')
         input_shapes: Expected input tensor shapes
 
     Properties:
@@ -83,25 +76,22 @@ class Op(ABC):
             If specified, will be used to calculate Bandwidth in profile().
     """
 
-    # Which set of kernels serves this instance: a target name, ``BUILTIN`` for the in-tree
-    # implementation, or None to decide from the input device. Constructor-only: it settles
-    # kernel identity, so it must not vary per call.
+    # Which set of kernels serves this instance: a target name, or None to decide from the
+    # input device. Constructor-only: it settles kernel identity, so it must not vary per
+    # call.
     target: Target = None
-    # The resolved answer: ``_UNRESOLVED``, ``None`` (in-tree), or a target's build_kernel.
+    # The resolved answer: ``_UNRESOLVED``, ``None`` (nothing serves it), or a target's
+    # build_kernel.
     _builder: object = _UNRESOLVED
     # Which target that was, for introspection and error messages.
     _settled_target: Target = None
 
-    kernel: Kernel
-    kernel_map: Optional[dict[str, Kernel]] = None
     # Built entries, ``{role: {key: entry}}``. Annotation only: the instance
     # attribute appears on the first ``get_or_build_kernel`` call, so an op that
     # has built nothing carries no dict, and no constructor declares one.
     _kernel_roles: dict[str, dict[Hashable, object]]
-    # Dispatch keys the caller replaced through ``kernel_map=``.
-    _overridden_keys: frozenset = frozenset()
     dtype: Optional[torch.dtype] = None
-    device: Optional[Union[torch.device, str]] = "cuda"
+    device: Optional[Union[torch.device, str]] = "npu"
     input_shapes: Optional[list[tuple]] = None
     # Whether kernels this op builds tune themselves. A ctor kwarg on the ops
     # that offer one, and what ``autotune()`` sets; a factory reads it when it
@@ -134,11 +124,6 @@ class Op(ABC):
         maybe_install_validator(cls)
         maybe_install_eval_roofline(cls)
         maybe_install_param_names(cls)
-
-    @property
-    @abstractmethod
-    def default_kernel_map(self) -> dict[str, Kernel]:
-        raise NotImplementedError("Op must implement default_kernel_map")
 
     #: Operators this op registers on the torch.compile boundary. Naming them is what lets
     #: a test assert the traced graph holds nothing else, which is what keeps the graph the
@@ -204,140 +189,34 @@ class Op(ABC):
         author — never inferred from the running kernel, so a kernel on the
         wrong unit is still measured against the right ceiling.
 
-        The base default covers ops whose arithmetic runs on CUDA cores in
-        fp32 (elementwise, reductions, norms, scans). An op whose FLOPs are
-        matmul contractions overrides this with ``tensor_core_roof(self.dtype)``
-        (or a backend-specific key). Valid whenever ``eval_roofline()`` is —
-        after the dtype is bound.
+        The base default covers ops whose arithmetic runs on the AI Core's Vector
+        unit in fp32 (elementwise, reductions, norms, scans). An op whose FLOPs are
+        matmul contractions overrides this with ``cube_roof(self.dtype)`` — the
+        Cube unit is the other half of the same core. Valid whenever
+        ``eval_roofline()`` is — after the dtype is bound.
         """
-        return "cuda_core.fp32"
+        return "vector.fp32"
 
-    def _install_kernel_map(self, candidate_map: Optional[dict[str, Kernel]] = None) -> None:
-        """Install the resolved kernel map onto ``self.kernel_map``.
+    def dispatch_kernel(self) -> None:
+        """Make the op ready to be called: load the backends, join the compile boundary.
 
-        Iterates ``self.default_kernel_map`` and, for each entry, picks the
-        override from ``candidate_map`` when present, falling back to the
-        default. Resolving a kernel *class* needs no device, so construction
-        does not probe one: an op constructs wherever it is imported, and a
-        target that cannot run the op surfaces when a kernel is first selected,
-        built or called. Both auto-discovered and user-supplied maps share this
-        single install path.
+        Every conforming ``__init__`` ends here. It loads the backend registry before any
+        traced region, which the first call may be inside, and registers the instance on
+        the ``torch.compile`` dispatch boundary -- the zero-boilerplate registration point.
         """
-        default_map = self.default_kernel_map
-        override = dict(candidate_map) if candidate_map else {}
-        if default_map is None or len(default_map) == 0:
-            # Composite op: store override verbatim.
-            self.kernel_map = override
-            self._overridden_keys = frozenset(override)
-            return
-        resolved: dict[str, Kernel] = {}
-        for name, default_kernel in default_map.items():
-            resolved[name] = override.get(name, default_kernel)
-        self.kernel_map = resolved
-        # Which keys the caller replaced. A dispatch key served by several
-        # implementations skips a default that cannot serve a call, but a
-        # replacement the caller supplied is never skipped silently: the whole
-        # point of the override is to run that implementation.
-        self._overridden_keys = frozenset(override) & frozenset(resolved)
-
-    def forwarded_overrides(self) -> Optional[dict[str, Kernel]]:
-        """The caller's replacements, to hand to a sub-op this op builds.
-
-        Only what the caller supplied. A composite op that passed its whole
-        resolved ``kernel_map`` down would mark every key as replaced, and a
-        replacement that cannot serve a call is an error rather than something to
-        select around.
-        """
-        if not self._overridden_keys or not self.kernel_map:
-            return None
-        return {
-            key: cls for key, cls in self.kernel_map.items() if key in self._overridden_keys
-        } or None
-
-    def select_kernel_key(self, keys: "tuple[str, ...]", call: object) -> str:
-        """Return the one key among *keys* whose implementation serves *call*.
-
-        The rule every family dispatches by. Each candidate answers for itself:
-        a specialised implementation states the region it serves, and the one
-        marked ``general`` runs where none of them does. Nothing is decided by
-        the order the keys are written in, and no implementation names another.
-
-        A replacement installed through ``kernel_map=`` is asked the same
-        question as the class it replaced, so a specialisation can be swapped
-        without the general implementation knowing. When a replacement cannot
-        serve the call and a shipped implementation would take its place, that
-        is an error: the caller supplied it so that it would run, and a result
-        from the shipped kernel would be read as theirs.
-
-        Raises:
-            ValueError: When no implementation serves the call, when a
-                replacement cannot and a shipped one would stand in for it, or
-                when two implementations both claim it.
-        """
-        applicable: list[str] = []
-        rejected: list[str] = []
-        refused_overrides: list[str] = []
-        for key in keys:
-            kernel_cls = (self.kernel_map or {}).get(key)
-            if kernel_cls is None:
-                continue
-            reason = kernel_cls.refusal(call)
-            if reason is None:
-                applicable.append(key)
-                continue
-            rejected.append(f"{key} ({kernel_cls.__name__}: {reason})")
-            if key in self._overridden_keys:
-                refused_overrides.append(f"{key} ({kernel_cls.__name__}: {reason})")
-
-        specialised = [k for k in applicable if not self.kernel_map[k].general]
-        chosen = specialised or applicable
-
-        if len(chosen) == 1:
-            if refused_overrides and chosen[0] not in self._overridden_keys:
-                raise ValueError(
-                    "the kernel supplied for "
-                    + "; ".join(refused_overrides)
-                    + f" — selection does not fall back to the shipped '{chosen[0]}' "
-                    f"when a replacement is in force. Call: {call}"
-                )
-            return chosen[0]
-        if not chosen:
-            lead = (
-                "the kernel supplied for " + "; ".join(refused_overrides) + ", and "
-                if refused_overrides
-                else ""
-            )
-            raise ValueError(
-                lead
-                + "no implementation serves this call: "
-                + "; ".join(rejected or ["no implementation is installed"])
-                + f". Call: {call}"
-            )
-        raise ValueError(
-            f"dispatch is ambiguous: {', '.join(chosen)} all serve this call, so none "
-            f"is the answer. Implementations of one key must serve disjoint regions, "
-            f"and at most one of them may be general. Call: {call}"
-        )
-
-    def dispatch_kernel(self, kernel_map: Optional[dict[str, Kernel]] = None) -> None:
-        """Resolve and install the kernel map (auto-discovery entry point)."""
-        ensure_loaded()  # before any traced region, which the first call may be inside
-        self._install_kernel_map(kernel_map)
-        # Conforming __init__s all pass through here — the zero-boilerplate
-        # registration point for the compile dispatch boundary.
+        ensure_loaded()
         self._instance_key = register_instance(self)
 
     def get_or_build_kernel(
         self,
         name: str,
         inputs: "Sequence[torch.Tensor | None]",
-        *,
-        key: Hashable = None,
-        build: Optional[Callable[[], _Entry]] = None,
-    ) -> _Entry:
+    ) -> object:
         """Return the kernel for this call, building it once on a miss.
 
-        The Op layer's only get-or-build, and the one place the two implementations fork.
+        The Op layer's only get-or-build. Every kernel this distribution runs comes
+        from a backend target: the op layer describes the call and the target answers
+        with something callable, so this method never constructs a kernel itself.
 
         Args:
             name: Which of this op's kernels is being asked for.
@@ -345,20 +224,14 @@ class Op(ABC):
                 ``signature.inputs`` entry, in that order. An ``optional: true`` input the
                 call did not pass occupies its slot as ``None`` — the same value ``forward``
                 was handed, so presence is a fact the builder reads off the slot rather than
-                off how many slots there are. An external target needs *inputs*; omitting
-                them leaves this op in-tree only.
-            key: What the *in-tree* kernel specializes on, typically
-                ``(self._cache_key(*input_shapes), dtype)`` or just the dtype. The external
-                path keys on the input signature instead.
-            build: How the *in-tree* kernel is constructed, called once per key. See
-                ``Op._entry_kernels`` for what it may return.
+                off how many slots there are.
 
         Returns:
             The stored entry, identical across calls describing the same specialization.
 
         Raises:
-            OpNotAvailableError: A target serves this op but the call site handed over no
-                tensor at all; or there is no in-tree implementation and no target.
+            OpNotAvailableError: No target serves this op on the device the inputs live
+                on, or one does but the call site handed over no tensor at all.
         """
         # Plain attribute reads and dict lookups, no ``self.__dict__``: this
         # runs inside a dynamo-traced forward on every cache hit, and dynamo
@@ -383,19 +256,18 @@ class Op(ABC):
         try:
             builder = self._builder
             if builder is None or builder is _UNRESOLVED:
-                # In-tree: the op knows what its own kernel specializes on, so it says.
-                if build is None:
-                    raise OpNotAvailableError(
-                        f"{type(self).__name__} has no in-tree implementation for {name!r}, "
-                        f"so it needs a target that registers one; known targets for this "
-                        f"op: {registered_targets(type(self).__name__)}"
-                    )
-                if key not in entries:
-                    entries[key] = build()
-                return entries[key]
+                # No target claimed the call. There is nothing behind this layer to fall
+                # back to -- the kernels live in backend distributions -- so say which
+                # targets do serve the op rather than running something else.
+                raise OpNotAvailableError(
+                    f"no backend target serves {type(self).__name__}.{name!r} on these "
+                    f"inputs; targets registered for this op: "
+                    f"{registered_targets(type(self).__name__)}. This distribution ships "
+                    f"no kernels of its own, so there is nothing to fall back to."
+                )
 
-            # External: this layer cannot know what the target's kernel specializes on, so
-            # it keys on every cheap fact it has: the dtype and shape of each input.
+            # This layer cannot know what the target's kernel specializes on, so it keys
+            # on every cheap fact it has: the dtype and shape of each input.
             specs = tuple(None if t is None else TensorSpec.of(t) for t in inputs)
             present = tuple(spec for spec in specs if spec is not None)
             if not present:
@@ -488,12 +360,11 @@ class Op(ABC):
         """
         return ()
 
-    def iter_kernels(self) -> Iterator[Kernel]:
+    def iter_kernels(self) -> Iterator[object]:
         """Yield every kernel the op holds, each one once.
 
-        Enumeration is explicit: the entries of every role, then ``self.kernel``
-        for an op that binds one directly, then the same walk over each
-        ``kernel_delegates()`` entry. A kernel bound to any other attribute is
+        Enumeration is explicit: the entries of every role, then the same walk over
+        each ``kernel_delegates()`` entry. A kernel bound to any other attribute is
         not searched for — an op that holds one builds it through a role.
         """
         seen: set[int] = set()
@@ -515,15 +386,18 @@ class Op(ABC):
         return None
 
     @staticmethod
-    def _entry_kernels(entry: object) -> "list[Kernel]":
+    def _entry_kernels(entry: object) -> "list[object]":
         """Return the kernels one entry holds.
 
         An entry is a kernel, a sequence of kernels built together, or a dataclass
-        carrying them alongside what else the specialization implies. An entry that
-        hides its kernels from this walk is invisible to ``autotune``.
+        carrying them alongside what else the specialization implies. A target's kernel
+        is whatever its ``build_kernel`` returned -- callable is the whole contract
+        (`tileops.backend.protocol`) -- so the walk recognises an entry by its shape,
+        never by a base class no backend is required to inherit. An entry that hides
+        its kernels from this walk is invisible to ``autotune``.
         """
-        if isinstance(entry, Kernel):
-            return [entry]
+        if entry is None:
+            return []
         if isinstance(entry, (tuple, list)):
             return [k for item in entry for k in Op._entry_kernels(item)]
         if dataclasses.is_dataclass(entry) and not isinstance(entry, type):
@@ -532,7 +406,7 @@ class Op(ABC):
                 for f in dataclasses.fields(entry)
                 for k in Op._entry_kernels(getattr(entry, f.name))
             ]
-        return []
+        return [entry] if callable(entry) else []
 
     def _walk_ops(self) -> Iterator["Op"]:
         """Yield this op and the ops it runs kernels through, each one once."""
@@ -546,13 +420,12 @@ class Op(ABC):
             yield op
             stack.extend(op.kernel_delegates())
 
-    def _walk_kernels(self) -> Iterator[Kernel]:
+    def _walk_kernels(self) -> Iterator[object]:
         """Yield the kernels this op and its delegates hold, duplicates included."""
         for op in self._walk_ops():
             for entries in (getattr(op, "_kernel_roles", None) or {}).values():
                 for entry in entries.values():
                     yield from self._entry_kernels(entry)
-            yield from self._entry_kernels(getattr(op, "kernel", None))
 
     def autotune(self) -> None:
         """Put the op in tuned mode: what it holds now, and what it builds next.
@@ -567,7 +440,9 @@ class Op(ABC):
         for op in self._walk_ops():
             op.tune = True
         for kernel in self.iter_kernels():
-            kernel.autotune()
+            autotune = getattr(kernel, "autotune", None)
+            if autotune is not None:
+                autotune()
 
     @abstractmethod
     def forward(self, *args: object, **kwargs: object) -> Union[torch.Tensor, tuple]:
@@ -583,7 +458,7 @@ class Op(ABC):
         could not reach it; see there.
 
         A call that fails settles nothing. Otherwise one invalid call would aim the instance
-        for good: ``op(x_cpu, weight_cuda)`` picks a target from the first tensor, then
+        for good: ``op(x_cpu, weight_npu)`` picks a target from the first tensor, then
         ``forward`` rejects the mismatch, and every later call would go where that one
         pointed.
         """
@@ -621,18 +496,13 @@ class Op(ABC):
             if device is not None:
                 self._builder = None  # a device was probed, so the answer is decided
             return
-        if target is BUILTIN:
-            self._settled_target = BUILTIN
-            self._builder = None
-            return
         builder = registered_kernel_builder(type(self).__name__, target)
         if builder is None:
             raise OpNotAvailableError(
                 f"target {target!r} registers no kernel builder for "
                 f"{type(self).__name__}; targets that do: "
-                f"{registered_targets(type(self).__name__)}. There is no fall back to the "
-                f"in-tree implementation: those kernels do not run on this target's "
-                f"devices."
+                f"{registered_targets(type(self).__name__)}. There is no fall back: this "
+                f"distribution ships no kernels of its own."
             )
         self._settled_target = target
         self._builder = builder

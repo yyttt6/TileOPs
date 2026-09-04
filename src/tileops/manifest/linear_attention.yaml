@@ -54,9 +54,8 @@ GatedDeltaNetPrefillBTHDFwdOp:
     func: "tileops.perf.formulas.gated_deltanet_prefill_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/linear_attention/gated_deltanet/gated_deltanet_prefill.py
-    kernel_map:
-      GatedDeltaNetPrefillFwdKernel: GatedDeltaNetPrefillFwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_prefill.py
     bench: benchmarks/ops/bench_gated_deltanet_prefill.py
@@ -101,9 +100,8 @@ GatedDeltaNetPrefillBHTDFwdOp:
     func: "tileops.perf.formulas.gated_deltanet_prefill_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/linear_attention/gated_deltanet/gated_deltanet_prefill.py
-    kernel_map:
-      GatedDeltaNetPrefillFwdKernel: GatedDeltaNetPrefillFwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_prefill.py
     bench: benchmarks/ops/bench_gated_deltanet_prefill.py
@@ -155,11 +153,8 @@ GatedDeltaNetDecodeFwdOp:
     func: "tileops.perf.formulas.gated_deltanet_decode_roofline"
 
   source:
-    kernel: tileops/kernels/linear_attention/gated_deltanet_recurrence.py
-    kernel_map:
-      GatedDeltaNetDecodeKernel: GatedDeltaNetDecodeKernel
-      GatedDeltaNetDecodeFP32Kernel: GatedDeltaNetDecodeFP32Kernel
-      GatedDeltaNetDecodeRawCudaFlaStyleKernel: GatedDeltaNetDecodeRawCudaFlaStyleKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_recurrence.py
     bench: benchmarks/ops/bench_gated_deltanet_recurrence.py
@@ -206,11 +201,8 @@ DeltaNetDecodeFwdOp:
     func: "tileops.perf.formulas.deltanet_decode_roofline"
 
   source:
-    kernel: tileops/kernels/linear_attention/deltanet_recurrence.py
-    kernel_map:
-      DeltaNetDecodeKernel: DeltaNetDecodeKernel
-      DeltaNetDecodeFP32Kernel: DeltaNetDecodeFP32Kernel
-      DeltaNetDecodeRawCudaFlaStyleKernel: DeltaNetDecodeRawCudaFlaStyleKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/deltanet_recurrence.py
     test: tests/ops/test_deltanet_recurrence.py
     bench: benchmarks/ops/bench_deltanet_recurrence.py
@@ -258,10 +250,8 @@ GLADecodeFwdOp:
     func: "tileops.perf.formulas.gla_decode_roofline"
 
   source:
-    kernel: tileops/kernels/linear_attention/gla_recurrence.py
-    kernel_map:
-      GLADecodeKernel: GLADecodeKernel
-      GLADecodeFP32Kernel: GLADecodeFP32Kernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gla_recurrence.py
     test: tests/ops/test_gla_recurrence.py
     bench: benchmarks/ops/bench_gla_recurrence.py
@@ -297,9 +287,8 @@ GatedDeltaNetBHTDFwdOp:
   - {q_shape: [2, 4, 16384, 64], k_shape: [2, 4, 16384, 64], v_shape: [2, 4, 16384, 64], g_shape: [2, 4, 16384], beta_shape: [2, 4, 16384], chunk_size: 64, dtypes: [float16, bfloat16], label: "gdn-bhtd-b2-s16k-h4-d64"}
   roofline: {func: tileops.perf.formulas.gated_deltanet_fwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/gated_deltanet/gated_deltanet_fwd.py
-    kernel_map:
-      GatedDeltaNetFwdKernel: GatedDeltaNetFwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_fwd.py
     bench: benchmarks/ops/bench_gated_deltanet.py
@@ -340,9 +329,7 @@ GatedDeltaNetBTHDFwdOp:
   - {q_shape: [1, 4096, 16, 128], k_shape: [1, 4096, 16, 128], v_shape: [1, 4096, 16, 128], g_shape: [1, 4096, 16], beta_shape: [1, 4096, 16], chunk_size: 64, dtypes: [float16, bfloat16], label: "gdn-bthd-b1-s4k-h16-d128"}
   roofline: {func: tileops.perf.formulas.gated_deltanet_fwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/gated_deltanet/gated_deltanet_fwd.py
-    kernel_map:
-      GatedDeltaNetFwdProductionKernel: GatedDeltaNetFwdProductionKernel
+    kernel: backends/ascend/src/tileops_ascend/families/linear_attention.py
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_fwd.py
     bench: benchmarks/ops/bench_gated_deltanet.py
@@ -379,9 +366,8 @@ GatedDeltaNetBwdOp:
   - {do_shape: [2, 4, 16384, 64], q_shape: [2, 4, 16384, 64], k_shape: [2, 4, 16384, 64], v_shape: [2, 4, 16384, 64], g_shape: [2, 4, 16384], beta_shape: [2, 4, 16384], S_shape: [2, 4, 257, 64, 64], chunk_size: 64, dtypes: [float16, bfloat16], label: "gdn-bwd-b2-s16k-h4-d64"}
   roofline: {func: tileops.perf.formulas.gated_deltanet_bwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/gated_deltanet/gated_deltanet_bwd.py
-    kernel_map:
-      GatedDeltaNetBwdKernel: GatedDeltaNetBwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_chunkwise_bwd.py
     bench: benchmarks/ops/bench_gated_deltanet.py
@@ -418,9 +404,8 @@ DeltaNetFwdOp:
   - {q_shape: [2, 4, 16384, 64], k_shape: [2, 4, 16384, 64], v_shape: [2, 4, 16384, 64], beta_shape: [2, 4, 16384], chunk_size: 64, dtypes: [float16, bfloat16], label: "dn-b2-s16k-h4-d64"}
   roofline: {func: tileops.perf.formulas.deltanet_fwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/deltanet/deltanet_fwd.py
-    kernel_map:
-      DeltaNetFwdKernel: DeltaNetFwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/deltanet.py
     test: tests/ops/test_deltanet_fwd.py
     bench: benchmarks/ops/bench_deltanet.py
@@ -460,9 +445,8 @@ DeltaNetBwdOp:
   - {do_shape: [2, 4, 16384, 64], q_shape: [2, 4, 16384, 64], k_shape: [2, 4, 16384, 64], v_shape: [2, 4, 16384, 64], beta_shape: [2, 4, 16384], S_shape: [2, 4, 257, 64, 64], Aw_shape: [2, 4, 16384, 64], Au_shape: [2, 4, 16384, 64], w_shape: [2, 4, 16384, 64], u_shape: [2, 4, 16384, 64], chunk_size: 64, dtypes: [float16, bfloat16], label: "dn-bwd-b2-s16k-h4-d64"}
   roofline: {func: tileops.perf.formulas.deltanet_bwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/deltanet/deltanet_bwd.py
-    kernel_map:
-      DeltaNetBwdKernel: DeltaNetBwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/deltanet.py
     test: tests/ops/test_deltanet_chunkwise_bwd.py
     bench: benchmarks/ops/bench_deltanet.py
@@ -497,9 +481,8 @@ GLAFwdOp:
   - {q_shape: [2, 16384, 4, 64], k_shape: [2, 16384, 4, 64], v_shape: [2, 16384, 4, 64], g_shape: [2, 16384, 4, 64], initial_state_shape: [2, 4, 64, 64], chunk_size: 64, scale: 0.125, dtypes: [float16, bfloat16], label: "gla-init-b2-s16k-h4-d64"}
   roofline: {func: tileops.perf.formulas.gla_fwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/gla/gla_fwd.py
-    kernel_map:
-      GLAFwdKernel: GLAFwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gla.py
     test: tests/ops/test_gla_chunkwise_fwd.py
     bench: benchmarks/ops/bench_gla_chunkwise.py
@@ -538,9 +521,8 @@ GLABwdOp:
   - {q_shape: [2, 16384, 4, 64], k_shape: [2, 16384, 4, 64], v_shape: [2, 16384, 4, 64], g_shape: [2, 16384, 4, 64], h_shape: [2, 257, 4, 64, 64], do_shape: [2, 16384, 4, 64], dht_shape: [2, 4, 64, 64], chunk_size: 64, scale: 0.125, has_initial_state: false, dtypes: [float16, bfloat16], label: "gla-bwd-b2-s16k-h4-d64"}
   roofline: {func: tileops.perf.formulas.gla_bwd_roofline}
   source:
-    kernel: tileops/kernels/linear_attention/gla/gla_bwd.py
-    kernel_map:
-      GLABwdKernel: GLABwdKernel
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/linear_attention/gla.py
     test: tests/ops/test_gla_chunkwise_bwd.py
     bench: benchmarks/ops/bench_gla_chunkwise.py

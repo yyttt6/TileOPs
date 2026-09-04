@@ -12,11 +12,10 @@ from typing import ClassVar, Dict, Optional, Tuple
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe.permute_nopad import MoePermuteNopadKernel
 
 from ...compile_boundary import get_instance
 from ...op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["MoePermuteNopadFwdOp"]
 
@@ -46,7 +45,6 @@ class MoePermuteNopadFwdOp(Op):
         total_tokens: Optional[int] = None,
         top_k: Optional[int] = None,
         hidden_size: Optional[int] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -60,7 +58,6 @@ class MoePermuteNopadFwdOp(Op):
                 Preferred API infers it from ``topk_ids.shape[1]``.
             hidden_size: Optional committed hidden dimension H. Preferred API
                 infers it from ``hidden_states.shape[1]``.
-            kernel_map: Optional kernel override dict.
         """
         if not 0 < num_experts_local <= num_experts:
             raise ValueError(
@@ -81,7 +78,7 @@ class MoePermuteNopadFwdOp(Op):
         # Whether the last call supplied a map, for eval_roofline().
         self.used_expert_map = False
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _validate_dtypes(
         self,
@@ -125,9 +122,6 @@ class MoePermuteNopadFwdOp(Op):
 
         return moe_permute_nopad_fwd_roofline(self)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"permute_nopad_kernel": MoePermuteNopadKernel}
 
     def _get_kernel(
         self,
@@ -139,28 +133,7 @@ class MoePermuteNopadFwdOp(Op):
         device_index: int | None,
         num_experts_local: Optional[int],
     ) -> Kernel:
-        key = (
-            total_tokens,
-            top_k,
-            self.num_experts,
-            hidden_size,
-            dtype,
-            device_index,
-            num_experts_local,
-        )
-        return self.get_or_build_kernel(
-            "permute_nopad_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["permute_nopad_kernel"](
-                total_tokens,
-                top_k,
-                self.num_experts,
-                hidden_size,
-                dtype,
-                num_experts_local=num_experts_local,
-            ),
-        )
+        return self.get_or_build_kernel("permute_nopad_kernel", inputs)
 
     def _validate_routing_shapes(
         self,
@@ -168,10 +141,10 @@ class MoePermuteNopadFwdOp(Op):
         topk_ids: torch.Tensor,
     ) -> Tuple[int, int, int]:
         """Check devices and shapes of the two routing tensors; return ``(T, K, H)``."""
-        if not hidden_states.is_cuda:
-            raise ValueError("hidden_states must be a CUDA tensor")
-        if not topk_ids.is_cuda:
-            raise ValueError("topk_ids must be a CUDA tensor")
+        if hidden_states.device.type != "npu":
+            raise ValueError("hidden_states must be an NPU tensor")
+        if topk_ids.device.type != "npu":
+            raise ValueError("topk_ids must be an NPU tensor")
         if hidden_states.device != topk_ids.device:
             raise ValueError(
                 f"Expected hidden_states and topk_ids to be on the same device, "
@@ -216,8 +189,8 @@ class MoePermuteNopadFwdOp(Op):
             raise ValueError(
                 f"Expected expert_map.shape ({self.num_experts},), got {tuple(expert_map.shape)}"
             )
-        if not expert_map.is_cuda:
-            raise ValueError("expert_map must be a CUDA tensor")
+        if expert_map.device.type != "npu":
+            raise ValueError("expert_map must be an NPU tensor")
 
         checked = self._checked_map
         if checked is not None and checked[0]() is expert_map and checked[1] == expert_map._version:

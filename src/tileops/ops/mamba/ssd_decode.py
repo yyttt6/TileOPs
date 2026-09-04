@@ -1,11 +1,9 @@
-from typing import Dict, Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.mamba import SSDDecodeKernel
 
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["SSDDecodeFwdOp"]
 
@@ -30,7 +28,6 @@ class SSDDecodeFwdOp(Op):
     def __init__(
         self,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
@@ -44,12 +41,9 @@ class SSDDecodeFwdOp(Op):
         self.n_groups = None
         self.dtype = None
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"ssd_decode": SSDDecodeKernel}
 
     def _get_kernel(
         self,
@@ -62,15 +56,7 @@ class SSDDecodeFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (batch, n_heads, d_head, d_state, n_groups, dtype, device_index, self.tune)
-        return self.get_or_build_kernel(
-            "ssd_decode",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["ssd_decode"](
-                batch, n_heads, d_head, d_state, n_groups, dtype, tune=self.tune
-            ),
-        )
+        return self.get_or_build_kernel("ssd_decode", inputs)
 
     def _infer_output_shapes(
         self,
@@ -106,8 +92,8 @@ class SSDDecodeFwdOp(Op):
         Returns:
             y_out: (batch, n_heads, d_head) float32
         """
-        if not x.is_cuda:
-            raise ValueError("x must be a CUDA tensor")
+        if x.device.type != "npu":
+            raise ValueError("x must be an NPU tensor")
         if x.ndim != 3:
             raise ValueError("x must have shape [batch, n_heads, d_head]")
         batch, n_heads, d_head = x.shape

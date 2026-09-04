@@ -6,7 +6,7 @@ import torch
 
 from . import registry
 from .errors import AmbiguousTargetError, BackendError, UnknownTargetError
-from .protocol import BUILTIN, BuildKernel, DetectFn, Target
+from .protocol import BuildKernel, DetectFn, Target
 
 
 def detect_target(device: torch.device) -> str | None:
@@ -57,20 +57,18 @@ def select_target(requested: Target, device: torch.device | None) -> Target:
 
     Args:
         requested: The op's ``target=``, honoured as named and not checked against *device*.
-            :data:`~.protocol.BUILTIN` forces the in-tree implementation.
         device: Where to detect from, or None when the call has no tensor input.
 
     Returns:
-        A target name, :data:`~.protocol.BUILTIN`, or ``None``. The last two both run the
-        in-tree implementation and differ only in how that was decided, which is what tells
-        the op layer whether to remember the answer.
+        A target name, or ``None`` when nothing claims the device -- which is not a
+        fall back but the end of the line, since no kernels ship here.
 
     Raises:
         UnknownTargetError: A named target registered nothing.
     """
     registry.ensure_loaded()  # even the no-device answer must be able to blame a bad wheel
     if requested is not None:
-        if requested is not BUILTIN and requested not in registry.known_targets():
+        if requested not in registry.known_targets():
             raise UnknownTargetError(
                 f"no backend registered target {requested!r}; known targets: "
                 f"{sorted(registry.known_targets())}{registry.load_failure_suffix()}"
@@ -100,14 +98,14 @@ def registered_targets(op: str | None = None) -> list[str]:
 def set_default_target(target: Target) -> None:
     """Route ops with no explicit ``target=`` to *target*.
 
-    ``None`` restores detection; :data:`~.protocol.BUILTIN` turns replacement off. No
-    environment variable: what decides which kernel runs should be visible in the program.
+    ``None`` restores detection. No environment variable: what decides which kernel runs
+    should be visible in the program.
 
     Raises:
         UnknownTargetError: *target* is a name no backend registered.
     """
     registry.ensure_loaded()
-    if target is not None and target is not BUILTIN and target not in registry.known_targets():
+    if target is not None and target not in registry.known_targets():
         raise UnknownTargetError(
             f"no backend registered target {target!r}; known targets: "
             f"{sorted(registry.known_targets())}{registry.load_failure_suffix()}"

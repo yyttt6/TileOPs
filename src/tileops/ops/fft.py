@@ -1,12 +1,11 @@
 import math
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 
-from tileops.kernels.fft import FFTC2CKernel
-from tileops.kernels.kernel_base import Kernel
 
 from .op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["FFTC2CFwdOp"]
 
@@ -26,18 +25,17 @@ class FFTC2CFwdOp(Op):
 
     """
 
-    def __init__(self, tune: bool = False, kernel_map: Optional[Dict[str, Kernel]] = None) -> None:
+    def __init__(self, tune: bool = False) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             tune: Whether to enable autotuning (default: False)
-            kernel_map: Optional custom kernel mapping for testing
         """
         self.n = None
         self.dtype = None
         self.tune = tune
 
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._twiddle_cache: Dict[
             tuple[int, torch.dtype, int | None], tuple[torch.Tensor, torch.Tensor]
         ] = {}
@@ -51,18 +49,7 @@ class FFTC2CFwdOp(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (n, batch_size, dtype, device_index)
-        return self.get_or_build_kernel(
-            "fft_c2c_kernel",
-            inputs,
-            key=key,
-            build=lambda: self.kernel_map["fft_c2c_kernel"](
-                n,
-                batch_size,
-                dtype,
-                tune=self.tune,
-            ),
-        )
+        return self.get_or_build_kernel("fft_c2c_kernel", inputs)
 
     @staticmethod
     def _build_lut(
@@ -102,9 +89,6 @@ class FFTC2CFwdOp(Op):
             self._twiddle_cache[key] = self._build_lut(n, dtype, device)
         return self._twiddle_cache[key]
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"fft_c2c_kernel": FFTC2CKernel}
 
     def _infer_output_shapes(
         self,
@@ -124,8 +108,8 @@ class FFTC2CFwdOp(Op):
             last dimension.
         """
         x = input
-        if not x.is_cuda:
-            raise ValueError("input must be a CUDA tensor")
+        if x.device.type != "npu":
+            raise ValueError("input must be an NPU tensor")
         if x.dtype not in (torch.complex64, torch.complex128):
             raise ValueError(f"input.dtype must be complex64 or complex128, got {x.dtype}")
         if x.ndim == 0:

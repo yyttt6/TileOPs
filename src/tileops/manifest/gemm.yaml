@@ -49,14 +49,11 @@ GemmFwdOp:
     func: "tileops.perf.formulas.gemm_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/gemm/dense.py
+    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
     op: tileops/ops/gemm/gemm.py
     test: tests/ops/test_gemm.py
     bench: benchmarks/ops/bench_gemm.py
     bench_manifest_driven: true
-    kernel_map:
-      gemm_kernel: GemmKernel
-      gemv_kernel: GemvKernel
 
 GemmFp8FwdOp:
   ref_api: "torch._scaled_mm"
@@ -100,14 +97,12 @@ GemmFp8FwdOp:
     func: "tileops.perf.formulas.gemm_fp8_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/gemm/dense.py
+    # No Ascend kernel: no backend registers a builder for this op.
+    kernel: null
     op: tileops/ops/gemm/gemm.py
     test: tests/ops/test_gemm.py
     bench: benchmarks/ops/bench_gemm.py
     bench_manifest_driven: true
-    kernel_map:
-      gemm_fp8_epilogue_kernel: GemmFp8EpilogueKernel
-      gemm_fp8_block_scaled_kernel: GemmFp8BlockScaledKernel
 
 GemmW4A16FwdOp:
   ref_api: "none"
@@ -145,14 +140,11 @@ GemmW4A16FwdOp:
     func: "tileops.perf.formulas.gemm_w4a16_fwd_roofline"
 
   source:
-    kernel: tileops/kernels/gemm/w4a16.py
+    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
     op: tileops/ops/gemm/gemm.py
     test: tests/ops/test_gemm.py
     bench: benchmarks/ops/bench_gemm.py
     bench_manifest_driven: true
-    kernel_map:
-      gemm_w4a16_kernel: GemmW4A16Kernel
-      gemm_w4a16_decode_kernel: GemmW4A16DecodeKernel
 
 GroupedGemmFwdOp:
   ref_api: "none"
@@ -196,10 +188,7 @@ GroupedGemmFwdOp:
     func: "tileops.perf.formulas.grouped_gemm_roofline"
 
   source:
-    kernel: tileops/kernels/grouped_gemm/grouped_gemm.py
-    kernel_map:
-      grouped_gemm_kernel: GroupedGemmKernel
-      grouped_gemm_persistent_3wg_kernel: GroupedGemmPersistent3WGKernel
+    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
     op: tileops/ops/gemm/grouped_gemm.py
     test: tests/ops/test_grouped_gemm.py
     bench: benchmarks/ops/bench_grouped_gemm.py

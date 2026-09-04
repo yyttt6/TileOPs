@@ -2,14 +2,11 @@
 
 import warnings
 from math import prod
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.reduction.logsumexp import LogSumExpKernel
-from tileops.kernels.reduction.softmax import SoftmaxKernel
 from tileops.manifest.shape_rules import reduced_shape
 
 from ..op_base import Op
@@ -36,7 +33,7 @@ class _SoftmaxBaseOp(Op):
     """Base class for softmax-family ops.
 
     Holds the shared validation, the reading of ``dim``, and the one place a kernel is
-    resolved. A subclass sets ``_op_kind``, ``_kernel_key`` and ``_kernel_cls``, and
+    resolved. A subclass sets ``_op_kind`` and ``_kernel_key``, and
     overrides ``_kernel_ctor_kwargs`` when its kernel takes something else.
 
     """
@@ -46,7 +43,6 @@ class _SoftmaxBaseOp(Op):
 
     _op_kind: str  # set by subclass
     _kernel_key: str  # set by subclass
-    _kernel_cls: type  # set by subclass
     _supports_multidim: bool = False  # override to True in reduced-dim ops (e.g. LogSumExpFwdOp)
     _empty_dim_policy: EmptyDimPolicy = "reject"
 
@@ -55,32 +51,27 @@ class _SoftmaxBaseOp(Op):
         dim: Union[int, List[int]] = -1,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             dim: Reduction dimension (default -1).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional override for kernel dispatch.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default False).
         """
         self.dim = dim
         self.keepdim = False
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_roofline_spec: tuple[int, int, torch.dtype] | None = None
 
     def _infer_output_shapes(self, x_shape: tuple[int, ...]) -> dict[str, tuple[int, ...]]:
         """Manifest ``shape_rules``: normalizing over an axis keeps the shape."""
         return {"output": tuple(x_shape)}
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {self._kernel_key: self._kernel_cls}
 
     # Validation
 
@@ -143,21 +134,7 @@ class _SoftmaxBaseOp(Op):
         n = prod(x.shape[a] for a in axes)
         m = prod(d for i, d in enumerate(x.shape) if i not in axes)
         self._last_roofline_spec = (m, n, x.dtype)
-        kernel = self.get_or_build_kernel(
-            self._kernel_key,
-            (x,),
-            # The kernel owns the permute, so the whole shape decides which kernel it is.
-            key=(tuple(x.shape), axes, self.keepdim, x.dtype, x.device.index),
-            build=lambda: self.kernel_map[self._kernel_key](
-                m,
-                n,
-                self._op_kind,
-                x.dtype,
-                tune=self.tune,
-                device_index=x.device.index,
-                **self._kernel_ctor_kwargs(axes),
-            ),
-        )
+        kernel = self.get_or_build_kernel(self._kernel_key, (x,))
         return kernel(x)
 
     def eval_roofline(self) -> tuple[int, int]:
@@ -189,14 +166,12 @@ class SoftmaxFwdOp(_SoftmaxBaseOp):
 
     _op_kind = "softmax"
     _kernel_key = "softmax_fwd"
-    _kernel_cls = SoftmaxKernel
 
     def __init__(
         self,
         dim: Optional[int] = None,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -207,12 +182,11 @@ class SoftmaxFwdOp(_SoftmaxBaseOp):
                 resolved at forward time using PyTorch's implicit-axis rule
                 (``0`` for ``ndim in {0, 1, 3}`` else ``1``) and the same
                 deprecation ``UserWarning`` is emitted.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional override for kernel dispatch.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default False).
         """
-        super().__init__(dim=dim, target=target, kernel_map=kernel_map, tune=tune)
+        super().__init__(dim=dim, target=target, tune=tune)
 
 
 class LogSoftmaxFwdOp(_SoftmaxBaseOp):
@@ -225,14 +199,12 @@ class LogSoftmaxFwdOp(_SoftmaxBaseOp):
 
     _op_kind = "log_softmax"
     _kernel_key = "softmax_fwd"
-    _kernel_cls = SoftmaxKernel
 
     def __init__(
         self,
         dim: Optional[int] = None,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -243,12 +215,11 @@ class LogSoftmaxFwdOp(_SoftmaxBaseOp):
                 resolved at forward time using PyTorch's implicit-axis rule
                 (``0`` for ``ndim in {0, 1, 3}`` else ``1``) and the same
                 deprecation ``UserWarning`` is emitted.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional override for kernel dispatch.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default False).
         """
-        super().__init__(dim=dim, target=target, kernel_map=kernel_map, tune=tune)
+        super().__init__(dim=dim, target=target, tune=tune)
 
 
 class LogSumExpFwdOp(_SoftmaxBaseOp):
@@ -261,7 +232,6 @@ class LogSumExpFwdOp(_SoftmaxBaseOp):
 
     _op_kind = "logsumexp"
     _kernel_key = "logsumexp_fwd"
-    _kernel_cls = LogSumExpKernel
     _supports_multidim = True
 
     def __init__(
@@ -270,7 +240,6 @@ class LogSumExpFwdOp(_SoftmaxBaseOp):
         keepdim: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -278,12 +247,11 @@ class LogSumExpFwdOp(_SoftmaxBaseOp):
         Args:
             dim: Reduction dimension (default -1).
             keepdim: Retain reduced dimension (default False).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN``
-                for the in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional override for kernel dispatch.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: Whether to autotune (default False).
         """
-        super().__init__(dim=dim, target=target, kernel_map=kernel_map, tune=tune)
+        super().__init__(dim=dim, target=target, tune=tune)
         self.keepdim = keepdim
 
     def _infer_output_shapes(self, x_shape: tuple[int, ...]) -> dict[str, tuple[int, ...]]:

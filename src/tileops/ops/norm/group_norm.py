@@ -18,11 +18,10 @@ from typing import ClassVar, Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.norm import GroupNormKernel, GroupNormNoAffineKernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
+from tileops.backend import Kernel
 
 __all__ = ["GroupNormFwdOp"]
 
@@ -64,7 +63,6 @@ class GroupNormFwdOp(Op):
         eps: float = 1e-5,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -73,9 +71,8 @@ class GroupNormFwdOp(Op):
             num_groups: Number of groups (manifest ``params.num_groups``).
                 Must divide *C* evenly.
             eps: Epsilon for numerical stability (manifest ``params.eps``).
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If ``True``, autotune tile configurations.
         """
         self.num_groups = num_groups
@@ -83,16 +80,10 @@ class GroupNormFwdOp(Op):
         self.eps = eps
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self.kernel: Optional[Kernel] = None
         self._last_roofline_spec: Optional[tuple[int, int, int, torch.dtype, bool]] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "group_norm": GroupNormKernel,
-            "group_norm_no_affine": GroupNormNoAffineKernel,
-        }
 
     def _infer_output_shapes(
         self,
@@ -197,19 +188,7 @@ class GroupNormFwdOp(Op):
         if affine:
             weight = weight.contiguous()
             bias = bias.contiguous()
-        # The affine pair picks the implementation, so it belongs in the key; both are
-        # fetched under one name, which is what a target is asked to serve.
-        slot = "group_norm" if affine else "group_norm_no_affine"
-        kernel = self.get_or_build_kernel(
-            "group_norm",
-            (x, weight, bias),
-            key=(D, cpg, dtype, affine),  # this instance's in-tree cache key
-            build=lambda: (
-                self.kernel_map[slot](D, self.eps, dtype, self.num_groups, cpg, tune=self.tune)
-                if affine
-                else self.kernel_map[slot](D, self.eps, dtype, tune=self.tune)
-            ),
-        )
+        kernel = self.get_or_build_kernel("group_norm", (x, weight, bias))
         self.kernel = kernel
 
         # The affine kernel derives each element's channel from its position

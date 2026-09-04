@@ -32,15 +32,14 @@ Usage (TP, tp_size>1):
     # Must use the TP process group, not the default group (important in EP/DP setups).
 """
 
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe import SharedExpertMLPKernel
 from tileops.ops.moe.abc import FusedMoEExpertsModular, FusedMoEPrepareAndFinalize
 from tileops.ops.moe.fused_moe import FusedMoe
 from tileops.ops.op_base import UnmanifestedOp
+from tileops.backend import Kernel
 
 __all__ = ["SharedFusedMoE"]
 
@@ -81,7 +80,6 @@ class SharedFusedMoE(FusedMoe, UnmanifestedOp):
         tp_rank: int = 0,
         prepare_finalize: Optional[FusedMoEPrepareAndFinalize] = None,
         experts: Optional[FusedMoEExpertsModular] = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         *,
         activation: str = "silu_and_mul",
     ):
@@ -101,7 +99,6 @@ class SharedFusedMoE(FusedMoe, UnmanifestedOp):
                 expert_map. See FusedMoe.
             prepare_finalize: Override the PrepareAndFinalize implementation.
             experts: Override the Experts implementation.
-            kernel_map: Override the dispatched kernel map.
 
         Every other parameter is ``FusedMoe``'s, with the same meaning.
         """
@@ -126,7 +123,6 @@ class SharedFusedMoE(FusedMoe, UnmanifestedOp):
             num_experts_local=num_experts_local,
             prepare_finalize=prepare_finalize,
             experts=experts,
-            kernel_map=kernel_map,
             activation=activation,
         )
 
@@ -157,23 +153,8 @@ class SharedFusedMoE(FusedMoe, UnmanifestedOp):
         self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype
     ) -> Kernel:
         """Return the shared-expert MLP kernel for *dtype*, building on first use."""
-        return self.get_or_build_kernel(
-            "shared_expert_mlp",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["shared_expert_mlp"](
-                num_tokens=self.num_tokens,
-                hidden_size=self.hidden_size,
-                ffn_size=self._shared_mlp_shard_ffn,
-                dtype=dtype,
-            ),
-        )
+        return self.get_or_build_kernel("shared_expert_mlp", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        # The routed half's kernels belong to the sub-ops it builds; this one is the
-        # op's own, so it is declared here and a replacement reaches it.
-        return {"shared_expert_mlp": SharedExpertMLPKernel}
 
     def forward(
         self,

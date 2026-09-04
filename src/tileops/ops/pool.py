@@ -4,29 +4,11 @@ from typing import Any, ClassVar, Dict, Optional, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.pool import (
-    AdaptiveAvgPool2dKernel,
-    AdaptiveMaxPool2dKernel,
-    AdaptiveMaxPool2dWithIndicesKernel,
-    AvgPool1dKernel,
-    AvgPool1dSpatialKernel,
-    AvgPool2dKernel,
-    AvgPool2dSpatialKernel,
-    AvgPool3dKernel,
-    AvgPool3dSpatialKernel,
-    MaxPool1dKernel,
-    MaxPool1dWithIndicesKernel,
-    MaxPool2dKernel,
-    MaxPool2dWithIndicesKernel,
-    MaxPool3dKernel,
-    MaxPool3dWithIndicesKernel,
-    MeanPoolingFwdKernel,
-)
-from tileops.kernels.pool.common import pool_output_dim
 
 from .compile_boundary import get_instance
 from .op_base import Op, UnmanifestedOp
+from tileops.backend import Kernel
+from tileops.ops._pool_shapes import pool_output_dim
 
 __all__ = [
     "AdaptiveAvgPool2dFwdOp",
@@ -132,37 +114,24 @@ class MeanPoolingForwardOp(UnmanifestedOp):
         use_offsets: int,
         accum_dtype: torch.dtype,
         tune: bool = False,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             tune: Whether to autotune, applied when a kernel is first built.
-            kernel_map: Optional kernel override dict.
         """
-        params = {k: v for k, v in locals().items() if k not in ("self", "kernel_map")}
+        params = {k: v for k, v in locals().items() if k != "self"}
         for key, value in params.items():
             setattr(self, key, value)
 
         self._kernel_params = params
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 
     def _get_kernel(self, inputs: "tuple[torch.Tensor | None, ...]", dtype: torch.dtype) -> Kernel:
         # Takes no ``target=``: this op has no manifest entry, so a target's builder could
         # not be told what to build. In-tree only until it has one.
-        return self.get_or_build_kernel(
-            "mean_pooling_fwd_kernel",
-            inputs,
-            key=dtype,
-            build=lambda: self.kernel_map["mean_pooling_fwd_kernel"](
-                **self._kernel_params,
-                dtype=dtype,
-            ),
-        )
+        return self.get_or_build_kernel("mean_pooling_fwd_kernel", inputs)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"mean_pooling_fwd_kernel": MeanPoolingFwdKernel}
 
     def forward(
         self,
@@ -203,7 +172,7 @@ def _validate_pool_input_dtypes(self, input: torch.Tensor) -> None:
 class _AvgPoolFwdOpBase(Op):
     """Generic average-pooling forward, parametrized by class-attribute ``ndim``.
 
-    Concrete subclasses set ``ndim``, supply ``default_kernel_map``, and keep
+    Concrete subclasses set ``ndim`` and keep
     ``eval_roofline`` / ``_validate_dtypes`` in their own class body so
     manifest codegen resolves them per concrete class.
     """
@@ -227,14 +196,12 @@ class _AvgPoolFwdOpBase(Op):
         divisor_override: Optional[int] = None,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         nd = self.ndim
@@ -260,18 +227,7 @@ class _AvgPoolFwdOpBase(Op):
             padding=self.padding,
             divisor_override=divisor_override,
         )
-        self.dispatch_kernel(kernel_map)
-        if self._generic_slot not in self.kernel_map and self._spatial_slot not in self.kernel_map:
-            raise NotImplementedError(
-                f"{type(self).__name__} requires {self._generic_slot!r} or "
-                f"{self._spatial_slot!r} in kernel_map"
-            )
-        self._has_explicit_generic_kernel = (
-            kernel_map is not None and self._generic_slot in kernel_map
-        )
-        self._has_explicit_spatial_kernel = (
-            kernel_map is not None and self._spatial_slot in kernel_map
-        )
+        self.dispatch_kernel()
         self._last_roofline_spec: Optional[tuple] = None
 
     @property
@@ -279,24 +235,9 @@ class _AvgPoolFwdOpBase(Op):
         return f"avg_pool{self.ndim}d_kernel"
 
     @property
-    def _spatial_slot(self) -> str:
-        return f"avg_pool{self.ndim}d_spatial_kernel"
-
     def _param_tuples(self) -> tuple[Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]:
         """Return (kernel_size, stride, padding) as ndim-tuples."""
         return self.kernel_size, self.stride, self.padding
-
-    def _use_spatial_fast_path(self) -> bool:
-        # Strict 1d/3d policy: an explicit generic-kernel override opts out of
-        # the spatial fast path unless the spatial kernel is also explicit.
-        # AvgPool2dFwdOp overrides this with its laxer historical policy.
-        return (
-            not self.ceil_mode
-            and self.count_include_pad
-            and self.divisor_override is None
-            and self._spatial_slot in self.kernel_map
-            and (not self._has_explicit_generic_kernel or self._has_explicit_spatial_kernel)
-        )
 
     def _resolve_input(self, input: torch.Tensor) -> tuple:
         nd = self.ndim
@@ -327,42 +268,7 @@ class _AvgPoolFwdOpBase(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        use_spatial_fast_path = self._use_spatial_fast_path()
-        kernel_name = self._spatial_slot if use_spatial_fast_path else self._generic_slot
-        key = (
-            kernel_name,
-            n,
-            c_in,
-            *in_dims,
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.ceil_mode,
-            self.count_include_pad,
-            self.divisor_override,
-            dtype,
-            device_index,
-            self.tune,
-        )
-
-        def build() -> Kernel:
-            ks, st, pd = self._param_tuples()
-            kernel_kwargs: Dict[str, object] = dict(n=n, c_in=c_in, dtype=dtype, tune=self.tune)
-            for k, name in enumerate(_POOL_DIM_NAMES[self.ndim]):
-                kernel_kwargs[f"{name}_in"] = in_dims[k]
-            for k, name in enumerate(_AVG_POOL_PARAM_SUFFIXES[self.ndim]):
-                kernel_kwargs[f"kernel_{name}"] = ks[k]
-                kernel_kwargs[f"stride_{name}"] = st[k]
-                kernel_kwargs[f"pad_{name}"] = pd[k]
-            if not use_spatial_fast_path:
-                kernel_kwargs["ceil_mode"] = self.ceil_mode
-                kernel_kwargs["count_include_pad"] = self.count_include_pad
-                if self.ndim > 1:
-                    # The 1d generic kernel has no divisor_override parameter.
-                    kernel_kwargs["divisor_override"] = self.divisor_override
-            return self.kernel_map[kernel_name](**kernel_kwargs)
-
-        return self.get_or_build_kernel(kernel_name, (input,), key=key, build=build)
+        return self.get_or_build_kernel(self._generic_slot, (input,))
 
     def _infer_output_shapes(self, input_shape: tuple[int, ...]) -> Dict[str, tuple[int, ...]]:
         nd = self.ndim
@@ -426,7 +332,6 @@ class AvgPool1dFwdOp(_AvgPoolFwdOpBase):
         count_include_pad: bool = True,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         # No divisor_override: torch.nn.functional.avg_pool1d does not take one.
@@ -439,7 +344,6 @@ class AvgPool1dFwdOp(_AvgPoolFwdOpBase):
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             count_include_pad: Manifest ``params.count_include_pad``, ``bool``, default ``True``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -449,7 +353,6 @@ class AvgPool1dFwdOp(_AvgPoolFwdOpBase):
             ceil_mode=ceil_mode,
             count_include_pad=count_include_pad,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
         # avg_pool1d exposes scalar pooling params; unwrap the normalized 1-tuples.
@@ -460,12 +363,6 @@ class AvgPool1dFwdOp(_AvgPoolFwdOpBase):
     def _param_tuples(self) -> tuple[Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]:
         return (self.kernel_size,), (self.stride,), (self.padding,)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "avg_pool1d_kernel": AvgPool1dKernel,
-            "avg_pool1d_spatial_kernel": AvgPool1dSpatialKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         if self._last_roofline_spec is None:
@@ -493,7 +390,6 @@ class AvgPool2dFwdOp(_AvgPoolFwdOpBase):
         divisor_override: Optional[int] = None,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -506,7 +402,6 @@ class AvgPool2dFwdOp(_AvgPoolFwdOpBase):
             count_include_pad: Manifest ``params.count_include_pad``, ``bool``, default ``True``.
             divisor_override: Manifest ``params.divisor_override``, ``int | None``, default ``None``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -517,26 +412,9 @@ class AvgPool2dFwdOp(_AvgPoolFwdOpBase):
             count_include_pad=count_include_pad,
             divisor_override=divisor_override,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "avg_pool2d_kernel": AvgPool2dKernel,
-            "avg_pool2d_spatial_kernel": AvgPool2dSpatialKernel,
-        }
-
-    def _use_spatial_fast_path(self) -> bool:
-        # Laxer historical 2d policy: an explicit generic-kernel override does
-        # not opt out of the spatial fast path (asymmetric with 1d/3d).
-        return (
-            not self.ceil_mode
-            and self.count_include_pad
-            and self.divisor_override is None
-            and self._spatial_slot in self.kernel_map
-        )
 
     def eval_roofline(self) -> tuple[int, int]:
         if self._last_roofline_spec is None:
@@ -584,7 +462,7 @@ class _MaxPoolFwdOpBase(Op):
     """Generic max-pooling forward, parametrized by class attributes.
 
     Concrete subclasses set ``ndim`` / ``_kernel_slot`` / ``_returns_indices``,
-    supply ``default_kernel_map``, and keep ``eval_roofline`` /
+    and keep ``eval_roofline`` /
     ``_validate_dtypes`` in their own class body so manifest codegen resolves
     them per concrete class.
     """
@@ -607,14 +485,12 @@ class _MaxPoolFwdOpBase(Op):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         nd = self.ndim
@@ -641,11 +517,7 @@ class _MaxPoolFwdOpBase(Op):
             padding=self.padding,
             dilation=self.dilation,
         )
-        self.dispatch_kernel(kernel_map)
-        if self._kernel_slot not in self.kernel_map:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} requires {self._kernel_slot!r} in kernel_map"
-            )
+        self.dispatch_kernel()
         self._last_roofline_spec: Optional[tuple] = None
 
     def _resolve_input(self, input: torch.Tensor) -> tuple:
@@ -684,38 +556,9 @@ class _MaxPoolFwdOpBase(Op):
         dtype: torch.dtype,
         device_index: int | None,
     ) -> Kernel:
-        key = (
-            n,
-            c_in,
-            *in_dims,
-            self.kernel_size,
-            self.stride,
-            self.padding,
-            self.dilation,
-            self.ceil_mode,
-            dtype,
-            device_index,
-            self.tune,
-        )
 
-        def build() -> Kernel:
-            kernel_kwargs: Dict[str, object] = dict(
-                n=n,
-                c_in=c_in,
-                ceil_mode=self.ceil_mode,
-                dtype=dtype,
-                tune=self.tune,
-            )
-            for k, name in enumerate(_POOL_DIM_NAMES[self.ndim]):
-                kernel_kwargs[f"{name}_in"] = in_dims[k]
-            for k, name in enumerate(_MAX_POOL_PARAM_SUFFIXES[self.ndim]):
-                kernel_kwargs[f"kernel_{name}"] = self.kernel_size[k]
-                kernel_kwargs[f"stride_{name}"] = self.stride[k]
-                kernel_kwargs[f"pad_{name}"] = self.padding[k]
-                kernel_kwargs[f"dilation_{name}"] = self.dilation[k]
-            return self.kernel_map[self._kernel_slot](**kernel_kwargs)
 
-        return self.get_or_build_kernel(self._kernel_slot, (input,), key=key, build=build)
+        return self.get_or_build_kernel(self._kernel_slot, (input,))
 
     def _infer_output_shapes(self, input_shape: tuple[int, ...]) -> Dict[str, tuple[int, ...]]:
         nd = self.ndim
@@ -787,7 +630,6 @@ class MaxPool1dFwdOp(_MaxPoolFwdOpBase):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -799,7 +641,6 @@ class MaxPool1dFwdOp(_MaxPoolFwdOpBase):
             dilation: Manifest ``params.dilation``, ``int | tuple[int]``, default ``1``.
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -809,15 +650,9 @@ class MaxPool1dFwdOp(_MaxPoolFwdOpBase):
             dilation=dilation,
             ceil_mode=ceil_mode,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "max_pool1d_kernel": MaxPool1dKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         return _max_pool_roofline(self, indices=False)
@@ -840,7 +675,6 @@ class MaxPool1dIndicesFwdOp(_MaxPoolFwdOpBase):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -852,7 +686,6 @@ class MaxPool1dIndicesFwdOp(_MaxPoolFwdOpBase):
             dilation: Manifest ``params.dilation``, ``int | tuple[int]``, default ``1``.
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -862,15 +695,9 @@ class MaxPool1dIndicesFwdOp(_MaxPoolFwdOpBase):
             dilation=dilation,
             ceil_mode=ceil_mode,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "max_pool1d_with_indices_kernel": MaxPool1dWithIndicesKernel,
-        }
 
     def forward(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Run the op on the inputs the manifest declares.
@@ -903,7 +730,6 @@ class MaxPool2dFwdOp(_MaxPoolFwdOpBase):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -915,7 +741,6 @@ class MaxPool2dFwdOp(_MaxPoolFwdOpBase):
             dilation: Manifest ``params.dilation``, ``int | tuple[int, int]``, default ``1``.
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -925,15 +750,9 @@ class MaxPool2dFwdOp(_MaxPoolFwdOpBase):
             dilation=dilation,
             ceil_mode=ceil_mode,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "max_pool2d_kernel": MaxPool2dKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         return _max_pool_roofline(self, indices=False)
@@ -956,7 +775,6 @@ class MaxPool2dIndicesFwdOp(_MaxPoolFwdOpBase):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -968,7 +786,6 @@ class MaxPool2dIndicesFwdOp(_MaxPoolFwdOpBase):
             dilation: Manifest ``params.dilation``, ``int | tuple[int, int]``, default ``1``.
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -978,15 +795,9 @@ class MaxPool2dIndicesFwdOp(_MaxPoolFwdOpBase):
             dilation=dilation,
             ceil_mode=ceil_mode,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "max_pool2d_with_indices_kernel": MaxPool2dWithIndicesKernel,
-        }
 
     def forward(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Run the op on the inputs the manifest declares.
@@ -1019,7 +830,6 @@ class MaxPool3dFwdOp(_MaxPoolFwdOpBase):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1031,7 +841,6 @@ class MaxPool3dFwdOp(_MaxPoolFwdOpBase):
             dilation: Manifest ``params.dilation``, ``int | tuple[int, int, int]``, default ``1``.
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -1041,15 +850,9 @@ class MaxPool3dFwdOp(_MaxPoolFwdOpBase):
             dilation=dilation,
             ceil_mode=ceil_mode,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "max_pool3d_kernel": MaxPool3dKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         return _max_pool_roofline(self, indices=False)
@@ -1072,7 +875,6 @@ class MaxPool3dIndicesFwdOp(_MaxPoolFwdOpBase):
         ceil_mode: bool = False,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1084,7 +886,6 @@ class MaxPool3dIndicesFwdOp(_MaxPoolFwdOpBase):
             dilation: Manifest ``params.dilation``, ``int | tuple[int, int, int]``, default ``1``.
             ceil_mode: Manifest ``params.ceil_mode``, ``bool``, default ``False``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -1094,15 +895,9 @@ class MaxPool3dIndicesFwdOp(_MaxPoolFwdOpBase):
             dilation=dilation,
             ceil_mode=ceil_mode,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "max_pool3d_with_indices_kernel": MaxPool3dWithIndicesKernel,
-        }
 
     def forward(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Run the op on the inputs the manifest declares.
@@ -1135,7 +930,6 @@ class AvgPool3dFwdOp(_AvgPoolFwdOpBase):
         divisor_override: Optional[int] = None,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1148,7 +942,6 @@ class AvgPool3dFwdOp(_AvgPoolFwdOpBase):
             count_include_pad: Manifest ``params.count_include_pad``, ``bool``, default ``True``.
             divisor_override: Manifest ``params.divisor_override``, ``int | None``, default ``None``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         super().__init__(
@@ -1159,16 +952,9 @@ class AvgPool3dFwdOp(_AvgPoolFwdOpBase):
             count_include_pad=count_include_pad,
             divisor_override=divisor_override,
             target=target,
-            kernel_map=kernel_map,
             tune=tune,
         )
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "avg_pool3d_kernel": AvgPool3dKernel,
-            "avg_pool3d_spatial_kernel": AvgPool3dSpatialKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         if self._last_roofline_spec is None:
@@ -1250,7 +1036,7 @@ class _AdaptivePool2dFwdOpBase(Op):
     """Generic adaptive 2D pooling forward over CHW/NCHW inputs.
 
     Concrete subclasses set ``_kernel_slot`` / ``_returns_indices``, supply
-    ``default_kernel_map``, and keep ``eval_roofline`` / ``_validate_dtypes``
+    and keep ``eval_roofline`` / ``_validate_dtypes``
     in their own class body so manifest codegen resolves them per concrete
     class.
     """
@@ -1268,14 +1054,12 @@ class _AdaptivePool2dFwdOpBase(Op):
         output_size: int | None | Tuple[Optional[int], Optional[int]],
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
 
         Args:
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
         self.n = None
@@ -1286,11 +1070,7 @@ class _AdaptivePool2dFwdOpBase(Op):
         self.dtype = None
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
-        if self._kernel_slot not in self.kernel_map:
-            raise NotImplementedError(
-                f"{type(self).__name__} requires {self._kernel_slot!r} in kernel_map"
-            )
+        self.dispatch_kernel()
         self._last_roofline_spec: Optional[tuple] = None
 
     def _resolve_out_dims(self, h_in: int, w_in: int) -> tuple[int, int]:
@@ -1341,22 +1121,7 @@ class _AdaptivePool2dFwdOpBase(Op):
         out_h, out_w = self._resolve_out_dims(h_in, w_in)
         x = x.contiguous()
         dtype = x.dtype
-        key = (n, c_in, h_in, w_in, out_h, out_w, dtype, _device_index(x), self.tune)
-        kernel = self.get_or_build_kernel(
-            self._kernel_slot,
-            (x,),
-            key=key,
-            build=lambda: self.kernel_map[self._kernel_slot](
-                n=n,
-                c_in=c_in,
-                h_in=h_in,
-                w_in=w_in,
-                out_h=out_h,
-                out_w=out_w,
-                dtype=dtype,
-                tune=self.tune,
-            ),
-        )
+        kernel = self.get_or_build_kernel(self._kernel_slot, (x,))
         result = kernel(x)
         # Recorded after the launch: eval_roofline and profiling read these, and a call that
         # raised described nothing.
@@ -1390,7 +1155,6 @@ class AdaptiveAvgPool2dFwdOp(_AdaptivePool2dFwdOpBase):
         output_size: int | None | Tuple[Optional[int], Optional[int]],
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1398,21 +1162,10 @@ class AdaptiveAvgPool2dFwdOp(_AdaptivePool2dFwdOpBase):
         Args:
             output_size: Manifest ``params.output_size``, ``int | None | tuple[int | None, int | None] | list[int | None]``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
-        super().__init__(
-            output_size=output_size,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(output_size=output_size, target=target, tune=tune)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "adaptive_avg_pool2d_kernel": AdaptiveAvgPool2dKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         return _adaptive_pool2d_roofline(self, indices=False)
@@ -1429,7 +1182,6 @@ class AdaptiveMaxPool2dFwdOp(_AdaptivePool2dFwdOpBase):
         output_size: int | None | Tuple[Optional[int], Optional[int]],
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1437,21 +1189,10 @@ class AdaptiveMaxPool2dFwdOp(_AdaptivePool2dFwdOpBase):
         Args:
             output_size: Manifest ``params.output_size``, ``int | None | tuple[int | None, int | None] | list[int | None]``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
-        super().__init__(
-            output_size=output_size,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(output_size=output_size, target=target, tune=tune)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "adaptive_max_pool2d_kernel": AdaptiveMaxPool2dKernel,
-        }
 
     def eval_roofline(self) -> tuple[int, int]:
         return _adaptive_pool2d_roofline(self, indices=False)
@@ -1469,7 +1210,6 @@ class AdaptiveMaxPool2dIndicesFwdOp(_AdaptivePool2dFwdOpBase):
         output_size: int | None | Tuple[Optional[int], Optional[int]],
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ) -> None:
         """Build the op. Shapes and dtype are taken from the first call.
@@ -1477,21 +1217,10 @@ class AdaptiveMaxPool2dIndicesFwdOp(_AdaptivePool2dFwdOpBase):
         Args:
             output_size: Manifest ``params.output_size``, ``int | None | tuple[int | None, int | None] | list[int | None]``.
             target: Backend target to serve this op, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dict.
             tune: Whether to autotune, applied when a kernel is first built.
         """
-        super().__init__(
-            output_size=output_size,
-            target=target,
-            kernel_map=kernel_map,
-            tune=tune,
-        )
+        super().__init__(output_size=output_size, target=target, tune=tune)
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {
-            "adaptive_max_pool2d_with_indices_kernel": AdaptiveMaxPool2dWithIndicesKernel,
-        }
 
     def forward(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Run the op on the inputs the manifest declares.

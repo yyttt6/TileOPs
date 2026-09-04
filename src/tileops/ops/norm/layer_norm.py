@@ -3,8 +3,6 @@ from typing import ClassVar, Dict, Optional, Sequence, Tuple
 import torch
 
 from tileops.backend import Target
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.norm import LayerNormKernel
 
 from ..compile_boundary import get_instance
 from ..op_base import Op
@@ -45,7 +43,6 @@ class LayerNormFwdOp(Op):
         eps: Optional[float] = DEFAULT_EPS,
         *,
         target: Target = None,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
         tune: bool = False,
     ):
         """Build the op. Shapes and dtype are taken from the first call.
@@ -55,9 +52,8 @@ class LayerNormFwdOp(Op):
                 reduction runs (manifest ``params.normalized_shape``).
             eps: Epsilon for numerical stability (manifest ``params.eps``).
                 ``None`` uses the PyTorch default ``1e-5``.
-            target: Which set of kernels serves this op — a target name, ``BUILTIN`` for the
-                in-tree kernels, or ``None`` to decide from the input device.
-            kernel_map: Optional kernel override dictionary.
+            target: Which set of kernels serves this op — a target name, or ``None`` to
+                decide from the input device.
             tune: If ``True``, autotune tile configurations.
         """
         self.N = normalized_shape_to_n(normalized_shape)
@@ -67,12 +63,9 @@ class LayerNormFwdOp(Op):
         self.eps = self.DEFAULT_EPS if eps is None else float(eps)
         self.target = target
         self.tune = tune
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
         self._last_m: Optional[int] = None
 
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"layer_norm": LayerNormKernel}
 
     def _infer_output_shapes(
         self,
@@ -154,17 +147,7 @@ class LayerNormFwdOp(Op):
         x = x.contiguous()
         weight = weight.contiguous()
         bias = bias.contiguous()
-        kernel = self.get_or_build_kernel(
-            "layer_norm",
-            (x, weight, bias),
-            key=x.dtype,  # this instance's in-tree cache key
-            build=lambda: self.kernel_map["layer_norm"](
-                self.N,
-                self.eps,
-                x.dtype,
-                tune=self.tune,
-            ),
-        )
+        kernel = self.get_or_build_kernel("layer_norm", (x, weight, bias))
         self._last_m = x.numel() // self.N
         return kernel(x, weight, bias)
 

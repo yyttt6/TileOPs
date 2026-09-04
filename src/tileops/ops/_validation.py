@@ -11,7 +11,7 @@ __all__ = ["check_tensor_shape"]
 
 def check_tensor_shape(name: str, tensor: torch.Tensor, shape: "tuple[int, ...]") -> None:
     """Gate a declared input's device and shape. Dtypes are ``_validate_dtypes``' job."""
-    if not tensor.is_cuda:
-        raise ValueError(f"{name} must be a CUDA tensor")
+    if tensor.device.type != "npu":
+        raise ValueError(f"{name} must be an NPU tensor")
     if tuple(tensor.shape) != tuple(shape):
         raise ValueError(f"{name} must have shape {list(shape)}, got {list(tensor.shape)}")

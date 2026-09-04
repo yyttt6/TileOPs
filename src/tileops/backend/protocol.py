@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Final, NamedTuple, Union
+from typing import Callable, NamedTuple, Union
 
 import torch
 
@@ -24,6 +24,12 @@ class TensorSpec(NamedTuple):
 #: cannot express a return value aliasing an input.
 KernelResult = Union[torch.Tensor, tuple[torch.Tensor, ...], None]
 
+#: What a ``build_kernel`` hands back: the thing the op calls with its tensors. Callable is
+#: the whole contract -- no base class, no required methods -- so a backend is free to
+#: return a bound method, a closure over a compiled artifact, or an instance of its own
+#: kernel class. The op layer holds it, caches it per input signature, and calls it.
+Kernel = Callable[..., KernelResult]
+
 #: Called ``build_kernel(*inputs, **params)``: a `TensorSpec` per input in
 #: ``signature.inputs`` order — ``None`` for an ``optional: true`` input the call did not
 #: pass, so presence is read off the slot rather than off how many slots there are — then
@@ -36,18 +42,8 @@ BuildKernel = Callable[..., Callable[..., KernelResult]]
 DetectFn = Callable[[torch.device], bool]
 
 
-class _Builtin:
-    """The type of :data:`BUILTIN`. One instance, compared by identity."""
-
-    __slots__ = ()
-
-    def __repr__(self) -> str:
-        return "BUILTIN"
-
-
-#: Ask for the in-tree implementation whatever is installed. Not a target name: unregistered
-#: and never in ``registered_targets()``.
-BUILTIN: Final = _Builtin()
-
-#: What ``target=`` and the process default accept.
-Target = Union[str, _Builtin, None]
+#: What ``target=`` and the process default accept: the name a backend gives its own set
+#: of kernels, or ``None`` to decide from the input device. There is no third answer --
+#: every kernel this project runs comes from a backend, so "run the in-tree one instead"
+#: names nothing.
+Target = Union[str, None]
