@@ -298,7 +298,7 @@ GatedDeltaNetBTHDFwdOp:
   # The same operator in token-major (BTHD) order, which is what the FLA
   # reference uses. Memory order is part of the signature, so it is its own
   # entry rather than a mode of GatedDeltaNetBHTDFwdOp. Runs the warp-specialized
-  # production pipeline, which serves Hopper only.
+  # production pipeline, which upstream served on Hopper only.
   ref_api: "none"
   family: linear_attention
   status: implemented

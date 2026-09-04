@@ -237,7 +237,7 @@ class GatedDeltaNetBTHDFwdOp(Op):
     ``v [B, S, H, DV]``, ``g/beta [B, S, H]``. A separate entry because the
     memory order is part of the signature, not a mode of one signature.
 
-    It runs the warp-specialized production pipeline, so it serves Hopper with
+    It runs the warp-specialized production pipeline, which upstream served on Hopper with
     ``chunk_size=64``, equal K/V dimensions in {64, 128}, and float16 or
     bfloat16. Any other call is refused, naming what it failed.
 

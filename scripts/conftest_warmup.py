@@ -87,9 +87,9 @@ def pytest_runtest_teardown(item, nextitem):
     try:
         import torch
 
-        if torch.cuda.is_available():
+        if torch.npu.is_available():
             gc.collect()
-            torch.cuda.empty_cache()
+            torch.npu.empty_cache()
     except (ImportError, AttributeError):
         pass
 

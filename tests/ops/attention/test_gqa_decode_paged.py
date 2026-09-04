@@ -235,7 +235,7 @@ def test_gqa_decode_paged_bs1_fixed_tier_correctness(
 
 @pytest.mark.smoke
 def test_gqa_decode_paged_bs1_dispatch() -> None:
-    """Eligible Hopper requests select the paged TMA/WGMMA kernel."""
+    """Eligible requests select the paged bs1 kernel."""
     op = GroupedQueryAttentionDecodePagedWithKVCacheFwdOp(1, 32, 4, 8192, 128, 256)
     kernel = op._get_kernel((), torch.float16)
     assert kernel.__class__.__name__ == "GQADecodePagedBs1Kernel"

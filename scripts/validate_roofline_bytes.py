@@ -59,7 +59,7 @@ def _single_input_case(op_name: str, entry: dict, row: dict, dtype):
     op = _op_class(op_name, entry)(**params)
     # Positive, away from zero: valid for every unary domain (log, rsqrt, ...);
     # the counters read traffic, not values.
-    x = torch.rand(tuple(row[shape_key]), dtype=dtype, device="cuda") + 0.5
+    x = torch.rand(tuple(row[shape_key]), dtype=dtype, device="npu") + 0.5
     return op, (x,)
 
 
@@ -67,8 +67,8 @@ def _gemm_case(op_name: str, entry: dict, row: dict, dtype):
     import torch
 
     op = _op_class(op_name, entry)()
-    a = torch.randn(row["m"], row["k"], dtype=dtype, device="cuda")
-    b = torch.randn(row["k"], row["n"], dtype=dtype, device="cuda")
+    a = torch.randn(row["m"], row["k"], dtype=dtype, device="npu")
+    b = torch.randn(row["k"], row["n"], dtype=dtype, device="npu")
     return op, (a, b)
 
 
@@ -76,8 +76,8 @@ def _bmm_case(op_name: str, entry: dict, row: dict, dtype):
     import torch
 
     op = _op_class(op_name, entry)()
-    a = torch.randn(row["batch"], row["m"], row["k"], dtype=dtype, device="cuda")
-    b = torch.randn(row["batch"], row["k"], row["n"], dtype=dtype, device="cuda")
+    a = torch.randn(row["batch"], row["m"], row["k"], dtype=dtype, device="npu")
+    b = torch.randn(row["batch"], row["k"], row["n"], dtype=dtype, device="npu")
     return op, (a, b)
 
 
@@ -142,12 +142,12 @@ def run_child(op_name: str, row_json: str, dtype_str: str) -> None:
     op, inputs = case
     with torch.no_grad():
         op(*inputs)  # bind input-inferred roofline vars; build kernels
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
         flops, nbytes = op.eval_roofline()
         torch.cuda.nvtx.range_push(NVTX_RANGE)
         op(*inputs)
         torch.cuda.nvtx.range_pop()
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
     print(json.dumps({"formula_flops": int(flops), "formula_bytes": int(nbytes)}))
 
 

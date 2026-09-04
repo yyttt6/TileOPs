@@ -653,8 +653,8 @@ class TestSharedFusedMoeActivation:
 
 @pytest.mark.smoke
 def test_fused_act_fwd_op_shape_and_values():
-    if not torch.npu.is_available() or torch.cuda.get_device_capability()[0] < 9:
-        pytest.skip("Requires SM90")
+    if not torch.npu.is_available():
+        pytest.skip("Requires an Ascend NPU")
     T_count, E, top_k, ffn, K = 256, 8, 2, 768, 128
     numel = T_count * top_k
     sizes = torch.full((E,), numel // E, dtype=torch.int32, device=DEVICE)

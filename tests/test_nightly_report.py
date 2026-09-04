@@ -163,8 +163,8 @@ def test_history_entry_records_the_percentiles(report):
 _PROFILE = {
     "gpu": "TestGPU",
     "hbm": {"theoretical": 5e12, "effective": 4e12},
-    "cuda_core": {"fp32": {"theoretical": 6e13, "effective": 5e13}},
-    "tensor_core": {"bf16": {"theoretical": 1e15, "effective": 7e14}},
+    "vector": {"fp32": {"theoretical": 6e13, "effective": 5e13}},
+    "cube": {"bf16": {"theoretical": 1e15, "effective": 7e14}},
 }
 
 
@@ -174,7 +174,7 @@ def _sol_row(**overrides):
         "tileops_flops": 2e9,
         "tileops_bytes": 4e9,  # 1 ms at effective HBM
         "tileops_device_busy_ms": 1.0,
-        "tileops_compute_roof": "cuda_core.fp32",
+        "tileops_compute_roof": "vector.fp32",
         "tileops_timing": "cupti",
     }
     row.update(overrides)
@@ -195,7 +195,7 @@ def test_sol_compute_bound_uses_the_declared_roof(report):
             tileops_flops=7e11,
             tileops_bytes=1e6,
             tileops_device_busy_ms=2.0,
-            tileops_compute_roof="tensor_core.bf16",
+            tileops_compute_roof="cube.bf16",
         ),
         _PROFILE,
     )

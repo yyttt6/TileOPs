@@ -5,6 +5,7 @@ into the report a run leaves behind.
 """
 
 import logging
+import os
 import subprocess
 import threading
 from datetime import datetime
@@ -23,50 +24,36 @@ def _get_env_metadata() -> list[str]:
     """Collect GPU model, driver version, CUDA version, and torch version."""
     lines = []
     lines.append(f"- **Torch version**: {torch.__version__}")
-    lines.append(f"- **CUDA version (torch)**: {torch.version.cuda or 'N/A'}")
+    lines.append(f"- **CANN version**: {os.environ.get('ASCEND_HOME_PATH', 'N/A')}")
 
     if torch.npu.is_available():
-        gpu_name = torch.npu.get_device_name(0)
-        lines.append(f"- **GPU model**: {gpu_name}")
+        npu_name = torch.npu.get_device_name(0)
+        lines.append(f"- **NPU model**: {npu_name}")
     else:
-        lines.append("- **GPU model**: N/A (no CUDA device)")
+        lines.append("- **NPU model**: N/A (no Ascend device)")
 
-    # Try to get NVIDIA driver version and clocks from nvidia-smi.
-    gpu_query_fields = [
-        "driver_version",
-        "clocks.current.sm",
-        "clocks.current.memory",
-        "clocks.applications.graphics",
-        "clocks.applications.memory",
-    ]
-    gpu_query_values = []
+    # npu-smi is the Ascend equivalent of nvidia-smi, but it prints a fixed table
+    # rather than taking a --query-gpu field list, so there is nothing to select:
+    # the whole `npu-smi info` block goes in and a reader picks out what they need.
+    gpu_query_fields: list[str] = []
+    npu_smi = "N/A"
     try:
         result = subprocess.run(
-            [
-                "nvidia-smi",
-                f"--query-gpu={','.join(gpu_query_fields)}",
-                "--format=csv,noheader,nounits",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
+            ["npu-smi", "info"], capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
-            gpu_query_values = [part.strip() for part in result.stdout.splitlines()[0].split(",")]
+            npu_smi = result.stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    driver = gpu_query_values[0] if len(gpu_query_values) == len(gpu_query_fields) else "N/A"
-    lines.append(f"- **Driver version**: {driver}")
-
-    if len(gpu_query_values) == len(gpu_query_fields):
-        sm_clock, mem_clock, app_sm_clock, app_mem_clock = gpu_query_values[1:]
-        lines.append(
-            "- **GPU clocks**: "
-            f"SM current {sm_clock} MHz, memory current {mem_clock} MHz, "
-            f"application SM {app_sm_clock} MHz, "
-            f"application memory {app_mem_clock} MHz"
-        )
+    if npu_smi != "N/A":
+        lines.append("- **npu-smi info**:")
+        lines.append("")
+        lines.append("```")
+        lines.extend(npu_smi.splitlines())
+        lines.append("```")
+    else:
+        lines.append("- **npu-smi info**: N/A (npu-smi not on PATH)")
 
     return lines
 

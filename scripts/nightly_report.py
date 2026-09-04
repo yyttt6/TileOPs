@@ -698,8 +698,8 @@ def _get_gpu_name() -> str:
     try:
         import torch
 
-        if torch.cuda.is_available():
-            return torch.cuda.get_device_name(0)
+        if torch.npu.is_available():
+            return torch.npu.get_device_name(0)
     except ImportError:
         pass
     return "N/A"

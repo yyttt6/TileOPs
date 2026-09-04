@@ -1,6 +1,6 @@
 # Versions for CI / runner builds, with the reasoning. Membership lives in pyproject (project
 # deps) or the runner Dockerfile's install lists (CI-only tooling); the resolved closure lives in
-# constraints-runner-lock.txt.
+# the CI environment's own lock file.
 #
 # No accelerator suffix: the torch_npu variant comes from the install index, so this file
 # also fits the CPU
