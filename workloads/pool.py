@@ -5,6 +5,7 @@ from typing import Callable, Optional
 import torch
 import torch.nn.functional as F
 
+from workloads.device import DEVICE
 from workloads.workload_base import WorkloadBase  # noqa: F401
 
 
@@ -37,7 +38,7 @@ class AvgPool1dBenchCase:
         self.dtype = dtype
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
-        x = torch.randn(self.n, self.c_in, self.l_in, device="cuda", dtype=self.dtype).contiguous()
+        x = torch.randn(self.n, self.c_in, self.l_in, device=DEVICE, dtype=self.dtype).contiguous()
         return (x,)
 
 
@@ -70,7 +71,7 @@ class AvgPool2dBenchCase:
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
         x = torch.randn(
-            self.n, self.c_in, self.h_in, self.w_in, device="cuda", dtype=self.dtype
+            self.n, self.c_in, self.h_in, self.w_in, device=DEVICE, dtype=self.dtype
         ).contiguous()
         return (x,)
 
@@ -111,7 +112,7 @@ class AvgPool3dBenchCase:
             self.d_in,
             self.h_in,
             self.w_in,
-            device="cuda",
+            device=DEVICE,
             dtype=self.dtype,
         ).contiguous()
         return (x,)
@@ -146,7 +147,7 @@ class MaxPool2dBenchCase:
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
         x = torch.randn(
-            self.n, self.c_in, self.h_in, self.w_in, device="cuda", dtype=self.dtype
+            self.n, self.c_in, self.h_in, self.w_in, device=DEVICE, dtype=self.dtype
         ).contiguous()
         return (x,)
 
@@ -177,7 +178,7 @@ class MaxPool1dBenchCase:
         self.return_indices = return_indices
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
-        x = torch.randn(self.n, self.c_in, self.l_in, device="cuda", dtype=self.dtype).contiguous()
+        x = torch.randn(self.n, self.c_in, self.l_in, device=DEVICE, dtype=self.dtype).contiguous()
         return (x,)
 
 
@@ -217,7 +218,7 @@ class MaxPool3dBenchCase:
             self.d_in,
             self.h_in,
             self.w_in,
-            device="cuda",
+            device=DEVICE,
             dtype=self.dtype,
         ).contiguous()
         return (x,)
@@ -245,7 +246,7 @@ class AvgPoolWorkload(WorkloadBase):
         self.dtype = dtype
 
     def gen_inputs(self, *shape: int) -> tuple[torch.Tensor]:
-        x = torch.randn(*shape, device="cuda", dtype=self.dtype).contiguous()
+        x = torch.randn(*shape, device=DEVICE, dtype=self.dtype).contiguous()
         return (x,)
 
     def ref_program(self, input: torch.Tensor) -> torch.Tensor:
@@ -285,7 +286,7 @@ class MaxPoolWorkload(WorkloadBase):
         self.return_indices = return_indices
 
     def gen_inputs(self, *shape: int) -> tuple[torch.Tensor]:
-        x = torch.randn(*shape, device="cuda", dtype=self.dtype)
+        x = torch.randn(*shape, device=DEVICE, dtype=self.dtype)
         if self.contiguous:
             x = x.contiguous()
         else:
@@ -331,7 +332,7 @@ class AdaptivePool2dWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
         x = torch.randn(
-            self.n, self.c_in, self.h_in, self.w_in, device="cuda", dtype=self.dtype
+            self.n, self.c_in, self.h_in, self.w_in, device=DEVICE, dtype=self.dtype
         ).contiguous()
         return (x,)
 
@@ -367,7 +368,7 @@ class MeanPoolingWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
         x = torch.randn(
-            self.batch_size, self.seq_len, self.heads, self.dim, device="cuda", dtype=self.dtype
+            self.batch_size, self.seq_len, self.heads, self.dim, device=DEVICE, dtype=self.dtype
         )
         return x, self.offsets, self.indices
 

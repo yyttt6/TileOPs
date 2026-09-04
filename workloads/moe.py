@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 
+from workloads.device import DEVICE
 from workloads.workload_base import WorkloadBase
 
 
@@ -17,7 +18,7 @@ class FusedTopKWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
         torch.manual_seed(42)
-        return (torch.randn(self.num_tokens, self.num_experts, dtype=self.dtype, device="cuda"),)
+        return (torch.randn(self.num_tokens, self.num_experts, dtype=self.dtype, device=DEVICE),)
 
 
 class MoePermuteWorkload(WorkloadBase):
@@ -30,14 +31,14 @@ class MoePermuteWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor]:
         hidden_states = torch.randn(
-            self.total_tokens, self.hidden_size, dtype=self.dtype, device="cuda"
+            self.total_tokens, self.hidden_size, dtype=self.dtype, device=DEVICE
         )
         topk_ids = torch.randint(
             0,
             self.num_experts,
             (self.total_tokens, self.top_k),
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
         )
         return hidden_states, topk_ids
 
@@ -58,7 +59,7 @@ class MoePermuteAlignWorkload(WorkloadBase):
             self.num_experts,
             (self.total_tokens, self.top_k),
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
         )
         return (topk_ids,)
 
@@ -77,10 +78,10 @@ class MoeUnpermuteWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         numel = self.total_tokens * self.top_k
-        mm2_pad = torch.randn(numel, self.hidden_size, dtype=self.dtype, device="cuda")
+        mm2_pad = torch.randn(numel, self.hidden_size, dtype=self.dtype, device=DEVICE)
         # fwd_idx: simulate a valid mapping: random shuffle of [0, numel)
-        fwd_idx = torch.randperm(numel, dtype=torch.int32, device="cuda")
-        topk_weights = torch.rand(self.total_tokens, self.top_k, dtype=torch.float32, device="cuda")
+        fwd_idx = torch.randperm(numel, dtype=torch.int32, device=DEVICE)
+        topk_weights = torch.rand(self.total_tokens, self.top_k, dtype=torch.float32, device=DEVICE)
         return mm2_pad, fwd_idx, topk_weights
 
     def ref_program(self, mm2_pad, fwd_idx, topk_weights):
@@ -146,7 +147,7 @@ class MoeGroupedGemmNopadWorkload(WorkloadBase):
 
     def gen_inputs(self):
         torch.manual_seed(42)
-        dev = "cuda"
+        dev = DEVICE
         true_sizes, true_offsets = make_expert_sizes_offsets(
             self.numel, self.num_experts, self.distribution, dev
         )
@@ -185,7 +186,7 @@ class FusedMoeWorkload(WorkloadBase):
 
     def gen_inputs(self):
         torch.manual_seed(42)
-        dev = "cuda"
+        dev = DEVICE
         hidden = torch.randn(
             self.num_tokens,
             self.hidden_size,
@@ -255,7 +256,7 @@ class SharedFusedMoeWorkload(WorkloadBase):
 
     def gen_inputs(self):
         torch.manual_seed(42)
-        dev = "cuda"
+        dev = DEVICE
         hidden = torch.randn(self.num_tokens, self.hidden_size, dtype=self.dtype, device=dev)
         gating = torch.randn(self.num_tokens, self.num_experts, dtype=self.dtype, device=dev)
         correction_bias = (
@@ -305,7 +306,7 @@ class MoeExpertsWorkload(WorkloadBase):
 
     def gen_inputs(self):
         torch.manual_seed(42)
-        dev = "cuda"
+        dev = DEVICE
         hidden = torch.randn(self.num_tokens, self.hidden_size, dtype=self.dtype, device=dev)
         w1 = (
             torch.randn(
@@ -351,7 +352,7 @@ class MoeFusedActivationWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[Any, ...]:
         torch.manual_seed(42)
-        dev = "cuda"
+        dev = DEVICE
         hidden = torch.randn(
             self.num_tokens,
             self.hidden_size,

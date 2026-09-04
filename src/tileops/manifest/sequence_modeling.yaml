@@ -44,7 +44,7 @@ EngramGateConvFwdOp:
     func: "tileops.perf.formulas.engram_gate_conv_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
+    kernel: src/tileops/kernels/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/engram.py
     test: tests/ops/test_engram.py
     bench: benchmarks/ops/bench_engram.py
@@ -102,7 +102,7 @@ EngramGateConvBwdOp:
     func: "tileops.perf.formulas.engram_gate_conv_bwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
+    kernel: src/tileops/kernels/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/engram.py
     test: tests/ops/test_engram.py
     bench: benchmarks/ops/bench_engram.py
@@ -224,7 +224,7 @@ MHCPreFwdOp:
     func: "tileops.perf.formulas.mhc_pre_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
+    kernel: src/tileops/kernels/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/mhc.py
     test: tests/ops/test_mhc.py
     bench: benchmarks/ops/bench_mhc.py
@@ -257,7 +257,7 @@ MHCPostFwdOp:
     func: "tileops.perf.formulas.mhc_post_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/sequence_modeling.py
+    kernel: src/tileops/kernels/families/sequence_modeling.py
     op: tileops/ops/sequence_modeling/mhc.py
     test: tests/ops/test_mhc.py
     bench: benchmarks/ops/bench_mhc.py

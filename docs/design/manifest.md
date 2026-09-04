@@ -181,7 +181,7 @@ Three blocks in order:
 1. `dtype` — single parameter unless the op has explicit multi-dtype axes
 1. `params` — manifest key order
 
-Parameters are positional-or-keyword in that order. A param the caller must name declares `kw_only: true`, and the validator holds `__init__` to it. `target`, `kernel_map` and `tune` are keyword-only in every op and are not manifest params.
+Parameters are positional-or-keyword in that order. A param the caller must name declares `kw_only: true`, and the validator holds `__init__` to it. `target` and `tune` are keyword-only in every op and are not manifest params.
 
 ### Empty `static_dims`
 
@@ -425,35 +425,34 @@ are defined in [roofline.md](roofline.md).
 
 | Field                   | Required | Description                                                            |
 | ----------------------- | -------- | ---------------------------------------------------------------------- |
-| `kernel`                | yes      | Kernel file path(s).                                                   |
-| `kernel_map`            | \*       | Dispatch key → Kernel class name. Required when `status: implemented`. |
+| `kernel`                | yes      | Path(s) to the backend module holding the builder, or `null` when no backend registers one. |
 | `op`                    | yes      | Op class file path.                                                    |
 | `test`                  | yes      | Test file path.                                                        |
 | `bench`                 | yes      | Benchmark file path.                                                   |
 | `bench_manifest_driven` | \*       | Required `true` when `status: implemented`; makes L4 a hard CI error.  |
 
-#### kernel_map
+#### kernel
 
-Op→Kernel dispatch registration table. Declares which Kernels an Op uses so agents know what to implement. Does not describe dispatch strategy (runtime concern). Format: `dispatch_key: KernelClassName`. See [ops-design-reference.md § S14 `default_kernel_map`](../../.claude/skills/scaffold-op/slot-rules.md#slot-s14).
+Where the kernel that runs this op lives. Kernels ship in backend distributions, not in this
+one, so the path is repo-relative (`op` stays distribution-relative — it ships in the same
+wheel as the manifest). An op no backend registers a builder for gets `kernel: null` and the
+reason on the line above: naming a path that does not exist would be worse than saying so.
 
 ```yaml
-# Single-kernel op
 source:
-  kernel: src/tileops/kernels/norm/rms_norm.py
-  kernel_map:
-    rms_norm: RMSNormKernel
-  op: src/tileops/ops/norm/rms_norm.py
+  kernel: src/tileops/kernels/families/two_pass.py
+  op: tileops/ops/norm/rms_norm.py
 
-# Multi-kernel op
+# An op with no kernel on this hardware
 source:
-  kernel: src/tileops/kernels/attention/gqa_bwd.py
-  kernel_map:
-    gqa_bwd_preprocess_kernel: FlashAttnBwdPreprocessKernel
-    gqa_bwd_kernel: GQABwdWgmmaPipelinedKernel
-  op: src/tileops/ops/attention/gqa.py
+  # No Ascend kernel: no backend registers a builder for this op.
+  kernel: null
+  op: tileops/ops/gemm/gemm.py
 ```
 
-- Optional when `status: spec-only`. Required when `status: implemented`.
+There is no dispatch table. Which of its kernels a target runs is decided inside its
+`build_kernel`, where the shapes and dtypes are; the manifest names the op, and the op
+names the computation.
 
 ## Entry Examples
 
@@ -547,10 +546,8 @@ RMSNormFwdOp:
     bytes: "(2 * M * N + N) * elem_bytes"
 
   source:
-    kernel: src/tileops/kernels/norm/rms_norm.py
-    kernel_map:
-      rms_norm: RMSNormKernel
-    op: src/tileops/ops/norm/rms_norm.py
+    kernel: src/tileops/kernels/families/two_pass.py
+    op: tileops/ops/norm/rms_norm.py
     test: tests/ops/test_rms_norm.py
     bench: benchmarks/ops/bench_norm.py
 ```

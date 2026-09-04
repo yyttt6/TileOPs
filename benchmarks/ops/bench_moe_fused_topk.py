@@ -101,7 +101,7 @@ def test_fused_topk_bench(
         renormalize=renormalize,
     )
     op(gating_output)  # warmup / JIT compile
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops": op}
 
@@ -122,7 +122,7 @@ def test_fused_topk_bench(
             )
 
         _vllm_fn(gating_output)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["vllm"] = _vllm_fn
 
@@ -133,7 +133,7 @@ def test_fused_topk_bench(
             return fused_topk_torch(gating_output, top_k, scoring_func, renormalize)
 
         _ref_fn(gating_output)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["torch-ref"] = _ref_fn
 

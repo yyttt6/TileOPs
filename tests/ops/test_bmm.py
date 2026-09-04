@@ -4,6 +4,7 @@ import torch
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops import BmmFp8KNFwdOp, BmmFp8NKFwdOp, BmmFwdOp
 from workloads.bmm import BmmFp8Workload, BmmWorkload
+from workloads.device import DEVICE
 
 # Covering the [B,K,N] path is the point of these tests, so the perf hint
 # BmmFp8KNFwdOp emits for it is expected output, not a signal.
@@ -152,8 +153,8 @@ def test_bmm(batch: int, m: int, n: int, k: int, dtype: torch.dtype, tune: bool)
 @pytest.mark.smoke
 def test_bmm_batch_mismatch_raises() -> None:
     op = BmmFwdOp()
-    a = torch.randn(4, 16, 16, device="cuda", dtype=torch.float16)
-    b = torch.randn(5, 16, 16, device="cuda", dtype=torch.float16)
+    a = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.float16)
+    b = torch.randn(5, 16, 16, device=DEVICE, dtype=torch.float16)
     with pytest.raises(ValueError, match="batch dim mismatch"):
         op(a, b)
 
@@ -161,8 +162,8 @@ def test_bmm_batch_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_contraction_mismatch_raises() -> None:
     op = BmmFwdOp()
-    a = torch.randn(4, 16, 32, device="cuda", dtype=torch.float16)
-    b = torch.randn(4, 16, 16, device="cuda", dtype=torch.float16)
+    a = torch.randn(4, 16, 32, device=DEVICE, dtype=torch.float16)
+    b = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.float16)
     with pytest.raises(ValueError, match="contraction dim mismatch"):
         op(a, b)
 
@@ -170,8 +171,8 @@ def test_bmm_contraction_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_rank_mismatch_raises() -> None:
     op = BmmFwdOp()
-    a = torch.randn(16, 16, device="cuda", dtype=torch.float16)
-    b = torch.randn(4, 16, 16, device="cuda", dtype=torch.float16)
+    a = torch.randn(16, 16, device=DEVICE, dtype=torch.float16)
+    b = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.float16)
     with pytest.raises(ValueError, match="strict 3D"):
         op(a, b)
 
@@ -179,8 +180,8 @@ def test_bmm_rank_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_dtype_mismatch_raises() -> None:
     op = BmmFwdOp()
-    a = torch.randn(4, 16, 16, device="cuda", dtype=torch.float16)
-    b = torch.randn(4, 16, 16, device="cuda", dtype=torch.bfloat16)
+    a = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.float16)
+    b = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.bfloat16)
     with pytest.raises(ValueError):
         op(a, b)
 
@@ -188,10 +189,10 @@ def test_bmm_dtype_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_b_dtype_change_after_valid_call_raises() -> None:
     op = BmmFwdOp()
-    a = torch.randn(4, 16, 16, device="cuda", dtype=torch.float16)
-    b_ok = torch.randn(4, 16, 16, device="cuda", dtype=torch.float16)
+    a = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.float16)
+    b_ok = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.float16)
     op(a, b_ok)  # populate the fast path
-    b_bad = torch.randn(4, 16, 16, device="cuda", dtype=torch.bfloat16)
+    b_bad = torch.randn(4, 16, 16, device=DEVICE, dtype=torch.bfloat16)
     with pytest.raises(ValueError):
         op(a, b_bad)
 
@@ -200,8 +201,8 @@ def test_bmm_b_dtype_change_after_valid_call_raises() -> None:
 def test_bmm_k_not_multiple_of_16_raises() -> None:
     """K must be a multiple of 16 (manifest shape_rules + op precondition)."""
     op = BmmFwdOp()
-    a = torch.randn(4, 16, 24, device="cuda", dtype=torch.float16)
-    b = torch.randn(4, 24, 16, device="cuda", dtype=torch.float16)
+    a = torch.randn(4, 16, 24, device=DEVICE, dtype=torch.float16)
+    b = torch.randn(4, 24, 16, device=DEVICE, dtype=torch.float16)
     with pytest.raises(ValueError, match="multiple of 16"):
         op(a, b)
 
@@ -290,8 +291,8 @@ def test_bmm_fp8_rejects_unsupported_scale_grids() -> None:
         op(
             a,
             b,
-            torch.ones((m, scale_k), device="cuda", dtype=torch.float32),
-            torch.ones((n, scale_k), device="cuda", dtype=torch.float32),
+            torch.ones((m, scale_k), device=DEVICE, dtype=torch.float32),
+            torch.ones((n, scale_k), device=DEVICE, dtype=torch.float32),
         )
 
     # 2-D 1x1 -- also rejected (per_tensor requires rank-0, not rank-2).
@@ -299,8 +300,8 @@ def test_bmm_fp8_rejects_unsupported_scale_grids() -> None:
         op(
             a,
             b,
-            torch.ones((1, 1), device="cuda", dtype=torch.float32),
-            torch.ones((1, 1), device="cuda", dtype=torch.float32),
+            torch.ones((1, 1), device=DEVICE, dtype=torch.float32),
+            torch.ones((1, 1), device=DEVICE, dtype=torch.float32),
         )
 
     # Legacy per-batch ``(B, 1, 1)`` shape -- rejected now that per-tensor
@@ -309,8 +310,8 @@ def test_bmm_fp8_rejects_unsupported_scale_grids() -> None:
         op(
             a,
             b,
-            torch.ones((batch, 1, 1), device="cuda", dtype=torch.float32),
-            torch.ones((batch, 1, 1), device="cuda", dtype=torch.float32),
+            torch.ones((batch, 1, 1), device=DEVICE, dtype=torch.float32),
+            torch.ones((batch, 1, 1), device=DEVICE, dtype=torch.float32),
         )
 
 
@@ -338,10 +339,10 @@ def test_bmm_fp8_revalidates_cached_signature_dtypes() -> None:
 @pytest.mark.smoke
 def test_bmm_fp8_batch_mismatch_raises() -> None:
     op = BmmFp8KNFwdOp()
-    a = torch.randn(4, 128, 128, device="cuda").to(torch.float8_e4m3fn)
-    b = torch.randn(5, 128, 128, device="cuda").to(torch.float8_e4m3fn)
-    scale_a = torch.tensor(1.0, device="cuda", dtype=torch.float32)
-    scale_b = torch.tensor(1.0, device="cuda", dtype=torch.float32)
+    a = torch.randn(4, 128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    b = torch.randn(5, 128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    scale_a = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
+    scale_b = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
     with pytest.raises(ValueError, match="batch dim mismatch"):
         op(a, b, scale_a, scale_b)
 
@@ -349,10 +350,10 @@ def test_bmm_fp8_batch_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_fp8_contraction_mismatch_raises() -> None:
     op = BmmFp8KNFwdOp()
-    a = torch.randn(4, 128, 128, device="cuda").to(torch.float8_e4m3fn)
-    b = torch.randn(4, 64, 96, device="cuda").to(torch.float8_e4m3fn)
-    scale_a = torch.tensor(1.0, device="cuda", dtype=torch.float32)
-    scale_b = torch.tensor(1.0, device="cuda", dtype=torch.float32)
+    a = torch.randn(4, 128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    b = torch.randn(4, 64, 96, device=DEVICE).to(torch.float8_e4m3fn)
+    scale_a = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
+    scale_b = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
     with pytest.raises(ValueError, match="contraction dim mismatch"):
         op(a, b, scale_a, scale_b)
 
@@ -360,10 +361,10 @@ def test_bmm_fp8_contraction_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_fp8_rank_mismatch_raises() -> None:
     op = BmmFp8KNFwdOp()
-    a = torch.randn(128, 128, device="cuda").to(torch.float8_e4m3fn)
-    b = torch.randn(4, 128, 128, device="cuda").to(torch.float8_e4m3fn)
-    scale_a = torch.tensor(1.0, device="cuda", dtype=torch.float32)
-    scale_b = torch.tensor(1.0, device="cuda", dtype=torch.float32)
+    a = torch.randn(128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    b = torch.randn(4, 128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    scale_a = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
+    scale_b = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
     with pytest.raises(ValueError, match="strict 3D"):
         op(a, b, scale_a, scale_b)
 
@@ -371,10 +372,10 @@ def test_bmm_fp8_rank_mismatch_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_fp8_k_not_multiple_of_32_raises() -> None:
     op = BmmFp8KNFwdOp()
-    a = torch.randn(4, 128, 48, device="cuda").to(torch.float8_e4m3fn)
-    b = torch.randn(4, 48, 128, device="cuda").to(torch.float8_e4m3fn)
-    scale_a = torch.tensor(1.0, device="cuda", dtype=torch.float32)
-    scale_b = torch.tensor(1.0, device="cuda", dtype=torch.float32)
+    a = torch.randn(4, 128, 48, device=DEVICE).to(torch.float8_e4m3fn)
+    b = torch.randn(4, 48, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    scale_a = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
+    scale_b = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
     with pytest.raises(ValueError, match="multiple of 32"):
         op(a, b, scale_a, scale_b)
 
@@ -382,10 +383,10 @@ def test_bmm_fp8_k_not_multiple_of_32_raises() -> None:
 @pytest.mark.smoke
 def test_bmm_fp8_scale_dtype_change_after_valid_call_raises() -> None:
     op = BmmFp8KNFwdOp()
-    a = torch.randn(2, 128, 128, device="cuda").to(torch.float8_e4m3fn)
-    b = torch.randn(2, 128, 128, device="cuda").to(torch.float8_e4m3fn)
-    scale_a = torch.tensor(1.0, device="cuda", dtype=torch.float32)
-    scale_b = torch.tensor(1.0, device="cuda", dtype=torch.float32)
+    a = torch.randn(2, 128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    b = torch.randn(2, 128, 128, device=DEVICE).to(torch.float8_e4m3fn)
+    scale_a = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
+    scale_b = torch.tensor(1.0, device=DEVICE, dtype=torch.float32)
     op(a, b, scale_a, scale_b)  # populate the fast path
     with pytest.raises(ValueError, match="scale_a and scale_b"):
         op(a, b, scale_a.to(torch.float16), scale_b)

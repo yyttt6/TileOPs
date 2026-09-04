@@ -37,7 +37,7 @@ CumsumFwdOp:
     bytes: "2 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/scan.py
+    kernel: src/tileops/kernels/families/scan.py
     op: tileops/ops/reduction/cumulative.py
     test: tests/ops/test_cumulative.py
     bench: benchmarks/ops/bench_cumulative.py
@@ -76,7 +76,7 @@ CumprodFwdOp:
     bytes: "2 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/scan.py
+    kernel: src/tileops/kernels/families/scan.py
     op: tileops/ops/reduction/cumulative.py
     test: tests/ops/test_cumulative.py
     bench: benchmarks/ops/bench_cumulative.py

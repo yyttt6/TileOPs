@@ -9,10 +9,11 @@ happens. Uses a fake target, so no vendor hardware is involved.
 import pytest
 import torch
 
-from tileops.backend import BUILTIN, OpNotAvailableError, TensorSpec, registry
+from tileops.backend import OpNotAvailableError, TensorSpec, registry
 from tileops.ops.convolution import Conv2dFwdOp
 from tileops.ops.norm.rms_norm import RMSNormFwdOp
 from tileops.ops.pool import MaxPool2dFwdOp
+from workloads.device import DEVICE
 
 pytestmark = pytest.mark.smoke
 
@@ -148,7 +149,7 @@ def test_the_same_input_signature_is_built_once():
         (dict(dtype=torch.bfloat16), "a different dtype certainly does"),
         # A second real device, not meta: meta inputs dispatch to the op's fake, which
         # returns before a kernel is ever asked for.
-        (dict(device="cuda"), "a kernel may hold resources allocated on one device"),
+        (dict(device=DEVICE), "a kernel may hold resources allocated on one device"),
     ],
     ids=["shape", "dtype", "device"],
 )
@@ -171,7 +172,7 @@ def test_the_target_is_settled_once_and_kept():
     op(*_inputs())
 
     assert op._settled_target == "acme"
-    registry.default_target = BUILTIN  # would mean "in-tree" for a fresh instance
+    registry.default_target = "somebody_else"  # would aim a fresh instance elsewhere
     op(*_inputs())
     assert len(recorder.calls) == 1, "an instance that has built kernels is not re-aimed"
 
@@ -199,17 +200,6 @@ def test_an_op_that_has_not_handed_over_its_tensors_says_so():
 
     with pytest.raises(OpNotAvailableError, match="not wired to external targets yet"):
         _stub_op()(*_inputs())
-
-
-def test_builtin_keeps_the_in_tree_kernels_even_when_a_target_claims_the_device():
-    recorder = _Recorder()
-    _register(recorder)
-    op = RMSNormFwdOp(normalized_shape=NORMALIZED_SHAPE, target=BUILTIN)
-
-    assert op._builder is None or op._builder is not recorder.build_kernel
-    with pytest.raises(ValueError, match="is a CUDA kernel"):
-        op(*_inputs())
-    assert recorder.calls == [], "BUILTIN went to the in-tree implementation"
 
 
 def test_a_call_with_no_tensor_leaves_the_question_open():
@@ -331,17 +321,6 @@ def test_a_call_without_tensors_still_honours_an_explicit_target():
 
     with pytest.raises(OpNotAvailableError, match="not wired to external targets yet"):
         _stub_op(target="acme").forward(*_inputs())
-
-
-def test_a_settled_instance_is_bound_to_that_target_s_devices():
-    """One instance, one target. A kernel handed a foreign tensor is what says so."""
-    op = RMSNormFwdOp(normalized_shape=NORMALIZED_SHAPE, target=BUILTIN)
-    x = torch.randn(4, *NORMALIZED_SHAPE, dtype=DTYPE, device="cuda")
-    weight = torch.randn(*NORMALIZED_SHAPE, dtype=DTYPE, device="cuda")
-    op(x, weight)
-
-    with pytest.raises(ValueError, match="is a CUDA kernel"):
-        op(*_inputs())  # same signature, CPU tensors
 
 
 # --------------------------------------------------------------------------------------

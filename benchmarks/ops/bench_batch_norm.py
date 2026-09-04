@@ -21,6 +21,7 @@ from benchmarks.baselines import (
 from benchmarks.benchmark_base import ManifestBenchmark, backward_of, workload_params
 from tileops.manifest import load_workloads
 from tileops.ops.norm.batch_norm import BatchNormBwdOp, BatchNormFwdOp
+from workloads.device import DEVICE
 from workloads.normalization import BatchNormBwdWorkload, BatchNormFwdWorkload
 
 _FWD_OP_NAME = "BatchNormFwdOp"
@@ -32,7 +33,7 @@ _BWD_OP_NAME = "BatchNormBwdOp"
 # Benchmark helpers
 
 
-def _make_inputs(N, C, spatial, dtype, device="cuda"):
+def _make_inputs(N, C, spatial, dtype, device=DEVICE):
     shape = (N, C, *spatial)
     x = torch.randn(*shape, device=device, dtype=dtype)
     weight = torch.randn(C, device=device, dtype=torch.float32)
@@ -42,7 +43,7 @@ def _make_inputs(N, C, spatial, dtype, device="cuda"):
     return x, weight, bias, running_mean, running_var
 
 
-def _make_bwd_inputs(N, C, spatial, dtype, device="cuda"):
+def _make_bwd_inputs(N, C, spatial, dtype, device=DEVICE):
     x, weight, bias, running_mean, running_var = _make_inputs(N, C, spatial, dtype, device)
     grad_out = torch.randn_like(x)
     L = N * math.prod(spatial) if spatial else N

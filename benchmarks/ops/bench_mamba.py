@@ -499,7 +499,7 @@ def test_ssd_state_passing_fwd_bench(
         # Pre-warm: run once outside bm.profile so the Triton autotuner
         # selects its best config before the CUPTI window opens.
         mamba_fwd()
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["mamba"] = (mamba_fwd, ())
 

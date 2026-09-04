@@ -3,9 +3,15 @@
 This project began from [TileOPs](https://github.com/tile-ai/TileOPs) by Tile-AI, and still
 carries substantial code from it under the MIT License: the operator layer
 (`src/tileops/ops/`), the manifest framework (`src/tileops/manifest/`), the performance model
-(`src/tileops/perf/`), the tracer (`src/tileops/trace/`), and most of `docs/design/`.
+(`src/tileops/perf/`), the tracer (`src/tileops/trace/`), the workload, test, benchmark and
+tooling layers (`workloads/`, `tests/`, `benchmarks/`, `scripts/`), and most of `docs/design/`.
 
-The Ascend NPU work -- `backends/ascend/`, the AscendC kernels, the device-time measurement
-basis and the handwritten-baseline provenance machinery -- is ours.
+`src/tileops/kernels/` is no longer one of them. Upstream's tree there held 158 CUDA/Hopper
+kernels; all of it was removed, and the directory now holds the AscendC kernels, which are
+ours -- as are the 910B1 hardware profile (`src/tileops/perf/profiles/ascend910b1.yaml`), the
+NPU probes under `tests/npu/`, the device-time measurement basis, and the handwritten-baseline
+provenance machinery. The parts of upstream's kernel tree that were never about a device --
+the call records the op layer validates against, pooling's output-extent arithmetic --
+were kept and moved into `src/tileops/ops/`, where the paragraph above still covers them.
 
 Both copyright notices are retained in [LICENSE](LICENSE), as the MIT License requires.

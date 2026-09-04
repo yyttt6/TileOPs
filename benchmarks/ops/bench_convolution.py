@@ -32,6 +32,7 @@ from benchmarks.baselines import (
 from benchmarks.benchmark_base import ManifestBenchmark, workload_params
 from tileops.manifest import load_workloads
 from tileops.ops import Conv1dFwdOp, Conv2dFwdOp, Conv3dFwdOp
+from workloads.device import DEVICE
 
 # Bench-local: autotuning is benchmark infrastructure, not a workload property.
 _TUNE = True
@@ -117,17 +118,17 @@ def _conv_inputs(
 ) -> tuple[torch.Tensor, ...]:
     """Generate ``(input, weight[, bias])`` for a convolution workload."""
     c_in = input_shape[1]
-    x = torch.randn(input_shape, device="cuda", dtype=dtype).contiguous()
+    x = torch.randn(input_shape, device=DEVICE, dtype=dtype).contiguous()
     weight = torch.randn(
         c_out,
         c_in // groups,
         *kernel_size,
-        device="cuda",
+        device=DEVICE,
         dtype=dtype,
     ).contiguous()
     if not with_bias:
         return x, weight
-    bias = torch.zeros(c_out, device="cuda", dtype=dtype).contiguous()
+    bias = torch.zeros(c_out, device=DEVICE, dtype=dtype).contiguous()
     return x, weight, bias
 
 

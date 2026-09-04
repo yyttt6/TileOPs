@@ -186,7 +186,7 @@ def test_gqa_sliding_window_varlen_fwd_bench(
 
     # Warmup: trigger JIT compilation before timed profiling
     op(*inputs)
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops": op}
 

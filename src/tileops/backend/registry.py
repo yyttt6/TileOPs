@@ -6,6 +6,7 @@ imported: one process-wide place is the only place they can meet.
 
 from __future__ import annotations
 
+import importlib
 import threading
 import traceback
 import warnings
@@ -17,6 +18,13 @@ from .protocol import BuildKernel, DetectFn, Target
 
 #: The value names a *module*; importing it must perform the registration.
 ENTRY_POINT_GROUP = "tileops.backends"
+
+#: The kernels that ship in this distribution, loaded like any other backend but not
+#: through the entry-point group. They are part of this package, so making them
+#: discoverable only once ``pip`` has written a dist-info would mean a source checkout
+#: on ``PYTHONPATH`` -- how this project is developed and measured -- reaches a
+#: different set of kernels than an installed wheel does.
+IN_TREE_BACKEND = "tileops.kernels"
 
 DETECTORS: dict[str, DetectFn] = {}
 BUILDERS: dict[tuple[str, str], BuildKernel] = {}
@@ -98,7 +106,7 @@ def known_targets() -> set[str]:
 
 
 def ensure_loaded() -> None:
-    """Import every declared backend module, once.
+    """Import the in-tree kernels and every declared backend module, once.
 
     Called when the first op is constructed, which is before any traced region.
     """
@@ -126,13 +134,43 @@ def ensure_loaded() -> None:
         )
 
 
-def _load_all() -> list[str]:
-    """Load every entry point, returning the failures. Caller holds the lock.
+class _InTreeEntryPoint:
+    """`IN_TREE_BACKEND` wearing the two attributes `_load_all` reads off an entry point.
 
-    Fixed order, so the failure records and warnings come out the same way every run.
+    Same code path, same all-or-nothing rollback, same failure record -- so a broken
+    in-tree kernel module is reported exactly like a broken wheel instead of turning
+    the first op construction in the process into an ImportError.
+    """
+
+    name = "in-tree"
+    value = IN_TREE_BACKEND
+
+    @staticmethod
+    def load() -> None:
+        importlib.import_module(IN_TREE_BACKEND)
+
+
+def _discover() -> list:
+    """Every backend to load, in a fixed order.
+
+    The in-tree kernels go first: they are the ones this distribution promises, and an
+    out-of-tree backend claiming the same target should read as the addition it is, not
+    as the thing that got there first. The order is fixed so the failure records and
+    warnings come out the same way every run.
+    """
+    return [
+        _InTreeEntryPoint(),
+        *sorted(entry_points(group=ENTRY_POINT_GROUP), key=lambda e: (e.name, e.value)),
+    ]
+
+
+def _load_all() -> list[str]:
+    """Load every backend `_discover` found, returning the failures.
+
+    Caller holds the lock.
     """
     failed = []
-    for ep in sorted(entry_points(group=ENTRY_POINT_GROUP), key=lambda e: (e.name, e.value)):
+    for ep in _discover():
         # All-or-nothing: a partial registration advertises ops the backend never finished.
         checkpoint = snapshot()
         try:

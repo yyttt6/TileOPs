@@ -457,7 +457,7 @@ def test_gemm_w4a16_bench(
             except AssertionError as exc:
                 print(f"  [skip] marlin-{reduce_mode} disagrees with the reference: {exc}")
                 continue
-            torch.cuda.synchronize()
+            torch.npu.synchronize()
             functors[f"marlin-{reduce_mode}"] = (marlin, marlin_inputs)
 
     bm.compare(functors, *inputs, record_as=op, params=locals())

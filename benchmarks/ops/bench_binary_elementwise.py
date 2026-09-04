@@ -27,11 +27,6 @@ from benchmarks.benchmark_base import (
     ManifestBenchmark,
     workload_params,
 )
-from tileops.kernels.elementwise import (
-    GeluAndMulFwdKernel,
-    GeluTanhAndMulFwdKernel,
-    SiluAndMulFwdKernel,
-)
 from tileops.manifest import load_workloads
 from tileops.ops.elementwise import (
     BitwiseAndFwdOp,
@@ -689,41 +684,6 @@ def test_gelu_tanh_and_mul_bench(M: int, N: int, dtype: torch.dtype) -> None:
 
 _STRATEGY_SHAPES = [(1024, 4096), (1024, 11008), (4096, 4096)]
 _STRATEGY_DTYPES = (torch.float16, torch.bfloat16, torch.float32)
-_STRATEGY_KERNELS = [
-    ("silu_and_mul", SiluAndMulFwdKernel),
-    ("gelu_and_mul", GeluAndMulFwdKernel),
-    ("gelu_tanh_and_mul", GeluTanhAndMulFwdKernel),
-]
-
-
-def _strategy_params():
-    """Default-strategy sentinel: shape and dtype axes on the first kernel, plus
-    one reference-point direct-vs-explicit sentinel per remaining kernel.
-
-    The three ops share the fused-gated wrapper but bind different activation
-    bodies, whose instruction and register cost can flip the direct-vs-explicit
-    result — so each kernel keeps a sentinel, without re-sweeping shapes.
-    """
-    (sweep_op, sweep_cls), sentinels = _STRATEGY_KERNELS[0], _STRATEGY_KERNELS[1:]
-    ref_shape, ref_dtype = _STRATEGY_SHAPES[0], torch.float16
-    params = []
-    for strategy in ("direct", "explicit_parallel"):
-        for M, N in _STRATEGY_SHAPES:
-            mark = pytest.mark.smoke if ref_shape == (M, N) else pytest.mark.full
-            params.append(pytest.param(sweep_op, M, N, ref_dtype, sweep_cls, strategy, marks=mark))
-        for dtype in _STRATEGY_DTYPES[1:]:
-            params.append(
-                pytest.param(
-                    sweep_op, *ref_shape, dtype, sweep_cls, strategy, marks=pytest.mark.full
-                )
-            )
-        for op_name, kernel_cls in sentinels:
-            params.append(
-                pytest.param(
-                    op_name, *ref_shape, ref_dtype, kernel_cls, strategy, marks=pytest.mark.full
-                )
-            )
-    return params
 
 
 class FusedGatedStrategyBenchFixture(FixtureBase):

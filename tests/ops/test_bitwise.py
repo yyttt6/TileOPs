@@ -15,6 +15,7 @@ from tileops.ops.elementwise import (
     BitwiseOrFwdOp,
     BitwiseXorFwdOp,
 )
+from workloads.device import DEVICE
 from workloads.elementwise import BitwiseNotWorkload, BitwiseWorkload
 
 # Shared helpers
@@ -147,8 +148,8 @@ def test_bitwise_broadcast(
     a_shape,
     b_shape,
 ) -> None:
-    a = torch.randint(-1000, 1000, a_shape, dtype=torch.int32, device="cuda")
-    b = torch.randint(-1000, 1000, b_shape, dtype=torch.int32, device="cuda")
+    a = torch.randint(-1000, 1000, a_shape, dtype=torch.int32, device=DEVICE)
+    b = torch.randint(-1000, 1000, b_shape, dtype=torch.int32, device=DEVICE)
     op = op_cls()
     ref = ref_fn(a, b)
     with torch.no_grad():
@@ -187,8 +188,8 @@ def test_bool_bitwise_fast_path(
     a_shape,
     b_shape,
 ) -> None:
-    a = torch.randint(0, 2, a_shape, device="cuda").bool()
-    b = torch.randint(0, 2, b_shape, device="cuda").bool()
+    a = torch.randint(0, 2, a_shape, device=DEVICE).bool()
+    b = torch.randint(0, 2, b_shape, device=DEVICE).bool()
     op = op_cls()
     ref = ref_fn(a, b)
     with torch.no_grad():
@@ -229,21 +230,6 @@ def test_bitwise_not(n_total: int, dtype: torch.dtype) -> None:
     test.check(op, *test.gen_inputs(), compare=exact_compare)
 
 
-@pytest.mark.parametrize(
-    "dtype",
-    [
-        pytest.param(torch.float16, marks=pytest.mark.smoke),
-        pytest.param(torch.bfloat16, marks=pytest.mark.smoke),
-        pytest.param(torch.float32, marks=pytest.mark.smoke),
-    ],
-)
-def test_bitwise_not_rejects_float_dtype(dtype: torch.dtype) -> None:
-    from tileops.kernels.elementwise import BitwiseNotFwdKernel
-
-    with pytest.raises(ValueError, match="only supports dtypes"):
-        BitwiseNotFwdKernel(N_total=16, dtype=dtype)
-
-
 # Dtype rejection tests for binary bitwise ops
 
 
@@ -267,6 +253,6 @@ def test_bitwise_binary_rejects_float_dtype(op_cls, dtype: torch.dtype) -> None:
     """Binary bitwise ops only support integer dtypes; floats must be rejected."""
     shape = (16,)
     op = op_cls()
-    x = torch.zeros(shape, device="cuda", dtype=dtype)
+    x = torch.zeros(shape, device=DEVICE, dtype=dtype)
     with pytest.raises(ValueError, match="has dtype|does not support dtype"):
         op(x, x)

@@ -51,10 +51,11 @@ Composite ops sum their primitives — `sigmoid = neg + exp + add + recip = 4` F
 
 ### 1.4 Compute Roof
 
-`Op.compute_roof()` returns the NPU-profile key (§5.1) of the unit that prices the op's FLOPs — `"cuda_core.fp32"`, `"tensor_core.bf16"`, `"tensor_core.fp8"`, ….
+`Op.compute_roof()` returns the NPU-profile key (§5.1) of the unit that prices the op's FLOPs — `"vector.fp32"`, `"cube.bf16"`, `"cube.fp16"`, …. The two unit names are the 910B1 AI Core's own: matrix contractions run on its **Cube** unit, everything else on its **Vector** unit.
 
 - The key states the unit an **optimal** implementation would use, declared by the op author in code. It is never inferred from the running kernel — that would price a kernel on the wrong unit against the wrong ceiling and hide exactly the gap the metric exists to expose. Nor from the input dtype alone — an fp8-backend attention takes fp16/bf16 tensors.
-- The `Op` base defaults to `"cuda_core.fp32"`, which covers every op whose arithmetic runs on CUDA cores in fp32 (elementwise, reductions, norms, scans). An op whose FLOPs are matmul contractions overrides it, normally with `tensor_core_roof(self.dtype)`; one whose unit depends on instance state (a backend switch, a quantized path) branches on that state.
+- The `Op` base defaults to `"vector.fp32"`, which covers every op whose arithmetic runs on the Vector unit in fp32 (elementwise, reductions, norms, scans). An op whose FLOPs are matmul contractions overrides it, normally with `cube_roof(self.dtype)`; one whose unit depends on instance state (a backend switch, a quantized path) branches on that state.
+- There is no `cube.fp8`. 910B1's Cube unit stops at 16 bits, so an FP8 request is a storage format the op dequantizes and contracts in fp16 — soft-FP8, priced at `cube.fp16`. `cube_roof()` raises on an fp8 dtype rather than quoting a ceiling the hardware does not have; the two ops that take an FP8 path return `"cube.fp16"` directly and say why at the return.
 - The declaration is valid whenever `eval_roofline()` is — after the op's dtype is bound.
 - A wrong or missing override is caught by the nightly physics check (§4.3): a Cube-unit kernel priced against the Vector-unit ceiling implies a FLOP rate above that ceiling's theoretical value, reported as a formula error on the next run.
 
@@ -310,17 +311,18 @@ A completeness test keeps the classification total: every implemented op is audi
 Hardware parameters use theoretical values with calibration factors from one-time microbenchmark measurements. A bandwidth calibration is the **envelope** over the measured access mixes (copy, Triad, pure read, pure write): a ceiling some legitimate mix can exceed is not a ceiling, and readings above 100% must stay reserved for formula errors; each mix's own measured fraction is kept as data (`calibration_mixes`), so a future per-mix ceiling reads it instead of re-measuring. YAML files store only measured values; `effective = theoretical × calibration` is computed by `load_profile()`:
 
 ```yaml
-# src/tileops/perf/profiles/<npu>.yaml
+# src/tileops/perf/profiles/ascend910b1.yaml
 hbm:
-  theoretical: 4800e9       # bytes/s, from spec sheet
-  calibration: 0.938        # microbench envelope over access mixes
-tensor_core:
+  theoretical: 1.650000e+12  # bytes/s
+  calibration: 0.647322974118  # measured 1-4 GiB STREAM-Triad plateau / estimate
+cube:
   fp16:
-    theoretical: 989.5e12   # FLOPS, from spec sheet
-    calibration: 0.75       # from microbench (cuBLAS peak)
+    theoretical: 3.788800e+14  # FLOPS: 25 cores x 1850 MHz x 16x16x16 MMAD x 2
+    calibration: 0.768044158423  # measured 290.997 TFLOPS / derived ceiling
+vector: {}  # not yet calibrated; see the file
 ```
 
-Profiles are stored in `src/tileops/perf/profiles/`. Microbenchmarks for calibration live in `benchmarks/hardware/`.
+Profiles are stored in `src/tileops/perf/profiles/`. `ascend910b1.yaml` is a copy of `tileops-ascend-harness/hw/ascend910b1.yaml`, the file the harness measures against, and every number in it carries its own provenance comment. Where a datasheet figure was unavailable — 910B1's HBM bus geometry is not in the installed CANN/OPP files — the theoretical value is an explicitly-stated estimate above the measured maximum, not a guess presented as a spec. A section with no measurement behind it is left empty rather than filled in: `resolve_roof` then returns `None` and the consumer leaves the compute ceiling blank.
 
 ### 5.2 Benchmark–Roofline Decoupling
 

@@ -7,6 +7,7 @@ from benchmarks.baselines import assert_matches_reference
 from benchmarks.benchmark_base import ManifestBenchmark, workload_params
 from tileops.manifest import load_workloads
 from tileops.ops import GroupedQueryAttentionPrefillFwdOp
+from workloads.device import DEVICE
 from workloads.gqa_fp8_utils import (
     quantize_kv_fa3_descale,
     quantize_q_fa3_gqa_descale,
@@ -45,26 +46,26 @@ def _make_inputs(case: GQAFp8TensorCoreBenchCase) -> tuple[torch.Tensor, ...]:
     torch.manual_seed(0)
     q = (
         torch.randn(
-            case.batch, case.seq_len, case.heads, case.dim, device="cuda", dtype=torch.float16
+            case.batch, case.seq_len, case.heads, case.dim, device=DEVICE, dtype=torch.float16
         )
         * 0.25
     )
     k = (
         torch.randn(
-            case.batch, case.seq_len, case.heads_kv, case.dim, device="cuda", dtype=torch.float16
+            case.batch, case.seq_len, case.heads_kv, case.dim, device=DEVICE, dtype=torch.float16
         )
         * 0.25
     )
     v = (
         torch.randn(
-            case.batch, case.seq_len, case.heads_kv, case.dim, device="cuda", dtype=torch.float16
+            case.batch, case.seq_len, case.heads_kv, case.dim, device=DEVICE, dtype=torch.float16
         )
         * 0.25
     )
     q_fp8, q_descale = quantize_q_fa3_gqa_descale(q, case.heads_kv)
     k_fp8, k_descale = quantize_kv_fa3_descale(k)
     v_fp8, v_descale = quantize_kv_fa3_descale(v)
-    cu = torch.tensor([0, case.seq_len], device="cuda", dtype=torch.int32)
+    cu = torch.tensor([0, case.seq_len], device=DEVICE, dtype=torch.int32)
     return (
         q_fp8.reshape(case.batch * case.seq_len, case.heads, case.dim).contiguous(),
         k_fp8.reshape(case.batch * case.seq_len, case.heads_kv, case.dim).contiguous(),
@@ -137,7 +138,7 @@ def _fa3_gqa_fp8_fwd(case: GQAFp8TensorCoreBenchCase):
 def test_gqa_prefill_fp8_tensor_core_bench(case: GQAFp8TensorCoreBenchCase) -> None:
     if not hasattr(torch, "float8_e4m3fn"):
         pytest.skip("torch fp8 is unavailable")
-    if not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 9:
+    if not torch.npu.is_available() or torch.cuda.get_device_capability()[0] < 9:
         pytest.skip("requires Hopper FP8 WGMMA")
 
     op = GroupedQueryAttentionPrefillFwdOp(
@@ -154,7 +155,7 @@ def test_gqa_prefill_fp8_tensor_core_bench(case: GQAFp8TensorCoreBenchCase) -> N
     )
     inputs = _make_inputs(case)
     op(*inputs)
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     bm = ManifestBenchmark(_OP_NAME, op, case)
     sdpa_fn = _torch_sdpa_dequant_fwd(case)

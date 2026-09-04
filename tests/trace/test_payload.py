@@ -6,6 +6,7 @@ import tilelang.language as T
 import torch
 
 from tileops.trace import trace
+from workloads.device import DEVICE
 
 # Mark all tests in this file as 'full' tier
 pytestmark = pytest.mark.full
@@ -71,7 +72,7 @@ def test_payload_with_range_start_end(preserve_trace_state, tmp_path):
     output_tensor, slots = result
 
     # Verify kernel output
-    expected = torch.arange(16, dtype=torch.float32, device="cuda")
+    expected = torch.arange(16, dtype=torch.float32, device=DEVICE)
     assert torch.allclose(output_tensor, expected)
 
     # Decode and verify payload is 42
@@ -145,7 +146,7 @@ def test_implicit_thread_blocks_with_payload_e2e(preserve_trace_state, tmp_path)
     output_tensor, slots = result
 
     # Verify kernel output
-    expected = torch.arange(16, dtype=torch.float32, device="cuda")
+    expected = torch.arange(16, dtype=torch.float32, device=DEVICE)
     assert torch.allclose(output_tensor, expected)
 
     # Decode and verify payload
@@ -192,7 +193,7 @@ def test_dynamic_payload_runtime_expr(preserve_trace_state, tmp_path):
     output_tensor, slots = result
 
     # Verify kernel output
-    expected = torch.tensor([0.0, 1.0, 2.0, 3.0], dtype=torch.float32, device="cuda")
+    expected = torch.tensor([0.0, 1.0, 2.0, 3.0], dtype=torch.float32, device=DEVICE)
     assert torch.allclose(output_tensor, expected)
 
     # Decode and verify payload values

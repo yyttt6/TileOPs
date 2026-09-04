@@ -17,6 +17,7 @@ import torch
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops.moe import MoeUnpermuteFwdOp
+from workloads.device import DEVICE
 from workloads.moe import MoeUnpermuteWorkload, ref_moe_unpermute
 
 
@@ -81,10 +82,10 @@ def test_moe_unpermute_skewed():
     """All tokens routed to expert 0 — fwd_idx maps all slots to first K padded positions."""
     T, K, H = 32, 4, 64
     numel = T * K
-    mm2_pad = torch.randn(numel, H, dtype=torch.bfloat16, device="cuda")
+    mm2_pad = torch.randn(numel, H, dtype=torch.bfloat16, device=DEVICE)
     # All flat_idx map to padded_slot in [0, K): fwd_idx[i*K+k] = k
-    fwd_idx = torch.arange(numel, dtype=torch.int32, device="cuda") % K
-    topk_weights = torch.rand(T, K, dtype=torch.float32, device="cuda")
+    fwd_idx = torch.arange(numel, dtype=torch.int32, device=DEVICE) % K
+    topk_weights = torch.rand(T, K, dtype=torch.float32, device=DEVICE)
 
     op = MoeUnpermuteFwdOp(T, K, H, padded_batch_sum=numel)
     output = op(mm2_pad, fwd_idx, topk_weights)

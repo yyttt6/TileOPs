@@ -21,7 +21,7 @@ description: Generate or re-align one `src/tileops/manifest/` entry from a refer
 | `signature.{inputs,outputs,params}`              | `family` (default: from sibling-entry copy or BLOCKED)                                                                            |
 | `signature.shape_rules`                          | `ref_api` (default: derived from `ref_url`'s last path segment)                                                                   |
 | `signature.dtype_combos`                         | `workloads` (default: `[]`)                                                                                                       |
-| `roofline.{flops,bytes,vars}` (well-known op)    | `source.{kernel,op,test,bench,kernel_map,bench_manifest_driven}` (default: from RESOLVE_SOURCES + `bench_manifest_driven: false`) |
+| `roofline.{flops,bytes,vars}` (well-known op)    | `source.{kernel,op,test,bench,bench_manifest_driven}` (default: from RESOLVE_SOURCES + `bench_manifest_driven: false`) |
 |                                                  | `status` (default: `spec-only`)                                                                                                   |
 |                                                  | Adjacent comments (best-effort)                                                                                                   |
 
@@ -75,7 +75,7 @@ Lookup is **class-based**, not filename-based — many TileOPs ops share a file 
    - Zero matches → true greenfield. Default to `tileops/ops/<snake_name>.py` (use a family subdirectory if a sibling-family entry suggests one). `<snake_name>` = `op_name` minus trailing `FwdOp` / `BwdOp`, snake_cased (`RMSNormFwdOp` → `rms_norm`). File may not exist yet; caller scaffolds afterward.
    - Multiple → BLOCKED disambiguation.
 1. **`source.kernel`** (required by L0; `fix-manifest` cannot fill it later):
-   - If `source.op` was found by class lookup: read its imports for a `Kernel` subclass; apply class-lookup under `src/tileops/kernels/**/*.py`. One match → that file. Multiple → BLOCKED disambiguation.
+   - `source.kernel`: the backend module whose `@register("<OpName>")` claims this op, found by grepping `src/tileops/kernels/families/*.py` for the manifest op name. No match → `kernel: null` with the reason on the line above.
    - No kernel import (kernel-less op) → `source.kernel = source.op`.
    - Otherwise → BLOCKED `evidence_needed: source.kernel for <op_name>`.
 1. `source.test = tests/ops/test_<snake_name>.py`; `source.bench = benchmarks/ops/bench_<snake_name>.py`. Missing files: record absent.

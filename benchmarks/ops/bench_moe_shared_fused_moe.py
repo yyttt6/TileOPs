@@ -216,7 +216,7 @@ def test_shared_fused_moe_bench(
         shared_w_gate_up=shared_w_gate_up,
         shared_w_down=shared_w_down,
     )  # warmup / JIT compile
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     def _tileops_fn(
         hidden, gating, w_gate_up, w_down, correction_bias, shared_w_gate_up, shared_w_down
@@ -263,7 +263,7 @@ def test_shared_fused_moe_bench(
         _vllm_fn(
             hidden, gating, correction_bias, w_gate_up, w_down, shared_w_gate_up, shared_w_down
         )  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["vllm"] = (
             _vllm_fn,

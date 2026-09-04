@@ -11,6 +11,7 @@ from tileops.ops import GroupedQueryAttentionDecodePagedWithKVCacheFwdOp
 from workloads.attention.gqa import (
     GroupedQueryAttentionDecodePagedWorkload,
 )
+from workloads.device import DEVICE
 
 
 class GroupedQueryAttentionDecodePagedTest(GroupedQueryAttentionDecodePagedWorkload, TestBase):
@@ -129,7 +130,7 @@ def test_gqa_decode_paged_non_divisible_128_page_split() -> None:
     q, k, v, real_seqlen_kv, block_table = test.gen_inputs()
     real_seqlen_kv.fill_(seqlen_kv)
     block_table.copy_(
-        torch.arange(seqlen_kv // page_size, device="cuda", dtype=torch.int32).flip(0).unsqueeze(0)
+        torch.arange(seqlen_kv // page_size, device=DEVICE, dtype=torch.int32).flip(0).unsqueeze(0)
     )
     op = GroupedQueryAttentionDecodePagedWithKVCacheFwdOp(
         batch, heads, heads_kv, seqlen_kv, dim, page_size

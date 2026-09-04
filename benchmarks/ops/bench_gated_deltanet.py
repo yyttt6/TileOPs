@@ -24,6 +24,7 @@ from benchmarks.benchmark_base import (
 )
 from tileops.manifest import load_workloads
 from tileops.ops import GatedDeltaNetBHTDFwdOp, GatedDeltaNetBTHDFwdOp, GatedDeltaNetBwdOp
+from workloads.device import DEVICE
 from workloads.linear_attention import GatedDeltaNetFwdWorkload
 
 
@@ -137,12 +138,12 @@ def test_gated_deltanet_vs_fla_bwd(
     test = GatedDeltaNetFwdWorkload(batch, heads, seq_len, dim_k, dim_v, chunk_size, dtype)
 
     B, H, S, DK, DV, BC = batch, heads, seq_len, dim_k, dim_v, chunk_size
-    q = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
-    g = -torch.rand(B, H, S, device="cuda", dtype=dtype)
-    beta = torch.rand(B, H, S, device="cuda", dtype=dtype) * 0.5
-    do = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
+    q = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
+    g = -torch.rand(B, H, S, device=DEVICE, dtype=dtype)
+    beta = torch.rand(B, H, S, device=DEVICE, dtype=dtype) * 0.5
+    do = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
 
     # --- TileOPs: fwd to get S, then profile bwd only ---
     fwd_op = GatedDeltaNetBHTDFwdOp(chunk_size=BC)

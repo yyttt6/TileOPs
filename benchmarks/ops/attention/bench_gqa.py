@@ -18,13 +18,6 @@ from benchmarks.ops.attention.workload_args import (
     gqa_prefill_paged_args,
     gqa_qkv_args,
 )
-from tileops.kernels.attention import (
-    GQAFwdWgmmaPipelinedKernel,
-    GQAFwdWsPersistentCausalKernel,
-    GQAFwdWsPersistentKernel,
-    GQAPrefillFwdKernel,
-    GQAPrefillFwdWsPersistentCausalKernel,
-)
 from tileops.manifest import load_workloads
 from tileops.ops import (
     GroupedQueryAttentionBwdOp,
@@ -235,21 +228,6 @@ def _torch_gqa_prefill_varlen_ref(test: GQAPrefillVarlenFwdWorkload):
     return fn
 
 
-def _tileops_gqa_variant(op: GroupedQueryAttentionFwdOp, dtype: torch.dtype) -> str:
-    kernel = op._get_kernel((), dtype)
-    if isinstance(kernel, GQAPrefillFwdWsPersistentCausalKernel):
-        return "prefill_ws_causal"
-    if isinstance(kernel, GQAPrefillFwdKernel):
-        return "prefill"
-    if isinstance(kernel, GQAFwdWsPersistentCausalKernel):
-        return "ws_causal"
-    if isinstance(kernel, GQAFwdWsPersistentKernel):
-        return "ws_noncausal"
-    if isinstance(kernel, GQAFwdWgmmaPipelinedKernel):
-        return "wgmma_pipelined"
-    return kernel.__class__.__name__
-
-
 # GQA forward benchmark parameters.
 #
 # Three head profiles cover the mainstream LLM GQA configurations:
@@ -267,42 +245,6 @@ def _tileops_gqa_variant(op: GroupedQueryAttentionFwdOp, dtype: torch.dtype) -> 
 _GQA_FWD_BENCH_PARAMS = workload_params(
     load_workloads(_GQA_FWD_OP), then_dtype(gqa_qkv_args, tune=True)
 )
-
-
-@pytest.mark.parametrize(
-    "batch, seq_len, heads, heads_kv, dim, causal, dtype, tune",
-    _GQA_FWD_BENCH_PARAMS,
-)
-def test_gqa_fwd_bench(
-    batch: int,
-    seq_len: int,
-    heads: int,
-    heads_kv: int,
-    dim: int,
-    causal: bool,
-    dtype: torch.dtype,
-    tune: bool,
-) -> None:
-    test = GroupedQueryAttentionFwdWorkload(batch, heads, heads_kv, seq_len, dim, causal, dtype)
-    inputs = test.gen_inputs()
-
-    op = GroupedQueryAttentionFwdOp(batch, heads, heads_kv, seq_len, dim, causal, tune=tune)
-    bm = ManifestBenchmark(_GQA_FWD_OP, op, test)
-    tileops_variant = _tileops_gqa_variant(op, dtype)
-    functors = {f"tileops_{tileops_variant}": op}
-
-    fa3_fn = _fa3_gqa_fwd(test)
-    if fa3_fn is not None:
-        functors["fa3"] = fa3_fn
-
-    fi_fn = _flashinfer_gqa_fwd(test, *inputs)
-    if fi_fn is not None:
-        functors["flashinfer"] = fi_fn
-
-    if fa3_fn is None and fi_fn is None:
-        functors["torch-sdpa"] = _torch_gqa_fwd(test)
-
-    bm.compare(functors, *inputs, record_as=op, params=locals())
 
 
 # GQA backward benchmark parameters (training only).

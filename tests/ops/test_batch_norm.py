@@ -12,6 +12,7 @@ import torch
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops.norm.batch_norm import BatchNormBwdOp, BatchNormFwdOp
+from workloads.device import DEVICE
 from workloads.normalization import (
     BatchNormBwdWorkload,
     BatchNormFwdWorkload,
@@ -158,16 +159,16 @@ def test_batch_norm_fwd_returns_single_tensor() -> None:
     """BatchNormFwdOp forward must produce one tensor — manifest declares
     a single output. ``training`` is bound at ctor; the runtime kwarg is
     no longer accepted."""
-    if not torch.cuda.is_available():
+    if not torch.npu.is_available():
         pytest.skip("CUDA required for forward call")
 
     N, C, H, W = 4, 8, 4, 4
     op = BatchNormFwdOp(training=False)
-    x = torch.randn(N, C, H, W, device="cuda", dtype=torch.float16)
-    weight = torch.randn(C, device="cuda", dtype=torch.float32)
-    bias = torch.randn(C, device="cuda", dtype=torch.float32)
-    rm = torch.zeros(C, device="cuda", dtype=torch.float32)
-    rv = torch.ones(C, device="cuda", dtype=torch.float32)
+    x = torch.randn(N, C, H, W, device=DEVICE, dtype=torch.float16)
+    weight = torch.randn(C, device=DEVICE, dtype=torch.float32)
+    bias = torch.randn(C, device=DEVICE, dtype=torch.float32)
+    rm = torch.zeros(C, device=DEVICE, dtype=torch.float32)
+    rv = torch.ones(C, device=DEVICE, dtype=torch.float32)
 
     y = op(x, rm, rv, weight, bias)
     assert isinstance(y, torch.Tensor)
@@ -177,17 +178,17 @@ def test_batch_norm_fwd_returns_single_tensor() -> None:
 @pytest.mark.smoke
 def test_training_updates_a_non_contiguous_running_stat() -> None:
     """Contiguity normalization must not swallow the write a mutated input promises."""
-    if not torch.cuda.is_available():
+    if not torch.npu.is_available():
         pytest.skip("CUDA required for forward call")
 
     N, C, H, W = 4, 8, 4, 4
     op = BatchNormFwdOp(training=True)
-    x = torch.randn(N, C, H, W, device="cuda", dtype=torch.float16)
-    weight = torch.ones(C, device="cuda", dtype=torch.float32)
-    bias = torch.zeros(C, device="cuda", dtype=torch.float32)
+    x = torch.randn(N, C, H, W, device=DEVICE, dtype=torch.float16)
+    weight = torch.ones(C, device=DEVICE, dtype=torch.float32)
+    bias = torch.zeros(C, device=DEVICE, dtype=torch.float32)
     # Every other element of a wider buffer: a view the kernel cannot be handed as is.
-    rm = torch.zeros(2 * C, device="cuda", dtype=torch.float32)[::2]
-    rv = torch.ones(2 * C, device="cuda", dtype=torch.float32)[::2]
+    rm = torch.zeros(2 * C, device=DEVICE, dtype=torch.float32)[::2]
+    rv = torch.ones(2 * C, device=DEVICE, dtype=torch.float32)[::2]
     assert not rm.is_contiguous()
 
     op(x, rm, rv, weight, bias)

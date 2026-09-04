@@ -8,6 +8,7 @@ from tests.ops.gla_test_utils import (
 )
 from tests.test_base import FixtureBase
 from tileops.ops import GLABwdOp, GLAFwdOp
+from workloads.device import DEVICE
 
 
 def gla_autograd_bwd_torch(do, q, k, v, g, chunk_size, scale=-1.0):
@@ -93,11 +94,11 @@ def test_gla_bwd(
     B, T, H, K, V, BC = batch, seq_len, heads, dim_k, dim_v, chunk_size
 
     # GLA layout: BTHD — [B, T, H, K/V]
-    q = torch.randn(B, T, H, K, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, T, H, K, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, T, H, V, device="cuda", dtype=dtype) * 0.1
-    g = -torch.rand(B, T, H, K, device="cuda", dtype=dtype)
-    do = torch.randn(B, T, H, V, device="cuda", dtype=dtype) * 0.1
+    q = torch.randn(B, T, H, K, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, T, H, K, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, T, H, V, device=DEVICE, dtype=dtype) * 0.1
+    g = -torch.rand(B, T, H, K, device=DEVICE, dtype=dtype)
+    do = torch.randn(B, T, H, V, device=DEVICE, dtype=dtype) * 0.1
 
     scale = K**-0.5
 
@@ -125,7 +126,7 @@ def test_gla_bwd(
     o_fwd, _ = fwd_op.forward(q, k, v, g)
     h = fwd_op.kernel._h_out  # [B, NT+1, H, K, V] in fp32
 
-    dht = torch.zeros(B, H, K, V, device="cuda", dtype=torch.float32)
+    dht = torch.zeros(B, H, K, V, device=DEVICE, dtype=torch.float32)
     bwd_op = GLABwdOp(chunk_size=BC, scale=scale, tune=tune)
     op_dq, op_dk, op_dv, op_dg = bwd_op.forward(q, k, v, g, h, do, dht)
     op_grads = {"dq": op_dq, "dk": op_dk, "dv": op_dv, "dg": op_dg}

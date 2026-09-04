@@ -26,7 +26,7 @@ from tileops.ops.moe import SharedFusedMoE
 
 # Skip entire module if fewer than 2 GPUs
 pytestmark = pytest.mark.skipif(
-    torch.cuda.device_count() < 2,
+    torch.npu.device_count() < 2,
     reason="Distributed TP tests require at least 2 GPUs",
 )
 
@@ -64,7 +64,7 @@ def _setup_vllm_distributed(tp_size: int) -> tuple[int, int]:
     if "RANK" not in os.environ:
         pytest.skip("Not launched via torchrun — distributed env vars not set")
 
-    actual_gpus = torch.cuda.device_count()
+    actual_gpus = torch.npu.device_count()
     if actual_gpus < tp_size:
         pytest.skip(f"Test requires {tp_size} GPUs, got {actual_gpus}")
 
@@ -77,7 +77,7 @@ def _setup_vllm_distributed(tp_size: int) -> tuple[int, int]:
     if world_size != tp_size:
         pytest.skip(f"Test requires exactly {tp_size} processes, got {world_size}")
 
-    torch.cuda.set_device(rank)
+    torch.npu.set_device(rank)
 
     # Initialize vLLM model parallel groups (wraps the existing process group)
     with set_current_vllm_config(VllmConfig()):

@@ -3,8 +3,8 @@ import torch
 import torch.nn.functional as F
 
 from tests.test_base import FixtureBase, TestBase
-from tileops.kernels.norm.ada_layer_norm import AdaLayerNormKernel
 from tileops.ops.norm.ada_layer_norm_zero import AdaLayerNormZeroFwdOp
+from workloads.device import DEVICE
 from workloads.normalization import AdaLayerNormZeroWorkload
 
 
@@ -55,43 +55,6 @@ def test_ada_layer_norm_zero_op(m: int, n: int, dtype: torch.dtype) -> None:
     test.check(op, *test.gen_inputs(), atol=atol, rtol=rtol)
 
 
-@pytest.mark.smoke
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
-def test_ada_layer_norm_zero_kernel_handles_natural_unaligned_shape(
-    dtype: torch.dtype,
-) -> None:
-    m, n = 16, 1152
-    test = AdaLayerNormZeroTest(m, n, dtype)
-    inputs = test.gen_inputs()
-    kernel = AdaLayerNormKernel(n, test.eps, dtype, has_gate=True)
-    actual = kernel(*inputs)
-    expected = test.ref_program(*inputs)
-    assert actual.shape == (m, n)
-    atol, rtol = _get_tolerances(dtype)
-    torch.testing.assert_close(actual, expected, atol=atol, rtol=rtol)
-
-
-@pytest.mark.smoke
-def test_ada_layer_norm_zero_async_copy_handles_row_tail() -> None:
-    """Regression: the async 2-D tile must support block_m > 1 and tail rows."""
-    m, n, block_m = 17, 514, 4
-    dtype = torch.float16
-    test = AdaLayerNormZeroTest(m, n, dtype)
-    inputs = test.gen_inputs()
-    kernel = AdaLayerNormKernel(
-        n,
-        test.eps,
-        dtype,
-        has_gate=True,
-        config={"block_m": block_m, "threads": 128},
-    )
-    assert kernel.use_cp_async
-    actual = kernel(*inputs)
-    expected = test.ref_program(*inputs)
-    atol, rtol = _get_tolerances(dtype)
-    torch.testing.assert_close(actual, expected, atol=atol, rtol=rtol)
-
-
 class AdaLayerNormZero3DFixture(FixtureBase):
     PARAMS = [
         (
@@ -108,10 +71,10 @@ class AdaLayerNormZero3DFixture(FixtureBase):
 @AdaLayerNormZero3DFixture
 def test_ada_layer_norm_zero_3d(batch: int, seq: int, hidden: int, dtype: torch.dtype) -> None:
     """Test with 3D input (batch, seq, hidden)."""
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    scale = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    shift = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    gate = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    scale = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    shift = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    gate = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
 
     op = AdaLayerNormZeroFwdOp()
 

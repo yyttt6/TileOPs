@@ -41,7 +41,7 @@ def test_moe_grouped_gemm_nopad_bench(
 
     # Warmup: trigger JIT compilation before timed profiling.
     op(a, b, true_sizes, true_offsets)
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     # PyTorch baseline: per-expert NT matmul.
     sizes_l = true_sizes.tolist()
@@ -58,7 +58,7 @@ def test_moe_grouped_gemm_nopad_bench(
         return out
 
     _torch_fn(a, b, true_sizes, true_offsets)  # warmup
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     bm.compare(
         {

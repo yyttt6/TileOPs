@@ -43,7 +43,7 @@ SiluAndMulFwdOp:
     bytes: "3 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
+    kernel: src/tileops/kernels/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_fused_gated.py
     bench: benchmarks/ops/bench_binary_elementwise.py
@@ -82,7 +82,7 @@ GeluAndMulFwdOp:
     bytes: "3 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
+    kernel: src/tileops/kernels/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_fused_gated.py
     bench: benchmarks/ops/bench_binary_elementwise.py
@@ -122,7 +122,7 @@ GeluTanhAndMulFwdOp:
     bytes: "3 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise_activation.py
+    kernel: src/tileops/kernels/families/elementwise_activation.py
     op: tileops/ops/elementwise/activations.py
     test: tests/ops/test_fused_gated.py
     bench: benchmarks/ops/bench_binary_elementwise.py

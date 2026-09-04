@@ -14,6 +14,8 @@ from typing import Any, Callable, TypeVar
 
 import torch
 
+from workloads.device import DEVICE
+
 _F = TypeVar("_F", bound=Callable[..., Any])
 
 
@@ -42,7 +44,7 @@ class RandnWorkload(WorkloadBase):
         self.dtype = dtype
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
-        x = torch.randn(*self.shape, dtype=self.dtype, device="cuda")
+        x = torch.randn(*self.shape, dtype=self.dtype, device=DEVICE)
         return (x,)
 
 

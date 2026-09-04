@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from einops import einsum, rearrange, repeat
 
+from workloads.device import DEVICE
 from workloads.nsa_utils import prepare_chunk_offsets, prepare_token_indices
 from workloads.workload_base import WorkloadBase
 
@@ -49,46 +50,46 @@ class NsaFwdWorkload(WorkloadBase):
                 ],
                 0,
             )
-            .cuda()
+            .to(DEVICE)
             .sort()[0]
         )
 
-        perm_q = torch.randperm(self.c_seq_len, device="cuda")
-        perm_k = torch.randperm(self.c_seq_len, device="cuda")
-        perm_v = torch.randperm(self.c_seq_len, device="cuda")
+        perm_q = torch.randperm(self.c_seq_len, device=DEVICE)
+        perm_k = torch.randperm(self.c_seq_len, device=DEVICE)
+        perm_v = torch.randperm(self.c_seq_len, device=DEVICE)
         q = (
-            torch.linspace(0, 1, steps=self.c_seq_len, dtype=self.dtype, device="cuda")[perm_q]
+            torch.linspace(0, 1, steps=self.c_seq_len, dtype=self.dtype, device=DEVICE)[perm_q]
             .view(1, self.c_seq_len, 1, 1)
             .expand(1, self.c_seq_len, self.heads, self.dim)
             .clone()
             .requires_grad_(True)
         )
         k = (
-            torch.linspace(0, 1, steps=self.c_seq_len, dtype=self.dtype, device="cuda")[perm_k]
+            torch.linspace(0, 1, steps=self.c_seq_len, dtype=self.dtype, device=DEVICE)[perm_k]
             .view(1, self.c_seq_len, 1, 1)
             .expand(1, self.c_seq_len, self.head_kv, self.dim)
             .clone()
             .requires_grad_(True)
         )
         v = (
-            torch.linspace(0, 1, steps=self.c_seq_len, dtype=self.dtype, device="cuda")[perm_v]
+            torch.linspace(0, 1, steps=self.c_seq_len, dtype=self.dtype, device=DEVICE)[perm_v]
             .view(1, self.c_seq_len, 1, 1)
             .expand(1, self.c_seq_len, self.head_kv, self.dim)
             .clone()
             .requires_grad_(True)
         )
         self.o_slc = torch.empty(
-            (self.batch, self.c_seq_len, self.heads, self.dim), dtype=self.dtype, device="cuda"
+            (self.batch, self.c_seq_len, self.heads, self.dim), dtype=self.dtype, device=DEVICE
         )
         self.lse_slc = torch.empty(
-            (self.batch, self.c_seq_len, self.heads, self.dim), dtype=torch.float, device="cuda"
+            (self.batch, self.c_seq_len, self.heads, self.dim), dtype=torch.float, device=DEVICE
         )
 
         self.g_slc = torch.ones(
-            (self.batch, self.c_seq_len, self.heads), dtype=self.dtype, device="cuda"
+            (self.batch, self.c_seq_len, self.heads), dtype=self.dtype, device=DEVICE
         ).requires_grad_(True)
         self.g_swa = torch.ones(
-            (self.batch, self.c_seq_len, self.heads), dtype=self.dtype, device="cuda"
+            (self.batch, self.c_seq_len, self.heads), dtype=self.dtype, device=DEVICE
         ).requires_grad_(True)
 
         token_indices = prepare_token_indices(offsets)
@@ -97,7 +98,7 @@ class NsaFwdWorkload(WorkloadBase):
             (1, self.c_seq_len, self.head_kv, self.selected_blocks),
             self.c_seq_len,
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
         )
 
         for i in range(self.c_seq_len):
@@ -112,7 +113,7 @@ class NsaFwdWorkload(WorkloadBase):
             self.selected_blocks + 1,
             (1, self.c_seq_len, self.head_kv),
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
         )
         return (
             q.squeeze(0),
@@ -300,7 +301,7 @@ class NsaCmpFwdWorkload(WorkloadBase):
                 ],
                 0,
             )
-            .cuda()
+            .to(DEVICE)
             .sort()[0]
             .to(torch.int32)
         )
@@ -310,9 +311,9 @@ class NsaCmpFwdWorkload(WorkloadBase):
         chunk_num = chunk_offsets[-1].item()
 
         # float16, data Tie-breaking
-        q = torch.randn((self.c_seq_len, self.heads, self.dim_k), dtype=self.dtype, device="cuda")
-        k = torch.randn((chunk_num, self.head_kv, self.dim_k), dtype=self.dtype, device="cuda")
-        v = torch.randn((chunk_num, self.head_kv, self.dim_v), dtype=self.dtype, device="cuda")
+        q = torch.randn((self.c_seq_len, self.heads, self.dim_k), dtype=self.dtype, device=DEVICE)
+        k = torch.randn((chunk_num, self.head_kv, self.dim_k), dtype=self.dtype, device=DEVICE)
+        v = torch.randn((chunk_num, self.head_kv, self.dim_v), dtype=self.dtype, device=DEVICE)
 
         self.chunk_num = chunk_offsets[-1].item()
         return (
@@ -382,7 +383,7 @@ class NsaTopkWorkload(WorkloadBase):
                 ],
                 0,
             )
-            .cuda()
+            .to(DEVICE)
             .sort()[0]
         )
 
@@ -392,15 +393,15 @@ class NsaTopkWorkload(WorkloadBase):
 
         # float16, data Tie-breaking
         q = (
-            torch.randn((self.c_seq_len, self.heads, self.dim), dtype=self.dtype, device="cuda")
+            torch.randn((self.c_seq_len, self.heads, self.dim), dtype=self.dtype, device=DEVICE)
             * 0.1
         )
-        k = torch.randn((chunk_num, self.head_kv, self.dim), dtype=self.dtype, device="cuda") * 0.1
+        k = torch.randn((chunk_num, self.head_kv, self.dim), dtype=self.dtype, device=DEVICE) * 0.1
 
         q.requires_grad_(True)
         k.requires_grad_(True)
 
-        lse = torch.zeros((self.c_seq_len, self.heads), dtype=self.dtype, device="cuda")
+        lse = torch.zeros((self.c_seq_len, self.heads), dtype=self.dtype, device=DEVICE)
 
         self.chunk_num = chunk_offsets[-1].item()
         return (
@@ -455,13 +456,13 @@ class MlaDecodeWorkload(WorkloadBase):
         self.dtype = dtype
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        Q = torch.randn(self.batch, self.heads, self.dim, device="cuda", dtype=self.dtype)
-        Q_pe = torch.randn(self.batch, self.heads, self.dim_pe, device="cuda", dtype=self.dtype)
+        Q = torch.randn(self.batch, self.heads, self.dim, device=DEVICE, dtype=self.dtype)
+        Q_pe = torch.randn(self.batch, self.heads, self.dim_pe, device=DEVICE, dtype=self.dtype)
         K = torch.randn(
-            self.batch, self.seq_len_kv, self.heads_kv, self.dim, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len_kv, self.heads_kv, self.dim, device=DEVICE, dtype=self.dtype
         )
         K_pe = torch.randn(
-            self.batch, self.seq_len_kv, self.heads_kv, self.dim_pe, device="cuda", dtype=self.dtype
+            self.batch, self.seq_len_kv, self.heads_kv, self.dim_pe, device=DEVICE, dtype=self.dtype
         )
         return Q, Q_pe, K, K_pe
 
@@ -550,7 +551,7 @@ class DsaDecodeWorkload(WorkloadBase):
             self.seq_len,
             self.heads,
             self.dim + self.dim_tail,
-            device="cuda",
+            device=DEVICE,
             dtype=self.dtype,
         )
         kv = torch.randn(
@@ -558,14 +559,14 @@ class DsaDecodeWorkload(WorkloadBase):
             self.seq_len_kv,
             self.heads_kv,
             self.dim + self.dim_tail,
-            device="cuda",
+            device=DEVICE,
             dtype=self.dtype,
         )
         indices = torch.full(
             (self.batch, self.seq_len, self.heads_kv, self.topk),
             self.seq_len_kv,
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
         )
         for b in range(self.batch):
             for t in range(self.seq_len):

@@ -43,7 +43,7 @@ MoePermuteAlignFwdOp:
     bytes: "total_tokens * top_k * 4 + (total_tokens * top_k + (num_experts + 1) * (block_size - 1)) * 4 + ceil((total_tokens * top_k + (num_experts + 1) * (block_size - 1)) / block_size) * 4 + 4"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/moe.py
+    kernel: src/tileops/kernels/families/moe.py
     op: tileops/ops/moe/permute_align.py
     test: tests/ops/test_moe_permute_align.py
     bench: benchmarks/ops/bench_moe_permute_align.py
@@ -118,7 +118,7 @@ MoePermuteNopadFwdOp:
     func: "tileops.perf.formulas.moe_permute_nopad_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/moe.py
+    kernel: src/tileops/kernels/families/moe.py
     op: tileops/ops/moe/routed_expert/permute_nopad.py
     test: tests/ops/test_moe_permute_nopad.py
     bench: benchmarks/ops/bench_moe_permute_nopad.py
@@ -167,7 +167,7 @@ MoeUnpermuteFwdOp:
     bytes: "(total_tokens * top_k * hidden_size + total_tokens * hidden_size) * elem_bytes + total_tokens * top_k * 4 + total_tokens * top_k * 4"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/moe.py
+    kernel: src/tileops/kernels/families/moe.py
     op: tileops/ops/moe/routed_expert/unpermute.py
     test: tests/ops/test_moe_unpermute.py
     bench: benchmarks/ops/bench_moe_unpermute.py
@@ -206,7 +206,7 @@ MoeGroupedGemmNopadFwdOp:
     bytes: "(numel * k + num_experts * n * k + numel * n) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/moe.py
+    kernel: src/tileops/kernels/families/moe.py
     op: tileops/ops/moe/routed_expert/moe_grouped_gemm_nopad.py
     test: tests/ops/test_moe_grouped_gemm_nopad.py
     bench: benchmarks/ops/bench_moe_grouped_gemm_nopad.py
@@ -328,7 +328,7 @@ FusedMoEExpertsNopadPersistent3WGFwdOp:
     bytes: "(num_experts_local * 3 * ffn_size * hidden_size + 2 * num_tokens * hidden_size) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/moe.py
+    kernel: src/tileops/kernels/families/moe.py
     op: tileops/ops/moe/routed_expert/fused_routed_expert.py
     test: tests/ops/test_fused_moe_experts.py
     bench: benchmarks/ops/bench_fused_moe_experts.py
@@ -381,7 +381,7 @@ FusedMoeFwdOp:
     func: "tileops.perf.formulas.fused_moe_fwd_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/moe.py
+    kernel: src/tileops/kernels/families/moe.py
     op: tileops/ops/moe/fused_moe.py
     test: tests/ops/test_moe_fused_moe.py
     bench: benchmarks/ops/bench_moe_fused_moe.py

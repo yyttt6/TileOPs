@@ -16,7 +16,6 @@ import torch
 import torch.nn.functional as F
 
 from benchmarks.benchmark_base import ManifestBenchmark, workload_params
-from tileops.kernels.pool.common import pool_output_dim
 from tileops.manifest import load_workloads
 from tileops.ops import (
     AdaptiveAvgPool2dFwdOp,
@@ -141,7 +140,7 @@ class _Cudnn:
         self.version = self._lib.cudnnGetVersion()
         self.handle = ctypes.c_void_p()
         self._check(self._lib.cudnnCreate(ctypes.byref(self.handle)), "cudnnCreate")
-        stream = ctypes.c_void_p(torch.cuda.current_stream().cuda_stream)
+        stream = ctypes.c_void_p(torch.npu.current_stream().cuda_stream)
         self._check(self._lib.cudnnSetStream(self.handle, stream), "cudnnSetStream")
         self._owned: list = []
 
@@ -275,124 +274,6 @@ class _Cudnn:
             for cfg in cfgs[: got.value]:
                 self.destroy(cfg)
         raise RuntimeError(f"no cuDNN engine supports this resample graph (cuDNN {self.version})")
-
-
-def cudnn_pool_fn(
-    kind: str,
-    kernel_size: tuple,
-    stride: tuple,
-    padding: tuple,
-    ceil_mode: bool,
-    count_include_pad: bool = True,
-    dilation: tuple = (1, 1),
-    divisor_override: Optional[int] = None,
-    return_indices: bool = False,
-) -> Optional[Callable[[torch.Tensor], torch.Tensor]]:
-    """Return a direct-cuDNN pooling callable, or None where Resample cannot express it.
-
-    ``kernel_size`` / ``stride`` / ``padding`` are per-spatial-dim tuples, 2D or 3D.
-    Resample has no dilation and no divisor_override, and its index output is a backward
-    mask rather than torch's indices.
-    """
-    if return_indices:
-        return None
-    if any(d != 1 for d in dilation):
-        return None
-    if kind == "avg" and divisor_override is not None:
-        return None
-    if kind not in ("avg", "max"):
-        return None
-
-    c = _Cudnn.get()
-    ndim = len(kernel_size)
-    if kind == "max":
-        mode, pad_mode = _RESAMPLE_MAXPOOL, _NEG_INF_PAD
-    elif count_include_pad:
-        mode, pad_mode = _RESAMPLE_AVGPOOL_INCLUDE, _ZERO_PAD
-    else:
-        mode, pad_mode = _RESAMPLE_AVGPOOL_EXCLUDE, _ZERO_PAD
-
-    def _build(x: torch.Tensor, out_spatial: tuple, cudnn_dtype: int):
-        in_spatial = x.shape[2:]
-        out_shape = tuple(x.shape[:2]) + tuple(out_spatial)
-        y_proto = torch.empty(out_shape, device=x.device, dtype=x.dtype)
-        # Tensor descriptors must be created before the resample descriptor:
-        # with the reverse creation order the operation fails to finalize
-        # with CUDNN_STATUS_BAD_PARAM (observed on cuDNN 9.20).
-        x_desc = c.tensor_desc(0, cudnn_dtype, tuple(x.shape), tuple(x.stride()))
-        y_desc = c.tensor_desc(1, cudnn_dtype, out_shape, tuple(y_proto.stride()))
-
-        # post padding sized so every claimed output window is defined;
-        # ceil_mode needs more than the symmetric pre padding.
-        post = [
-            max(p, (o - 1) * s + w - n - p)
-            for n, o, s, p, w in zip(
-                in_spatial, out_spatial, stride, padding, kernel_size, strict=True
-            )
-        ]
-        resample = c.create(_DESC_RESAMPLE)
-        c.set(resample, _ATTR_RESAMPLE_MODE, _TYPE_RESAMPLE_MODE, [mode], "mode")
-        c.set(resample, _ATTR_RESAMPLE_COMP_TYPE, _TYPE_DATA_TYPE, [_CUDNN_DATA_FLOAT], "comp")
-        # Propagating costs ~19% of the kernel on an H200 max-pool, and torch propagates:
-        # the cheaper mode returns a number where torch returns NaN.
-        c.set(resample, _ATTR_RESAMPLE_NAN, _TYPE_NAN, [_PROPAGATE_NAN], "nan")
-        c.set(resample, _ATTR_RESAMPLE_PADDING_MODE, _TYPE_PADDING_MODE, [pad_mode], "padmode")
-        c.set(resample, _ATTR_RESAMPLE_SPATIAL_DIMS, _TYPE_INT64, [ndim], "spatial")
-        c.set(resample, _ATTR_RESAMPLE_WINDOW, _TYPE_FRACTION, list(kernel_size), "window")
-        c.set(resample, _ATTR_RESAMPLE_STRIDES, _TYPE_FRACTION, list(stride), "strides")
-        c.set(resample, _ATTR_RESAMPLE_PRE_PAD, _TYPE_FRACTION, list(padding), "pre pad")
-        c.set(resample, _ATTR_RESAMPLE_POST_PAD, _TYPE_FRACTION, post, "post pad")
-        c.finalize_or_raise(resample, "resample")
-
-        operation = c.create(_DESC_OP_RESAMPLE_FWD)
-        c.set(operation, _ATTR_OP_RESAMPLE_XDESC, _TYPE_BACKEND_DESCRIPTOR, [x_desc], "x")
-        c.set(operation, _ATTR_OP_RESAMPLE_YDESC, _TYPE_BACKEND_DESCRIPTOR, [y_desc], "y")
-        c.set(operation, _ATTR_OP_RESAMPLE_DESC, _TYPE_BACKEND_DESCRIPTOR, [resample], "rdesc")
-        c.finalize_or_raise(operation, "operation")
-
-        op_graph = c.create(_DESC_OPGRAPH)
-        c.set(op_graph, _ATTR_OPGRAPH_HANDLE, _TYPE_HANDLE, [c.handle.value], "g handle")
-        c.set(op_graph, _ATTR_OPGRAPH_OPS, _TYPE_BACKEND_DESCRIPTOR, [operation], "ops")
-        c.finalize_or_raise(op_graph, "opgraph")
-        plan, workspace_bytes = c.build_plan(op_graph)
-        workspace = (
-            torch.empty(workspace_bytes, device=x.device, dtype=torch.int8)
-            if workspace_bytes > 0
-            else None
-        )
-        return out_shape, plan, workspace
-
-    state: dict = {}  # per-(shape, dtype) plan cache
-
-    def run(x: torch.Tensor) -> torch.Tensor:
-        key = (tuple(x.shape), x.dtype)
-        entry = state.get(key)
-        if entry is None:
-            out_spatial = tuple(
-                pool_output_dim(n, k, s, p, ceil_mode)
-                for n, k, s, p in zip(x.shape[2:], kernel_size, stride, padding, strict=True)
-            )
-            entry = _build(x, out_spatial, _CUDNN_DTYPES[x.dtype])
-            state[key] = entry
-        out_shape, plan, workspace = entry
-        y = torch.empty(out_shape, device=x.device, dtype=x.dtype)
-        varpack = c.create(_DESC_VARPACK, keep=False)
-        c.set(varpack, _ATTR_VARPACK_UIDS, _TYPE_INT64, [0, 1], "uids")
-        c.set(
-            varpack,
-            _ATTR_VARPACK_PTRS,
-            _TYPE_VOID_PTR,
-            [x.data_ptr(), y.data_ptr()],
-            "ptrs",
-        )
-        if workspace is not None:
-            c.set(varpack, _ATTR_VARPACK_WORKSPACE, _TYPE_VOID_PTR, [workspace.data_ptr()], "ws")
-        c.finalize_or_raise(varpack, "varpack")
-        c.execute(plan, varpack)
-        c.destroy(varpack)
-        return y
-
-    return run
 
 
 def flaggems_pool_fn(
@@ -566,37 +447,6 @@ def compiled_reference(test):
     """
     torch._dynamo.reset()
     return torch.compile(test.ref_program, dynamic=False)
-
-
-def pool_baseline(op_name: str, test, *inputs) -> tuple:
-    """Return (tag, callable) for op_name's baseline.
-
-    An op this table does not name, and a case the selected library cannot express,
-    take the torch reference; the tag says so in the report. A selected library that
-    is missing raises instead: silently reporting torch under a case that claims a
-    library baseline is how a benchmark ends up measuring nothing it says it does.
-    """
-    selected = _BASELINE.get(op_name)
-    if selected is None:
-        return "torch-ref", test.ref_program
-
-    choice, kind, ndim = selected
-    kernel = _as_tuple(test.kernel_size, ndim)
-    stride = kernel if test.stride is None else _as_tuple(test.stride, ndim)
-    kwargs = dict(
-        count_include_pad=getattr(test, "count_include_pad", True),
-        dilation=_as_tuple(getattr(test, "dilation", 1), ndim),
-        divisor_override=getattr(test, "divisor_override", None),
-    )
-    if kind == "max":
-        kwargs["return_indices"] = getattr(test, "return_indices", False)
-
-    factory = cudnn_pool_fn if choice == "cudnn" else flaggems_pool_fn
-    fn = factory(kind, kernel, stride, _as_tuple(test.padding, ndim), test.ceil_mode, **kwargs)
-    if fn is None:
-        return "torch-ref", test.ref_program
-    _assert_matches_reference(fn, test, inputs)
-    return choice, fn
 
 
 _ADAPTIVE_AVG_POOL2D_OP_NAME = "AdaptiveAvgPool2dFwdOp"

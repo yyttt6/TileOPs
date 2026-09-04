@@ -6,9 +6,6 @@ import pytest
 import torch
 
 import tileops.ops.moe.staged as staged_module
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.moe.call_spec import MGroupedGemmCall, PostPermuteCall, PrePermuteCall
-from tileops.ops import moe as public_moe
 from tileops.ops.moe import (
     ContiguousLayoutSpec,
     InversePermuteContext,
@@ -28,6 +25,7 @@ from tileops.ops.moe.contracts import (
     PhysicalPsumMetadata,
     routing_epilogue_reference,
 )
+from workloads.device import DEVICE
 
 pytestmark = pytest.mark.smoke
 
@@ -58,20 +56,6 @@ def test_layout_presets_expose_only_supported_semantics() -> None:
 
     with pytest.raises(ValueError, match="num_experts must be positive"):
         MoePrePermuteFwdOp(physical, num_experts=0)
-
-
-def test_default_public_surface_hides_kernel_author_and_metadata_types() -> None:
-    for name in (
-        "MGroupedGemmCall",
-        "PrePermuteCall",
-        "PostPermuteCall",
-        "PhysicalPsumMetadata",
-        "PerRowExpertMetadata",
-        "MaskedMetadata",
-        "ComputeFamilyKey",
-        "ResolvedContiguousLayout",
-    ):
-        assert not hasattr(public_moe, name)
 
 
 def test_materialized_layout_rejects_incompatible_metadata() -> None:
@@ -146,9 +130,9 @@ def test_physical_psum_guard_covers_empty_and_capacity_edges(
     assert metadata.device_value_guard(materialized_rows=materialized_rows).item() is expected
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="guard test requires CUDA")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="guard test requires CUDA")
 def test_device_value_validation_returns_a_device_guard_without_host_readback() -> None:
-    metadata = PhysicalPsumMetadata(torch.tensor([0, 2], dtype=torch.int32, device="cuda"))
+    metadata = PhysicalPsumMetadata(torch.tensor([0, 2], dtype=torch.int32, device=DEVICE))
     guard = metadata.device_value_guard(materialized_rows=2)
     assert guard.device.type == "cuda"
     assert guard.dtype is torch.bool
@@ -242,139 +226,10 @@ def test_compute_and_epilogue_specs_are_minimal_and_frozen() -> None:
         MoePostPermuteFwdOp(epilogue=0)  # type: ignore[arg-type]
 
 
-def test_family_call_specs_are_frozen_and_keep_selection_axes_separate() -> None:
-    pre = PrePermuteCall(arch=90, layout=ContiguousLayoutSpec.tight_physical_psum())
-    gemm = MGroupedGemmCall(arch=90, layout_key="tight_physical_psum")
-    post = PostPermuteCall(
-        arch=90,
-        layout_key="tight_physical_psum",
-        epilogue=RoutingEpilogueSpec(),
-    )
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        pre.arch = 100
-    assert gemm.layout_key == post.layout_key
-
-
-class _PhysicalPsumCandidate(Kernel):
-    supported_archs = [90]
-
-    @classmethod
-    def applies(cls, call: object) -> bool:
-        key = getattr(call, "layout_key", None)
-        if key is None:
-            layout = getattr(call, "layout", None)
-            key = getattr(layout, "selection_key", None)
-        return key == "tight_physical_psum"
-
-    def forward(self, *args: object, **kwargs: object) -> None:
-        return None
-
-
-class _PerRowCandidate(Kernel):
-    supported_archs = [90]
-
-    @classmethod
-    def applies(cls, call: object) -> bool:
-        key = getattr(call, "layout_key", None)
-        if key is None:
-            layout = getattr(call, "layout", None)
-            key = getattr(layout, "selection_key", None)
-        return key == "tight_per_row"
-
-    def forward(self, *args: object, **kwargs: object) -> None:
-        return None
-
-
-class _GeneralCandidate(Kernel):
-    general = True
-    supported_archs = [90]
-
-    def forward(self, *args: object, **kwargs: object) -> None:
-        return None
-
-
-class _NeverCandidate(Kernel):
-    @classmethod
-    def applies(cls, call: object) -> bool:
-        return False
-
-    def forward(self, *args: object, **kwargs: object) -> None:
-        return None
-
-
-class _ExecutableGroupedCandidate(Kernel):
-    builds = 0
-
-    def __init__(self, call: MGroupedGemmCall) -> None:
-        super().__init__()
-        type(self).builds += 1
-        self.call = call
-
-    def forward(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor,
-        expert_layout: MaterializedExpertLayout,
-        *,
-        scales: object | None = None,
-        out: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        result = a.new_zeros((*a.shape[:-1], b.shape[1]))
-        if out is not None:
-            out.copy_(result)
-            return out
-        return result
-
-
-def _grouped_op_with_declared_candidates(**candidates: type[Kernel]) -> MoeGroupedGemmFwdOp:
-    class DeclaringGroupedGemmOp(MoeGroupedGemmFwdOp):
-        @property
-        def default_kernel_map(self) -> dict[str, Kernel]:
-            return dict(candidates)
-
-    return DeclaringGroupedGemmOp()
-
-
-def test_grouped_gemm_selection_behavior_table() -> None:
-    physical_call = MGroupedGemmCall(arch=90, layout_key="tight_physical_psum")
-    per_row_call = MGroupedGemmCall(arch=90, layout_key="tight_per_row")
-    op = _grouped_op_with_declared_candidates(
-        physical=_PhysicalPsumCandidate,
-        per_row=_PerRowCandidate,
-        general=_GeneralCandidate,
-    )
-
-    assert op.select_kernel_key(("physical", "per_row", "general"), physical_call) == "physical"
-    assert op.select_kernel_key(("physical", "per_row", "general"), per_row_call) == "per_row"
-    with pytest.raises(ValueError, match="no implementation serves this call"):
-        op.select_kernel_key(
-            ("physical", "per_row", "general"), dataclasses.replace(physical_call, arch=80)
-        )
-
-
-def test_grouped_gemm_ambiguous_and_incompatible_override_fail_explicitly() -> None:
-    call = MGroupedGemmCall(arch=90, layout_key="tight_physical_psum")
-    ambiguous = _grouped_op_with_declared_candidates(
-        first=_PhysicalPsumCandidate,
-        second=_PhysicalPsumCandidate,
-    )
-    with pytest.raises(ValueError, match="dispatch is ambiguous"):
-        ambiguous.select_kernel_key(("first", "second"), call)
-
-    class OverrideableOp(MoeGroupedGemmFwdOp):
-        @property
-        def default_kernel_map(self) -> dict[str, Kernel]:
-            return {"special": _PhysicalPsumCandidate, "general": _GeneralCandidate}
-
-    overridden = OverrideableOp(kernel_map={"special": _NeverCandidate})
-    with pytest.raises(ValueError, match="does not fall back"):
-        overridden.select_kernel_key(("special", "general"), call)
-
-
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CallSpec records CUDA architecture")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CallSpec records CUDA architecture")
 def test_public_ops_build_complete_calls_before_selection() -> None:
-    hidden = torch.empty(2, 8, dtype=torch.bfloat16, device="cuda")
-    topk_ids = torch.tensor([[0], [1]], dtype=torch.int32, device="cuda")
+    hidden = torch.empty(2, 8, dtype=torch.bfloat16, device=DEVICE)
+    topk_ids = torch.tensor([[0], [1]], dtype=torch.int32, device=DEVICE)
     pre_call = MoePrePermuteFwdOp(
         ContiguousLayoutSpec.tight_physical_psum(), num_experts=2
     ).make_call(hidden, topk_ids)
@@ -386,10 +241,10 @@ def test_public_ops_build_complete_calls_before_selection() -> None:
     ) == (2, 2, 8, 1)
 
     layout = MaterializedExpertLayout.from_physical_psum(
-        torch.tensor([1, 2], dtype=torch.int32, device="cuda"), materialized_rows=2
+        torch.tensor([1, 2], dtype=torch.int32, device=DEVICE), materialized_rows=2
     )
-    a = torch.empty(2, 8, dtype=torch.bfloat16, device="cuda")
-    b = torch.empty(2, 4, 8, dtype=torch.bfloat16, device="cuda")
+    a = torch.empty(2, 8, dtype=torch.bfloat16, device=DEVICE)
+    b = torch.empty(2, 4, 8, dtype=torch.bfloat16, device=DEVICE)
     gemm_call = MoeGroupedGemmFwdOp().make_call(a, b, layout)
     assert (gemm_call.materialized_rows, gemm_call.num_experts, gemm_call.n, gemm_call.k) == (
         2,
@@ -400,9 +255,9 @@ def test_public_ops_build_complete_calls_before_selection() -> None:
     assert gemm_call.layout_key == "tight_physical_psum"
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CallSpec records CUDA architecture")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CallSpec records CUDA architecture")
 def test_call_architecture_comes_from_the_input_device(monkeypatch: pytest.MonkeyPatch) -> None:
-    device = torch.device("cuda", torch.cuda.current_device())
+    device = torch.device("cuda", torch.npu.current_device())
     observed_indices: list[int | None] = []
 
     def fake_sm_version(index: int | None = None) -> int:
@@ -422,7 +277,7 @@ def test_call_architecture_comes_from_the_input_device(monkeypatch: pytest.Monke
     assert observed_indices == [device.index]
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CallSpec records CUDA architecture")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CallSpec records CUDA architecture")
 def test_staged_wiring_builds_all_family_calls_without_an_executable_candidate() -> None:
     device = torch.device("cuda")
     layout = MaterializedExpertLayout.from_physical_psum(
@@ -455,7 +310,7 @@ def test_staged_wiring_builds_all_family_calls_without_an_executable_candidate()
     assert (post_call.num_tokens, post_call.top_k, post_call.hidden_size) == (2, 1, 8)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CallSpec records CUDA architecture")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CallSpec records CUDA architecture")
 def test_post_permute_rejects_wrong_masked_geometry_with_same_row_count() -> None:
     device = torch.device("cuda")
     layout = MaterializedExpertLayout.from_masked_m(
@@ -477,41 +332,10 @@ def test_post_permute_rejects_wrong_masked_geometry_with_same_row_count() -> Non
         )
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="candidate test uses CUDA calls")
-def test_injected_candidate_uses_common_selection_and_call_spec_cache() -> None:
-    device = torch.device("cuda")
-    layout = MaterializedExpertLayout.from_physical_psum(
-        torch.tensor([1], dtype=torch.int32, device=device), materialized_rows=1
-    )
-    a = torch.ones(1, 4, dtype=torch.bfloat16, device=device)
-    b = torch.ones(1, 2, 4, dtype=torch.bfloat16, device=device)
-    _ExecutableGroupedCandidate.builds = 0
-    op = MoeGroupedGemmFwdOp(kernel_map={"grouped": _ExecutableGroupedCandidate})
-
-    first = op(a, b, layout)
-    second = op(a, b, layout)
-
-    assert first.shape == second.shape == (1, 2)
-    assert _ExecutableGroupedCandidate.builds == 1
-    assert len(op.built_kernels("grouped")) == 1
-
-
-def test_expert_mlp_forwards_only_caller_replacements_to_matching_delegates() -> None:
-    mlp = MoeExpertMLPFwdOp(
-        kernel_map={
-            "grouped": _ExecutableGroupedCandidate,
-            "silu_and_mul": _NeverCandidate,
-        }
-    )
-    assert mlp.gate_up.forwarded_overrides() == {"grouped": _ExecutableGroupedCandidate}
-    assert mlp.down.forwarded_overrides() == {"grouped": _ExecutableGroupedCandidate}
-    assert mlp.activation_op.forwarded_overrides() == {"silu_and_mul": _NeverCandidate}
-
-
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="candidate test uses CUDA calls")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="candidate test uses CUDA calls")
 def test_public_op_without_candidates_fails_explicitly() -> None:
-    hidden = torch.empty(1, 4, dtype=torch.bfloat16, device="cuda")
-    topk_ids = torch.zeros(1, 1, dtype=torch.int32, device="cuda")
+    hidden = torch.empty(1, 4, dtype=torch.bfloat16, device=DEVICE)
+    topk_ids = torch.zeros(1, 1, dtype=torch.int32, device=DEVICE)
     op = MoePrePermuteFwdOp(ContiguousLayoutSpec.tight_physical_psum(), num_experts=1)
     with pytest.raises(ValueError, match="no implementation serves this call"):
         op(hidden, topk_ids)

@@ -5,6 +5,7 @@ import torch
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops import FP8LightningIndexerFwdOp
+from workloads.device import DEVICE
 from workloads.fp8_lightning_indexer import FP8LightningIndexerWorkload
 
 
@@ -78,14 +79,14 @@ def test_indexer(
 def test_indexer_rejects_bf16_inputs_with_external_scale() -> None:
     op = FP8LightningIndexerFwdOp()
     batch, seq_len, heads, index_dim, seq_len_kv, kv_group = 1, 8, 4, 16, 16, 1
-    index_q = torch.randn(batch, seq_len, heads, index_dim, device="cuda", dtype=torch.bfloat16)
+    index_q = torch.randn(batch, seq_len, heads, index_dim, device=DEVICE, dtype=torch.bfloat16)
     index_k = torch.randn(
-        batch, seq_len_kv, kv_group, index_dim, device="cuda", dtype=torch.bfloat16
+        batch, seq_len_kv, kv_group, index_dim, device=DEVICE, dtype=torch.bfloat16
     )
-    weights = torch.randn(seq_len, heads, device="cuda", dtype=torch.float32)
-    cu_seqlen_ks = torch.zeros(seq_len, device="cuda", dtype=torch.int32)
-    cu_seqlen_ke = torch.full((seq_len,), seq_len_kv, device="cuda", dtype=torch.int32)
-    index_k_scale = torch.ones(batch, seq_len_kv, kv_group, device="cuda", dtype=torch.float32)
+    weights = torch.randn(seq_len, heads, device=DEVICE, dtype=torch.float32)
+    cu_seqlen_ks = torch.zeros(seq_len, device=DEVICE, dtype=torch.int32)
+    cu_seqlen_ke = torch.full((seq_len,), seq_len_kv, device=DEVICE, dtype=torch.int32)
+    index_k_scale = torch.ones(batch, seq_len_kv, kv_group, device=DEVICE, dtype=torch.float32)
 
     with pytest.raises(ValueError, match="float8_e4m3fn"):
         op(index_q, index_k, weights, cu_seqlen_ks, cu_seqlen_ke, index_k_scale)

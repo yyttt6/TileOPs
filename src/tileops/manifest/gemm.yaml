@@ -49,7 +49,7 @@ GemmFwdOp:
     func: "tileops.perf.formulas.gemm_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
+    kernel: src/tileops/kernels/families/gemm.py
     op: tileops/ops/gemm/gemm.py
     test: tests/ops/test_gemm.py
     bench: benchmarks/ops/bench_gemm.py
@@ -140,7 +140,7 @@ GemmW4A16FwdOp:
     func: "tileops.perf.formulas.gemm_w4a16_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
+    kernel: src/tileops/kernels/families/gemm.py
     op: tileops/ops/gemm/gemm.py
     test: tests/ops/test_gemm.py
     bench: benchmarks/ops/bench_gemm.py
@@ -188,7 +188,7 @@ GroupedGemmFwdOp:
     func: "tileops.perf.formulas.grouped_gemm_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
+    kernel: src/tileops/kernels/families/gemm.py
     op: tileops/ops/gemm/grouped_gemm.py
     test: tests/ops/test_grouped_gemm.py
     bench: benchmarks/ops/bench_grouped_gemm.py

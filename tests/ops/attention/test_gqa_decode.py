@@ -2,7 +2,6 @@ import pytest
 import torch
 
 from tests.test_base import FixtureBase, TestBase
-from tileops.kernels.attention.gqa_decode import GQADecodeKernel
 from tileops.ops import GroupedQueryAttentionDecodeWithKVCacheFwdOp
 from workloads.attention.gqa import (
     GroupedQueryAttentionDecodeWorkload,
@@ -69,70 +68,6 @@ def test_gqa_decode_softmax_controls(sm_scale: float | None, softcap: float | No
         softcap=softcap,
     )
     test.check(op, *test.gen_inputs(), atol=1e-2, rtol=1e-2)
-
-
-@pytest.mark.smoke
-def test_gqa_decode_default_split_policy() -> None:
-    qwen_like = GQADecodeKernel(1, 16, 2, 8192, 128, dtype="float16")
-    assert qwen_like.config["num_split"] == 32
-
-    short_qwen_like = GQADecodeKernel(1, 16, 2, 8, 128, dtype="float16")
-    assert short_qwen_like.config["num_split"] == 8
-
-    llama_like = GQADecodeKernel(1, 40, 8, 8192, 128, dtype="float16")
-    assert llama_like.config["num_split"] == 16
-
-    batched_qwen_like = GQADecodeKernel(8, 16, 2, 8192, 128, dtype="float16")
-    assert batched_qwen_like.config["num_split"] == 16
-
-
-@pytest.mark.smoke
-def test_gqa_decode_split_policy_filters_short_kv_autotune_configs() -> None:
-    kernel = GQADecodeKernel(1, 16, 2, 8, 128, dtype="float16")
-    assert {cfg["num_split"] for cfg in kernel.autotune_configs} == {2, 4, 8}
-
-    tiny_kernel = GQADecodeKernel(1, 16, 2, 1, 128, dtype="float16")
-    assert tiny_kernel.config["num_split"] == 1
-    assert {cfg["num_split"] for cfg in tiny_kernel.autotune_configs} == {1}
-
-
-@pytest.mark.smoke
-def test_gqa_decode_rejects_non_positive_groups() -> None:
-    with pytest.raises(ValueError, match="groups must be positive"):
-        GQADecodeKernel(1, 16, 0, 8192, 128, dtype="float16")
-
-
-@pytest.mark.smoke
-def test_gqa_decode_rejects_non_divisible_heads() -> None:
-    with pytest.raises(ValueError, match="heads must be divisible by groups"):
-        GQADecodeKernel(1, 15, 2, 8192, 128, dtype="float16")
-
-
-@pytest.mark.smoke
-def test_gqa_decode_rejects_non_positive_seqlen_kv() -> None:
-    with pytest.raises(ValueError, match="seqlen_kv must be positive"):
-        GQADecodeKernel(1, 16, 2, 0, 128, dtype="float16")
-
-
-@pytest.mark.smoke
-def test_gqa_decode_bs1_dispatch() -> None:
-    """batch=1 fp16 dim-128 requests select the WS kernel; other dtypes/shapes fall back."""
-    op = GroupedQueryAttentionDecodeWithKVCacheFwdOp(1, 32, 4, 8192, 128)
-    kernel = op._get_kernel((), torch.float16)
-    assert kernel.__class__.__name__ == "GQADecodeBs1Kernel"
-    assert kernel._select_tier(6000) == "ctx"
-    assert kernel._select_tier(1024) == "ctx"
-    assert kernel._select_tier(512) == "no_split"
-    assert kernel._ctx_splits_for(8192) == 32
-    assert kernel._ctx_splits_for(2048) == 16
-    assert kernel._ctx_splits_for(3072) == 8
-
-    # The same instance falls back for bfloat16 — the element type is an input
-    # to the choice, so one op serves both paths.
-    assert op._get_kernel((), torch.bfloat16).__class__.__name__ == "GQADecodeKernel"
-
-    op_batched = GroupedQueryAttentionDecodeWithKVCacheFwdOp(4, 32, 4, 4096, 128)
-    assert op_batched._get_kernel((), torch.float16).__class__.__name__ == "GQADecodeKernel"
 
 
 @pytest.mark.smoke

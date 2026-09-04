@@ -167,7 +167,7 @@ def test_permute_align_bench(
 
     # Warmup: trigger JIT compilation before timed profiling
     op(*inputs)
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops": op}
 
@@ -189,7 +189,7 @@ def test_permute_align_bench(
 
     # Warmup Triton baseline
     _triton_fn(*inputs)
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors["triton"] = _triton_fn
 
@@ -215,7 +215,7 @@ def test_permute_align_bench(
 
         # Warmup sgl-kernel baseline
         _sgl_fn(*inputs)
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["sgl-kernel"] = _sgl_fn
 

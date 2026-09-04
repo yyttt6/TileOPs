@@ -2,9 +2,9 @@ import pytest
 import torch
 
 from tests.test_base import FixtureBase, TestBase
-from tileops.kernels.linear_attention.gated_deltanet.prefill import cp_fwd
 from tileops.ops import GatedDeltaNetPrefillBHTDFwdOp, GatedDeltaNetPrefillBTHDFwdOp
 from tileops.perf.formulas import gated_deltanet_prefill_fwd_roofline
+from workloads.device import DEVICE
 from workloads.linear_attention import (
     GatedDeltaNetPrefillFwdWorkload,
     compute_w_u_torch,
@@ -408,74 +408,16 @@ PARTITIONS_PER_SEQUENCE = 2
 RAW_BATCH = 2
 
 
-@pytest.fixture
-def poisoned_empty(monkeypatch):
-    """Hand `correct_initial_states` an output full of NaN instead of a fresh block."""
-    real_empty = torch.empty
-
-    def _empty(*args, **kwargs):
-        out = real_empty(*args, **kwargs)
-        if out.is_cuda and out.is_floating_point():
-            out.fill_(float("nan"))
-        return out
-
-    monkeypatch.setattr(cp_fwd.torch, "empty", _empty)
-    yield
-    # Without this the NaN returns to the allocator and reaches whatever runs next.
-    torch.cuda.empty_cache()
-
-
 def _inputs(fallback: bool):
     cp_batch = RAW_BATCH * PARTITIONS_PER_SEQUENCE
-    ht = torch.randn(cp_batch, CP_H, CP_DK, CP_DV, dtype=torch.float16, device="cuda")
-    mt = torch.randn(cp_batch, CP_H, CP_DK, CP_DK, dtype=torch.float16, device="cuda")
-    mask = torch.full((cp_batch, CP_H), fallback, dtype=torch.bool, device="cuda")
+    ht = torch.randn(cp_batch, CP_H, CP_DK, CP_DV, dtype=torch.float16, device=DEVICE)
+    mt = torch.randn(cp_batch, CP_H, CP_DK, CP_DK, dtype=torch.float16, device=DEVICE)
+    mask = torch.full((cp_batch, CP_H), fallback, dtype=torch.bool, device=DEVICE)
     seq_map_r2c = torch.tensor(
         [i * PARTITIONS_PER_SEQUENCE for i in range(RAW_BATCH + 1)],
         dtype=torch.int32,
-        device="cuda",
+        device=DEVICE,
     )
     return ht, mt, mask, seq_map_r2c
 
 
-@pytest.mark.parametrize(
-    "fallback",
-    [
-        pytest.param(False, marks=pytest.mark.smoke),
-        pytest.param(True, marks=pytest.mark.full),
-    ],
-)
-@pytest.mark.hopper
-def test_every_partition_is_written_without_a_raw_initial_state(poisoned_empty, fallback):
-    """The loop writes `seq_start_idx + i_s + 1` only, so the first partition is the
-    one at risk; with no incoming state it must be zero."""
-    ht, mt, mask, seq_map_r2c = _inputs(fallback)
-    cp_h0 = cp_fwd.correct_initial_states(None, ht, mt, mask, seq_map_r2c)
-
-    unwritten = torch.isnan(cp_h0).flatten(1).any(dim=1).nonzero().flatten().tolist()
-    assert not unwritten, f"partitions left as allocated: {unwritten}"
-
-    first_of_each = seq_map_r2c[:-1].tolist()
-    for partition in first_of_each:
-        assert torch.equal(cp_h0[partition], torch.zeros_like(cp_h0[partition]))
-
-
-@pytest.mark.parametrize(
-    "fallback",
-    [
-        pytest.param(False, marks=pytest.mark.smoke),
-        pytest.param(True, marks=pytest.mark.full),
-    ],
-)
-@pytest.mark.hopper
-def test_every_partition_is_written_with_a_raw_initial_state(poisoned_empty, fallback):
-    """With an incoming state, each sequence's first partition carries it verbatim."""
-    ht, mt, mask, seq_map_r2c = _inputs(fallback)
-    raw_h0 = torch.randn(RAW_BATCH, CP_H, CP_DK, CP_DV, dtype=torch.float32, device="cuda")
-    cp_h0 = cp_fwd.correct_initial_states(raw_h0, ht, mt, mask, seq_map_r2c)
-
-    unwritten = torch.isnan(cp_h0).flatten(1).any(dim=1).nonzero().flatten().tolist()
-    assert not unwritten, f"partitions left as allocated: {unwritten}"
-
-    for raw_index, partition in enumerate(seq_map_r2c[:-1].tolist()):
-        torch.testing.assert_close(cp_h0[partition], raw_h0[raw_index])

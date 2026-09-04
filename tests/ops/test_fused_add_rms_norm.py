@@ -3,6 +3,7 @@ import torch
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops.norm.fused_add_rms_norm import FusedAddRMSNormFwdOp
+from workloads.device import DEVICE
 from workloads.normalization import FusedAddRMSNormWorkload
 
 
@@ -64,11 +65,11 @@ class FusedAddRMSNormNonContigFixture(FixtureBase):
 @FusedAddRMSNormNonContigFixture
 def test_fused_add_rms_norm_non_contiguous(m: int, n: int, dtype: torch.dtype) -> None:
     """Test with non-contiguous input (sliced tensor)."""
-    x_full = torch.randn(m, n * 2, dtype=dtype, device="cuda")
-    r_full = torch.randn(m, n * 2, dtype=dtype, device="cuda")
+    x_full = torch.randn(m, n * 2, dtype=dtype, device=DEVICE)
+    r_full = torch.randn(m, n * 2, dtype=dtype, device=DEVICE)
     x = x_full[:, :n]  # non-contiguous slice
     residual = r_full[:, :n]
-    weight = torch.randn(n, dtype=dtype, device="cuda")
+    weight = torch.randn(n, dtype=dtype, device=DEVICE)
 
     op = FusedAddRMSNormFwdOp()
 
@@ -101,9 +102,9 @@ class FusedAddRMSNorm3DFixture(FixtureBase):
 @FusedAddRMSNorm3DFixture
 def test_fused_add_rms_norm_3d(batch: int, seq: int, hidden: int, dtype: torch.dtype) -> None:
     """Test with 3D input (batch, seq, hidden)."""
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    residual = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    weight = torch.randn(hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    residual = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    weight = torch.randn(hidden, dtype=dtype, device=DEVICE)
 
     M = batch * seq
     op = FusedAddRMSNormFwdOp()

@@ -25,8 +25,8 @@ def _get_env_metadata() -> list[str]:
     lines.append(f"- **Torch version**: {torch.__version__}")
     lines.append(f"- **CUDA version (torch)**: {torch.version.cuda or 'N/A'}")
 
-    if torch.cuda.is_available():
-        gpu_name = torch.cuda.get_device_name(0)
+    if torch.npu.is_available():
+        gpu_name = torch.npu.get_device_name(0)
         lines.append(f"- **GPU model**: {gpu_name}")
     else:
         lines.append("- **GPU model**: N/A (no CUDA device)")

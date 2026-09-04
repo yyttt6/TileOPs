@@ -168,10 +168,13 @@ known-first-party = ["tileops"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "benchmarks/tests"]
 python_files = ["test_*.py", "bench_*.py"]
+# tests/npu holds hardware probes and per-round evidence scripts: they need a real
+# 910B1, a CANN install and the measurement harness, so they are run by hand rather
+# than collected. Naming a file on the command line still collects it.
+norecursedirs = ["npu"]
 markers = [
     "smoke: fast PR critical-path tests",
     "full: standard correctness coverage",
     "nightly: exhaustive or long-running coverage",
     "packaging: minimal wheel-install sanity check (one case per op family)",
-    "hopper: needs compute capability 9.x; skipped elsewhere, never skipped on Hopper",
 ]

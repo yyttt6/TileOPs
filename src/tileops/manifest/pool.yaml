@@ -46,7 +46,7 @@ AvgPool1dFwdOp:
     bytes: "(N * C * L_in + N * C * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -107,7 +107,7 @@ AvgPool2dFwdOp:
     bytes: "(N * C * H_in * W_in + N * C * out_H * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -175,7 +175,7 @@ AvgPool3dFwdOp:
     bytes: "(N * C * D_in * H_in * W_in + N * C * out_D * out_H * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -232,7 +232,7 @@ MaxPool1dFwdOp:
     bytes: "(N * C * L_in + N * C * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -288,7 +288,7 @@ MaxPool1dIndicesFwdOp:
     bytes: "(N * C * L_in + N * C * out_W) * elem_bytes + N * C * out_W * 8"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -356,7 +356,7 @@ MaxPool2dFwdOp:
     bytes: "(N * C * H_in * W_in + N * C * out_H * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -424,7 +424,7 @@ MaxPool2dIndicesFwdOp:
     bytes: "(N * C * H_in * W_in + N * C * out_H * out_W) * elem_bytes + N * C * out_H * out_W * 8"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -504,7 +504,7 @@ MaxPool3dFwdOp:
     bytes: "(N * C * D_in * H_in * W_in + N * C * out_D * out_H * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -584,7 +584,7 @@ MaxPool3dIndicesFwdOp:
     bytes: "(N * C * D_in * H_in * W_in + N * C * out_D * out_H * out_W) * elem_bytes + N * C * out_D * out_H * out_W * 8"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -640,7 +640,7 @@ AdaptiveAvgPool2dFwdOp:
     bytes: "(N * C * H_in * W_in + N * C * out_H * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -695,7 +695,7 @@ AdaptiveMaxPool2dFwdOp:
     bytes: "(N * C * H_in * W_in + N * C * out_H * out_W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py
@@ -751,7 +751,7 @@ AdaptiveMaxPool2dIndicesFwdOp:
     bytes: "(N * C * H_in * W_in + N * C * out_H * out_W) * elem_bytes + N * C * out_H * out_W * 8"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/pool.py
+    kernel: src/tileops/kernels/families/pool.py
     op: tileops/ops/pool.py
     test: tests/ops/test_pool.py
     bench: benchmarks/ops/bench_pool.py

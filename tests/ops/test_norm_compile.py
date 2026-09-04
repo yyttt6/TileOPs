@@ -19,13 +19,14 @@ from tileops.ops.norm import (
     InstanceNormFwdOp,
     LayerNormFwdOp,
 )
+from workloads.device import DEVICE
 
 _DTYPE = torch.float16
 _N = 256
 
 
 def _x(*shape, dtype=_DTYPE):
-    return torch.randn(*shape, dtype=dtype, device="cuda")
+    return torch.randn(*shape, dtype=dtype, device=DEVICE)
 
 
 def _cases():

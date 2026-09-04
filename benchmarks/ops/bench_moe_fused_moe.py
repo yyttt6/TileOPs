@@ -131,7 +131,7 @@ def _run_bench(
     op = FusedMoeFwdOp(**common_kwargs)
     bm = FusedMoeBenchmark(test, op)
     op(*forward_args_tileops)  # warmup / JIT compile
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops": op}
 
@@ -157,7 +157,7 @@ def _run_bench(
             return out
 
         _vllm_fn(hidden, gating, correction_bias, w_gate_up, w_down)
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["vllm"] = (
             _vllm_fn,
@@ -203,7 +203,7 @@ def _run_bench(
             return (output_buf * routed_scaling_factor).to(hidden.dtype)
 
         _ref_fn(hidden, gating, correction_bias, w_gate_up, w_down)
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["torch-ref"] = (
             _ref_fn,

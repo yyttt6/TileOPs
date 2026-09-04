@@ -39,7 +39,7 @@ PreluFwdOp:
     bytes: "(2 * N + W) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/prelu.py
     test: tests/ops/test_activation.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -81,7 +81,7 @@ MaskedFillFwdOp:
     func: "tileops.perf.formulas.masked_fill_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/masked_fill.py
     test: tests/ops/test_special_elementwise_conformance.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -121,7 +121,7 @@ MaskedFillScalarFwdOp:
     func: "tileops.perf.formulas.masked_fill_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/masked_fill.py
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -152,7 +152,7 @@ AddFwdOp:
     func: "tileops.perf.formulas.add_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -181,7 +181,7 @@ SubFwdOp:
     func: "tileops.perf.formulas.sub_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -208,7 +208,7 @@ MulFwdOp:
     func: "tileops.perf.formulas.mul_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -238,7 +238,7 @@ DivFwdOp:
     func: "tileops.perf.formulas.div_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -265,7 +265,7 @@ RemainderFwdOp:
     func: "tileops.perf.formulas.remainder_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -292,7 +292,7 @@ PowFwdOp:
     func: "tileops.perf.formulas.pow_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -319,7 +319,7 @@ FloorDivideFwdOp:
     func: "tileops.perf.formulas.floor_divide_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -351,7 +351,7 @@ LerpFwdOp:
     func: "tileops.perf.formulas.lerp_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -378,7 +378,7 @@ MaximumFwdOp:
     func: "tileops.perf.formulas.maximum_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -405,7 +405,7 @@ MinimumFwdOp:
     func: "tileops.perf.formulas.minimum_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/arithmetic.py
     test: tests/ops/test_binary_arith.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -432,7 +432,7 @@ EqFwdOp:
     func: "tileops.perf.formulas.eq_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/comparison.py
     test: tests/ops/test_comparison.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -459,7 +459,7 @@ NeFwdOp:
     func: "tileops.perf.formulas.ne_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/comparison.py
     test: tests/ops/test_comparison.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -486,7 +486,7 @@ GtFwdOp:
     func: "tileops.perf.formulas.gt_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/comparison.py
     test: tests/ops/test_comparison.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -513,7 +513,7 @@ LtFwdOp:
     func: "tileops.perf.formulas.lt_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/comparison.py
     test: tests/ops/test_comparison.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -540,7 +540,7 @@ GeFwdOp:
     func: "tileops.perf.formulas.ge_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/comparison.py
     test: tests/ops/test_comparison.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -567,7 +567,7 @@ LeFwdOp:
     func: "tileops.perf.formulas.le_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/comparison.py
     test: tests/ops/test_comparison.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -594,7 +594,7 @@ LogicalAndFwdOp:
     func: "tileops.perf.formulas.logical_and_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/logical.py
     test: tests/ops/test_logical.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -621,7 +621,7 @@ LogicalOrFwdOp:
     func: "tileops.perf.formulas.logical_or_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/logical.py
     test: tests/ops/test_logical.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -648,7 +648,7 @@ BitwiseAndFwdOp:
     func: "tileops.perf.formulas.bitwise_and_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/bitwise.py
     test: tests/ops/test_bitwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -675,7 +675,7 @@ BitwiseOrFwdOp:
     func: "tileops.perf.formulas.bitwise_or_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/bitwise.py
     test: tests/ops/test_bitwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
@@ -702,7 +702,7 @@ BitwiseXorFwdOp:
     func: "tileops.perf.formulas.bitwise_xor_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/elementwise.py
+    kernel: src/tileops/kernels/families/elementwise.py
     op: tileops/ops/elementwise/bitwise.py
     test: tests/ops/test_bitwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py

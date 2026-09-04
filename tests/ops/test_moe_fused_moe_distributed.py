@@ -27,7 +27,7 @@ from tileops.ops.moe.fused_moe import FusedMoeFwdOp
 # Skip all tests in this module if not launched via torchrun or not enough GPUs
 pytestmark = [
     pytest.mark.skipif(
-        torch.cuda.device_count() < 2,
+        torch.npu.device_count() < 2,
         reason="Distributed tests require at least 2 GPUs",
     ),
     pytest.mark.skipif(
@@ -51,7 +51,7 @@ def setup_distributed():
     if not dist.is_available():
         pytest.skip("torch.distributed not available")
 
-    if not torch.cuda.is_available():
+    if not torch.npu.is_available():
         pytest.skip("CUDA not available")
 
     if not dist.is_initialized():
@@ -60,10 +60,10 @@ def setup_distributed():
     rank = dist.get_rank()
     world_size = dist.get_world_size()
 
-    if rank >= torch.cuda.device_count():
-        pytest.skip(f"Rank {rank} exceeds available GPUs ({torch.cuda.device_count()})")
+    if rank >= torch.npu.device_count():
+        pytest.skip(f"Rank {rank} exceeds available GPUs ({torch.npu.device_count()})")
 
-    torch.cuda.set_device(rank)
+    torch.npu.set_device(rank)
 
     return rank, world_size
 

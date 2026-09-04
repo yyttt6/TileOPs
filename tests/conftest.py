@@ -7,8 +7,17 @@ from tests.test_base import _check_result
 
 
 def _under_repo_tests(item: pytest.Item) -> bool:
+    """Whether *item* is one of the op tests these hooks govern.
+
+    ``tests/npu/`` is excluded: those are hardware probes and per-round evidence
+    scripts, run by hand against a real card rather than tiered for CI.
+    """
     path = str(item.path)
-    return "tests/" in path and "benchmarks/tests/" not in path
+    return (
+        "tests/" in path
+        and "benchmarks/tests/" not in path
+        and "tests/npu/" not in path
+    )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -43,8 +52,8 @@ def pytest_configure(config: pytest.Config) -> None:
 @pytest.fixture(autouse=True)
 def setup() -> None:
     torch.manual_seed(1235)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(1235)
+    if getattr(torch, "npu", None) is not None and torch.npu.is_available():
+        torch.npu.manual_seed_all(1235)
 
 
 @pytest.fixture
@@ -66,7 +75,6 @@ def isolated_dynamo():
 
 
 NON_RUNTIME_OPS_TIER_FILES = {
-    "tests/ops/test_elementwise_caching_autotune.py",
     "tests/ops/test_elementwise_compile.py",
     "tests/ops/test_elementwise_config_dtype.py",
 }
@@ -107,46 +115,11 @@ def _without_dtype(params: dict) -> tuple[tuple[str, object], ...]:
     )
 
 
-def _is_hopper() -> bool:
-    """Whether this machine's first CUDA device is compute capability 9.x."""
-    if not torch.cuda.is_available():
-        return False
-    return torch.cuda.get_device_capability()[0] == 9
-
-
-_hopper_skipped: list[str] = []
-
-
-def pytest_runtest_logreport(report: pytest.TestReport) -> None:
-    """Record a `hopper` test that was skipped, so a Hopper run can refuse it."""
-    if report.when == "setup" and report.skipped and "hopper" in report.keywords:
-        _hopper_skipped.append(report.nodeid)
-
-
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """On Hopper, a `hopper` test that was skipped is a failed run, not a pass.
-
-    The mark exists because the kernel needs Hopper. On the hardware it needs,
-    skipping it would leave the only evidence for that kernel unexercised while
-    the run still reported green. Collection-time skips are covered too: they
-    surface as setup reports. Deselecting the mark outright (``-m "not hopper"``)
-    is not covered, and is not meant to be — that is the operator saying which
-    tests to run, not a run losing its evidence.
-    """
-    if _hopper_skipped and _is_hopper():
-        session.exitstatus = pytest.ExitCode.TESTS_FAILED
-        raise pytest.UsageError(
-            "hopper-marked tests were skipped on a Hopper device: " + ", ".join(_hopper_skipped)
-        )
-
-
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Validate explicit test tier assignments."""
     tier_errors: list[str] = []
     tier_names = ("smoke", "full", "nightly")
     tilelang_019_skip = pytest.mark.skip(reason=TILELANG_019_SKIP_REASON)
-    non_hopper_skip = pytest.mark.skip(reason="needs compute capability 9.x")
-    on_hopper = _is_hopper()
 
     for item in items:
         path = str(item.path)
@@ -158,9 +131,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             or any(item.nodeid.startswith(prefix) for prefix in TILELANG_019_KNOWN_FAILING_PREFIXES)
         ):
             item.add_marker(tilelang_019_skip)
-
-        if item.get_closest_marker("hopper") is not None and not on_hopper:
-            item.add_marker(non_hopper_skip)
 
         tiers = [name for name in tier_names if item.get_closest_marker(name) is not None]
         if len(tiers) != 1:

@@ -25,6 +25,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from workloads.device import DEVICE
+
 try:
     from vllm.model_executor.layers.fused_moe.fused_moe import (
         fused_experts as _vllm_fused_experts,
@@ -113,9 +115,9 @@ def test_moe_experts_nopad_bench(
             num_experts_local, dtype=torch.int32, device=hidden.device
         )
 
-    output = torch.empty(num_tokens, hidden_size, dtype=dtype, device="cuda")
-    ws1 = torch.empty(0, dtype=dtype, device="cuda")
-    ws2 = torch.empty(0, dtype=dtype, device="cuda")
+    output = torch.empty(num_tokens, hidden_size, dtype=dtype, device=DEVICE)
+    ws1 = torch.empty(0, dtype=dtype, device=DEVICE)
+    ws2 = torch.empty(0, dtype=dtype, device=DEVICE)
 
     # -- TileOPs nopad (3WG persistent) --------------------------------------
     nopad = FusedMoEExpertsNopadPersistent3WGFwdOp(
@@ -144,7 +146,7 @@ def test_moe_experts_nopad_bench(
         return output
 
     _nopad_fn(hidden, w1, w2, topk_weights, topk_ids)  # warmup / JIT compile
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops-nopad-3wg": _nopad_fn}
 
@@ -175,7 +177,7 @@ def test_moe_experts_nopad_bench(
             return _vllm_fused_experts(hidden, w1, w2, topk_weights, topk_ids)
 
         _vllm_triton_fn(hidden, w1, w2, topk_weights, topk_ids)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["vllm-triton"] = _vllm_triton_fn
 
@@ -187,7 +189,7 @@ def test_moe_experts_nopad_bench(
                 return _vllm_cutlass_moe(hidden, w1, w2, topk_weights, topk_ids)
 
             _vllm_cutlass_fn(hidden, w1, w2, topk_weights, topk_ids)  # warmup
-            torch.cuda.synchronize()
+            torch.npu.synchronize()
 
             functors["vllm-cutlass"] = _vllm_cutlass_fn
         except Exception as e:
@@ -216,7 +218,7 @@ def test_moe_experts_nopad_bench(
             return output_buf.to(hidden.dtype)
 
         _torch_fn(hidden, w1, w2, topk_weights, topk_ids)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["torch-ref"] = _torch_fn
 

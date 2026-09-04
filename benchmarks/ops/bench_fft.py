@@ -23,7 +23,7 @@ def test_fft_bench(shape: tuple, dtype: torch.dtype) -> None:
 
     # Warmup: trigger JIT compilation before timed profiling
     op(*inputs)
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     bm = ManifestBenchmark(_OP_NAME, op, test)
 

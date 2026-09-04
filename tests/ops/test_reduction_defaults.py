@@ -18,7 +18,9 @@ from __future__ import annotations
 import pytest
 import torch
 
-pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+from workloads.device import DEVICE
+
+pytestmark = pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 
 
 _FLOAT_SHAPE = (2, 4, 8)
@@ -26,12 +28,12 @@ _LOGICAL_SHAPE = (2, 4, 8)
 
 
 def _make_float(shape: tuple, dtype: torch.dtype) -> torch.Tensor:
-    return torch.randn(*shape, dtype=dtype, device="cuda")
+    return torch.randn(*shape, dtype=dtype, device=DEVICE)
 
 
 def _make_logical(shape: tuple, dtype: torch.dtype) -> torch.Tensor:
     # values in {-1, 0, 1} so .bool() has both T and F.
-    return (torch.randint(-1, 2, shape, device="cuda")).to(dtype)
+    return (torch.randint(-1, 2, shape, device=DEVICE)).to(dtype)
 
 
 # default dim=None for the ten ops -> full reduction on 3-D input
@@ -150,7 +152,7 @@ def test_prod_default_dim_last_axis() -> None:
     from tileops.ops.reduction.reduce import ProdFwdOp
 
     # use a narrow value range so fp16 prod is numerically stable
-    x = torch.rand(*_FLOAT_SHAPE, dtype=torch.float16, device="cuda") * 0.01 + 0.99
+    x = torch.rand(*_FLOAT_SHAPE, dtype=torch.float16, device=DEVICE) * 0.01 + 0.99
     op = ProdFwdOp()
     y = op(x)
     assert y.shape == torch.prod(x, dim=-1).shape
@@ -375,7 +377,7 @@ def test_the_arch_check_asks_about_the_input_s_device(monkeypatch) -> None:
 
     monkeypatch.setattr(utils, "get_sm_version", recording)
 
-    x = torch.randn(4, 8, dtype=torch.float16, device="cuda")
+    x = torch.randn(4, 8, dtype=torch.float16, device=DEVICE)
     SumFwdOp(dim=-1)(x)
 
     assert asked, "the kernel declares supported_archs, so it must have probed"

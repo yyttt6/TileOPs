@@ -14,7 +14,9 @@ from __future__ import annotations
 import pytest
 import torch
 
-pytestmark = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+from workloads.device import DEVICE
+
+pytestmark = pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 
 _FLOAT_DTYPES = [torch.float16, torch.bfloat16, torch.float32]
 _DTYPE_IDS = ["fp16", "bf16", "fp32"]
@@ -59,7 +61,7 @@ def _welford_ref(name: str, x, dim, keepdim):
 @pytest.mark.parametrize("op_name, torch_fn", _ARITHMETIC)
 @pytest.mark.parametrize("dim", _DIMS, ids=_DIM_IDS)
 def test_an_arithmetic_reduction_of_one_element_is_that_element(op_name, torch_fn, dim) -> None:
-    x = torch.tensor(1.5, dtype=torch.float16, device="cuda")
+    x = torch.tensor(1.5, dtype=torch.float16, device=DEVICE)
 
     y = _op(op_name, dim=dim)(x)
 
@@ -73,7 +75,7 @@ def test_an_arithmetic_reduction_of_one_element_is_that_element(op_name, torch_f
 @pytest.mark.parametrize("keepdim", [False, True], ids=["keepdim=False", "keepdim=True"])
 def test_the_scalar_path_honours_dtype_and_keepdim(dtype, keepdim) -> None:
     """Swept rather than crossed: neither reaches a branch ``dim`` does not."""
-    x = torch.tensor(1.5, dtype=dtype, device="cuda")
+    x = torch.tensor(1.5, dtype=dtype, device=DEVICE)
 
     y = _op("SumFwdOp", dim=None, keepdim=keepdim)(x)
 
@@ -87,7 +89,7 @@ def test_the_scalar_path_honours_dtype_and_keepdim(dtype, keepdim) -> None:
 @pytest.mark.parametrize("dim", [0, -1], ids=["dim=0", "dim=-1"])
 def test_prod_of_one_element_is_that_element(dim) -> None:
     """``ProdFwdOp`` narrows ``dim`` to an int, so it is asked about the two it takes."""
-    x = torch.tensor(1.5, dtype=torch.float16, device="cuda")
+    x = torch.tensor(1.5, dtype=torch.float16, device=DEVICE)
 
     y = _op("ProdFwdOp", dim=dim)(x)
 
@@ -104,7 +106,7 @@ def test_prod_of_one_element_is_that_element(dim) -> None:
 @pytest.mark.parametrize("dim", _DIMS, ids=_DIM_IDS)
 def test_a_welford_reduction_of_one_element_matches_torch(op_name, dim) -> None:
     """``correction=1`` over one element is undefined, and PyTorch calls that ``nan``."""
-    x = torch.tensor(1.5, dtype=torch.float16, device="cuda")
+    x = torch.tensor(1.5, dtype=torch.float16, device=DEVICE)
 
     got = _as_tuple(_op(op_name, dim=dim)(x))
 
@@ -123,7 +125,7 @@ def test_a_welford_reduction_of_one_element_matches_torch(op_name, dim) -> None:
 )
 def test_a_reduction_with_no_degrees_of_freedom_matches_torch(op_name, shape, dim) -> None:
     """A length-1 axis with ``correction=1``: the kernel cannot be built for it."""
-    x = torch.ones(shape, dtype=torch.float32, device="cuda").cumsum(0)
+    x = torch.ones(shape, dtype=torch.float32, device=DEVICE).cumsum(0)
 
     got = _as_tuple(_op(op_name, dim=dim)(x))
 
@@ -139,7 +141,7 @@ def test_a_logical_reduction_of_one_element_matches_torch(
     op_name, torch_fn, out_dtype, dim, value
 ) -> None:
     """Both truth values, because the predicate is what these ops compute."""
-    x = torch.tensor(value, dtype=torch.float16, device="cuda")
+    x = torch.tensor(value, dtype=torch.float16, device=DEVICE)
 
     y = _op(op_name, dim=dim)(x)
 

@@ -42,7 +42,7 @@ See [docs/development.md](docs/development.md).
 - [ops-design-reference.md](docs/design/ops-design-reference.md) — Op interface detail reference (interface tables, codegen, naming, protocol)
 - [manifest.md](docs/design/manifest.md) — `src/tileops/manifest/` spec format (signature, workloads, roofline, source)
 - [roofline.md](docs/design/roofline.md) — the `roofline` field spec: performance model, authoring, and per-consumer contracts
-- [PATTERN.md](backends/ascend/PATTERN.md) — the Ascend kernel template, and what a builder may and may not supply
+- [kernel-pattern.md](docs/design/kernel-pattern.md) — the Ascend kernel template, and what a builder may and may not supply
 
 ### Process
 
@@ -87,8 +87,8 @@ your task does not touch that domain.
 | `tests/`                                                          | [.claude/domain-rules/testing-budget.md](.claude/domain-rules/testing-budget.md)         |
 | `src/tileops/manifest/`                                           | [.claude/domain-rules/manifest-spec.md](.claude/domain-rules/manifest-spec.md)           |
 | `scripts/validate_manifest.py`, `tests/test_validate_manifest.py` | [.claude/domain-rules/manifest-validator.md](.claude/domain-rules/manifest-validator.md) |
-| `src/tileops/ops/`, `src/tileops/kernels/`                        | [.claude/domain-rules/ops-design.md](.claude/domain-rules/ops-design.md)                 |
-| `backends/ascend/`                                                | [backends/ascend/PATTERN.md](backends/ascend/PATTERN.md)                                 |
+| `src/tileops/ops/`                                                | [.claude/domain-rules/ops-design.md](.claude/domain-rules/ops-design.md)                 |
+| `src/tileops/kernels/`                                            | [docs/design/kernel-pattern.md](docs/design/kernel-pattern.md)                           |
 | `benchmarks/`                                                     | [.claude/domain-rules/benchmark.md](.claude/domain-rules/benchmark.md)                   |
 | `workloads/`                                                      | [docs/design/trust-model.md](docs/design/trust-model.md)                                 |
 | `docs/design/`                                                    | [.claude/domain-rules/design-docs.md](.claude/domain-rules/design-docs.md)               |

@@ -10,6 +10,8 @@ dispatch, and end-to-end correctness against the PyTorch reference.
 import pytest
 import torch
 
+from workloads.device import DEVICE
+
 _INPLACE_PARAM_FREE_OPS = (
     "ReluFwdOp",
     "SiluFwdOp",
@@ -57,7 +59,7 @@ def _clamp_construct_kwargs(op_name: str) -> dict:
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize("op_name", _CLAMP_OPS)
 def test_clamp_family_kernel_map_override_is_dispatched(op_name: str) -> None:
     """A user-supplied ``kernel_map`` value must reach the kernel build.
@@ -82,7 +84,7 @@ def test_clamp_family_kernel_map_override_is_dispatched(op_name: str) -> None:
         f"{op_name}: kernel_map override entry was not stored on "
         f"self.kernel_map (got {inst.kernel_map[key]!r})"
     )
-    x = torch.randn(2, 4, device="cuda", dtype=torch.float16)
+    x = torch.randn(2, 4, device=DEVICE, dtype=torch.float16)
     bound = torch.zeros_like(x)
     inst(x, bound) if op_name == "ClampFwdOp" else inst(x)
     ((built,),) = [tuple(inst.built_kernels(key).values())]
@@ -104,7 +106,7 @@ def test_nan_to_num_canonical_kwarg_names() -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize(
     "op_name",
     _INPLACE_PARAM_FREE_OPS + _INPLACE_PARAMETRIC_OPS,
@@ -122,7 +124,7 @@ def test_unary_activation_inplace_true_aliases_input(op_name: str) -> None:
     n_total = 64
     dtype = torch.float16
     op = _construct_inplace_op(mod, op_name, n_total, inplace=True)
-    x = torch.randn(n_total, dtype=dtype, device="cuda")
+    x = torch.randn(n_total, dtype=dtype, device=DEVICE)
     expected = _torch_reference(op_name)(x.clone())
     y = op(x)
     assert y is x, (
@@ -135,7 +137,7 @@ def test_unary_activation_inplace_true_aliases_input(op_name: str) -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize(
     "op_name",
     _INPLACE_PARAM_FREE_OPS + _INPLACE_PARAMETRIC_OPS,
@@ -147,7 +149,7 @@ def test_unary_activation_inplace_false_returns_fresh_tensor(op_name: str) -> No
     n_total = 64
     dtype = torch.float16
     op = _construct_inplace_op(mod, op_name, n_total, inplace=False)
-    x = torch.randn(n_total, dtype=dtype, device="cuda")
+    x = torch.randn(n_total, dtype=dtype, device=DEVICE)
     x_before = x.clone()
     y = op(x)
     assert y is not x, f"{op_name}: inplace=False must return a fresh tensor"
@@ -164,7 +166,7 @@ def test_gelu_approximate_validation() -> None:
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize("approximate", ["none", "tanh"])
 def test_gelu_approximate_runs_through_forward(approximate: str) -> None:
     """Both ``approximate='none'`` and ``'tanh'`` must dispatch end-to-end.
@@ -178,7 +180,7 @@ def test_gelu_approximate_runs_through_forward(approximate: str) -> None:
     n_total = 128
     dtype = torch.float16
     op = mod.GeluFwdOp(approximate=approximate)
-    x = torch.randn(n_total, dtype=dtype, device="cuda")
+    x = torch.randn(n_total, dtype=dtype, device=DEVICE)
     y = op(x)
     expected = torch.nn.functional.gelu(x, approximate=approximate)
     assert y.shape == x.shape

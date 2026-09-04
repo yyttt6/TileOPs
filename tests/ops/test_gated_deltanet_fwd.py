@@ -6,6 +6,7 @@ from tileops.ops import (
     GatedDeltaNetBHTDFwdOp,
     GatedDeltaNetBTHDFwdOp,
 )
+from workloads.device import DEVICE
 from workloads.linear_attention import (
     GatedDeltaNetFwdWorkload,
 )
@@ -105,8 +106,8 @@ def test_gated_deltanet_fwd(
 @pytest.mark.smoke
 def test_bthd_forward_refuses_a_dtype_it_cannot_serve() -> None:
     """The dtype contract is checked before a kernel is chosen, and names the value."""
-    q = torch.randn(1, 64, 2, 64, dtype=torch.float32, device="cuda")
-    g = torch.randn(1, 64, 2, dtype=torch.float32, device="cuda")
+    q = torch.randn(1, 64, 2, 64, dtype=torch.float32, device=DEVICE)
+    g = torch.randn(1, 64, 2, dtype=torch.float32, device=DEVICE)
     with pytest.raises(ValueError, match="float16 or bfloat16, got torch.float32"):
         GatedDeltaNetBTHDFwdOp(chunk_size=64)(q, q, q, g, g)
 
@@ -114,8 +115,8 @@ def test_bthd_forward_refuses_a_dtype_it_cannot_serve() -> None:
 @pytest.mark.smoke
 def test_bthd_forward_names_the_requirement_a_call_missed() -> None:
     """A call the production pipeline has no kernel for is told which one it failed."""
-    q = torch.randn(1, 64, 2, 64, dtype=torch.float16, device="cuda")
-    g = torch.randn(1, 64, 2, dtype=torch.float16, device="cuda")
+    q = torch.randn(1, 64, 2, 64, dtype=torch.float16, device=DEVICE)
+    g = torch.randn(1, 64, 2, dtype=torch.float16, device=DEVICE)
     with pytest.raises(ValueError, match="chunk_size must be 64, got 32"):
         GatedDeltaNetBTHDFwdOp(chunk_size=32)(q, q, q, g, g)
 
@@ -129,7 +130,6 @@ def test_bthd_forward_names_the_requirement_a_call_missed() -> None:
         pytest.param(32768, 64, torch.float16, marks=pytest.mark.full),
     ],
 )
-@pytest.mark.hopper
 def test_gated_deltanet_bthd_matches_the_head_major_op(
     seq_len: int, dim: int, dtype: torch.dtype
 ) -> None:

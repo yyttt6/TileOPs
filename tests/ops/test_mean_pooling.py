@@ -5,6 +5,7 @@ import torch
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops import MeanPoolingForwardOp
+from workloads.device import DEVICE
 from workloads.nsa_utils import prepare_chunk_indices
 from workloads.pool import MeanPoolingWorkload
 
@@ -65,7 +66,7 @@ class MeanPoolingFixture(FixtureBase):
                     torch.float16,
                     torch.float32,
                     False,
-                    torch.tensor([0, 256, 768, 1024], dtype=torch.int32, device="cuda"),
+                    torch.tensor([0, 256, 768, 1024], dtype=torch.int32, device=DEVICE),
                     marks=pytest.mark.full,
                 ),
                 # varlen case: lengths [2048, 2048, 2048, 2048] -> offsets [0, 2048, 4096, 6144, 8192]
@@ -78,7 +79,7 @@ class MeanPoolingFixture(FixtureBase):
                     torch.float16,
                     torch.float32,
                     False,
-                    torch.tensor([0, 2048, 4096, 6144, 8192], dtype=torch.int32, device="cuda"),
+                    torch.tensor([0, 2048, 4096, 6144, 8192], dtype=torch.int32, device=DEVICE),
                     marks=pytest.mark.full,
                 ),
                 # varlen case: lengths [100, 200, 300, 400] -> offsets [0, 100, 300, 600, 1000]
@@ -91,7 +92,7 @@ class MeanPoolingFixture(FixtureBase):
                     torch.float16,
                     torch.float32,
                     False,
-                    torch.tensor([0, 100, 300, 600, 1000], dtype=torch.int32, device="cuda"),
+                    torch.tensor([0, 100, 300, 600, 1000], dtype=torch.int32, device=DEVICE),
                     marks=pytest.mark.full,
                 ),
             ],
@@ -124,11 +125,11 @@ def test_mean_pooling_op(
             (batch_size + 1) * seq_len,
             seq_len,
             dtype=torch.int32,
-            device="cuda",
+            device=DEVICE,
             requires_grad=False,
         )
         chunks_per_batch = (seq_len + chunk_size - 1) // chunk_size  # integer ceil
-        indices = torch.randint(0, seq_len, (chunks_per_batch, 2), dtype=torch.int32, device="cuda")
+        indices = torch.randint(0, seq_len, (chunks_per_batch, 2), dtype=torch.int32, device=DEVICE)
         seq_num = batch_size
         use_offsets = 0
 

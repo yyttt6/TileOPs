@@ -13,13 +13,13 @@ PRs from the `add-manifest` skill, or any PR that adds a previously-absent op en
 
 - [ ] **Reference cited and authoritative.** Entry's `source` field points to PyTorch / paper / vendor docs. Reviewer can derive shape and dtype rules from that link alone.
 - [ ] **Signature matches reference exactly.** For `torch.nn.*` / `torch.nn.functional.*` names: parameter names, order, and defaults all match PyTorch's public API. No invented parameters.
-- [ ] **Required fields present.** `signature`, `shape_rules`, `dtype_combos`, `roofline`; `kernel_map` and `static_dims` where the family requires them.
+- [ ] **Required fields present.** `signature`, `shape_rules`, `dtype_combos`, `roofline`; `static_dims` where the family requires it.
 - [ ] **Lands as `spec-only`.** New entries never land as `implemented`, regardless of any existing code claiming to be ready.
 - [ ] **Validator green.** `scripts/validate_manifest.py` passes with no checks disabled.
 
 #### Fix-manifest (patch existing entry)
 
-PRs from the `fix-manifest` skill — patches one missing structural field (`kernel_map`, `static_dims`) on an existing entry.
+PRs from the `fix-manifest` skill — patches one missing structural field (`static_dims`) on an existing entry.
 
 - [ ] **Scope is one structural field.** Diff modifies exactly one missing field. Edits to `signature`, `shape_rules`, `dtype_combos`, or `roofline` belong to `add-manifest`, not `fix-manifest` — reject and split.
 - [ ] **Reference still aligns.** Other reference-derivable fields (`signature`, `shape_rules`, `dtype_combos`) on the same entry have not silently drifted from the source URL. Spot-check at least one.
@@ -34,5 +34,5 @@ Often bundled with a `[Refactor][Ops]` op-migration PR.
 - [ ] **`FIXME(staged-rollout)` markers tied to this op removed.**
 - [ ] **Flip back to `spec-only`** is legitimate only when implementation is removed or known-broken. Challenge any other rationale.
 - [ ] **Pure flip.** This PR changes `status` only — no rewrite of `signature` / `shape_rules` / `roofline`. If the entry needs spec edits to match implementation, that is reverse-engineering from code; reject and require a separate `add-manifest`- or `fix-manifest`-style PR.
-- [ ] **`source.kernel_map` present.** `status: implemented` requires the Op→Kernel dispatch map. The validator currently emits a *warning* for missing `kernel_map`; the human reviewer escalates that to a blocker on a flipped entry.
+- [ ] **`source.kernel` points at a real backend module,** or is `null` with the reason on the line above. An entry that names a path no backend ships is worse than one that admits the gap.
 - [ ] **`workloads` non-empty and tensor-input shapes complete.** `status: implemented` requires at least 2 workloads (`test_every_op_has_at_least_two_workloads`). Each row must declare a shape for *every* tensor input in `signature.inputs` — `input_shape` alone is not enough when the op has additional tensor inputs (e.g. `mask_shape`, `value_shape: []`, `min_shape`, `max_shape`). Empty `workloads: []` or a row missing any required tensor-input shape on a flipped entry is a blocker — copy from the sibling variant or derive from the op's typical usage shapes.

@@ -14,7 +14,6 @@ import torch
 
 from tileops import backend
 from tileops.backend import (
-    BUILTIN,
     AmbiguousTargetError,
     BackendError,
     TensorSpec,
@@ -59,11 +58,16 @@ class _EntryPoint:
 
 @pytest.fixture
 def installed(monkeypatch):
-    """Declare which backends this test should discover."""
+    """Declare which backends this test should discover.
+
+    Replaces discovery outright rather than just the entry-point query: the kernels
+    this distribution ships are discovered too, and importing them would pull tilelang
+    into a module whose whole point is that a backend author needs neither it nor a card.
+    """
 
     def declare(**loaders):
         eps = [_EntryPoint(name, load) for name, load in loaders.items()]
-        monkeypatch.setattr(registry, "entry_points", lambda group: eps)
+        monkeypatch.setattr(registry, "_discover", lambda: eps)
         registry._loaded = False
 
     return declare
@@ -88,19 +92,6 @@ def test_tensor_spec_describes_a_tensor_and_compares_by_its_properties():
     assert spec == TensorSpec.of(torch.ones(4, 8, dtype=torch.bfloat16))
     assert spec != TensorSpec.of(torch.zeros(4, 9, dtype=torch.bfloat16))
     assert spec != TensorSpec.of(torch.zeros(4, 8, dtype=torch.float32))
-
-
-def test_builtin_is_a_sentinel_that_outranks_a_target_claiming_the_device():
-    """It says "run what ships with TileOPs", which no target name can say."""
-    backend.register_kernel_builder("Op", "acme", fake_build_kernel)
-    backend.register_detector("acme", lambda device: True)
-
-    assert BUILTIN not in backend.registered_targets()
-    assert select_target(BUILTIN, torch.device("cpu")) is BUILTIN
-
-    backend.set_default_target(BUILTIN)
-    assert backend.default_target() is BUILTIN
-    assert select_target(None, torch.device("cpu")) is BUILTIN
 
 
 # --------------------------------------------------------------------------------------
@@ -436,7 +427,6 @@ def test_the_caller_api_is_reachable_from_the_package_root():
     import tileops
 
     assert tileops.set_default_target is backend.set_default_target
-    assert tileops.BUILTIN is BUILTIN
     assert "registered_targets" in dir(tileops)
     with pytest.raises(AttributeError, match="has no attribute 'nope'"):
         _ = tileops.nope

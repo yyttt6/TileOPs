@@ -29,7 +29,7 @@ Op                          ← L1: thin base, shared by all ops
 
 `_infer_output_shapes` runs per call either way, over the shapes it is handed.
 
-**Shape is not a constructor parameter when the tensors carry it.** Only what the manifest declares belongs in `__init__` — `shape` dim names, `static_dims` keys, `params` keys — plus the arguments every op takes (`target`, `kernel_map`, `tune`). A dimension declared nowhere is not construction information: it arrives with the call, and taking it twice lets an instance disagree with the tensors it is handed. What the kernel is compiled for goes in the memory key instead, so a second shape builds a second kernel.
+**Shape is not a constructor parameter when the tensors carry it.** Only what the manifest declares belongs in `__init__` — `shape` dim names, `static_dims` keys, `params` keys — plus the arguments every op takes (`target`, `tune`). A dimension declared nowhere is not construction information: it arrives with the call, and taking it twice lets an instance disagree with the tensors it is handed. What the kernel is compiled for goes in the memory key instead, so a second shape builds a second kernel.
 
 **Dtype is not a constructor parameter when the inputs determine it.** An op reads it from the input tensors in `forward()`: a caller who passes fp16 tensors gets the fp16 kernel without having said so twice, and an op can no longer be constructed in a state that disagrees with the tensors it is about to be handed.
 
@@ -67,7 +67,7 @@ The scaffold emits a T2 (L1-direct) op file from one manifest entry. Each step h
 
 ### Step 1: File header + imports
 
-**Input.** `source.kernel_map` values (Kernel classes to import).
+**Input.** Nothing from the manifest: the op layer names no kernel. `source.kernel` records which backend module holds the builder, for a reader, not for an import.
 
 **Output.**
 
@@ -79,17 +79,15 @@ Provides:
 """
 
 import math
-from typing import Dict, Optional
 
 import torch
 
-from tileops.kernels.kernel_base import Kernel
-from tileops.kernels.reduction.example_cumsum import ExampleCumsumKernel
+from tileops.backend import Kernel, Target
 
 from ..op_base import Op
 ```
 
-**Validation.** Every concrete-Kernel import matches one `source.kernel_map` value verbatim. The `Kernel` base import and `..op_base` relative import are fixed.
+**Validation.** No import reaches into a backend distribution. `Kernel` is the return-type alias from `tileops.backend` — what a target's `build_kernel` hands back, which is anything callable — not a base class to subclass.
 
 **Reference.** [Slot S1](../../.claude/skills/scaffold-op/slot-rules.md#slot-s1), [S2](../../.claude/skills/scaffold-op/slot-rules.md#slot-s2), [S3](../../.claude/skills/scaffold-op/slot-rules.md#slot-s3), [S4](../../.claude/skills/scaffold-op/slot-rules.md#slot-s4).
 
@@ -112,7 +110,8 @@ class ExampleCumsumFwdOp(Op):
         N: Hidden dimension (size along the reduction axis), committed
             at ctor via ``static_dims: N: "x.shape[dim]"``.
         dim: Reduction dimension (default -1).
-        kernel_map: Optional override for kernel dispatch.
+        target: Which set of kernels serves this op — a target name, or
+            ``None`` to decide from the input device.
         tune: Whether to autotune (default False).
     """
 ```
@@ -140,34 +139,31 @@ class ExampleCumsumFwdOp(Op):
         *,
         N: int,
         dim: int = -1,
-        kernel_map: Optional[Dict[str, Kernel]] = None,
+        target: Target = None,
         tune: bool = False,
     ):
         self.N = N
         self.dim = dim
+        self.target = target
         self.tune = tune
         # M is not a static_dim — deferred to forward() where x.ndim
         # is known and M is derived from the non-reduction axes.
-        self.dispatch_kernel(kernel_map)
+        self.dispatch_kernel()
 ```
 
-**Validation.** Every `__init__` parameter has a manifest source (`static_dims` or `signature.params`); no extras except `target` / `kernel_map` / `tune`. `dtype` is not a kwarg — it is read from the input in `forward()`. In particular, `M` is NOT a ctor kwarg — `ExampleCumsumFwdOp.static_dims` declares only `N`, so `M` is derived at forward time. Manifest parameters keep manifest order; a param declaring `kw_only: true` goes after `*`, and `static_dims` entries take no defaults. `_static_axes` matches the manifest axis form (literal-int axis → populated class-level frozenset; param-dependent axis → empty class-level default, bound at forward after `dim % x.ndim` normalization).
+**Validation.** Every `__init__` parameter has a manifest source (`static_dims` or `signature.params`); no extras except `target` / `tune`. `dtype` is not a kwarg — it is read from the input in `forward()`. In particular, `M` is NOT a ctor kwarg — `ExampleCumsumFwdOp.static_dims` declares only `N`, so `M` is derived at forward time. Manifest parameters keep manifest order; a param declaring `kw_only: true` goes after `*`, and `static_dims` entries take no defaults. `_static_axes` matches the manifest axis form (literal-int axis → populated class-level frozenset; param-dependent axis → empty class-level default, bound at forward after `dim % x.ndim` normalization).
 
 **Reference.** [Slot S21](../../.claude/skills/scaffold-op/slot-rules.md#slot-s21), [S12](../../.claude/skills/scaffold-op/slot-rules.md#slot-s12), [S13](../../.claude/skills/scaffold-op/slot-rules.md#slot-s13).
 
-### Step 4: `default_kernel_map` + `forward`
+### Step 4: `forward`
 
-**Input.** Manifest `source.kernel_map`; `signature.inputs`; `static_dims` (for the forward-time commitment check); `shape_rules` (for `dim` range validation).
+**Input.** `signature.inputs`; `static_dims` (for the forward-time commitment check); `shape_rules` (for `dim` range validation).
 
 **Optional inputs.** An `optional: true` input takes a `None` default in `forward`, and presence is read from the call rather than settled at construction, so one instance serves both ways of calling the op. A `shape_rules` entry naming it applies to the calls that supply it, and `forward` is what enforces that. Where the presence changes what gets built, it belongs in the kernel cache key alongside the shapes.
 
 **Output.**
 
 ```python
-    @property
-    def default_kernel_map(self) -> Dict[str, Kernel]:
-        return {"example_cumsum_fwd": ExampleCumsumKernel}
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         self._validate_dtypes(x)
         # Validate `dim` against shape_rule `-x.ndim <= dim < x.ndim`
@@ -189,23 +185,18 @@ class ExampleCumsumFwdOp(Op):
         self.dtype = x.dtype  # ditto; the op commits to no dtype before this
         x = x.contiguous()          # handed over as the manifest declares it
         kernel = self.get_or_build_kernel(
-            "example_cumsum_fwd",
+            "example_cumsum_fwd",        # the slot name; one per computation
             (x,),                        # the tensors the kernel will be handed
-            key=(tuple(x.shape), dim, x.dtype, x.device.index),
-            build=lambda: self.kernel_map["example_cumsum_fwd"](
-                M, self.N, "sum", x.dtype, scan_axis=dim, tune=self.tune),
         )
         return kernel(x)
 ```
 
 **Validation.**
 
-- `default_kernel_map` keys / values match manifest `source.kernel_map` verbatim.
+- The slot name is one per computation, not one per implementation. Which schedule serves a shape is decided inside the target's `build_kernel`, where the shapes and dtypes are; an op that branched on them here would be choosing a kernel it cannot see.
 - `forward` calls `self._validate_dtypes(...)` first — not inline dtype comparisons, which are Step 5's job. It checks no device kind: a kernel states which devices it runs on.
 - Every `static_dims` commitment is checked against the tensor shape at the normalized axis, and `_static_axes` is bound from that (non-negative) axis. Both before the get-or-build call.
-- The kernel comes from `self.get_or_build_kernel`, never a cache dict the op owns:
-  - `key=` and `build=` are the in-tree recipe. The kernel is built from `x.dtype` and the key carries it, so a call with another dtype builds a second kernel rather than reusing the first.
-  - `inputs=` is the tensors the kernel is handed, which is what an external target's builder is described with. A new op passes it; an op not yet migrated omits it and stays in-tree only.
+- The kernel comes from `self.get_or_build_kernel`, never a cache dict the op owns. Its second argument is the tensors the kernel will be handed, one slot per `signature.inputs` entry in that order, with an absent optional input keeping its slot as `None`. That tuple is what the target's builder is described with, and what the op layer keys the built kernel on — device, dtype and shape of each slot — so a call with another dtype builds a second kernel rather than reusing the first.
 - The op never trims kernel output, and never reshapes its input for the kernel: a kernel that pads or permutes internally takes and returns the shapes the manifest declares.
 
 **Reference.** [Slot S14](../../.claude/skills/scaffold-op/slot-rules.md#slot-s14), [S15](../../.claude/skills/scaffold-op/slot-rules.md#slot-s15), [S16](../../.claude/skills/scaffold-op/slot-rules.md#slot-s16).
@@ -252,7 +243,7 @@ class ExampleCumsumFwdOp(Op):
 
 **Reference.** [Slot S19](../../.claude/skills/scaffold-op/slot-rules.md#slot-s19).
 
-**Compute roof.** `Op.compute_roof()` names the NPU-profile unit that prices the FLOPs `eval_roofline()` counts; the base default `"cuda_core.fp32"` covers CUDA-core fp32 arithmetic. An op whose FLOPs are matmul contractions overrides it — normally `return tensor_core_roof(self.dtype)`, branching on instance state (a backend switch) where the contraction dtype differs from the input dtype. Contract and rationale: [`roofline.md §1.4`](roofline.md#14-compute-roof).
+**Compute roof.** `Op.compute_roof()` names the NPU-profile unit that prices the FLOPs `eval_roofline()` counts; the base default `"vector.fp32"` covers Vector-unit fp32 arithmetic. An op whose FLOPs are matmul contractions overrides it — normally `return cube_roof(self.dtype)`, branching on instance state (a backend switch) where the contraction dtype differs from the input dtype. Contract and rationale: [`roofline.md §1.4`](roofline.md#14-compute-roof).
 
 ### Step 7: Package registration
 
@@ -360,7 +351,7 @@ The scaffold emits T2 (L1-direct) ops only; once a family accumulates 2-3 ops sh
 - [Slot Rules](../../.claude/skills/scaffold-op/slot-rules.md) — full Rule / Derivation / Example / Common mistakes per slot
 - [Codegen Details](ops-design-reference.md#codegen) — calling conventions, inheritance rules, consistency enforcement
 - [Base Class Protocol](ops-design-reference.md#base-class-protocol) — `Op` and `Kernel` base class attributes
-- [Naming Conventions](ops-design-reference.md#naming-conventions) — class / `kernel_map` / builder function rules
+- [Naming Conventions](ops-design-reference.md#naming-conventions) — class and slot naming rules
 - [Parameter Design](ops-design-reference.md#parameter-design) — static vs dynamic op comparison
 - [manifest.md](manifest.md) — manifest entry structure, `static_dims`, `shape_rules`, `roofline`
 - [roofline.md](roofline.md) — roofline formula syntax, codegen, evaluator surface boundary

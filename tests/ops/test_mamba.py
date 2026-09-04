@@ -13,6 +13,7 @@ from tileops.ops.mamba.ssd_chunk_state import SSDChunkStateFwdOp
 from tileops.ops.mamba.ssd_decode import SSDDecodeFwdOp
 from tileops.ops.mamba.ssd_state_passing import SSDStatePassingFwdOp
 from tileops.perf import formulas
+from workloads.device import DEVICE
 from workloads.mamba import (
     DaCumsumFwdFixture,
     DaCumsumFwdWorkload,
@@ -71,8 +72,8 @@ def cb_producer_fwd_ref(
 def test_cb_producer_fwd(batch, num_chunks, chunk_len, n_groups, d_state, dtype, tune):
     op = CBProducerFwdOp(batch, num_chunks, n_groups, chunk_len, d_state, tune=tune)
     seq_len = num_chunks * chunk_len
-    C_mat = torch.randn(batch, seq_len, n_groups, d_state, dtype=dtype, device="cuda") * 0.1
-    B_mat = torch.randn(batch, seq_len, n_groups, d_state, dtype=dtype, device="cuda") * 0.1
+    C_mat = torch.randn(batch, seq_len, n_groups, d_state, dtype=dtype, device=DEVICE) * 0.1
+    B_mat = torch.randn(batch, seq_len, n_groups, d_state, dtype=dtype, device=DEVICE) * 0.1
     ref = cb_producer_fwd_ref(C_mat, B_mat, num_chunks, chunk_len, dtype)
     out = op(C_mat, B_mat)
     allclose_compare(out, ref, atol=1e-3, rtol=1e-3)
@@ -84,8 +85,8 @@ def test_cb_producer_fwd_noncontiguous():
     batch, num_chunks, chunk_len, n_groups, d_state = 1, 2, 64, 1, 64
     dtype = torch.float16
     seq_len = num_chunks * chunk_len
-    C_full = torch.randn(batch, seq_len * 2, n_groups, d_state, dtype=dtype, device="cuda")
-    B_full = torch.randn(batch, seq_len * 2, n_groups, d_state, dtype=dtype, device="cuda")
+    C_full = torch.randn(batch, seq_len * 2, n_groups, d_state, dtype=dtype, device=DEVICE)
+    B_full = torch.randn(batch, seq_len * 2, n_groups, d_state, dtype=dtype, device=DEVICE)
     C_mat = C_full[:, ::2, :, :]
     B_mat = B_full[:, ::2, :, :]
     assert not C_mat.is_contiguous()
@@ -123,32 +124,13 @@ def test_da_cumsum_fwd(
 
 
 @pytest.mark.smoke
-def test_da_cumsum_fwd_missing_bias_raises():
-    """DaCumsumFwdKernel must raise when has_dt_bias=True but dt_bias is None."""
-    from tileops.kernels.mamba import DaCumsumFwdKernel
-
-    kernel = DaCumsumFwdKernel(
-        batch=1,
-        num_chunks=2,
-        chunk_len=64,
-        n_heads=4,
-        seq_len=128,
-        has_dt_bias=True,
-    )
-    dt = torch.randn(1, 128, 4, dtype=torch.float32, device="cuda")
-    A = -torch.rand(4, dtype=torch.float32, device="cuda")
-    with pytest.raises(ValueError, match="dt_bias is required"):
-        kernel(dt, A, dt_bias=None)
-
-
-@pytest.mark.smoke
 def test_da_cumsum_fwd_padded_head_tile():
     """Five heads against block_h=4 is the only shape reaching the masked tail."""
     batch, n_heads, chunk_len, num_chunks = 1, 5, 64, 2
     seq_len = chunk_len * num_chunks
     op = DaCumsumFwdOp(chunk_len=chunk_len, dtype=torch.float32)
-    dt = torch.rand(batch, seq_len, n_heads, dtype=torch.float32, device="cuda")
-    A = -torch.rand(n_heads, dtype=torch.float32, device="cuda")
+    dt = torch.rand(batch, seq_len, n_heads, dtype=torch.float32, device=DEVICE)
+    A = -torch.rand(n_heads, dtype=torch.float32, device=DEVICE)
 
     dt_out, dA_cumsum = op(dt, A)
     ref_dt, ref_cumsum = da_cumsum_fwd_ref(
@@ -237,14 +219,14 @@ def test_ssd_chunk_state_fwd_seq_idx_semantics():
     b, c, Q, h, p, n, g = batch, num_chunks, chunk_len, n_heads, d_head, d_state, n_groups
     seq_len = c * Q
 
-    x = torch.randn(b, seq_len, h, p, dtype=dtype, device="cuda") * 0.1
-    Bmat = torch.randn(b, seq_len, g, n, dtype=dtype, device="cuda") * 0.1
-    dA_cumsum = -torch.rand(b, h, c, Q, dtype=torch.float32, device="cuda").cumsum(-1)
-    dt = torch.rand(b, h, c, Q, dtype=torch.float32, device="cuda") * 0.1 + 0.01
+    x = torch.randn(b, seq_len, h, p, dtype=dtype, device=DEVICE) * 0.1
+    Bmat = torch.randn(b, seq_len, g, n, dtype=dtype, device=DEVICE) * 0.1
+    dA_cumsum = -torch.rand(b, h, c, Q, dtype=torch.float32, device=DEVICE).cumsum(-1)
+    dt = torch.rand(b, h, c, Q, dtype=torch.float32, device=DEVICE) * 0.1 + 0.01
 
     # First chunk ends with seq_idx == -1 (whole chunk should zero out).
     # Second chunk is a normal sequence (seq_idx == 1 throughout).
-    seq_idx = torch.ones(b, seq_len, dtype=torch.int32, device="cuda")
+    seq_idx = torch.ones(b, seq_len, dtype=torch.int32, device=DEVICE)
     seq_idx[:, :Q] = -1
 
     op = SSDChunkStateFwdOp()
@@ -262,8 +244,8 @@ def test_ssd_chunk_state_fwd_seq_idx_semantics():
     allclose_compare(out[:, 0], torch.zeros_like(out[:, 0]), atol=0.0, rtol=0.0)
     assert out[:, 1].abs().max().item() > 0
 
-    poison = torch.full((b, seq_len), -1, dtype=torch.int32, device="cuda")
-    torch.cuda.synchronize()
+    poison = torch.full((b, seq_len), -1, dtype=torch.int32, device=DEVICE)
+    torch.npu.synchronize()
     del poison
     out = op(x, Bmat, dt, dA_cumsum)
     ref = ssd_chunk_state_fwd_ref(x, Bmat, dt, dA_cumsum, g)

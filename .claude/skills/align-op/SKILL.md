@@ -11,7 +11,7 @@ description: Per-op orchestrator that brings a single op into alignment with its
 
 ## Contract
 
-- **Input**: `op_name` must be present in [`src/tileops/manifest/`](../../../src/tileops/manifest/) with `status: spec-only` and a non-empty `source.kernel_map` (same preconditions as scaffold-op; see [PRE_CHECK](#pre_check)).
+- **Input**: `op_name` must be present in [`src/tileops/manifest/`](../../../src/tileops/manifest/) with `status: spec-only` (same preconditions as scaffold-op; see [PRE_CHECK](#pre_check)).
 - **Path and data bindings used throughout this skill** (resolved by the orchestrator once at `PRE_CHECK` when the manifest entry is first loaded, then passed into every sub-skill invocation):
   - `<source_op>` — `src/` + manifest `source.op` (e.g., `src/tileops/ops/reduction/cumulative.py`).
   - `<source_test>` — manifest `source.test` path (e.g., `tests/ops/test_cumulative.py`).
@@ -85,8 +85,7 @@ Preconditions identical to `scaffold-op`'s — orchestrator enforces them up fro
 
 - `op_name` in `src/tileops/manifest/` → proceed; otherwise BLOCKED ("op not in manifest").
 - `status: spec-only` → proceed; `implemented` → BLOCKED ("already aligned; flip status back to spec-only first if you intend to re-align"); missing/other → BLOCKED.
-- `source.kernel_map` declared and non-empty → proceed; missing → BLOCKED with the same guidance scaffold-op uses (add the dispatch map first).
-- Every value in `source.kernel_map` resolves to an importable symbol → proceed; otherwise BLOCKED ("kernel class not found at expected path" — kernel must exist for op layer to align, regardless of case).
+- `source.kernel` names a backend module that exists, or is `null` → proceed. Aligning the op layer does not need a kernel: the seam it aligns to is the manifest signature a backend's `build_kernel` is called with.
 
 ### 2. CLASSIFY
 
@@ -143,7 +142,7 @@ Sequence:
 1. **SCAFFOLD** — `scaffold-op <op_name>`. Target now absent, PRE_CHECK passes, emits the 17 mechanical slots.
 1. **PORT** — read `pre-rewrite/source.py` and port op-specific content that the scaffold cannot produce:
    - Optional hooks (`_pad_value`, `_validate_dim`, `_pre_kernel`, `_post_kernel`, `_cache_key` override).
-   - Family-specific protocol variables (`_op_kind`, `_kernel_key`, `_kernel_cls`, etc.) if the op was a T1 thin wrapper.
+   - Family-specific protocol variables (`_op_kind`, `_kernel_key`, etc.) if the op was a T1 thin wrapper.
    - Any `forward` body specifics beyond the universal pattern (kernel-specific reshape/movedim choreography).
    - Any class-level non-slot attributes the old file had that still make sense under the new spec.
      Commit as `[Feat] align-op: port business logic for <op_name> from pre-rewrite`. If the agent is uncertain whether a specific override should be ported, record an `open_questions` item in plan.json §3 (`needs_human_decision`) and port conservatively.
@@ -168,10 +167,10 @@ Sub-skill does ANALYZE → DIAGNOSE → IMPLEMENT → VALIDATE → MARK_DONE →
 
 Determine whether the kernel layer also needs work. align-op does **not** modify kernel code; it surfaces the question.
 
-For each Kernel class referenced in `source.kernel_map`:
+For the backend module named by `source.kernel`:
 
 1. Inspect the kernel's `__init__` / `forward` / `_build_program` signatures (wherever applicable) in its source file.
-1. Compare against the new op's kernel-build call emitted by scaffold-op (`self.kernel_map[<key>](<args>)`). Specifically check:
+1. Compare its registered `build_kernel` signature against the manifest signature the op layer will call it with. Specifically check:
    - Argument names and positional order.
    - Argument types.
    - Any layout / dtype expectations the kernel documents.
@@ -191,9 +190,9 @@ Write `.foundry/plan/<op_name>/kernel-check.json`:
     {
       "dispatch_key": "cumulative_fwd",
       "kernel_class": "CumulativeKernel",
-      "kernel_source": "src/tileops/kernels/reduction/cumulative.py",
+      "kernel_source": "src/tileops/kernels/families/scan.py",
       "classification": "aligned",
-      "op_call": "self.kernel_map['cumulative_fwd'](M, N, 'sum', self.dtype, tune=self.tune)",
+      "op_call": "self.get_or_build_kernel('cumulative_fwd', (x,))",
       "kernel_ctor": "__init__(self, M, N, op_kind, dtype, *, tune=False)",
       "notes": "Positional and named args match; no kernel work required."
     }
@@ -266,7 +265,7 @@ Orchestrator (not a sub-skill) edits the manifest:
 - `ops.<op_name>.status: spec-only` → `status: implemented`
 - Commit as `[Refactor][Manifest] promote <op_name> to implemented`.
 
-This is the only manifest write in the entire workflow: flip `status`, and retarget `source.kernel_map` / `source.test` / `source.bench` at what this run produced. A contractual field — `signature`, `shape_rules`, `roofline`, `params` — is spec, and changing it to match the code inverts the spec relationship ([manifest-spec.md](../../domain-rules/manifest-spec.md)).
+This is the only manifest write in the entire workflow: flip `status`, and retarget `source.kernel` / `source.test` / `source.bench` at what this run produced. A contractual field — `signature`, `shape_rules`, `roofline`, `params` — is spec, and changing it to match the code inverts the spec relationship ([manifest-spec.md](../../domain-rules/manifest-spec.md)).
 
 ### 11. CLEANUP
 

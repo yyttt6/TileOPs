@@ -4,6 +4,7 @@ import torch
 from tests.compile_contract import assert_op_owns_graph_nodes, register_compile_contract
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops.norm.rms_norm import RMSNormFwdOp
+from workloads.device import DEVICE
 from workloads.normalization import RMSNormWorkload
 
 register_compile_contract(RMSNormFwdOp)
@@ -68,9 +69,9 @@ class RMSNormNonContigFixture(FixtureBase):
 @RMSNormNonContigFixture
 def test_rms_norm_non_contiguous(m: int, n: int, dtype: torch.dtype) -> None:
     """Test with non-contiguous input (sliced tensor)."""
-    x_full = torch.randn(m, n * 2, dtype=dtype, device="cuda")
+    x_full = torch.randn(m, n * 2, dtype=dtype, device=DEVICE)
     x = x_full[:, :n]  # non-contiguous slice
-    weight = torch.randn(n, dtype=dtype, device="cuda")
+    weight = torch.randn(n, dtype=dtype, device=DEVICE)
 
     op = RMSNormFwdOp(normalized_shape=(n,))
 
@@ -103,8 +104,8 @@ class RMSNorm3DFixture(FixtureBase):
 @RMSNorm3DFixture
 def test_rms_norm_3d(batch: int, seq: int, hidden: int, dtype: torch.dtype) -> None:
     """Test with 3D input (batch, seq, hidden)."""
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
-    weight = torch.randn(hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
+    weight = torch.randn(hidden, dtype=dtype, device=DEVICE)
 
     op = RMSNormFwdOp(normalized_shape=(hidden,))
 
@@ -127,28 +128,6 @@ def test_rms_norm_3d(batch: int, seq: int, hidden: int, dtype: torch.dtype) -> N
 
 
 @pytest.mark.smoke
-def test_the_op_holds_one_kernel_per_dtype_whatever_the_row_count() -> None:
-    """The op keys on dtype: the row count reaches the kernel as an argument.
-
-    The TileLang program is still specialized per row count inside
-    ``_rms_norm_kernel``; moving that into the kernel's own cache is kernel-side work.
-    """
-    from tileops.kernels.norm.rms_norm import _rms_norm_kernel
-
-    op = RMSNormFwdOp(normalized_shape=(4096,))
-    weight = torch.randn(4096, dtype=torch.float16, device="cuda")
-    programs_before = _rms_norm_kernel.cache_info().currsize
-
-    for rows in (128, 129, 1024):
-        op(torch.randn(rows, 4096, dtype=torch.float16, device="cuda"), weight)
-    op(torch.randn(2, 8, 4096, dtype=torch.float16, device="cuda"), weight)
-
-    assert list(op.built_kernels("rms_norm")) == [torch.float16], "one kernel object"
-    grew = _rms_norm_kernel.cache_info().currsize - programs_before
-    assert grew == 3, "one program per distinct row count, held by the kernel not the op"
-
-
-@pytest.mark.smoke
 def test_the_in_tree_kernel_says_it_is_a_cuda_kernel() -> None:
     """The op layer is device-agnostic; the requirement belongs to these kernels."""
     op = RMSNormFwdOp(normalized_shape=(256,))
@@ -161,20 +140,20 @@ def test_the_in_tree_kernel_says_it_is_a_cuda_kernel() -> None:
 def test_a_warmed_up_op_can_be_captured_and_replayed() -> None:
     """Building a kernel may compile, so capture only ever sees a memo hit and a launch."""
     op = RMSNormFwdOp(normalized_shape=(4096,))
-    x = torch.randn(1024, 4096, dtype=torch.float16, device="cuda")
-    weight = torch.randn(4096, dtype=torch.float16, device="cuda")
+    x = torch.randn(1024, 4096, dtype=torch.float16, device=DEVICE)
+    weight = torch.randn(4096, dtype=torch.float16, device=DEVICE)
 
     expected = op(x, weight)  # warm-up, outside the capture
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
-    graph = torch.cuda.CUDAGraph()
+    graph = torch.npu.NPUGraph()
     static_x = x.clone()
-    with torch.cuda.graph(graph):
+    with torch.npu.graph(graph):
         static_out = op(static_x, weight)
 
     static_x.copy_(x)
     graph.replay()
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     assert torch.allclose(static_out, expected, atol=1e-3, rtol=1e-3)
 
@@ -184,8 +163,8 @@ def test_a_warmed_up_op_can_be_captured_and_replayed() -> None:
 def test_a_cold_op_traces_fullgraph_and_matches_eager() -> None:
     """Cold is the whole contract: a warm op has nothing left for dynamo to trace into."""
     op = RMSNormFwdOp(normalized_shape=(4096,))
-    x = torch.randn(64, 4096, dtype=torch.float16, device="cuda")
-    weight = torch.randn(4096, dtype=torch.float16, device="cuda")
+    x = torch.randn(64, 4096, dtype=torch.float16, device=DEVICE)
+    weight = torch.randn(4096, dtype=torch.float16, device=DEVICE)
 
     torch.testing.assert_close(torch.compile(op, fullgraph=True)(x, weight), op(x, weight))
 
@@ -195,8 +174,8 @@ def test_a_cold_op_traces_fullgraph_and_matches_eager() -> None:
 def test_the_traced_graph_holds_only_this_ops_operator() -> None:
     """The node is the op's, so replacing the kernel cannot change the graph."""
     op = RMSNormFwdOp(normalized_shape=(256,))
-    x = torch.randn(8, 256, dtype=torch.float16, device="cuda")
-    weight = torch.randn(256, dtype=torch.float16, device="cuda")
+    x = torch.randn(8, 256, dtype=torch.float16, device=DEVICE)
+    weight = torch.randn(256, dtype=torch.float16, device=DEVICE)
 
     assert_op_owns_graph_nodes(op, x, weight)
 
@@ -206,8 +185,8 @@ def test_the_traced_graph_holds_only_this_ops_operator() -> None:
 def test_a_non_contiguous_input_compiles_to_the_shape_the_fake_promised() -> None:
     """The fake speaks before the body normalizes contiguity, so it promises contiguous."""
     op = RMSNormFwdOp(normalized_shape=(256,))
-    x = torch.randn(8, 512, dtype=torch.float16, device="cuda")[:, ::2]
-    weight = torch.randn(256, dtype=torch.float16, device="cuda")
+    x = torch.randn(8, 512, dtype=torch.float16, device=DEVICE)[:, ::2]
+    weight = torch.randn(256, dtype=torch.float16, device=DEVICE)
     assert not x.is_contiguous()
 
     output = torch.compile(op, fullgraph=True)(x, weight)

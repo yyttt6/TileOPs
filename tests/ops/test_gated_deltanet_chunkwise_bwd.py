@@ -2,10 +2,8 @@ import pytest
 import torch
 
 from tests.test_base import FixtureBase
-from tileops.kernels.linear_attention.gated_deltanet.gated_deltanet_bwd import (
-    GatedDeltaNetBwdKernel,
-)
 from tileops.ops import GatedDeltaNetBwdOp
+from workloads.device import DEVICE
 
 
 def _differentiable_fwd(q, k, v, g_raw, beta, chunk_size):
@@ -104,18 +102,18 @@ def test_gated_deltanet_bwd(
 ) -> None:
     torch.manual_seed(42)
     B, H, S, DK, DV, BC = batch, heads, seq_len, dim_k, dim_v, chunk_size
-    q = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
-    g = -torch.rand(B, H, S, device="cuda", dtype=dtype)
-    beta = torch.rand(B, H, S, device="cuda", dtype=dtype) * 0.5
+    q = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    k = torch.randn(B, H, S, DK, device=DEVICE, dtype=dtype) * 0.1
+    v = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
+    g = -torch.rand(B, H, S, device=DEVICE, dtype=dtype)
+    beta = torch.rand(B, H, S, device=DEVICE, dtype=dtype) * 0.5
 
     # Forward to get S for backward kernel
     from tileops.ops import GatedDeltaNetBHTDFwdOp
 
     fwd_op = GatedDeltaNetBHTDFwdOp(chunk_size=BC)
     _o, S_fwd, _Aw, _Au = fwd_op.forward(q, k, v, g, beta)
-    do = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
+    do = torch.randn(B, H, S, DV, device=DEVICE, dtype=dtype) * 0.1
 
     # Reference via autograd
     ref_dq, ref_dk, ref_dv, ref_dg, ref_dbeta = gated_deltanet_autograd_bwd_torch(
@@ -147,121 +145,3 @@ def test_gated_deltanet_bwd(
             )
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required")
-@pytest.mark.parametrize(
-    ("dtype", "block_v"),
-    [
-        pytest.param(torch.float16, 64, marks=pytest.mark.smoke),
-        pytest.param(torch.bfloat16, 128, marks=pytest.mark.smoke),
-    ],
-)
-def test_gated_deltanet_bwd_segmented_carry_matches_sequential_d128(
-    dtype: torch.dtype,
-    block_v: int,
-) -> None:
-    torch.manual_seed(456)
-    B, H, S, DK, DV, BC = 1, 1, 1024, 128, 128, 64
-    q = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    k = torch.randn(B, H, S, DK, device="cuda", dtype=dtype) * 0.1
-    v = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
-    g = -torch.rand(B, H, S, device="cuda", dtype=dtype)
-    beta = torch.rand(B, H, S, device="cuda", dtype=dtype) * 0.5
-    do = torch.randn(B, H, S, DV, device="cuda", dtype=dtype) * 0.1
-
-    from tileops.ops import GatedDeltaNetBHTDFwdOp
-
-    fwd_op = GatedDeltaNetBHTDFwdOp(chunk_size=BC)
-    _o, S_fwd, _Aw, _Au = fwd_op.forward(q, k, v, g, beta)
-
-    common_config = {
-        "num_stages": 2,
-        "threads": 128,
-        "parallel_threads": 256,
-        "recurrence_threads": 128,
-        "recurrence_segment_chunks": 8,
-    }
-    baseline = GatedDeltaNetBwdKernel(
-        B,
-        H,
-        S,
-        BC,
-        DK,
-        DV,
-        str(dtype).removeprefix("torch."),
-        config={
-            **common_config,
-            "recurrence_block_v": 64,
-            "recurrence_segmented_carry": 0,
-        },
-    )
-    split = GatedDeltaNetBwdKernel(
-        B,
-        H,
-        S,
-        BC,
-        DK,
-        DV,
-        str(dtype).removeprefix("torch."),
-        config={
-            **common_config,
-            "recurrence_block_v": block_v,
-            "recurrence_segmented_carry": 1,
-        },
-    )
-    baseline_outputs = baseline.forward(do, q, k, v, g, beta, S_fwd)
-    split_outputs = split.forward(do, q, k, v, g, beta, S_fwd)
-
-    for name, expected, actual in zip(
-        ["dq", "dk", "dv", "dg", "dbeta"],
-        baseline_outputs,
-        split_outputs,
-        strict=True,
-    ):
-        torch.testing.assert_close(
-            actual,
-            expected,
-            atol=1e-3,
-            rtol=1e-3,
-            msg=lambda m, n=name: f"{n}: {m}",
-        )
-
-
-@pytest.mark.parametrize(
-    (
-        "batch",
-        "heads",
-        "seq_len",
-        "chunk_size",
-        "dim_v",
-        "expected_mode",
-        "expected_block_v",
-    ),
-    [
-        (1, 16, 1024, 64, 128, 0, 32),
-        (1, 16, 2048, 64, 128, 1, 128),
-        (4, 16, 4096, 64, 128, 1, 128),
-        (1, 16, 4160, 64, 128, 0, 32),
-        (1, 16, 4096, 64, 64, 0, 0),
-    ],
-)
-@pytest.mark.smoke
-def test_gated_deltanet_bwd_default_carry_dispatch(
-    batch: int,
-    heads: int,
-    seq_len: int,
-    chunk_size: int,
-    dim_v: int,
-    expected_mode: int,
-    expected_block_v: int,
-) -> None:
-    kernel = GatedDeltaNetBwdKernel(
-        batch=batch,
-        head=heads,
-        seq_len=seq_len,
-        chunk_size=chunk_size,
-        dim_k=128,
-        dim_v=dim_v,
-        dtype="float16",
-    )
-    assert kernel.default_config["recurrence_segmented_carry"] == expected_mode
-    assert kernel.default_config["recurrence_block_v"] == expected_block_v

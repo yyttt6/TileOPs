@@ -35,7 +35,7 @@ BmmFwdOp:
     func: "tileops.perf.formulas.bmm_fwd_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/gemm.py
+    kernel: src/tileops/kernels/families/gemm.py
     op: tileops/ops/gemm/bmm.py
     test: tests/ops/test_bmm.py
     bench: benchmarks/ops/bench_bmm.py

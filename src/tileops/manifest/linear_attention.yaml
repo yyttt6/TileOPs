@@ -329,7 +329,7 @@ GatedDeltaNetBTHDFwdOp:
   - {q_shape: [1, 4096, 16, 128], k_shape: [1, 4096, 16, 128], v_shape: [1, 4096, 16, 128], g_shape: [1, 4096, 16], beta_shape: [1, 4096, 16], chunk_size: 64, dtypes: [float16, bfloat16], label: "gdn-bthd-b1-s4k-h16-d128"}
   roofline: {func: tileops.perf.formulas.gated_deltanet_fwd_roofline}
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/linear_attention.py
+    kernel: src/tileops/kernels/families/linear_attention.py
     op: tileops/ops/linear_attention/gated_deltanet.py
     test: tests/ops/test_gated_deltanet_fwd.py
     bench: benchmarks/ops/bench_gated_deltanet.py

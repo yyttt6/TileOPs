@@ -46,7 +46,7 @@ RMSNormFwdOp:
     bytes: "(2 * M * N + N) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/two_pass.py
+    kernel: src/tileops/kernels/families/two_pass.py
     op: tileops/ops/norm/rms_norm.py
     test: tests/ops/test_rms_norm.py
     bench: benchmarks/ops/bench_norm.py
@@ -96,7 +96,7 @@ LayerNormFwdOp:
     bytes: "(2 * M * N + 2 * N) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/two_pass.py
+    kernel: src/tileops/kernels/families/two_pass.py
     op: tileops/ops/norm/layer_norm.py
     test: tests/ops/test_layer_norm.py
     bench: benchmarks/ops/bench_norm.py
@@ -139,7 +139,7 @@ AdaLayerNormFwdOp:
     bytes: "4 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/ada_layer_norm.py
     test: tests/ops/test_ada_layer_norm.py
     bench: benchmarks/ops/bench_ada_layer_norm.py
@@ -184,7 +184,7 @@ AdaLayerNormZeroFwdOp:
     bytes: "5 * M * N * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/ada_layer_norm_zero.py
     test: tests/ops/test_ada_layer_norm_zero.py
     bench: benchmarks/ops/bench_ada_layer_norm.py
@@ -232,7 +232,7 @@ FusedAddLayerNormFwdOp:
     bytes: "(4 * M * N + 2 * N) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/fused_add_layer_norm.py
     test: tests/ops/test_fused_add_layer_norm.py
     bench: benchmarks/ops/bench_norm.py
@@ -281,7 +281,7 @@ FusedAddRMSNormFwdOp:
     bytes: "(4 * M * N + N) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/fused_add_rms_norm.py
     test: tests/ops/test_fused_add_rms_norm.py
     bench: benchmarks/ops/bench_norm.py
@@ -336,7 +336,7 @@ BatchNormFwdOp:
     bytes: "2 * C * L * elem_bytes + 4 * C * 4"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/batch_norm.py
     test: tests/ops/test_batch_norm.py
     bench: benchmarks/ops/bench_batch_norm.py
@@ -388,7 +388,7 @@ BatchNormBwdOp:
     bytes: "3 * C * L * elem_bytes + 3 * C * 4"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/batch_norm.py
     test: tests/ops/test_batch_norm.py
     bench: benchmarks/ops/bench_batch_norm.py
@@ -445,7 +445,7 @@ GroupNormFwdOp:
     bytes: "(2 * N * C * spatial_size + (2 * C if affine else 0)) * elem_bytes"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/group_norm.py
     test: tests/ops/test_group_norm.py
     bench: benchmarks/ops/bench_group_norm.py
@@ -513,7 +513,7 @@ InstanceNormFwdOp:
     bytes: "(2 * N * C * spatial_size + (2 * C if affine else 0)) * elem_bytes + (2 * C * 4 if reads_running_stats else 0)"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/normalization_spatial.py
+    kernel: src/tileops/kernels/families/normalization_spatial.py
     op: tileops/ops/norm/instance_norm.py
     test: tests/ops/test_instance_norm.py
     bench: benchmarks/ops/bench_instance_norm.py

@@ -53,9 +53,9 @@ from tileops.manifest.shape_rules import (  # noqa: E402
 
 PACKAGE_ROOT = "src"
 # ``op`` ships in this wheel next to the manifest, so it is written as it appears
-# inside the distribution and resolves under ``src/``. ``kernel`` no longer does:
-# the kernels live in a backend distribution of their own (backends/ascend), so it
-# is repo-relative like ``test`` and ``bench``.
+# inside the distribution and resolves under ``src/``. ``kernel`` is repo-relative
+# like ``test`` and ``bench``: it names the family module holding the builder, and
+# an op served by an out-of-tree backend has no path under ``src/`` at all.
 DISTRIBUTION_RELATIVE_KEYS = frozenset({"op"})
 
 MANIFEST_DIR = REPO_ROOT / PACKAGE_ROOT / "tileops" / "manifest"

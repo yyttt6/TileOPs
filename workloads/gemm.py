@@ -1,5 +1,6 @@
 import torch
 
+from workloads.device import DEVICE
 from workloads.workload_base import WorkloadBase
 
 W4A16_GROUP_SIZE = 128
@@ -24,9 +25,9 @@ class GemmWorkload(WorkloadBase):
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor]:
         shape_a = (self.k, self.m) if self.trans_a else (self.m, self.k)
-        a = torch.randn(*shape_a, device="cuda", dtype=self.dtype)
+        a = torch.randn(*shape_a, device=DEVICE, dtype=self.dtype)
         shape_b = (self.n, self.k) if self.trans_b else (self.k, self.n)
-        b = torch.randn(*shape_b, device="cuda", dtype=self.dtype)
+        b = torch.randn(*shape_b, device=DEVICE, dtype=self.dtype)
         return a, b
 
     def ref_program(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -66,17 +67,17 @@ class GemmFp8Workload(WorkloadBase):
         raise ValueError(f"unknown FP8 GEMM scale_mode {self.scale_mode!r}")
 
     def gen_inputs(self) -> tuple[torch.Tensor, ...]:
-        a = (torch.randn(self.m, self.k, device="cuda") * 0.25).to(self.dtype).contiguous()
-        b = (torch.randn(self.n, self.k, device="cuda") * 0.25).to(self.dtype).contiguous()
+        a = (torch.randn(self.m, self.k, device=DEVICE) * 0.25).to(self.dtype).contiguous()
+        b = (torch.randn(self.n, self.k, device=DEVICE) * 0.25).to(self.dtype).contiguous()
         scale_a_shape, scale_b_shape = self._scale_shapes()
         scale_a = (
-            0.5 + torch.rand(*scale_a_shape, device="cuda", dtype=torch.float32)
+            0.5 + torch.rand(*scale_a_shape, device=DEVICE, dtype=torch.float32)
         ).contiguous()
         scale_b = (
-            0.5 + torch.rand(*scale_b_shape, device="cuda", dtype=torch.float32)
+            0.5 + torch.rand(*scale_b_shape, device=DEVICE, dtype=torch.float32)
         ).contiguous()
         if self.bias:
-            bias = torch.randn(self.n, device="cuda", dtype=self.out_dtype)
+            bias = torch.randn(self.n, device=DEVICE, dtype=self.out_dtype)
             return a, b, scale_a, scale_b, bias
         return a, b, scale_a, scale_b
 
@@ -148,8 +149,8 @@ class GemmW4A16Workload(WorkloadBase):
         self._dequantized_weight: torch.Tensor | None = None
 
     def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        activation = torch.randn(self.m, self.k, device="cuda", dtype=self.dtype)
-        source_weight = torch.randn(self.n, self.k, device="cuda", dtype=torch.float32) * 0.25
+        activation = torch.randn(self.m, self.k, device=DEVICE, dtype=self.dtype)
+        source_weight = torch.randn(self.n, self.k, device=DEVICE, dtype=torch.float32) * 0.25
         packed, scale, zero, dequantized = quantize_weight_int4(
             source_weight, group_size=self.group_size
         )

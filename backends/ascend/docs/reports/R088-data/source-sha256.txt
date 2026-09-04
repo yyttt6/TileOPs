@@ -1,3 +1,0 @@
-1013a5e4c9ac024cbb65a535ebd5e2ea4d4f02fd767ef98e36e4f8a0703a623e  src/tileops_ascend/kernels/reduction.py
-586246f35950d9ae77ba113488fbe3a5bbcf138982e87c8ba761cfac0a9b32b1  src/tileops_ascend/families/reduction.py
-71d97c88dacd876b15bc873da491d98a5b19d60f8ed2671f0e67b949872eeeb3  src/tileops_ascend/families/two_pass.py

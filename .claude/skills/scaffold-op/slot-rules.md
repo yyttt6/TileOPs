@@ -1,6 +1,8 @@
 # Scaffold Slot Rules
 
-The 17 slots `scaffold-op` emits: S1-S7, S12-S21. S8-S11 are reserved for T1 thin-wrapper
+The 16 slots `scaffold-op` emits: S1, S4-S7, S12, S13, S15-S21. S2, S3 and S14 are retired:
+they emitted the imports and the dispatch table of an in-tree kernel tree, and kernels now come
+from a backend distribution the op layer never imports. S8-S11 are reserved for T1 thin-wrapper
 subclasses and never emitted here. Examples scaffold the fictional `ExampleCumsumFwdOp`; none
 mirrors a shipped file.
 
@@ -23,17 +25,13 @@ design, calling conventions — live in
   ```
 - **Common mistakes.** Naming tile sizes or kernel internals; omitting the one-line purpose.
 
-### Slot S2: <a id="slot-s2"></a> Import — `Kernel` base class
+### Slots S2, S3: retired — kernel imports
 
-- **Rule.** `from tileops.kernels.kernel_base import Kernel`, whenever `kernel_map` is annotated.
-  Never alias it, never re-export it.
-
-### Slot S3: <a id="slot-s3"></a> Import — concrete `Kernel` class
-
-- **Rule.** One absolute `from tileops.kernels.* import <KernelClass>` per manifest `kernel_map`
-  value. Import nothing that `kernel_map` does not list.
-- **Example.** `from tileops.kernels.reduction.example_cumsum import ExampleCumsumKernel`
-- **Common mistakes.** Relative cross-package import.
+- **Rule.** An op file imports no kernel. The kernels live in backend distributions
+  (`src/tileops/kernels/`), reached through `tileops.backend`'s registry, and `manifest`
+  `source.kernel` records which module holds the builder for a reader rather than for an import.
+  Import `Kernel` from `tileops.backend` when a helper's return type needs naming: it is the
+  alias for what a `build_kernel` returns, which is anything callable.
 
 ### Slot S4: <a id="slot-s4"></a> Import — `Op` base class
 
@@ -43,8 +41,7 @@ design, calling conventions — live in
 
 ### Slot S5: <a id="slot-s5"></a> `__all__`
 
-- **Rule.** `__all__ = ["<ClassName>"]` — the concrete op from S6, and nothing else. Never
-  re-export the Kernel class.
+- **Rule.** `__all__ = ["<ClassName>"]` — the concrete op from S6, and nothing else.
 
 ### Slot S6: <a id="slot-s6"></a> Class name
 
@@ -69,7 +66,8 @@ design, calling conventions — live in
           M: Number of rows (product of all dims except the reduction axis).
           N: Hidden dimension (size along the reduction axis).
           dim: Reduction dimension (default -1).
-          kernel_map: Optional override for kernel dispatch.
+          target: Which set of kernels serves this op, or ``None`` to decide
+              from the input device.
           tune: Whether to autotune (default False).
       """
   ```
@@ -80,7 +78,7 @@ design, calling conventions — live in
 
 - **Rule.** Block order: (1) `static_dims` entries in manifest key order, no defaults;
   (2) `signature.params` entries in manifest key order; then `*` and (3) any param declaring
-  `kw_only: true`, followed by `target`, `kernel_map`, `tune`. Give `dtype` a parameter only when
+  `kw_only: true`, followed by `target`, `tune`. Give `dtype` a parameter only when
   the inputs do not determine every output dtype — see
   [Parameter design](../../../docs/design/ops-design-reference.md#parameter-design).
 - **Example.**
@@ -91,7 +89,6 @@ design, calling conventions — live in
       dim: int = -1,
       *,
       target: Target = None,
-      kernel_map: Optional[Dict[str, Kernel]] = None,
       tune: bool = False,
   ):
   ```
@@ -101,7 +98,8 @@ design, calling conventions — live in
 ### Slot S13: <a id="slot-s13"></a> `__init__` body
 
 - **Rule.** Sequence: (a) `self.<name> = <name>` per parameter, `target` among them; (b)
-  `self.dispatch_kernel(kernel_map)`, which resolves the kernel *class* and needs no tensor.
+  `self.dispatch_kernel()`, which loads the backend registry and joins the compile boundary —
+  it needs no tensor and builds nothing.
   **Construct no kernel and declare no cache here**: the kernel is dtype-specialized and no dtype
   exists until a call arrives, and L1 owns get-or-build
   ([Kernel caching](../../../docs/design/ops-design.md#kernel-caching-and-enumeration)).
@@ -114,24 +112,16 @@ design, calling conventions — live in
   self.dim = dim
   self.target = target
   self.tune = tune
-  self.dispatch_kernel(kernel_map)
+  self.dispatch_kernel()
   ```
-- **Common mistakes.** `_infer_output_shapes` before `dispatch_kernel`; hard-coding the kernel class
-  instead of routing through `self.kernel_map`; storing `self.dtype` at ctor time; a private cache
-  dict in place of `Op.get_or_build_kernel`.
+- **Common mistakes.** `_infer_output_shapes` before `dispatch_kernel`; naming a kernel here;
+  storing `self.dtype` at ctor time; a private cache dict in place of `Op.get_or_build_kernel`.
 
-### Slot S14: <a id="slot-s14"></a> `default_kernel_map` property
+### Slot S14: retired — `default_kernel_map`
 
-- **Rule.** A `@property` returning the manifest `kernel_map` verbatim: `snake_case` dispatch keys,
-  Kernel-class values.
-- **Example.**
-  ```python
-  @property
-  def default_kernel_map(self) -> Dict[str, Kernel]:
-      return {"example_cumsum_fwd": ExampleCumsumKernel}
-  ```
-- **Common mistakes.** A class-level dict instead of a property; keys that echo the class name
-  instead of being dispatch strings.
+- **Rule.** There is no dispatch table. An op asks `get_or_build_kernel` for a slot by name and
+  the target decides which of its kernels serves the call, inside `build_kernel` where the
+  shapes and dtypes are. A slot name is one per computation, never one per implementation.
 
 ### Slot S15: <a id="slot-s15"></a> `forward` signature
 
@@ -148,18 +138,16 @@ design, calling conventions — live in
   axes via modulo (`dim = self.dim % x.ndim`); (c) validate each `static_dims` commitment
   (`x.shape[<resolved_axis>] == self.<kwarg>`); (d) bind `self._static_axes` for arbitrary-rank
   ops; (e) `.contiguous()` every input; (f)
-  `self.get_or_build_kernel(<name>, <inputs>, key=<key>, build=<factory>)`, handing over one slot
+  `self.get_or_build_kernel(<slot>, <inputs>)`, handing over one slot
   per `signature.inputs` entry — `None` for an absent optional one; (g) call the kernel.
   An op that declares `torch_compile_fullgraph` keeps this body under the name `_eager_forward`,
   and its `forward` becomes one call to the operator it registers — that operator is outside the
   scaffold's scope, see
   [Compile Dispatch Boundary](../../../docs/design/ops-design.md#compile-dispatch-boundary).
 - **Derivation.** Validation expressions come from each `static_dims` entry's
-  `<tensor>.shape[<axis>]` RHS; the role is the `kernel_map` dispatch key whose kernel the factory
-  builds. A specialization that implies more than a dtype — a compute dtype differing from the
-  semantic one, an output dtype no input supplies — makes the entry one frozen record rather than a
-  bare kernel, and those fields never live in `self.*`
-  ([Forward keying](../../../docs/design/ops-design-reference.md#base-class-protocol)).
+  `<tensor>.shape[<axis>]` RHS. The slot name is the op's own: one per computation it asks a
+  target for. The op layer keys the built kernel on the device, dtype and shape of every input
+  slot, so nothing about the specialization has to be spelled out here.
 - **What the op does not do.** It states no device requirement — the kernel it fetched does that —
   and it does not reshape for the kernel: rank reduction, padding and their inverses belong to the
   kernel's own call wrapper, so a backend is handed the shapes the manifest declares.
@@ -175,14 +163,7 @@ design, calling conventions — live in
       self._static_axes = frozenset({(0, dim)})
       self.dtype = x.dtype
       x = x.contiguous()
-      kernel = self.get_or_build_kernel(
-          "example_cumsum_fwd",
-          (x,),
-          key=(self._cache_key(x.shape), x.dtype),
-          build=lambda: self.kernel_map["example_cumsum_fwd"](
-              self.N, "sum", x.dtype, tune=self.tune
-          ),
-      )
+      kernel = self.get_or_build_kernel("example_cumsum_fwd", (x,))
       return kernel(x)
   ```
 - **Common mistakes.** Building a kernel in a traced `forward`; keying on shape alone, so a second

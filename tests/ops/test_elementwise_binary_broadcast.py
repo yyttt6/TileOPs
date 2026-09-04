@@ -16,30 +16,31 @@ import torch
 
 import tileops.ops.elementwise as elementwise_mod
 from tileops.perf import formulas
+from workloads.device import DEVICE
 
 
 def _randn(s, d):
-    return torch.randn(*s, dtype=d, device="cuda")
+    return torch.randn(*s, dtype=d, device=DEVICE)
 
 
 def _rand_pos(s, d):
-    return torch.rand(*s, dtype=d, device="cuda") + 0.1
+    return torch.rand(*s, dtype=d, device=DEVICE) + 0.1
 
 
 def _rand_bool(s, d):
-    return (torch.randn(*s, dtype=d, device="cuda") > 0).to(d)
+    return (torch.randn(*s, dtype=d, device=DEVICE) > 0).to(d)
 
 
 def _randint(s, d):
-    return torch.randint(-1000, 1000, s, dtype=d, device="cuda")
+    return torch.randint(-1000, 1000, s, dtype=d, device=DEVICE)
 
 
 def _pow_base(s, d):
-    return torch.rand(*s, dtype=d, device="cuda") + 0.5
+    return torch.rand(*s, dtype=d, device=DEVICE) + 0.5
 
 
 def _pow_exp(s, d):
-    return torch.rand(*s, dtype=d, device="cuda") * 2.0
+    return torch.rand(*s, dtype=d, device=DEVICE) * 2.0
 
 
 # (op_name, dtype, gen_a, gen_b, ref_fn).
@@ -81,7 +82,7 @@ _BROADCAST_OPS = [
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize(
     "op_name, dtype, gen_a, gen_b, ref_fn",
     _BROADCAST_OPS,
@@ -117,7 +118,7 @@ def test_binary_op_bidirectional_broadcast(
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize("op_name", ["MaximumFwdOp", "DivFwdOp"])
 def test_channel_broadcast_with_ragged_inner_dim(op_name: str) -> None:
     """A per-channel operand over a non-tile-multiple inner dim.
@@ -127,8 +128,8 @@ def test_channel_broadcast_with_ragged_inner_dim(op_name: str) -> None:
     swapped operand would not cancel out.
     """
     cls = getattr(elementwise_mod, op_name)
-    a = torch.randn(2, 3, 10, 30, dtype=torch.float16, device="cuda")
-    b = torch.rand(3, 1, 1, dtype=torch.float16, device="cuda") + 0.5
+    a = torch.randn(2, 3, 10, 30, dtype=torch.float16, device=DEVICE)
+    b = torch.rand(3, 1, 1, dtype=torch.float16, device=DEVICE) + 0.5
     ref = torch.maximum(a, b) if op_name == "MaximumFwdOp" else a / b
     out = cls()(a, b)
     torch.testing.assert_close(out, ref, atol=1e-2, rtol=1e-2)

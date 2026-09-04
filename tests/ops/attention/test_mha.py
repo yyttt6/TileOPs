@@ -1,56 +1,10 @@
-import dataclasses
 
 import pytest
 import torch
 
 from tests.test_base import FixtureBase, TestBase
-from tileops.kernels.attention.call_spec import square_ws_prefill_region
-from tileops.kernels.kernel_base import Kernel
 from tileops.ops import MultiHeadAttentionBwdOp, MultiHeadAttentionFwdOp
-from tileops.ops.attention.selection import DENSE_PREFILL_KEYS
 from workloads.attention.mha import MhaBwdWorkload, MhaFwdWorkload
-
-
-class _FakeDenseKernel(Kernel):
-    """Stands in for the general dense implementation.
-
-    A replacement declares its role the same way a shipped implementation does.
-    This one is the implementation behind the specialised ones, so it says so
-    rather than naming the fast path it yields to.
-    """
-
-    general = True
-
-    def forward(self, *args: object, **kwargs: object) -> object:
-        return None
-
-
-class _FakeSquareDenseKernel(Kernel):
-    """Stands in for the H200 square causal fast path."""
-
-    @classmethod
-    def applies(cls, call: object) -> bool:
-        return square_ws_prefill_region(call)
-
-    def forward(self, *args: object, **kwargs: object) -> object:
-        return None
-
-
-class _FakeLegacyMhaBwdKernel(Kernel):
-    def __init__(
-        self,
-        batch: int,
-        heads: int,
-        seq_len: int,
-        dim: int,
-        is_causal: bool,
-        dtype: torch.dtype,
-        tune: bool = False,
-    ) -> None:
-        super().__init__()
-
-    def forward(self, *args: object, **kwargs: object) -> object:
-        return None
 
 
 class MhaBwdTest(MhaBwdWorkload, TestBase):
@@ -182,46 +136,6 @@ def test_mha_fwd(
 def test_mha_fwd_dispatches_to_gqa_kernel() -> None:
     op = MultiHeadAttentionFwdOp(1, 8, 128, 64, False)
     assert op._get_kernel((), torch.float16).__class__.__name__.startswith("GQA")
-
-
-@pytest.mark.smoke
-def test_mha_fwd_preserves_gqa_square_dense_fast_path() -> None:
-    """MHA delegates to GQA, so the square fast path is still reached through it.
-
-    The device is stated on the record rather than probed, so the case holds on
-    any machine.
-    """
-    op = MultiHeadAttentionFwdOp(
-        batch=4,
-        heads=64,
-        seq_len=512,
-        dim=128,
-        is_causal=True,
-        kernel_map={
-            "gqa_prefill_causal_fwd_kernel": _FakeDenseKernel,
-            "gqa_prefill_square_fwd_kernel": _FakeSquareDenseKernel,
-        },
-    )
-    (delegate,) = op.kernel_delegates()
-    stated = dataclasses.replace(delegate.attention_call(torch.float16), arch=90, h200=True)
-
-    key = delegate.select_kernel_key(DENSE_PREFILL_KEYS, stated)
-
-    assert key == "gqa_prefill_square_fwd_kernel"
-    assert delegate.kernel_map[key] is _FakeSquareDenseKernel
-
-
-@pytest.mark.smoke
-def test_mha_bwd_rejects_legacy_kernel_map_keys() -> None:
-    with pytest.raises(ValueError, match="legacy MHA backward kernel_map keys"):
-        MultiHeadAttentionBwdOp(
-            batch=1,
-            heads=8,
-            seq_len=128,
-            dim=64,
-            is_causal=False,
-            kernel_map={"mha_bwd_kernel": _FakeLegacyMhaBwdKernel},
-        )
 
 
 @MhaBwdFixture

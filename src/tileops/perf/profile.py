@@ -63,8 +63,9 @@ def _coerce_numeric_strings(obj, key=None):
 def _inject_effective(profile):
     """Compute effective = theoretical * calibration for hbm and the compute sections.
 
-    A section with only ``theoretical`` is left alone: profiles are created from
-    datasheet numbers first and calibrated by benchmarks/hardware/ afterwards.
+    A section with only ``theoretical`` is left alone: a profile is created from
+    datasheet numbers first and calibrated afterwards, by the measurement harness
+    (``tileops-ascend-harness/calibrate_hw.py``) against a real card.
     """
     sections = [profile.get("hbm")]
     for group in ("cube", "vector"):

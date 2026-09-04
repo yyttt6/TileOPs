@@ -59,7 +59,7 @@ GemmFwdOp:
   signature: {inputs: {a: {dtype: "float16 | bfloat16"}, b: {dtype: "same_as(a)"}}, ...}
   workloads: [{m: 1024, n: 1024, k: 1024, dtypes: [float16, bfloat16]}]
   roofline: {func: tileops.perf.formulas.gemm_fwd_roofline}
-  source: {kernel: ..., op: ..., test: ..., bench: ..., kernel_map: ...}
+  source: {kernel: ..., op: ..., test: ..., bench: ...}
 ```
 
 | Field       | Role                                                                            |
@@ -123,7 +123,7 @@ python -m pytest -q tests -m smoke           # verify; requires an Ascend NPU
 | [ops-design.md](docs/design/ops-design.md)     | Adding an operator, step by step                 |
 | [roofline.md](docs/design/roofline.md)         | How performance is scored against Speed-of-Light |
 | [trust-model.md](docs/design/trust-model.md)   | What each layer may assume about the others      |
-| [PATTERN.md](backends/ascend/PATTERN.md)       | The Ascend kernel template and its boundary      |
+| [kernel-pattern.md](docs/design/kernel-pattern.md) | The Ascend kernel template and its boundary      |
 
 ## Contributing
 

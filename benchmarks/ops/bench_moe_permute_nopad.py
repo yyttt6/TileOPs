@@ -72,7 +72,7 @@ def test_moe_permute_nopad_bench(
     op = MoePermuteNopadFwdOp(num_experts=num_experts, num_experts_local=num_experts_local)
     bm = ManifestBenchmark(_OP_NAME, op, workload)
     op(hidden_states, topk_ids, expert_map)  # warmup / JIT compile
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops": op}
 
@@ -101,7 +101,7 @@ def test_moe_permute_nopad_bench(
             return moe_permute(hidden_states, None, topk_ids, num_experts)
 
         _vllm_fn(hidden_states, topk_ids)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["vllm"] = _vllm_fn
     else:
@@ -140,7 +140,7 @@ def test_moe_permute_nopad_bench(
             return perm_h_buf, true_offsets.to(torch.int32), counts.to(torch.int32)
 
         _torch_fn(hidden_states, topk_ids)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["torch-ref"] = _torch_fn
 

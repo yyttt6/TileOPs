@@ -30,6 +30,7 @@ from tileops.ops.rope import (
     RopeNonNeoxFwdOp,
     RopeYarnFwdOp,
 )
+from workloads.device import DEVICE
 
 # Bench-local: manifest workload entries carry no ``base``; the ops and the
 # baseline both use the manifest signature default (``base: 10000.0``).
@@ -72,9 +73,9 @@ def _rope_tables(seq_len: int, head_dim: int, dtype: torch.dtype):
     serves all of them.
     """
     half = head_dim // 2
-    freqs = 1.0 / (_BASE ** (torch.arange(0, half, device="cuda", dtype=torch.float32) / half))
+    freqs = 1.0 / (_BASE ** (torch.arange(0, half, device=DEVICE, dtype=torch.float32) / half))
     angles = torch.outer(
-        torch.arange(seq_len, device="cuda", dtype=torch.float32),
+        torch.arange(seq_len, device=DEVICE, dtype=torch.float32),
         freqs,
     )
     return (
@@ -121,7 +122,7 @@ def _profile_rope(
     op, bm: ManifestBenchmark, shape: tuple[int, ...], dtype: torch.dtype, layout: str
 ) -> None:
     """Profile op and the torch rotation baseline on the same input."""
-    x = torch.randn(shape, device="cuda", dtype=dtype)
+    x = torch.randn(shape, device=DEVICE, dtype=dtype)
     params = {"shape": shape, "dtype": dtype, "layout": layout}
 
     seq_len = shape[0] if layout == "1d" else shape[1]
@@ -244,11 +245,11 @@ def test_rope_neox_position_ids_bench(
     max_position: int,
 ) -> None:
     num_tokens, _, head_dim = shape
-    x = torch.randn(shape, device="cuda", dtype=dtype)
+    x = torch.randn(shape, device=DEVICE, dtype=dtype)
     position_ids = (
         torch.arange(
             num_tokens,
-            device="cuda",
+            device=DEVICE,
             dtype=torch.int32,
         )
         % max_position

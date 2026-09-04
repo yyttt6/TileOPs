@@ -1,5 +1,6 @@
 import torch
 
+from workloads.device import DEVICE
 from workloads.workload_base import WorkloadBase
 
 
@@ -10,7 +11,7 @@ class FFTWorkload(WorkloadBase):
         self.batch_shape = batch_shape
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
-        x = torch.randn(*self.batch_shape, self.n, device="cuda", dtype=self.dtype)
+        x = torch.randn(*self.batch_shape, self.n, device=DEVICE, dtype=self.dtype)
         return (x,)
 
     def ref_program(self, x: torch.Tensor) -> torch.Tensor:

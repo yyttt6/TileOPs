@@ -6,7 +6,6 @@ import torch.nn.functional as F
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops import MultiHeadAttentionDecodePagedWithKVCacheFwdOp
-from tileops.ops.attention.selection import MHA_PAGED_DECODE_KEYS
 from workloads.attention.mha import (
     MhaDecodePagedWorkload,
 )
@@ -163,17 +162,3 @@ def test_mha_decode_paged_cache_shorter_than_bound(real_lengths: list) -> None:
 
     assert torch.isfinite(output).all(), "output is not finite for a partly filled cache"
     test._maxdiff_cosine_compare(output, test.ref_program(q, k, v, real_seqlen_kv, block_table))
-
-
-@pytest.mark.smoke
-def test_mha_decode_paged_dispatch_declines_multi_token_query() -> None:
-    """A query longer than one token belongs to the general kernel.
-
-    The warp-specialized kernel exists because ``seqlen_q`` is 1; selection has
-    to hand a longer query back rather than serve it.
-    """
-    op = MultiHeadAttentionDecodePagedWithKVCacheFwdOp(
-        batch=1, heads=8, seqlen_q=4, seqlen_kv=1024, dim=64, page_size=256, is_causal=False
-    )
-    key = op.select_kernel_key(MHA_PAGED_DECODE_KEYS, op._attention_call(torch.float16))
-    assert key == "mha_decode_paged_kernel"

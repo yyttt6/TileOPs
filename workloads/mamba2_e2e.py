@@ -6,6 +6,7 @@ Covers model-scale configurations (130M–2.7B) and workload types
 
 import torch
 
+from workloads.device import DEVICE
 from workloads.workload_base import FixtureBase, WorkloadBase
 
 # ---------------------------------------------------------------------------
@@ -155,7 +156,7 @@ class Mamba2FwdWorkload(WorkloadBase):
         p = self.d_head
         n = self.d_state
         g = self.n_groups
-        dev = "cuda"
+        dev = DEVICE
         dt = self.dtype
 
         x = torch.randn(b, S, h, p, dtype=dt, device=dev) * 0.1

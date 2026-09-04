@@ -57,7 +57,7 @@ def test_moe_unpermute_bench(total_tokens: int, top_k: int, hidden_size: int) ->
     op = MoeUnpermuteFwdOp(total_tokens, top_k, hidden_size)
     bm = ManifestBenchmark(_OP_NAME, op, test)
     op(mm2_pad, fwd_idx, topk_weights)  # warmup / JIT compile
-    torch.cuda.synchronize()
+    torch.npu.synchronize()
 
     functors = {"tileops": op}
 
@@ -79,7 +79,7 @@ def test_moe_unpermute_bench(total_tokens: int, top_k: int, hidden_size: int) ->
             return out_vllm
 
         _vllm_fn(mm2_pad, fwd_idx, topk_weights)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["vllm"] = _vllm_fn
     else:
@@ -95,7 +95,7 @@ def test_moe_unpermute_bench(total_tokens: int, top_k: int, hidden_size: int) ->
             return weighted_sum.to(mm2_pad.dtype)
 
         _torch_fn(mm2_pad, fwd_idx, topk_weights)  # warmup
-        torch.cuda.synchronize()
+        torch.npu.synchronize()
 
         functors["torch-ref"] = _torch_fn
 

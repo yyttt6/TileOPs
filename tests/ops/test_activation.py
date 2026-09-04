@@ -8,8 +8,8 @@ import torch
 import torch.nn.functional as F
 
 from tests.test_base import FixtureBase, TestBase
-from tileops.kernels.elementwise import ReluFwdKernel
 from tileops.ops.elementwise import ReluFwdOp
+from workloads.device import DEVICE
 from workloads.elementwise import RandnFlatWorkload, ReluWorkload
 
 
@@ -66,17 +66,6 @@ class ReluStrategyFixture(FixtureBase):
     ]
 
 
-@ReluStrategyFixture
-def test_relu_strategies(n_total: int, dtype: torch.dtype, strategy: str) -> None:
-    """All 3 unary strategies selected via the config dict produce correct results."""
-    test = ReluTest(n_total, dtype)
-    kernel = ReluFwdKernel(n_total, dtype, config={"strategy": strategy})
-    assert kernel.strategy == strategy
-    assert kernel.config["strategy"] == strategy
-    atol, rtol = _get_tolerances(dtype)
-    test.check(kernel, *test.gen_inputs(), atol=atol, rtol=rtol)
-
-
 # Template-based activation ops
 
 
@@ -120,7 +109,7 @@ class UnaryActivationTest(RandnFlatWorkload, TestBase):
 
 
 def _randn(n: int, dtype: torch.dtype) -> torch.Tensor:
-    return torch.randn(n, device="cuda", dtype=dtype)
+    return torch.randn(n, device=DEVICE, dtype=dtype)
 
 
 def _make_activation_test(n_total, dtype, gen_fn, ref_fn, op_cls, **op_kwargs):
@@ -203,24 +192,12 @@ def test_selu(n_total: int, dtype: torch.dtype) -> None:
     _make_activation_test(n_total, dtype, _randn, F.selu, SeluFwdOp)
 
 
-@pytest.mark.smoke
-def test_activation_rejects_non_float_dtype() -> None:
-    from tileops.kernels.elementwise import GeluFwdKernel
-
-    with pytest.raises(ValueError, match="only supports dtypes"):
-        GeluFwdKernel(N_total=16, dtype=torch.int32)
-
-
-# L4 edge-case tests (fp32, 4K)
-
-
-@ActivationEdgeFixture
 def test_sigmoid_edge(n_total: int, dtype: torch.dtype) -> None:
     """Edge: sigmoid of large negative -> ~0, large positive -> ~1."""
     from tileops.ops.elementwise import SigmoidFwdOp
 
     def _extreme(n, dtype):
-        x = torch.zeros(n, device="cuda", dtype=dtype)
+        x = torch.zeros(n, device=DEVICE, dtype=dtype)
         x[: n // 2] = -50.0
         x[n // 2 :] = 50.0
         return x
@@ -234,7 +211,7 @@ def test_tanh_edge(n_total: int, dtype: torch.dtype) -> None:
     from tileops.ops.elementwise import TanhFwdOp
 
     def _extreme(n, dtype):
-        x = torch.zeros(n, device="cuda", dtype=dtype)
+        x = torch.zeros(n, device=DEVICE, dtype=dtype)
         x[: n // 2] = -50.0
         x[n // 2 :] = 50.0
         return x
@@ -318,8 +295,8 @@ def test_prelu(n_total: int, dtype: torch.dtype) -> None:
     H = n_total // C
     # Shape (1, C, H): batch=1, channels=C, spatial=H
     shape = (1, C, H)
-    x = torch.randn(shape, device="cuda", dtype=dtype)
-    weight = torch.randn(C, device="cuda", dtype=dtype).abs() * 0.1 + 0.01
+    x = torch.randn(shape, device=DEVICE, dtype=dtype)
+    weight = torch.randn(C, device=DEVICE, dtype=dtype).abs() * 0.1 + 0.01
     ref = F.prelu(x.float(), weight.float()).to(dtype)
 
     op = PreluFwdOp()
@@ -340,8 +317,8 @@ def test_prelu_batch_dim() -> None:
 
     dtype = torch.float32
     shape = (2, 4, 8)
-    x = torch.randn(shape, device="cuda", dtype=dtype)
-    weight = torch.tensor([0.1, 0.2, 0.3, 0.4], device="cuda", dtype=dtype)
+    x = torch.randn(shape, device=DEVICE, dtype=dtype)
+    weight = torch.tensor([0.1, 0.2, 0.3, 0.4], device=DEVICE, dtype=dtype)
     ref = F.prelu(x, weight)
     op = PreluFwdOp()
     out = op(x, weight)
@@ -360,15 +337,9 @@ def test_prelu_rejects_a_weight_that_does_not_match_the_channel_axis() -> None:
 
     dtype = torch.float32
     op = PreluFwdOp()
-    weight = torch.tensor([0.1, 0.2, 0.3, 0.4], device="cuda", dtype=dtype)
-    bad = torch.randn((2, 8, 4), device="cuda", dtype=dtype)
+    weight = torch.tensor([0.1, 0.2, 0.3, 0.4], device=DEVICE, dtype=dtype)
+    bad = torch.randn((2, 8, 4), device=DEVICE, dtype=dtype)
     with pytest.raises(ValueError, match=r"weight of length"):
         op(bad, weight)
 
 
-@pytest.mark.smoke
-def test_independent_activation_rejects_non_float_dtype() -> None:
-    from tileops.kernels.elementwise import LeakyReluFwdKernel
-
-    with pytest.raises(ValueError, match="only supports dtypes"):
-        LeakyReluFwdKernel(N_total=16, dtype=torch.int32)

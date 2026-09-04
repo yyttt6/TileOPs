@@ -31,7 +31,7 @@ RopeNeoxFwdOp:
     func: "tileops.perf.formulas.rope_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/position_encoding.py
+    kernel: src/tileops/kernels/families/position_encoding.py
     op: tileops/ops/rope.py
     test: tests/ops/test_rope.py
     bench: benchmarks/ops/bench_rope.py
@@ -63,7 +63,7 @@ RopeNonNeoxFwdOp:
     func: "tileops.perf.formulas.rope_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/position_encoding.py
+    kernel: src/tileops/kernels/families/position_encoding.py
     op: tileops/ops/rope.py
     test: tests/ops/test_rope.py
     bench: benchmarks/ops/bench_rope.py
@@ -99,7 +99,7 @@ RopeLlama31FwdOp:
     func: "tileops.perf.formulas.rope_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/position_encoding.py
+    kernel: src/tileops/kernels/families/position_encoding.py
     op: tileops/ops/rope.py
     test: tests/ops/test_rope.py
     bench: benchmarks/ops/bench_rope.py
@@ -136,7 +136,7 @@ RopeYarnFwdOp:
     func: "tileops.perf.formulas.rope_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/position_encoding.py
+    kernel: src/tileops/kernels/families/position_encoding.py
     op: tileops/ops/rope.py
     test: tests/ops/test_rope.py
     bench: benchmarks/ops/bench_rope.py
@@ -171,7 +171,7 @@ RopeLongRopeFwdOp:
     func: "tileops.perf.formulas.rope_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/position_encoding.py
+    kernel: src/tileops/kernels/families/position_encoding.py
     op: tileops/ops/rope.py
     test: tests/ops/test_rope.py
     bench: benchmarks/ops/bench_rope.py
@@ -207,7 +207,7 @@ RopeNeoxPositionIdsFwdOp:
     func: "tileops.perf.formulas.rope_position_ids_roofline"
 
   source:
-    kernel: backends/ascend/src/tileops_ascend/families/position_encoding.py
+    kernel: src/tileops/kernels/families/position_encoding.py
     op: tileops/ops/rope.py
     test: tests/ops/test_rope.py
     bench: benchmarks/ops/bench_rope.py

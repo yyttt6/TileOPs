@@ -12,6 +12,7 @@ import pytest
 import torch
 
 from tests.test_base import FixtureBase, TestBase
+from workloads.device import DEVICE
 from workloads.workload_base import RandnWorkload
 
 # Test helpers
@@ -258,7 +259,7 @@ def test_var_3d_non_aligned(batch: int, seq: int, hidden: int, dtype: torch.dtyp
     """VarFwdOp on 3D input with non-aligned last dim."""
     from tileops.ops.reduction.reduce import VarFwdOp
 
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
     op = VarFwdOp(dim=-1)
     ref = x.float().var(dim=-1, correction=1).to(dtype)
     y = op(x)
@@ -271,7 +272,7 @@ def test_std_3d_non_aligned(batch: int, seq: int, hidden: int, dtype: torch.dtyp
     """StdFwdOp on 3D input with non-aligned last dim."""
     from tileops.ops.reduction.reduce import StdFwdOp
 
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
     op = StdFwdOp(dim=-1)
     ref = x.float().std(dim=-1, correction=1).to(dtype)
     y = op(x)
@@ -284,7 +285,7 @@ def test_var_mean_3d_non_aligned(batch: int, seq: int, hidden: int, dtype: torch
     """VarMeanFwdOp on 3D input with non-aligned last dim."""
     from tileops.ops.reduction.reduce import VarMeanFwdOp
 
-    x = torch.randn(batch, seq, hidden, dtype=dtype, device="cuda")
+    x = torch.randn(batch, seq, hidden, dtype=dtype, device=DEVICE)
     op = VarMeanFwdOp(dim=-1, correction=1)
     ref_var = x.float().var(dim=-1, correction=1).to(dtype)
     ref_mean = x.float().mean(dim=-1).to(dtype)
@@ -308,7 +309,7 @@ def test_var_multidim_non_aligned(
     """VarFwdOp multi-dim reduction where flattened N is non-aligned."""
     from tileops.ops.reduction.reduce import VarFwdOp
 
-    x = torch.randn(*shape, dtype=dtype, device="cuda")
+    x = torch.randn(*shape, dtype=dtype, device=DEVICE)
     op = VarFwdOp(dim=dims, keepdim=keepdim)
     ref = torch.var(x.float(), dim=dims, keepdim=keepdim, correction=1).to(dtype)
     y = op(x)
@@ -326,7 +327,7 @@ def test_std_multidim_non_aligned(
     """StdFwdOp multi-dim reduction where flattened N is non-aligned."""
     from tileops.ops.reduction.reduce import StdFwdOp
 
-    x = torch.randn(*shape, dtype=dtype, device="cuda")
+    x = torch.randn(*shape, dtype=dtype, device=DEVICE)
     op = StdFwdOp(dim=dims, keepdim=keepdim)
     ref = torch.std(x.float(), dim=dims, keepdim=keepdim, correction=1).to(dtype)
     y = op(x)
@@ -344,7 +345,7 @@ def test_var_mean_multidim_non_aligned(
     """VarMeanFwdOp multi-dim reduction where flattened N is non-aligned."""
     from tileops.ops.reduction.reduce import VarMeanFwdOp
 
-    x = torch.randn(*shape, dtype=dtype, device="cuda")
+    x = torch.randn(*shape, dtype=dtype, device=DEVICE)
     op = VarMeanFwdOp(dim=dims, keepdim=keepdim)
     ref_var = torch.var(x.float(), dim=dims, keepdim=keepdim, correction=1).to(dtype)
     ref_mean = torch.mean(x.float(), dim=dims, keepdim=keepdim).to(dtype)

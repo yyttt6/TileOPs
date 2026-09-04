@@ -79,6 +79,7 @@ from tileops.ops.elementwise import (
     TruncFwdOp,
     WhereFwdOp,
 )
+from workloads.device import DEVICE
 from workloads.elementwise import (
     AddCompileWorkload,
     EqCompileWorkload,
@@ -304,7 +305,7 @@ class FakeUnaryFixture(FixtureBase):
 def test_register_fake_unary_shape_dtype(n_total, dtype):
     """Verify register_fake returns correct shape and dtype for unary ops."""
     op = ReluFwdOp()
-    x = torch.randn(n_total, dtype=dtype, device="cuda")
+    x = torch.randn(n_total, dtype=dtype, device=DEVICE)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x)
     assert out.shape == x.shape, f"Shape mismatch: {out.shape} vs {x.shape}"
@@ -326,8 +327,8 @@ class FakeComparisonFixture(FixtureBase):
 def test_register_fake_comparison_bool_dtype(shape, dtype):
     """Verify register_fake returns torch.bool for comparison ops."""
     op = EqFwdOp()
-    a = torch.randn(shape, dtype=dtype, device="cuda")
-    b = torch.randn(shape, dtype=dtype, device="cuda")
+    a = torch.randn(shape, dtype=dtype, device=DEVICE)
+    b = torch.randn(shape, dtype=dtype, device=DEVICE)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
     assert out.dtype == torch.bool, f"Expected bool, got {out.dtype}"
@@ -348,7 +349,7 @@ class FakeFusedGatedFixture(FixtureBase):
 def test_register_fake_fused_gated_shape(M, N, dtype):
     """Verify register_fake returns correct shape for fused gated ops."""
     op = SiluAndMulFwdOp()
-    x = torch.randn(M, 2 * N, dtype=dtype, device="cuda")
+    x = torch.randn(M, 2 * N, dtype=dtype, device=DEVICE)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x)
     assert out.shape == (M, N), f"Shape mismatch: {out.shape} vs {(M, N)}"
@@ -371,7 +372,7 @@ _DTYPE = torch.float16
 
 def _positive_input(n, dtype):
     """Generate strictly positive inputs for log/sqrt/rsqrt/log1p domains."""
-    return torch.rand(n, dtype=dtype, device="cuda").clamp(min=0.01) * 10.0
+    return torch.rand(n, dtype=dtype, device=DEVICE).clamp(min=0.01) * 10.0
 
 
 _UNARY_FLOAT_OPS = [
@@ -516,7 +517,7 @@ def test_unary_float_compile(op_cls, ref_fn, input_fn, name):
     n = _N
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
-    x = input_fn(n, _DTYPE) if input_fn is not None else torch.randn(n, dtype=_DTYPE, device="cuda")
+    x = input_fn(n, _DTYPE) if input_fn is not None else torch.randn(n, dtype=_DTYPE, device=DEVICE)
     out = compiled_op(x)
     ref = ref_fn(x)
     torch.testing.assert_close(out, ref, atol=1e-2, rtol=1e-2)
@@ -547,9 +548,9 @@ def test_unary_bool_compile(op_cls, ref_fn, dtype, name):
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     if dtype == torch.bool:
-        x = torch.rand(n, device="cuda") > 0.5
+        x = torch.rand(n, device=DEVICE) > 0.5
     else:
-        x = torch.randn(n, dtype=dtype, device="cuda")
+        x = torch.randn(n, dtype=dtype, device=DEVICE)
     out = compiled_op(x)
     ref = ref_fn(x)
     assert out.dtype == torch.bool
@@ -565,7 +566,7 @@ register_compile_contract(BitwiseNotFwdOp)
 def test_bitwise_not_compile():
     """Compile-smoke for BitwiseNotFwdOp."""
     n = _N
-    x_int = torch.randint(0, 256, (n,), dtype=torch.uint8, device="cuda")
+    x_int = torch.randint(0, 256, (n,), dtype=torch.uint8, device=DEVICE)
     op = BitwiseNotFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x_int)
@@ -619,8 +620,8 @@ _register_table(_BINARY_ARITH_OPS)
 def test_binary_arith_compile(op_cls, ref_fn, name):
     """Compile-smoke for remaining binary arithmetic ops."""
     shape = _SMALL
-    a = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    b = torch.randn(shape, dtype=_DTYPE, device="cuda").abs().clamp(min=0.1)
+    a = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    b = torch.randn(shape, dtype=_DTYPE, device=DEVICE).abs().clamp(min=0.1)
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -636,8 +637,8 @@ def test_pow_compile():
     """Compile-smoke for PowFwdOp with positive inputs to avoid NaN domain issues."""
     shape = _SMALL
     # Use positive base and small positive exponent to stay in valid domain
-    a = torch.rand(shape, dtype=_DTYPE, device="cuda").clamp(min=0.1) * 5.0
-    b = torch.rand(shape, dtype=_DTYPE, device="cuda") * 2.0
+    a = torch.rand(shape, dtype=_DTYPE, device=DEVICE).clamp(min=0.1) * 5.0
+    b = torch.rand(shape, dtype=_DTYPE, device=DEVICE) * 2.0
     op = PowFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -654,8 +655,8 @@ register_compile_contract(LerpFwdOp)
 def test_lerp_compile():
     """Compile-smoke for LerpFwdOp."""
     shape = _SMALL
-    a = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    b = torch.randn(shape, dtype=_DTYPE, device="cuda")
+    a = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    b = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
     op = LerpFwdOp(weight=0.3)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -670,9 +671,9 @@ register_compile_contract(LerpTensorFwdOp)
 def test_lerp_tensor_compile():
     """Compile-smoke for LerpTensorFwdOp (Tensor-weight overload)."""
     shape = _SMALL
-    a = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    b = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    w = torch.rand(shape, dtype=_DTYPE, device="cuda")
+    a = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    b = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    w = torch.rand(shape, dtype=_DTYPE, device=DEVICE)
     op = LerpTensorFwdOp()
     assert type(op)._wrapped is not None, (
         "LerpTensorFwdOp._wrapped must be populated by registration"
@@ -701,8 +702,8 @@ _register_table(_COMPARISON_OPS)
 def test_comparison_compile(op_cls, ref_fn, name):
     """Compile-smoke for remaining comparison ops (bool output)."""
     shape = _SMALL
-    a = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    b = torch.randn(shape, dtype=_DTYPE, device="cuda")
+    a = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    b = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -730,8 +731,8 @@ _register_table(_LOGICAL_OPS)
 def test_logical_binary_compile(op_cls, ref_fn, name):
     """Compile-smoke for logical binary ops (bool output)."""
     shape = _SMALL
-    a = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    b = torch.randn(shape, dtype=_DTYPE, device="cuda")
+    a = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    b = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -756,8 +757,8 @@ _register_table(_BITWISE_BINARY_OPS)
 def test_bitwise_binary_compile(op_cls, ref_fn, name):
     """Compile-smoke for bitwise binary ops."""
     shape = _SMALL
-    a = torch.randint(0, 256, shape, dtype=torch.uint8, device="cuda")
-    b = torch.randint(0, 256, shape, dtype=torch.uint8, device="cuda")
+    a = torch.randint(0, 256, shape, dtype=torch.uint8, device=DEVICE)
+    b = torch.randint(0, 256, shape, dtype=torch.uint8, device=DEVICE)
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -769,8 +770,8 @@ def test_bitwise_binary_compile(op_cls, ref_fn, name):
 def test_bool_bitwise_binary_compile(op_cls, ref_fn, name):
     """Compile-smoke for bool bitwise ops using the uint8 storage path."""
     shape = _SMALL
-    a = torch.randint(0, 2, shape, device="cuda").bool()
-    b = torch.randint(0, 2, shape, device="cuda").bool()
+    a = torch.randint(0, 2, shape, device=DEVICE).bool()
+    b = torch.randint(0, 2, shape, device=DEVICE).bool()
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(a, b)
@@ -794,7 +795,7 @@ _register_table(_FUSED_GATED_OPS)
 def test_fused_gated_compile(op_cls, name):
     """Compile-smoke for remaining fused gated ops."""
     M, N = 64, 128
-    x = torch.randn(M, 2 * N, dtype=_DTYPE, device="cuda")
+    x = torch.randn(M, 2 * N, dtype=_DTYPE, device=DEVICE)
     op = op_cls()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x)
@@ -816,9 +817,9 @@ def test_where_compile_same_shape():
     "torch.* op returned non-Tensor".
     """
     shape = (16,)
-    cond = torch.randint(0, 2, shape, dtype=torch.bool, device="cuda")
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    y = torch.randn(shape, dtype=_DTYPE, device="cuda")
+    cond = torch.randint(0, 2, shape, dtype=torch.bool, device=DEVICE)
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    y = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
     op = WhereFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(cond, x, y)
@@ -833,9 +834,9 @@ def test_where_compile_broadcast():
     cond_shape = (4, 1)
     x_shape = (1, 8)
     y_shape = (1,)
-    cond = torch.randint(0, 2, cond_shape, dtype=torch.bool, device="cuda")
-    x = torch.randn(x_shape, dtype=_DTYPE, device="cuda")
-    y = torch.randn(y_shape, dtype=_DTYPE, device="cuda")
+    cond = torch.randint(0, 2, cond_shape, dtype=torch.bool, device=DEVICE)
+    x = torch.randn(x_shape, dtype=_DTYPE, device=DEVICE)
+    y = torch.randn(y_shape, dtype=_DTYPE, device=DEVICE)
     op = WhereFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(cond, x, y)
@@ -853,7 +854,7 @@ register_compile_contract(ClampScalarFwdOp)
 def test_clamp_scalar_compile():
     """Compile-smoke for ClampScalarFwdOp (Number min/max baked into __init__)."""
     shape = (1024, 1024)
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
     op = ClampScalarFwdOp(min=-0.5, max=0.5)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x)
@@ -875,9 +876,9 @@ def test_clamp_tensor_compile_same_shape():
     "torch.* op returned non-Tensor".
     """
     shape = (16, 16)
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    lo = torch.full(shape, -0.5, dtype=_DTYPE, device="cuda")
-    hi = torch.full(shape, 0.5, dtype=_DTYPE, device="cuda")
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    lo = torch.full(shape, -0.5, dtype=_DTYPE, device=DEVICE)
+    hi = torch.full(shape, 0.5, dtype=_DTYPE, device=DEVICE)
     op = ClampFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, lo, hi)
@@ -891,9 +892,9 @@ def test_clamp_tensor_compile_broadcast():
     input_shape = (4, 8)
     min_shape = (1, 8)
     max_shape = (4, 1)
-    x = torch.randn(input_shape, dtype=_DTYPE, device="cuda")
-    lo = torch.full(min_shape, -0.5, dtype=_DTYPE, device="cuda")
-    hi = torch.full(max_shape, 0.5, dtype=_DTYPE, device="cuda")
+    x = torch.randn(input_shape, dtype=_DTYPE, device=DEVICE)
+    lo = torch.full(min_shape, -0.5, dtype=_DTYPE, device=DEVICE)
+    hi = torch.full(max_shape, 0.5, dtype=_DTYPE, device=DEVICE)
     op = ClampFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, lo, hi)
@@ -909,8 +910,8 @@ def test_clamp_tensor_compile_broadcast():
 def test_clamp_min_only_compile_same_shape():
     """Compile-smoke for ClampFwdOp with max withheld, at same shape."""
     shape = (16, 16)
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    lo = torch.full(shape, -0.5, dtype=_DTYPE, device="cuda")
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    lo = torch.full(shape, -0.5, dtype=_DTYPE, device=DEVICE)
     op = ClampFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, lo)
@@ -923,8 +924,8 @@ def test_clamp_min_only_compile_broadcast():
     """Compile-smoke for ClampFwdOp with max withheld and broadcasting min."""
     input_shape = (4, 8)
     min_shape = (1, 8)
-    x = torch.randn(input_shape, dtype=_DTYPE, device="cuda")
-    lo = torch.full(min_shape, -0.5, dtype=_DTYPE, device="cuda")
+    x = torch.randn(input_shape, dtype=_DTYPE, device=DEVICE)
+    lo = torch.full(min_shape, -0.5, dtype=_DTYPE, device=DEVICE)
     op = ClampFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, lo)
@@ -937,8 +938,8 @@ def test_clamp_min_only_compile_broadcast():
 def test_clamp_max_only_compile_same_shape():
     """Compile-smoke for ClampFwdOp with min withheld, at same shape."""
     shape = (16, 16)
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    hi = torch.full(shape, 0.5, dtype=_DTYPE, device="cuda")
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    hi = torch.full(shape, 0.5, dtype=_DTYPE, device=DEVICE)
     op = ClampFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, None, hi)
@@ -951,8 +952,8 @@ def test_clamp_max_only_compile_broadcast():
     """Compile-smoke for ClampFwdOp with min withheld and broadcasting max."""
     input_shape = (4, 8)
     max_shape = (4, 1)
-    x = torch.randn(input_shape, dtype=_DTYPE, device="cuda")
-    hi = torch.full(max_shape, 0.5, dtype=_DTYPE, device="cuda")
+    x = torch.randn(input_shape, dtype=_DTYPE, device=DEVICE)
+    hi = torch.full(max_shape, 0.5, dtype=_DTYPE, device=DEVICE)
     op = ClampFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, None, hi)
@@ -975,9 +976,9 @@ def test_masked_fill_tensor_compile_same_shape():
     "torch.* op returned non-Tensor".
     """
     shape = (16, 16)
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    mask = torch.randint(0, 2, shape, dtype=torch.bool, device="cuda")
-    value = torch.tensor(-1.0, dtype=_DTYPE, device="cuda")
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    mask = torch.randint(0, 2, shape, dtype=torch.bool, device=DEVICE)
+    value = torch.tensor(-1.0, dtype=_DTYPE, device=DEVICE)
     op = MaskedFillFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, mask, value)
@@ -990,9 +991,9 @@ def test_masked_fill_tensor_compile_broadcast():
     """Compile-smoke for MaskedFillFwdOp with broadcasting input/mask."""
     input_shape = (4, 8)
     mask_shape = (1, 8)
-    x = torch.randn(input_shape, dtype=_DTYPE, device="cuda")
-    mask = torch.randint(0, 2, mask_shape, dtype=torch.bool, device="cuda")
-    value = torch.tensor(-1.0, dtype=_DTYPE, device="cuda")
+    x = torch.randn(input_shape, dtype=_DTYPE, device=DEVICE)
+    mask = torch.randint(0, 2, mask_shape, dtype=torch.bool, device=DEVICE)
+    value = torch.tensor(-1.0, dtype=_DTYPE, device=DEVICE)
     op = MaskedFillFwdOp()
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, mask, value)
@@ -1014,8 +1015,8 @@ register_compile_contract(MaskedFillScalarFwdOp)
 def test_masked_fill_scalar_compile_same_shape():
     """Compile-smoke for MaskedFillScalarFwdOp at same shape."""
     shape = (16, 16)
-    x = torch.randn(shape, dtype=_DTYPE, device="cuda")
-    mask = torch.randint(0, 2, shape, dtype=torch.bool, device="cuda")
+    x = torch.randn(shape, dtype=_DTYPE, device=DEVICE)
+    mask = torch.randint(0, 2, shape, dtype=torch.bool, device=DEVICE)
     op = MaskedFillScalarFwdOp(value=-1.0)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, mask)
@@ -1032,8 +1033,8 @@ def test_masked_fill_scalar_compile_broadcast():
     """
     input_shape = (4, 8)
     mask_shape = (1, 8)
-    x = torch.randn(input_shape, dtype=_DTYPE, device="cuda")
-    mask = torch.randint(0, 2, mask_shape, dtype=torch.bool, device="cuda")
+    x = torch.randn(input_shape, dtype=_DTYPE, device=DEVICE)
+    mask = torch.randint(0, 2, mask_shape, dtype=torch.bool, device=DEVICE)
     op = MaskedFillScalarFwdOp(value=-1.0)
     compiled_op = torch.compile(op, fullgraph=True)
     out = compiled_op(x, mask)
@@ -1050,14 +1051,14 @@ _DIV_ROUNDING_COMPILE_MODES = ["trunc", "floor"]
 
 
 @pytest.mark.smoke
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not torch.npu.is_available(), reason="CUDA required")
 @pytest.mark.parametrize("rounding_mode", _DIV_ROUNDING_COMPILE_MODES)
 @pytest.mark.parametrize("dtype", _DIV_ROUNDING_COMPILE_DTYPES)
 def test_div_rounding_mode_compile(rounding_mode: str, dtype: torch.dtype) -> None:
     """torch.compile path matches torch.div for trunc and floor rounding modes."""
     shape = _SMALL
-    a = torch.randn(shape, dtype=dtype, device="cuda") * 5.0
-    b = torch.randn(shape, dtype=dtype, device="cuda") * 2.0 + 1.0
+    a = torch.randn(shape, dtype=dtype, device=DEVICE) * 5.0
+    b = torch.randn(shape, dtype=dtype, device=DEVICE) * 2.0 + 1.0
     b = torch.where(b.abs() < 0.5, torch.full_like(b, 1.0), b)
     op = DivFwdOp(rounding_mode=rounding_mode)
     compiled_op = torch.compile(op, fullgraph=True)
@@ -1086,7 +1087,7 @@ def test_reciprocal_int_promotion_compiles(dtype):
 
     n = 256
     op = ReciprocalFwdOp()
-    x = torch.arange(1, n + 1, device="cuda", dtype=dtype)
+    x = torch.arange(1, n + 1, device=DEVICE, dtype=dtype)
 
     eager = op(x)
     compiled = torch.compile(op, fullgraph=True)(x)
@@ -1111,7 +1112,7 @@ def test_compiled_non_contiguous_integer_fallback(op_name):
 
     n = 64
     op = getattr(ew, op_name)()
-    x = torch.arange(1, n + 1, device="cuda", dtype=torch.int32).reshape(8, 8).t()
+    x = torch.arange(1, n + 1, device=DEVICE, dtype=torch.int32).reshape(8, 8).t()
     assert not x.is_contiguous()
 
     eager = op._eager_forward(x)
@@ -1134,7 +1135,7 @@ def test_compiled_non_contiguous_input_matches_eager(dtype):
 
     n = 64
     op = ReciprocalFwdOp()
-    x = torch.arange(1, n + 1, device="cuda", dtype=dtype).reshape(8, 8).t()
+    x = torch.arange(1, n + 1, device=DEVICE, dtype=dtype).reshape(8, 8).t()
     assert not x.is_contiguous()
 
     compiled = torch.compile(op, fullgraph=True)(x)
@@ -1188,7 +1189,7 @@ def test_parametric_unary_compile(op_name, kwargs, ref_fn):
     import tileops.ops.elementwise as ew
 
     op = getattr(ew, op_name)(**kwargs)
-    x = torch.randn(_N, dtype=_DTYPE, device="cuda")
+    x = torch.randn(_N, dtype=_DTYPE, device=DEVICE)
     out = torch.compile(op, fullgraph=True)(x)
     torch.testing.assert_close(out, ref_fn(x), atol=1e-2, rtol=1e-2)
 
@@ -1204,8 +1205,8 @@ register_compile_contract(PreluFwdOp)
 @pytest.mark.smoke
 def test_prelu_compile():
     """PReLU's weight is a tensor input, so the boundary carries two."""
-    x = torch.randn(2, 4, 8, dtype=_DTYPE, device="cuda")
-    weight = torch.randn(4, dtype=_DTYPE, device="cuda")
+    x = torch.randn(2, 4, 8, dtype=_DTYPE, device=DEVICE)
+    weight = torch.randn(4, dtype=_DTYPE, device=DEVICE)
     out = torch.compile(PreluFwdOp(), fullgraph=True)(x, weight)
     ref = torch.nn.functional.prelu(x.float(), weight.float()).to(_DTYPE)
     torch.testing.assert_close(out, ref, atol=1e-2, rtol=1e-2)
@@ -1259,7 +1260,7 @@ def _graph_ownership_cases():
         return MaskedFillScalarFwdOp(value=-1.0), (_x(8, 16), _mask(8, 16))
 
     def masked_fill_tensor():
-        value = torch.tensor(-1.0, dtype=_DTYPE, device="cuda")
+        value = torch.tensor(-1.0, dtype=_DTYPE, device=DEVICE)
         return MaskedFillFwdOp(), (_x(8, 16), _mask(8, 16), value)
 
     return [
@@ -1281,11 +1282,11 @@ def _graph_ownership_cases():
 
 
 def _x(*shape):
-    return torch.randn(*shape, dtype=_DTYPE, device="cuda")
+    return torch.randn(*shape, dtype=_DTYPE, device=DEVICE)
 
 
 def _mask(*shape):
-    return torch.zeros(*shape, dtype=torch.bool, device="cuda")
+    return torch.zeros(*shape, dtype=torch.bool, device=DEVICE)
 
 
 @pytest.mark.smoke
