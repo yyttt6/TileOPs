@@ -9,6 +9,7 @@ from ..gemm import (
     build_gemm_w4a16_kernel,
     build_grouped_gemm_kernel,
 )
+from ..gemm_epilogue import build_gemm_epilogue_kernel
 
 
 @register("GemmFwdOp")
@@ -92,3 +93,33 @@ def build_gemm_w4a16(
         weight_zero.dtype,
         group_size,
     )
+
+
+def _epilogue_builder(kind: str):
+    """One builder per fused-epilogue op (T264 ops 110-112).
+
+    The three ops share ``kernels/gemm_epilogue.py``; only ``kind`` differs, so
+    the validation below is written once.
+    """
+    def build(a, b, bias, *, trans_a=False, trans_b=True):
+        tensors = (a, b, bias)
+        if any(tensor is None for tensor in tensors):
+            raise ValueError(f"gemm_{kind} requires a, b and bias")
+        if len({tensor.device for tensor in tensors}) != 1:
+            raise ValueError(f"gemm_{kind} inputs must share a device")
+        if a.dtype != b.dtype or a.dtype != bias.dtype:
+            raise TypeError(
+                f"gemm_{kind} inputs must share dtype, got {a.dtype}, {b.dtype} "
+                f"and {bias.dtype}"
+            )
+        return build_gemm_epilogue_kernel(
+            tuple(a.shape), tuple(b.shape), tuple(bias.shape), a.dtype,
+            trans_a, trans_b, kind,
+        )
+    build.__name__ = f"build_gemm_{kind}"
+    return build
+
+
+build_gemm_bias = register("GemmBiasFwdOp")(_epilogue_builder("bias"))
+build_gemm_bias_relu = register("GemmBiasReluFwdOp")(_epilogue_builder("bias_relu"))
+build_gemm_bias_gelu = register("GemmBiasGeluFwdOp")(_epilogue_builder("bias_gelu"))

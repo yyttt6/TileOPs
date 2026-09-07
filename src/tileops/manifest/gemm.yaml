@@ -193,3 +193,171 @@ GroupedGemmFwdOp:
     test: tests/ops/test_grouped_gemm.py
     bench: benchmarks/ops/bench_grouped_gemm.py
     bench_manifest_driven: true
+
+GemmBiasFwdOp:
+  ref_api: "torch.nn.functional.linear"
+  family: gemm
+  status: implemented
+
+  # op-list-150.pdf #110  gemm_bias(a: T[M,K], b: T[K,N], bias: T[N]) -> c: T[M,N]
+  # Input-inferred exactly like GemmFwdOp: m/n/k and the dtype come from the
+  # forward inputs, so the roofline is func mode.
+  signature:
+    inputs:
+      a: {dtype: "float16 | bfloat16"}
+      b: {dtype: "same_as(a)"}
+      bias: {dtype: "same_as(a)"}
+    outputs:
+      c: {dtype: "same_as(a)"}
+    params:
+      trans_a: {type: bool, default: false}
+      trans_b: {type: bool, default: true}
+    shape_rules:
+    # a is [M, K] (trans_a is rejected by the op); N is b's non-K axis.
+    - "bias.ndim == 1"
+    - "c.shape == (a.shape[0], (b.shape[0] if trans_b else b.shape[1]))"
+    - "bias.shape[0] == (b.shape[0] if trans_b else b.shape[1])"
+
+  workloads:
+  # VERBATIM COPY of GemmFwdOp.workloads (src/tileops/manifest/gemm.yaml), all
+  # twelve entries, same labels, same m/n/k, same trans flags, same dtypes.
+  # T264 hard constraint: a new op in an existing family reuses that family's
+  # workload set unchanged -- changing it would change the exam.
+  - {m: 1024, n: 1024, k: 1024, trans_a: false, trans_b: false, dtypes: [float16, bfloat16], label: "square-1k-nn"}
+  - {m: 128, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-gate-up"}
+  - {m: 128, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-down"}
+  - {m: 4096, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-gate-up"}
+  - {m: 4096, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-down"}
+  - {m: 4096, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [float16, bfloat16], label: "ds-v3-prefill-attn-proj"}
+  - {m: 4096, n: 7168, k: 16384, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "k-dominant-7168x16384"}
+  - {m: 4096, n: 24576, k: 1536, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "wide-n-24576"}
+  - {m: 16, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m16-attn"}
+  - {m: 32, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m32-attn"}
+  - {m: 64, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m64-down"}
+  - {m: 96, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m96-gate-up"}
+
+  roofline:
+    # Same formula GemmFwdOp uses.  The epilogue is O(MN) against the GEMM's
+    # O(MNK) and runs on the vector cores of the same mix launch, so the Cube
+    # roof stays the binding one; sharing the formula also keeps the four ops
+    # comparable to GemmFwdOp case by case.
+    func: "tileops.perf.formulas.gemm_fwd_roofline"
+
+  source:
+    kernel: src/tileops/kernels/gemm_epilogue.py
+    op: tileops/ops/gemm/gemm_epilogue.py
+    test: tests/ops/test_gemm_epilogue.py
+    bench: benchmarks/ops/bench_gemm_epilogue.py
+    bench_manifest_driven: true
+
+GemmBiasReluFwdOp:
+  ref_api: "none"
+  family: gemm
+  status: implemented
+
+  # op-list-150.pdf #111  gemm_bias_relu: relu(a @ b + bias)
+  # Input-inferred exactly like GemmFwdOp: m/n/k and the dtype come from the
+  # forward inputs, so the roofline is func mode.
+  signature:
+    inputs:
+      a: {dtype: "float16 | bfloat16"}
+      b: {dtype: "same_as(a)"}
+      bias: {dtype: "same_as(a)"}
+    outputs:
+      c: {dtype: "same_as(a)"}
+    params:
+      trans_a: {type: bool, default: false}
+      trans_b: {type: bool, default: true}
+    shape_rules:
+    # a is [M, K] (trans_a is rejected by the op); N is b's non-K axis.
+    - "bias.ndim == 1"
+    - "c.shape == (a.shape[0], (b.shape[0] if trans_b else b.shape[1]))"
+    - "bias.shape[0] == (b.shape[0] if trans_b else b.shape[1])"
+
+  workloads:
+  # VERBATIM COPY of GemmFwdOp.workloads (src/tileops/manifest/gemm.yaml), all
+  # twelve entries, same labels, same m/n/k, same trans flags, same dtypes.
+  # T264 hard constraint: a new op in an existing family reuses that family's
+  # workload set unchanged -- changing it would change the exam.
+  - {m: 1024, n: 1024, k: 1024, trans_a: false, trans_b: false, dtypes: [float16, bfloat16], label: "square-1k-nn"}
+  - {m: 128, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-gate-up"}
+  - {m: 128, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-down"}
+  - {m: 4096, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-gate-up"}
+  - {m: 4096, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-down"}
+  - {m: 4096, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [float16, bfloat16], label: "ds-v3-prefill-attn-proj"}
+  - {m: 4096, n: 7168, k: 16384, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "k-dominant-7168x16384"}
+  - {m: 4096, n: 24576, k: 1536, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "wide-n-24576"}
+  - {m: 16, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m16-attn"}
+  - {m: 32, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m32-attn"}
+  - {m: 64, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m64-down"}
+  - {m: 96, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m96-gate-up"}
+
+  roofline:
+    # Same formula GemmFwdOp uses.  The epilogue is O(MN) against the GEMM's
+    # O(MNK) and runs on the vector cores of the same mix launch, so the Cube
+    # roof stays the binding one; sharing the formula also keeps the four ops
+    # comparable to GemmFwdOp case by case.
+    func: "tileops.perf.formulas.gemm_fwd_roofline"
+
+  source:
+    kernel: src/tileops/kernels/gemm_epilogue.py
+    op: tileops/ops/gemm/gemm_epilogue.py
+    test: tests/ops/test_gemm_epilogue.py
+    bench: benchmarks/ops/bench_gemm_epilogue.py
+    bench_manifest_driven: true
+
+GemmBiasGeluFwdOp:
+  ref_api: "none"
+  family: gemm
+  status: implemented
+
+  # op-list-150.pdf #112  gemm_bias_gelu: gelu(a @ b + bias), tanh approximation
+  # Input-inferred exactly like GemmFwdOp: m/n/k and the dtype come from the
+  # forward inputs, so the roofline is func mode.
+  signature:
+    inputs:
+      a: {dtype: "float16 | bfloat16"}
+      b: {dtype: "same_as(a)"}
+      bias: {dtype: "same_as(a)"}
+    outputs:
+      c: {dtype: "same_as(a)"}
+    params:
+      trans_a: {type: bool, default: false}
+      trans_b: {type: bool, default: true}
+    shape_rules:
+    # a is [M, K] (trans_a is rejected by the op); N is b's non-K axis.
+    - "bias.ndim == 1"
+    - "c.shape == (a.shape[0], (b.shape[0] if trans_b else b.shape[1]))"
+    - "bias.shape[0] == (b.shape[0] if trans_b else b.shape[1])"
+
+  workloads:
+  # VERBATIM COPY of GemmFwdOp.workloads (src/tileops/manifest/gemm.yaml), all
+  # twelve entries, same labels, same m/n/k, same trans flags, same dtypes.
+  # T264 hard constraint: a new op in an existing family reuses that family's
+  # workload set unchanged -- changing it would change the exam.
+  - {m: 1024, n: 1024, k: 1024, trans_a: false, trans_b: false, dtypes: [float16, bfloat16], label: "square-1k-nn"}
+  - {m: 128, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-gate-up"}
+  - {m: 128, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-down"}
+  - {m: 4096, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-gate-up"}
+  - {m: 4096, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-down"}
+  - {m: 4096, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [float16, bfloat16], label: "ds-v3-prefill-attn-proj"}
+  - {m: 4096, n: 7168, k: 16384, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "k-dominant-7168x16384"}
+  - {m: 4096, n: 24576, k: 1536, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "wide-n-24576"}
+  - {m: 16, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m16-attn"}
+  - {m: 32, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m32-attn"}
+  - {m: 64, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m64-down"}
+  - {m: 96, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m96-gate-up"}
+
+  roofline:
+    # Same formula GemmFwdOp uses.  The epilogue is O(MN) against the GEMM's
+    # O(MNK) and runs on the vector cores of the same mix launch, so the Cube
+    # roof stays the binding one; sharing the formula also keeps the four ops
+    # comparable to GemmFwdOp case by case.
+    func: "tileops.perf.formulas.gemm_fwd_roofline"
+
+  source:
+    kernel: src/tileops/kernels/gemm_epilogue.py
+    op: tileops/ops/gemm/gemm_epilogue.py
+    test: tests/ops/test_gemm_epilogue.py
+    bench: benchmarks/ops/bench_gemm_epilogue.py
+    bench_manifest_driven: true

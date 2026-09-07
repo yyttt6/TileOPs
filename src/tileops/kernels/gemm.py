@@ -2,6 +2,35 @@
 
 The public operands retain the four TileOPs storage layouts.  Tiles are copied
 to L1 in the layout consumed by ``T.gemm_v0`` and accumulated in fp32 L0C.
+
+T264: the K loop now drives ``T.mma`` directly behind an asynchronous, 2-deep
+GM->L1 stage (``_build_gemm_pipelined``).  ``T.gemm_v0`` remains the fallback
+for the layouts and shapes the pipelined path declines.
+
+WHY (profiler-measured, docs/reports/R264.md section 3; raw data in
+R264-data/06-pipes-pgu-before.txt):
+
+  ds-v3-prefill-gate-up bf16, our kernel vs CANN's MatMulV3, Level1
+  AiCMetrics.PipeUtilization -- the ABSOLUTE pipe times were nearly identical
+  (mac 396 vs 347 us, mte1 253 vs 253, mte2 347 vs 314), but the RATIOS were
+  not: ours summed to 1.28 (about one pipe busy at a time), CANN's to 2.88.
+  Our kernel was running close to the fully SERIAL sum of its own pipes.
+
+  The barrier was inside ``tl::ascend::gemm_v0``, which closes with
+      WaitFlag<M_MTE1>(0); WaitFlag<M_MTE1>(1);
+      SetFlag<MTE1_MTE2>(0); WaitFlag<MTE1_MTE2>(0);
+  (tilelang-ascend/src/tl_templates/ascend/common.h:1312-1315).  The last pair
+  blocks the MTE2 pipe until MTE1 drains, and MTE1 is itself blocked until the
+  MMADs retire, so no GM->L1 copy -- before or after the call -- can overlap a
+  gemm_v0.  Measured: hand-written L1 double buffering AROUND gemm_v0 bought
+  1.0-1.1%; the same double buffering with gemm_v0 REPLACED by T.mma bought
+  92% (931 -> 486 us on that shape).
+
+The three-stage flag protocol below is the standard AscendC matmul pipeline;
+it follows the structure of tilelang-ascend's own
+``examples/gemm/example_gemm_intrinsic.py`` (MIT, Copyright (c) Tile-AI), which
+was read for the idea.  The schedule, event numbering and fallback conditions
+here are this file's own.  See NOTICE.
 """
 
 from functools import lru_cache
@@ -11,6 +40,20 @@ import tilelang
 import tilelang.language as T
 
 from .common import grid_repeat_count, launch_block_count
+
+#: Cube-side capacities on ascend910b1, in bytes.  L1 is the figure the Ascend
+#: memory-planning pass actually hands out (``pipe.InitBuffer(ascend_l1,
+#: 524032)`` in the generated source), not the nominal 512 KiB.
+L1_BUDGET_BYTES = 524032
+L0AB_BYTES = 64 * 1024
+L0C_BYTES = 128 * 1024
+
+#: Depth of the asynchronous GM->L1 stage.  3 does not fit: three
+#: (128x256 + 256x256) bf16 tiles are 576 KiB against a 512 KiB L1, and the
+#: kernel segfaults (R264-data/09-recipe-step1.txt).
+L1_STAGES = 2
+#: Depth of the L1->L0A/L0B rotation.  2 is what gemm_v0 uses internally.
+L0_STAGES = 2
 
 
 def _dtype_name(dtype) -> str:
@@ -101,6 +144,202 @@ def _build_gemm(m: int, n: int, k: int, dtype_name: str, trans_a: bool, trans_b:
     return _factory(dtype_name)
 
 
+def _pipelined_plan(m: int, n: int, k: int, itemsize: int):
+    """Return the pipelined tile plan, or ``None`` if this shape cannot use it.
+
+    ``None`` means "fall back to :func:`_build_gemm`", which is always correct.
+    Every condition below is a capacity or divisibility fact, not a heuristic:
+
+    * ``k % block_k`` -- the K loop indexes ``kt * block_k`` for
+      ``k // block_k`` steps, so a ragged final K tile would read past the
+      operand.  (All twelve GemmFwdOp manifest workloads have
+      ``k in {1024, 1536, 2048, 7168, 16384}``, every one a multiple of 256.)
+    * ``block_k % kl0`` -- the inner loop steps the L1 tile in ``kl0`` columns.
+    * L1 / L0A / L0B / L0C capacity for the staged depths.
+    """
+    block_m = 32 if m < 128 else 128
+    block_n = 64 if n < 256 else 256
+    block_k = 64 if k < 256 else 256
+    kl0 = 64
+    if k % block_k or block_k % kl0:
+        return None
+    if L1_STAGES * (block_m + block_n) * block_k * itemsize > L1_BUDGET_BYTES:
+        return None
+    if L0_STAGES * block_m * kl0 * itemsize > L0AB_BYTES:
+        return None
+    if L0_STAGES * kl0 * block_n * itemsize > L0AB_BYTES:
+        return None
+    if block_m * block_n * 4 > L0C_BYTES:
+        return None
+    return block_m, block_n, block_k, kl0
+
+
+@lru_cache(maxsize=64)
+def _build_gemm_pipelined(m: int, n: int, k: int, dtype_name: str,
+                          trans_b: bool) -> Callable:
+    """NT/NN GEMM with an asynchronous GM->L1 stage in front of T.mma.
+
+    ``trans_a`` is always False here; see :func:`build_gemm_kernel` for why the
+    two transposed-A layouts keep the gemm_v0 path.
+
+    Pipeline, per L1 slot ``s`` and L0 slot ``t``:
+
+      MTE2 -> MTE1 (id s)   the GM->L1 tile for step ``kt`` has landed
+      MTE1 -> MTE2 (id s)   slot ``s`` has been fully read into L0
+      M    -> MTE1 (id t)   L0 slot ``t`` is free
+      MTE1 -> M    (id t)   the L0 fragment for this ``kl0`` step has landed
+      M    -> FIX  (id 0)   the accumulator is final, the fixpipe may read it
+      FIX  -> M    (id 0)   the readout is done, a later grid repeat may reuse
+                            L0C
+
+    The prefetch for ``kt+1`` is issued BEFORE the L1->L0 work of ``kt`` and is
+    gated only by "slot free", so MTE2 runs concurrently with MTE1 + M.  The
+    immediately-adjacent ``set_flag``/``wait_flag`` pairs inside the inner loop
+    are not serialisers: iteration ``kk`` loads L0 slot ``t`` while the MMAD of
+    slot ``1-t`` is still running, which is how gemm_v0 does it too.
+
+    Two codegen constraints shape the emitted order (both measured, see
+    R264-data/08-hs-deadlock.txt):
+
+    * a ``T.set_flag`` written as the FIRST statement of the ``T.Scope("C")``
+      body is dropped by the compiler, so the flag initialisation is emitted
+      after the prologue copy.  A dropped init showed up as a card stuck at
+      AICore=100% with no diagnostic.
+    * a one-shot hard-event flag must be set exactly once between two waits on
+      that id; with an ``L1_STAGES - 1`` deep prologue and no prologue wait the
+      rotation satisfies that by construction.
+    """
+    plan = _pipelined_plan(m, n, k, 2)
+    if plan is None:  # pragma: no cover - build_gemm_kernel checks first
+        raise ValueError(f"no pipelined plan for m={m} n={n} k={k}")
+    block_m, block_n, block_k, kl0 = plan
+    s1, s2 = L1_STAGES, L0_STAGES
+    b_shape = (n, k) if trans_b else (k, n)
+    b_l1_shape = (block_n, block_k) if trans_b else (block_k, block_n)
+    m_tiles = (m + block_m - 1) // block_m
+    n_tiles = (n + block_n - 1) // block_n
+    k_tiles = k // block_k
+    kk_steps = block_k // kl0
+    logical_blocks = m_tiles * n_tiles
+    launch_blocks = launch_block_count(logical_blocks)
+    grid_repeats = grid_repeat_count(logical_blocks, launch_blocks)
+
+    @tilelang.jit(
+        out_idx=[-1],
+        pass_configs={
+            tilelang.PassConfigKey.TL_ASCEND_AUTO_CV_COMBINE: True,
+            # AUTO_SYNC off: the pass is dependency-driven and not
+            # multi-buffer aware (tilelang-ascend/src/transform/
+            # ascend_sync_insert.cc), so it would put its own drain around
+            # every copy on top of the schedule below -- which is exactly the
+            # serialisation this kernel exists to remove.
+            tilelang.PassConfigKey.TL_ASCEND_AUTO_SYNC: False,
+            tilelang.PassConfigKey.TL_ASCEND_MEMORY_PLANNING: True,
+            tilelang.PassConfigKey.TL_ASCEND_AUTO_CV_SYNC: False,
+        },
+        compile_flags=["-O3", "-DENABLE_BF16"],
+    )
+    def _factory(dtype: str = dtype_name) -> Callable:
+
+        @T.prim_func
+        def main(
+            a: T.Tensor((m, k), dtype),
+            b: T.Tensor(b_shape, dtype),
+            c: T.Tensor((m, n), dtype),
+        ):
+            with T.Kernel(launch_blocks, is_npu=True) as (cid, _):
+                for grid_repeat in T.serial(grid_repeats):
+                    logical_cid = cid + grid_repeat * launch_blocks
+                    if logical_cid < logical_blocks:
+                        m0 = (logical_cid // n_tiles) * block_m
+                        n0 = (logical_cid % n_tiles) * block_n
+
+                        a_l1 = T.alloc_L1((s1, block_m, block_k), dtype)
+                        b_l1 = T.alloc_L1((s1,) + b_l1_shape, dtype)
+                        a_l0 = T.alloc_L0A((s2, block_m, kl0), dtype)
+                        b_l0 = T.alloc_L0B((s2, kl0, block_n), dtype)
+                        c_l0 = T.alloc_L0C((block_m, block_n), "float")
+
+                        with T.Scope("C"):
+                            T.copy(a[m0:m0 + block_m, 0:block_k], a_l1[0, :, :])
+                            if trans_b:
+                                T.copy(b[n0:n0 + block_n, 0:block_k], b_l1[0, :, :])
+                            else:
+                                T.copy(b[0:block_k, n0:n0 + block_n], b_l1[0, :, :])
+                            T.set_flag("mte2", "mte1", 0)
+                            T.set_flag("mte1", "mte2", 1)
+                            T.set_flag("m", "mte1", 0)
+                            T.set_flag("m", "mte1", 1)
+
+                            for kt in T.serial(k_tiles):
+                                nxt = kt + 1
+                                if nxt < k_tiles:
+                                    T.wait_flag("mte1", "mte2", nxt % s1)
+                                    k1 = nxt * block_k
+                                    T.copy(a[m0:m0 + block_m, k1:k1 + block_k],
+                                           a_l1[nxt % s1, :, :])
+                                    if trans_b:
+                                        T.copy(b[n0:n0 + block_n, k1:k1 + block_k],
+                                               b_l1[nxt % s1, :, :])
+                                    else:
+                                        T.copy(b[k1:k1 + block_k, n0:n0 + block_n],
+                                               b_l1[nxt % s1, :, :])
+                                    T.set_flag("mte2", "mte1", nxt % s1)
+                                T.wait_flag("mte2", "mte1", kt % s1)
+
+                                for kk in T.serial(kk_steps):
+                                    T.wait_flag("m", "mte1", kk % s2)
+                                    T.copy(
+                                        a_l1[kt % s1, :, kk * kl0:kk * kl0 + kl0],
+                                        a_l0[kk % s2, :, :],
+                                    )
+                                    if trans_b:
+                                        T.copy(
+                                            b_l1[kt % s1, :, kk * kl0:kk * kl0 + kl0],
+                                            b_l0[kk % s2, :, :],
+                                            transpose=True,
+                                        )
+                                    else:
+                                        T.copy(
+                                            b_l1[kt % s1, kk * kl0:kk * kl0 + kl0, :],
+                                            b_l0[kk % s2, :, :],
+                                        )
+                                    T.set_flag("mte1", "m", kk % s2)
+                                    T.wait_flag("mte1", "m", kk % s2)
+                                    T.mma(
+                                        a_l0[kk % s2, :, :],
+                                        b_l0[kk % s2, :, :],
+                                        c_l0,
+                                        init=T.And(kt == 0, kk == 0),
+                                    )
+                                    T.set_flag("m", "mte1", kk % s2)
+
+                                T.set_flag("mte1", "mte2", kt % s1)
+
+                            # Drain: counted per event id from the schedule
+                            # above, because an armed flag survives into the
+                            # next launch.
+                            T.wait_flag("mte1", "mte2", 0)
+                            T.wait_flag("mte1", "mte2", 1)
+                            T.wait_flag("m", "mte1", 0)
+                            T.wait_flag("m", "mte1", 1)
+                            # M -> FIX before the readout.  A PipeBarrier<ALL>
+                            # is not enough: without this pair the fixpipe read
+                            # L0C while the MMADs were still writing it, which
+                            # surfaced as "FIXP instruction error: ECC
+                            # verification failed when the l0c is read"
+                            # (R264-data/logs/s7-hm-extra.log).
+                            T.set_flag("m", "fix", 0)
+                            T.wait_flag("m", "fix", 0)
+                            T.copy(c_l0, c[m0:m0 + block_m, n0:n0 + block_n])
+                            T.set_flag("fix", "m", 0)
+                            T.wait_flag("fix", "m", 0)
+
+        return main
+
+    return _factory(dtype_name)
+
+
 def build_gemm_kernel(
     a_shape: tuple[int, ...],
     b_shape: tuple[int, ...],
@@ -116,7 +355,18 @@ def build_gemm_kernel(
     k_b = b_shape[1] if trans_b else b_shape[0]
     if k_a != k_b:
         raise ValueError(f"GemmFwdOp contraction mismatch: a={a_shape}, b={b_shape}")
-    return _build_gemm(m, n, k_a, _dtype_name(dtype), bool(trans_a), bool(trans_b))
+    name = _dtype_name(dtype)
+    # The pipelined path covers the two non-transposed-A layouts (NT and NN).
+    # The two trans_a layouts keep gemm_v0: its L1->L0A K-tile stride is
+    # layout-dependent (``M * kL0Size`` non-transposed vs
+    # ``ELE_NUM_PER_C0 * kL0Size`` transposed, common.h:1281-1288), and only
+    # the first is what a plain ``[:, kk*kl0 : kk*kl0+kl0]`` slice of the L1
+    # tile lowers to.  trans_a is False in all twelve GemmFwdOp manifest
+    # workloads, so nothing measured by the manifest takes the fallback; the
+    # two trans_a cases in bench1.py's own hardcoded case list do.
+    if not trans_a and _pipelined_plan(m, n, k_a, 2) is not None:
+        return _build_gemm_pipelined(m, n, k_a, name, bool(trans_b))
+    return _build_gemm(m, n, k_a, name, bool(trans_a), bool(trans_b))
 
 
 @lru_cache(maxsize=32)

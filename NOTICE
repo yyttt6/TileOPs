@@ -14,4 +14,18 @@ provenance machinery. The parts of upstream's kernel tree that were never about 
 the call records the op layer validates against, pooling's output-extent arithmetic --
 were kept and moved into `src/tileops/ops/`, where the paragraph above still covers them.
 
+## Structures read from tilelang-ascend
+
+`src/tileops/kernels/` is our own code, but two kernels in it follow the *structure* of
+examples in [tilelang-ascend](https://github.com/tile-ai/tilelang-ascend) (MIT,
+Copyright (c) Tile-AI Corporation), which were read for the idea rather than copied:
+
+* `src/tileops/kernels/gemm.py::_build_gemm_pipelined` and
+  `src/tileops/kernels/gemm_epilogue.py` -- the three-stage AscendC matmul pipeline
+  (asynchronous GM->L1 stage in front of an L1->L0A/L0B rotation, driven by
+  `set_flag`/`wait_flag` event rotation) follows the shape of
+  `examples/gemm/example_gemm_intrinsic.py`, and the two-scope Cube/Vector split follows
+  `examples/deepseek_v4/int8_gemm.py`. The tile plan, the event numbering, the drain
+  accounting and the fallback conditions are ours (T264 / `docs/reports/R264.md`).
+
 Both copyright notices are retained in [LICENSE](LICENSE), as the MIT License requires.

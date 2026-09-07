@@ -172,3 +172,41 @@ class GemmW4A16Workload(WorkloadBase):
     ) -> torch.Tensor:
         del packed_weight, weight_scale, weight_zero
         return torch.matmul(activation, self.dequantized_weight.T)
+
+
+class GemmBiasWorkload(GemmWorkload):
+    """GemmWorkload plus the ``bias: T[N]`` operand (T264 ops 110-112).
+
+    ``epilogue`` selects the activation applied after the bias add, so the three
+    ops share one workload class the way they share one kernel.
+    """
+
+    #: ``"none"`` -> gemm_bias, ``"relu"`` -> gemm_bias_relu,
+    #: ``"gelu"`` -> gemm_bias_gelu.
+    EPILOGUE = "none"
+
+    def gen_inputs(self) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        a, b = super().gen_inputs()
+        bias = torch.randn(self.n, device=DEVICE, dtype=self.dtype)
+        return a, b, bias
+
+    def ref_program(
+        self, a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor
+    ) -> torch.Tensor:
+        out = super().ref_program(a, b) + bias
+        if self.EPILOGUE == "relu":
+            return torch.relu(out)
+        if self.EPILOGUE == "gelu":
+            # The kernel uses the tanh approximation: this backend's vector unit
+            # has no erf intrinsic on dav-2201 (see
+            # tileops/kernels/elementwise_activation.py).
+            return torch.nn.functional.gelu(out, approximate="tanh")
+        return out
+
+
+class GemmBiasReluWorkload(GemmBiasWorkload):
+    EPILOGUE = "relu"
+
+
+class GemmBiasGeluWorkload(GemmBiasWorkload):
+    EPILOGUE = "gelu"
