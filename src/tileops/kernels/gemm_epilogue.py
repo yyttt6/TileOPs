@@ -121,7 +121,7 @@ def _build_epilogue(m: int, n: int, dtype_name: str, kind: str) -> Callable:
     # (PROJECT_STATE 13.57), which means each block visits exactly ONE tile and
     # the once-per-block bias staging is never amortised -- it is then a third of
     # the block's traffic.  Measured on square-1k-nn: 61.88 us with no cap
-    # against a 21 us GEMM (ratio 0.3596); see R264-data/20-epi-perf.txt.
+    # against a 21 us GEMM (ratio 0.3596); see R264-data/29-epi-launch-cap.txt.
     launch_blocks = launch_block_count(min(block_count, LAUNCH_BLOCK_CAP))
     grid_repeats = grid_repeat_count(block_count, launch_blocks)
     # Number of whole bias rows (or column windows) the staged tile holds.
