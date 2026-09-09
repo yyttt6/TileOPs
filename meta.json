@@ -1,15 +1,15 @@
 {
- "run_id": "20260907T025507Z",
- "commit": "0e7b7449c6114f55b8271ddac52b1da532c0b452",
- "date": "2026-09-07T02:55:07+00:00",
+ "run_id": "20260909T060150Z",
+ "commit": "06fc97a46e7664b3f30bbee6d66e2abd1061972b",
+ "date": "2026-09-09T06:01:50+00:00",
  "gpu": "Ascend 910B1",
  "environment": {
   "platform": "Linux-5.10.0-136.12.0.86.r1526_92.hce2.aarch64-aarch64-with-glibc2.34",
-  "python": "3.9.9",
+  "python": "3.11.13",
   "provider": "tilelang",
   "headline_regime": "graph",
   "harness_commit": "cbd7900d8b333aaf495f7477e333cb16d0e3d132",
-  "backend_commit": "0e7b7449c6114f55b8271ddac52b1da532c0b452"
+  "backend_commit": "06fc97a46e7664b3f30bbee6d66e2abd1061972b"
  },
  "packages": {},
  "providers": {
