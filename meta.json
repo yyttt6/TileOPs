@@ -1,11 +1,11 @@
 {
- "run_id": "20260916T083402Z",
+ "run_id": "20260918T173739Z",
  "commit": "06fc97a46e7664b3f30bbee6d66e2abd1061972b",
- "date": "2026-09-16T08:34:02+00:00",
+ "date": "2026-09-18T17:37:39+00:00",
  "measured_at_oldest": "2026-09-02T16:10:55+00:00",
- "measured_at_newest": "2026-09-15T13:40:32+00:00",
- "measured_span_days": 12.9,
- "measured_records": 161,
+ "measured_at_newest": "2026-09-18T16:08:09+00:00",
+ "measured_span_days": 16.0,
+ "measured_records": 214,
  "measured_at_missing": 0,
  "gpu": "Ascend 910B1",
  "environment": {
@@ -17,6 +17,42 @@
   "backend_commit": "06fc97a46e7664b3f30bbee6d66e2abd1061972b"
  },
  "packages": {},
+ "regime_census": {
+  "headline_regime": "graph",
+  "cases": {
+   "eager": 88,
+   "graph": 712
+  },
+  "ops": {
+   "eager": 15,
+   "graph": 129
+  },
+  "attainment": {
+   "eager": {
+    "threshold": 0.7,
+    "thresholds_seen": [
+     0.7
+    ],
+    "ops_with_published_ratio": 15,
+    "ops_at_or_above_threshold": 1,
+    "ops_below_threshold": 14
+   },
+   "graph": {
+    "threshold": 0.7,
+    "thresholds_seen": [
+     0.7
+    ],
+    "ops_with_published_ratio": 117,
+    "ops_at_or_above_threshold": 83,
+    "ops_below_threshold": 34
+   }
+  },
+  "off_headline_cases": 88,
+  "off_headline_ops": 15,
+  "off_headline_regimes": [
+   "eager"
+  ]
+ },
  "providers": {
   "hand": false,
   "tilelang": true,
