@@ -1,31 +1,55 @@
 {
- "run_id": "20260922T132548Z",
+ "run_id": "20260923T030856Z",
  "commit": "06fc97a46e7664b3f30bbee6d66e2abd1061972b",
- "date": "2026-09-22T13:25:48+00:00",
+ "date": "2026-09-23T03:08:56+00:00",
  "measured_at_oldest": "2026-09-02T16:11:25+00:00",
- "measured_at_newest": "2026-09-22T08:03:42+00:00",
- "measured_span_days": 19.66,
+ "measured_at_newest": "2026-09-22T18:24:38+00:00",
+ "measured_span_days": 20.09,
  "measured_records": 215,
- "measured_at_missing": 1,
+ "measured_at_missing": 0,
  "gpu": "Ascend 910B1",
  "environment": {
   "platform": "Linux-5.10.0-136.12.0.86.r1526_92.hce2.aarch64-aarch64-with-glibc2.34",
   "python": "3.9.9",
   "provider": "tilelang",
   "headline_regime": "graph",
-  "harness_commit": "fe40730a7ea29b5a66d193e6fbcd6efd00ad1a6f",
+  "harness_commit": "c04ff24867ce4b8e59ef426e67e0518d807b9bff",
   "backend_commit": "06fc97a46e7664b3f30bbee6d66e2abd1061972b"
  },
  "packages": {},
  "regime_census": {
   "headline_regime": "graph",
   "cases": {
+   "graph": 1159
+  },
+  "ops": {
+   "graph": 146
+  },
+  "attainment": {
+   "graph": {
+    "threshold": 0.7,
+    "thresholds_seen": [
+     0.7
+    ],
+    "ops_with_published_ratio": 146,
+    "ops_at_or_above_threshold": 91,
+    "ops_below_threshold": 55
+   }
+  },
+  "off_headline_cases": 0,
+  "off_headline_ops": 0,
+  "off_headline_regimes": []
+ },
+ "phase_one_source": "docs/reports/R267-data/oplist150.json",
+ "phase_two_census": {
+  "headline_regime": "graph",
+  "cases": {
    "eager": 12,
-   "graph": 819
+   "graph": 217
   },
   "ops": {
    "eager": 2,
-   "graph": 147
+   "graph": 47
   },
   "attainment": {
    "eager": {
@@ -42,94 +66,66 @@
     "thresholds_seen": [
      0.7
     ],
-    "ops_with_published_ratio": 139,
-    "ops_at_or_above_threshold": 106,
-    "ops_below_threshold": 33
+    "ops_with_published_ratio": 47,
+    "ops_at_or_above_threshold": 32,
+    "ops_below_threshold": 15
    }
   },
   "off_headline_cases": 12,
   "off_headline_ops": 2,
   "off_headline_regimes": [
    "eager"
-  ]
- },
- "phase_two_census": {
-  "headline_regime": "graph",
-  "cases": {
-   "graph": 582
-  },
-  "ops": {
-   "graph": 54
-  },
-  "attainment": {
-   "graph": {
-    "threshold": 0.7,
-    "thresholds_seen": [
-     0.7
-    ],
-    "ops_with_published_ratio": 54,
-    "ops_at_or_above_threshold": 15,
-    "ops_below_threshold": 39
-   }
-  },
-  "off_headline_cases": 0,
-  "off_headline_ops": 0,
-  "off_headline_regimes": [],
+  ],
   "ops_published": [
-   "AcosFwdOp",
-   "AllGatherGemmFwdOp",
-   "AsinFwdOp",
-   "Atan2FwdOp",
-   "AtanFwdOp",
-   "BatchNormInferenceFwdOp",
-   "BiasAddFwdOp",
-   "CastFwdOp",
-   "CompareFwdOp",
-   "Conv1dCausalOp",
-   "Conv2dBiasReluOp",
-   "Conv2dDgradOp",
-   "Conv2dFp8FwdOp",
-   "Conv2dTransposeOp",
-   "Conv2dWgradOp",
-   "CummaxFwdOp",
-   "DepthwiseConv2dOp",
-   "DequantizeFwdOp",
-   "DilatedConv2dOp",
-   "DualGemmFwdOp",
-   "GemmA16W8FwdOp",
-   "GemmBiasFwdOp",
-   "GemmBiasGeluFwdOp",
-   "GemmBiasReluFwdOp",
-   "GemmBlockScaledFwdOp",
-   "GemmEpilogueSwiGLUFwdOp",
-   "GemmInt8FwdOp",
-   "GemmReduceScatterFwdOp",
-   "GemmSparse2to4FwdOp",
-   "GemmSplitKFwdOp",
-   "GemmaRMSNormFwdOp",
-   "GemvFwdOp",
-   "GroupNormBwdOp",
-   "GroupRMSNormFwdOp",
-   "GroupedConv2dOp",
-   "Im2colOp",
-   "InstanceNormBwdOp",
-   "LayerNormBwdOp",
-   "LayerNormQuantFwdOp",
-   "Log2FwdOp",
-   "MaskedReduceSumFwdOp",
-   "MeanVarWelfordFwdOp",
-   "MedianFwdOp",
-   "PointwiseConv2dOp",
-   "QKNormFwdOp",
-   "RMSNormBwdOp",
-   "RMSNormQuantFwdOp",
-   "Relu6FwdOp",
-   "SegmentSumFwdOp",
-   "SortFwdOp",
-   "SpectralNormPowerIterFwdOp",
-   "StridedBatchedGemmFwdOp",
-   "TanFwdOp",
-   "WeightNormFwdOp"
+   "AdaLayerNormZeroFwdOp",
+   "AdaptiveMaxPool2dIndicesFwdOp",
+   "AlibiFwdOp",
+   "BitwiseAndFwdOp",
+   "BitwiseNotFwdOp",
+   "BitwiseOrFwdOp",
+   "BitwiseXorFwdOp",
+   "BmmFp8KNFwdOp",
+   "BmmFp8NKFwdOp",
+   "ClampScalarFwdOp",
+   "EngramGateConvBwdOp",
+   "EngramGateConvFwdOp",
+   "EqFwdOp",
+   "FP8LightningIndexerFwdOp",
+   "FloorDivideFwdOp",
+   "GeFwdOp",
+   "GroupedQueryAttentionBwdOp",
+   "GroupedQueryAttentionFwdOp",
+   "GroupedQueryAttentionSlidingWindowFwdOp",
+   "GroupedQueryAttentionSlidingWindowVarlenFwdOp",
+   "GtFwdOp",
+   "InfNormFwdOp",
+   "IsfiniteFwdOp",
+   "IsinfFwdOp",
+   "IsnanFwdOp",
+   "LeFwdOp",
+   "LogicalOrFwdOp",
+   "LtFwdOp",
+   "MHCPostFwdOp",
+   "MHCPreFwdOp",
+   "MaskedFillScalarFwdOp",
+   "MaxPool3dIndicesFwdOp",
+   "MoeUnpermuteFwdOp",
+   "MultiHeadAttentionBwdOp",
+   "MultiHeadAttentionDecodeWithKVCacheFwdOp",
+   "MultiHeadAttentionFwdOp",
+   "MultiHeadLatentAttentionDecodeWithKVCacheFwdOp",
+   "NanToNumFwdOp",
+   "NeFwdOp",
+   "PreluFwdOp",
+   "RopeLlama31FwdOp",
+   "RopeLongRopeFwdOp",
+   "RopeNeoxFwdOp",
+   "RopeNeoxPositionIdsFwdOp",
+   "RopeNonNeoxFwdOp",
+   "RopeYarnFwdOp",
+   "SeluFwdOp",
+   "SinusoidalFwdOp",
+   "VarMeanFwdOp"
   ]
  },
  "providers": {
