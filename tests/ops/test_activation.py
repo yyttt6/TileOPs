@@ -343,3 +343,12 @@ def test_prelu_rejects_a_weight_that_does_not_match_the_channel_axis() -> None:
         op(bad, weight)
 
 
+# --- T263: PDF op-list-150 entry 36 ---------------------------------------
+
+
+@ActivationFixture
+def test_relu6(n_total: int, dtype: torch.dtype) -> None:
+    """relu6(x) = min(max(x, 0), 6), on the same fixture relu/silu use."""
+    from tileops.ops.elementwise import Relu6FwdOp
+
+    _make_activation_test(n_total, dtype, _randn, F.relu6, Relu6FwdOp)

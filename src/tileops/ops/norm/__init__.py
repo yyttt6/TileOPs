@@ -20,3 +20,17 @@ __all__: list[str] = [
     "LayerNormFwdOp",
     "RMSNormFwdOp",
 ]
+
+# T301 B normalization additions (registration remains within this family).
+from .t301 import (
+    LayerNormBwdOp, RMSNormBwdOp, GroupNormBwdOp, InstanceNormBwdOp,
+    WeightNormFwdOp, LayerNormQuantFwdOp, RMSNormQuantFwdOp, QKNormFwdOp,
+    GemmaRMSNormFwdOp, GroupRMSNormFwdOp, BatchNormInferenceFwdOp,
+    SpectralNormPowerIterFwdOp,
+)
+__all__ += [
+    'LayerNormBwdOp', 'RMSNormBwdOp', 'GroupNormBwdOp', 'InstanceNormBwdOp',
+    'WeightNormFwdOp', 'LayerNormQuantFwdOp', 'RMSNormQuantFwdOp', 'QKNormFwdOp',
+    'GemmaRMSNormFwdOp', 'GroupRMSNormFwdOp', 'BatchNormInferenceFwdOp',
+    'SpectralNormPowerIterFwdOp',
+]

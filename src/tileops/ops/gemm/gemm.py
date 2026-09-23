@@ -378,8 +378,19 @@ class GemmFp8FwdOp(Op):
         return self._active(a, b, scale_a, scale_b, bias)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on the Cube unit."""
-        return cube_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the **fp16** Cube unit.
+
+        910B1 has no FP8 Cube path, so ``cube_roof(torch.float8_e4m3fn)`` raises
+        rather than quoting a ceiling the hardware does not have -- see
+        :mod:`tileops.perf.profile`, which spells the rule out and deliberately
+        leaves ``float8_*`` out of ``_CUBE_DTYPE_KEYS``.  The Ascend kernel for
+        this op decodes each FP8 byte to fp16 on the vector unit and runs the
+        contraction on the fp16 Cube, so ``cube.fp16`` is the ceiling its FLOPs
+        are actually issued against.  The HBM side is unaffected: the operands
+        are still one byte per element, which ``eval_roofline`` already counts
+        from ``op.dtype.itemsize``.
+        """
+        return cube_roof(torch.float16)
 
 
 class GemmW4A16FwdOp(Op):

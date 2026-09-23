@@ -38,6 +38,7 @@ from .gemm import (
     GemmBiasReluFwdOp,
     GemmFp8FwdOp,
     GemmFwdOp,
+    GemmSplitKFwdOp,
     GemmW4A16FwdOp,
     GroupedGemmFwdOp,
 )
@@ -182,6 +183,7 @@ __all__ = [
     "GemmBiasReluFwdOp",
     "GemmFp8FwdOp",
     "GemmFwdOp",
+    "GemmSplitKFwdOp",
     "GemmW4A16FwdOp",
     "GroupedQueryAttentionSlidingWindowFwdOp",
     "GroupedQueryAttentionSlidingWindowVarlenFwdOp",
@@ -256,3 +258,53 @@ __all__ = [
     "VarMeanFwdOp",
     "VarFwdOp",
 ]
+
+# T301C GEMM family additions.
+from .gemm.variants import (
+    StridedBatchedGemmFwdOp,
+    GemvFwdOp,
+    GemmInt8FwdOp,
+    GemmA16W8FwdOp,
+    GemmSparse2to4FwdOp,
+    GemmEpilogueSwiGLUFwdOp,
+    DualGemmFwdOp,
+    GemmReduceScatterFwdOp,
+    AllGatherGemmFwdOp,
+)
+__all__ += ['StridedBatchedGemmFwdOp', 'GemvFwdOp', 'GemmInt8FwdOp', 'GemmA16W8FwdOp', 'GemmSparse2to4FwdOp', 'GemmEpilogueSwiGLUFwdOp', 'DualGemmFwdOp', 'GemmReduceScatterFwdOp', 'AllGatherGemmFwdOp']
+
+# T301 A: reduction/sort and conversion operators (owned by route A).
+from .reduction.t301a import (
+    CummaxFwdOp, SortFwdOp, MedianFwdOp, MeanVarWelfordFwdOp,
+    SegmentSumFwdOp, MaskedReduceSumFwdOp, CastFwdOp, CompareFwdOp,
+    DequantizeFwdOp,
+)
+__all__ += [
+    'CummaxFwdOp', 'SortFwdOp', 'MedianFwdOp', 'MeanVarWelfordFwdOp',
+    'SegmentSumFwdOp', 'MaskedReduceSumFwdOp', 'CastFwdOp', 'CompareFwdOp',
+    'DequantizeFwdOp',
+]
+from .gemm.variants import GemmBlockScaledFwdOp
+__all__ += ["GemmBlockScaledFwdOp"]
+
+# T301 B: only new normalization exports.
+from .norm.t301 import (
+    LayerNormBwdOp, RMSNormBwdOp, GroupNormBwdOp, InstanceNormBwdOp,
+    WeightNormFwdOp, LayerNormQuantFwdOp, RMSNormQuantFwdOp, QKNormFwdOp,
+    GemmaRMSNormFwdOp, GroupRMSNormFwdOp, BatchNormInferenceFwdOp,
+    SpectralNormPowerIterFwdOp,
+)
+__all__ += [
+    'LayerNormBwdOp', 'RMSNormBwdOp', 'GroupNormBwdOp', 'InstanceNormBwdOp',
+    'WeightNormFwdOp', 'LayerNormQuantFwdOp', 'RMSNormQuantFwdOp', 'QKNormFwdOp',
+    'GemmaRMSNormFwdOp', 'GroupRMSNormFwdOp', 'BatchNormInferenceFwdOp',
+    'SpectralNormPowerIterFwdOp',
+]
+
+# T326: preserve the T307 variant names and constructor predicates.
+from .conv_variants.ops import (PointwiseConv2dOp, DepthwiseConv2dOp,
+    GroupedConv2dOp, DilatedConv2dOp, Conv2dBiasReluOp, Conv1dCausalOp,
+    Conv2dTransposeOp, Conv2dDgradOp, Conv2dWgradOp, Im2colOp)
+__all__ += ["PointwiseConv2dOp", "DepthwiseConv2dOp", "GroupedConv2dOp",
+    "DilatedConv2dOp", "Conv2dBiasReluOp", "Conv1dCausalOp",
+    "Conv2dTransposeOp", "Conv2dDgradOp", "Conv2dWgradOp", "Im2colOp"]

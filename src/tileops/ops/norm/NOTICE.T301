@@ -1,0 +1,13 @@
+T301 B normalization additions
+
+Derived design references (read as text; implementations rewritten):
+- TileOPs/src/tileops/kernels/elementwise_unary.py: bounded vector tiles and dtype conversion.
+- TileOPs/src/tileops/kernels/normalization_spatial.py: fp32 reductions, aligned DMA,
+  and synchronization before buffer reuse.
+- /home/dyq/cannbot/work/custom/gemma_rms_norm/proto.yaml and gemma_rms_norm.py:
+  Gemma's (1 + weight) is computed in fp32, followed by a single final cast;
+  sqrt plus division avoids the approximate rsqrt instruction.
+- /home/dyq/op-list-150.pdf, normalization entries 88,90,96,98,100-102,104-108:
+  saved-stat backward signatures, FP8 quantization, power-iteration outputs.
+
+No external example module is imported. No implementation passages are copied.

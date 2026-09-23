@@ -23,6 +23,8 @@ from __future__ import annotations
 from . import attention  # noqa: F401
 from . import attention_bwd  # noqa: F401
 from . import attention_decode  # noqa: F401
+from . import attention_indexing  # noqa: F401  # T333/R333: TopkSelectorFwdOp 的 builder 一直在这里,
+                                                 # 但从没被 import,所以 registry 里看不见它
 from . import convolution  # noqa: F401
 from . import elementwise  # noqa: F401
 from . import elementwise_activation  # noqa: F401

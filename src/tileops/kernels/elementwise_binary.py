@@ -229,6 +229,58 @@ def _tail_broadcast_info(
     return repeat, unit_count
 
 
+def _row_broadcast_info(
+    shape: tuple[int, ...],
+    out_shape: tuple[int, ...],
+    strides: tuple[int, ...],
+    element_bytes: int,
+) -> int | None:
+    """Return the row width for a *leading*-axis broadcast, else ``None``.
+
+    T263. ``_tail_broadcast_info`` above handles the case where the source has
+    one active axis followed by a broadcast output *suffix* -- ``[256, 1, 1]``
+    against ``[16, 256, 56, 56]``. A bias is the mirror image: the source is
+    rank 1, aligned with the *innermost* axis, and broadcasts over every
+    leading axis. ``_tail_broadcast_info`` rejects it on ``repeat <= 1``
+    (there is no suffix left after the last active axis), so ``bias_add``
+    fell through to the generic per-lane gather and measured
+    ``ratio_min = 0.0063`` -- failure mode A of PROJECT_STATE 13.113, a
+    wrong execution path rather than a tiling问题
+    (R263-data/08-bias-add-row-broadcast.txt).
+
+    The pattern here is worth its own path because the source tile is
+    *contiguous and identical for every row*: it can be staged in UB once per
+    block and then reused for the whole grid-stride loop.
+    """
+    if len(shape) != 1 or not out_shape:
+        return None
+    row = int(out_shape[-1])
+    if int(shape[0]) != row or row <= 1:
+        return None
+    # Rank-1 aligned with the innermost axis: stride 1 there, 0 everywhere else.
+    if strides[-1] != 1 or any(stride != 0 for stride in strides[:-1]):
+        return None
+    if math.prod(out_shape) == row:
+        # Single row: this is the ``same`` case, which is already faster.
+        return None
+    # ``T.copy`` into a UB slice needs a 32-byte aligned destination offset,
+    # and the staging below writes row ``k`` at byte ``k * row *
+    # element_bytes``.  When that is not a multiple of 32 the path is off.
+    #
+    # MEASURED, not assumed (R263-data/08-bias-add-row-broadcast.txt): a
+    # 56-wide row is 224 B in fp32 (aligned -> bit-exact) and 112 B in
+    # fp16/bf16 (unaligned -> hard aicore exception 507015).  A per-lane
+    # staging fallback was tried for the unaligned case and produced sporadic
+    # garbage from the second vector context onward (12479 wrong elements of
+    # 12845056, all at index >= tile), so it was removed rather than shipped:
+    # an unaligned row keeps the pre-existing generic gather, which is slow
+    # but correct.  The proper fix is ``T.tile.broadcast`` with a 2-D
+    # destination, which needs a second UB allocation -- left as follow-up.
+    if (row * element_bytes) % 32:
+        return None
+    return row
+
+
 @lru_cache(maxsize=64)
 def _compile_binary(
     a_numel: int,
@@ -269,6 +321,32 @@ def _compile_binary(
             return 1, fit_same_tile(cap, out_numel)
         if mode == "tail_broadcast":
             return pack_broadcast_units(repeat, unit_count, cap, broadcast_bytes)
+        if mode == "row_broadcast":
+            # ``units_per_tile`` whole rows per tile, so every tile starts on a
+            # row boundary and the staged bias tile is the same for every tile
+            # in the launch.  ``repeat`` carries the row width here.
+            limit = min(cap, 8192)
+            if repeat <= limit:
+                units = max(1, limit // repeat)
+                # T263, refuted hypothesis, recorded so nobody retries it:
+                # rounding ``units`` down so the tile's byte width is a
+                # multiple of 512 (guessing that GM address alignment was why
+                # a 56-wide fp32 row reached only 95 GB/s where a 4096-wide
+                # row reached 895 GB/s) made that case WORSE -- 1086 us ->
+                # 1434 us -- because the narrower tile costs more than the
+                # alignment buys.  The 56-wide row's real problem is the
+                # per-row staging DMA count, not addressing.
+                # R263-data/08-bias-add-row-broadcast.txt.
+                return units, units * repeat
+            # A row wider than the UB budget: fall back to the largest power-of
+            # -two-style divisor of the row that fits, one partial row per tile.
+            divisor = repeat
+            while divisor > limit:
+                divisor //= 2
+            divisor = max(1, divisor)
+            while repeat % divisor:
+                divisor -= 1
+            return 1, max(1, divisor)
         return 1, min(256, cap)
 
     def build(units_per_tile: int, tile: int):
@@ -283,6 +361,26 @@ def _compile_binary(
         # is always 1 (PROJECT_STATE 13.57).
         launch_blocks = launch_block_count(min(block_count, LAUNCH_BLOCK_CAP))
         grid_repeats = grid_repeat_count(block_count, launch_blocks)
+        # --- Ragged tail (R334) ------------------------------------------
+        # Every ``same``-mode context starts at a multiple of ``tile``, so the
+        # ONE ragged tile sits at ``(out_numel // tile) * tile`` and its length
+        # ``tail`` is a compile-time constant.  The shipped path ran
+        # ``for lane in T.serial(tile)`` there AND in every context that starts
+        # past the end of the tensor: ``tile`` iterations regardless of how
+        # short the tail is.  Measured for ``nondiv-tail`` [4097] at tile 2048:
+        # 2 of 4 vector contexts each ran 2048 scalar lanes for 1 real element,
+        # and MulFwdOp's fp16 case went 11.75 us -> 2.00 us once they did not
+        # (R334; the same defect and the same cure as R200 round 2, see
+        # kernels/common.py plan_spatial_tile).
+        #
+        # ``blk`` is the elements-per-32-byte-block.  A partial-extent GM<->UB
+        # copy moves WHOLE 32-byte blocks, so only the ``tail_vec`` prefix may
+        # go through ``T.copy`` -- never ``tail`` (R200 TRAP 1).  The lines are
+        # inline rather than in a helper because a sliced ``T.copy`` emitted
+        # from a helper compiles and silently does nothing (R200 TRAP 3).
+        tail = out_numel % tile if mode == "same" else 0
+        blk = 32 // element_bytes
+        tail_vec = tail - tail % blk
 
         @T.prim_func
         def main(
@@ -303,6 +401,25 @@ def _compile_binary(
                 # does not treat the broadcast scalar as a branch-local name.
                 scalar_ub = T.alloc_ub((1,), dtype)
                 with T.Scope("V"):
+                    if mode == "row_broadcast":
+                        # Stage the bias tile ONCE per block. ``tile`` is a
+                        # whole number of rows and every tile start is a
+                        # multiple of ``tile``, hence of the row width, so this
+                        # content is correct for every tile the grid-stride
+                        # loop below visits. That amortisation is the whole
+                        # point of the path: the generic gather re-read the
+                        # bias for every lane of every tile.
+                        # ``_row_broadcast_info`` only admits a row whose byte
+                        # width is a multiple of 32, so every slice offset here
+                        # is a legal ``T.copy`` destination.
+                        for slot in range(units_per_tile):
+                            T.copy(
+                                B[0],
+                                b_ub[slot * repeat : (slot + 1) * repeat]
+                                if units_per_tile > 1
+                                else b_ub,
+                            )
+                        T.barrier_all()
                     for grid_repeat in T.serial(grid_repeats):
                         logical_cid = cid + grid_repeat * launch_blocks
                         if logical_cid < block_count:
@@ -319,13 +436,50 @@ def _compile_binary(
                                     T.copy(A[start], a_ub)
                                     T.copy(B[start], b_ub)
                                 else:
+                                    # Not full: either THE ragged tile (length
+                                    # ``tail``, compile-time) or a context that
+                                    # starts past the end and stores nothing.
                                     T.tile.fill(a_ub, 0.0)
                                     T.tile.fill(b_ub, 0.0)
+                                    if tail:
+                                        # ``tail`` is a Python int; it may not
+                                        # share an ``and`` with a PrimExpr, so
+                                        # the two predicates stay nested.
+                                        if start < out_numel:
+                                            if tail_vec:
+                                                T.copy(
+                                                    A[start : start + tail_vec],
+                                                    a_ub[0:tail_vec],
+                                                )
+                                                T.copy(
+                                                    B[start : start + tail_vec],
+                                                    b_ub[0:tail_vec],
+                                                )
+                                            for lane in T.serial(blk):
+                                                if tail_vec + lane < tail:
+                                                    a_ub[tail_vec + lane] = A[
+                                                        start + tail_vec + lane
+                                                    ]
+                                                    b_ub[tail_vec + lane] = B[
+                                                        start + tail_vec + lane
+                                                    ]
+                                T.barrier_all()
+                            elif mode == "row_broadcast":
+                                # ``b_ub`` was staged once before the loop:
+                                # ``tile`` is a whole number of rows, so every
+                                # tile sees the identical bias content and the
+                                # per-iteration cost is A's copy plus the add.
+                                # That is the whole point of this path -- the
+                                # generic gather re-read the bias per lane.
+                                full = start + tile <= out_numel
+                                if full:
+                                    T.copy(A[start], a_ub)
+                                else:
+                                    T.tile.fill(a_ub, 0.0)
                                     for lane in T.serial(tile):
                                         idx = start + lane
                                         if idx < out_numel:
                                             a_ub[lane] = A[idx]
-                                            b_ub[lane] = B[idx]
                                 T.barrier_all()
                             elif mode == "tail_broadcast":
                                 # ``tile`` is a whole multiple of ``repeat`` and
@@ -462,7 +616,7 @@ def _compile_binary(
                                     T.tile.sub(c_ub, a_ub, b_ub)
                             T.barrier_all()
 
-                            if mode == "tail_broadcast":
+                            if mode in {"tail_broadcast", "row_broadcast"}:
                                 if full:
                                     T.copy(c_ub, C[start])
                                 else:
@@ -474,10 +628,23 @@ def _compile_binary(
                                 if full:
                                     T.copy(c_ub, C[start])
                                 else:
-                                    for lane in T.serial(tile):
-                                        idx = start + lane
-                                        if idx < out_numel:
-                                            C[idx] = c_ub[lane]
+                                    if tail:
+                                        # Mirror of the ragged load above.
+                                        # ``tail_vec`` elements are a whole
+                                        # number of 32-byte blocks, so the
+                                        # partial T.copy writes exactly those
+                                        # and nothing past ``out_numel``.
+                                        if start < out_numel:
+                                            if tail_vec:
+                                                T.copy(
+                                                    c_ub[0:tail_vec],
+                                                    C[start : start + tail_vec],
+                                                )
+                                            for lane in T.serial(blk):
+                                                if tail_vec + lane < tail:
+                                                    C[
+                                                        start + tail_vec + lane
+                                                    ] = c_ub[tail_vec + lane]
                             else:
                                 for lane in T.serial(tile):
                                     idx = start + lane
@@ -558,6 +725,12 @@ def build_binary_kernel(
         info = _tail_broadcast_info(b_shape, out_shape, b_strides)
         if info is not None:
             mode, (repeat, unit_count), broadcast_side = "tail_broadcast", info, "b"
+        else:
+            row = _row_broadcast_info(
+                b_shape, out_shape, b_strides, ELEMENT_BYTES[str(dtype).replace("torch.", "")]
+            )
+            if row is not None:
+                mode, repeat, broadcast_side = "row_broadcast", row, "b"
     elif direct_b:
         info = _tail_broadcast_info(a_shape, out_shape, a_strides)
         if info is not None:

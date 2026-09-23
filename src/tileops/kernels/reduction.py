@@ -1,13 +1,18 @@
 """Ascend AIV single-pass row-reduction kernels."""
 
 import math
+import os
 from functools import lru_cache
 
 import tilelang
 import tilelang.language as T
 import torch
 
-from .common import grid_repeat_count, launch_block_count
+from .common import (
+    grid_repeat_count,
+    launch_block_count,
+    plan_rowwise_norm,
+)
 
 
 _BLOCK_M = 128
@@ -114,6 +119,283 @@ def _compile_logsumexp(m: int, n: int, dtype_name: str, keepdim: bool):
                             T.copy(out, C[row_base : row_base + sub_m])
         return main
     return factory()
+# --- R262: the single-pass online logsumexp -----------------------------------
+#
+# `_compile_logsumexp` above is the ORIGINAL kernel, kept only so R262's A/B can
+# be re-run (`TILEOPS_LSE_ONLINE=0`).  It has two independent defects, both
+# measured in R262 §3:
+#
+#   1. `block_n = 128`, hardcoded.  Every GM->UB transfer is a `sub_m`-way
+#      strided read of 128 * itemsize = 256 bytes, and the per-lane vector-op
+#      count is proportional to `n / 128`.  For `lm-head-logits` (n = 102400)
+#      that is 800 n-tiles.  This is exactly the defect R200 removed from the
+#      normalization templates by introducing `common.plan_rowwise_norm`;
+#      logsumexp was never converted.
+#   2. TWO full passes over N (one for the max, one for the shifted exp-sum),
+#      i.e. 2x the GM traffic and 2x the tile count of the one-pass form.
+#
+# Together: 1600 tile iterations for lm-head-logits where 80 suffice.  The
+# natural experiment is in our own tree -- `families/two_pass.py::_compile`
+# (SoftmaxFwdOp) already has BOTH fixes (planner + online recurrence) and
+# measured 354.9 us on the identical (4, 102400) fp16 shape against this
+# kernel's 2601.0 us, while additionally having to WRITE an (m, n) output that
+# logsumexp does not.  7.3x of the gap is geometry, before any change to how
+# the work is spread over cores.
+#
+# The recurrence is the standard online-softmax one and is taken from our own
+# `families/two_pass.py` pass 1 (R200), not from either tilelang repo:
+#
+#     m_new = max(m_run, max(tile))
+#     s_run = s_run * exp(m_run - m_new) + sum(exp(tile - m_new))
+#     m_run = m_new
+#   epilogue: y = m_run + ln(s_run)
+#
+# ⚠️ NOT bit-identical to the two-pass form: the two-pass version shifts every
+# element by the FINAL row max, the online version shifts tile t by the running
+# max after tile t and rescales.  Both are exact in exact arithmetic; in fp32
+# they differ in the last bits.  R262 §5 has the fp64-reference comparison.
+#
+# ⚠️ An all-`-inf` row yields NaN here (`-inf - -inf`), where torch yields
+# `-inf`.  This is NOT a regression: the two-pass kernel above does the same
+# (`exp(-inf - -inf)`).  Recorded in R262's assumption list.
+_LSE_ONLINE = os.environ.get("TILEOPS_LSE_ONLINE", "1") != "0"
+
+#: Most-negative FINITE value per dtype, used to pad a ragged trailing n-tile.
+#: `-inf` cannot be used: `exp(-inf - -inf)` is NaN, and an all-pad tile is
+#: reachable whenever the m-tail leaves a lane with no copied data.
+_LSE_PAD_VALUE = {
+    "float16": -65504.0,
+    "bfloat16": -3.38953139e38,
+    "float32": -_FP32_MAX,
+}
+
+
+def _itemsize(dtype_name: str) -> int:
+    return 2 if dtype_name in ("float16", "bfloat16") else 4
+
+
+def _plan_logsumexp(m: int, n: int, dtype_name: str, out_dtype: str):
+    """Geometry for the online logsumexp tile.
+
+    UB census, read off the allocation list in `_compile_logsumexp_online`:
+      (sub_m, block_n) -> src[itemsize] + x32[4] + work[4]
+      (sub_m,)         -> row_max, row_sum, tile_max, tile_sum, tmp [5 x fp32]
+                          + out[out_itemsize]
+    A guessed census is a silent UB overflow (R194 2.2), so one spare fp32 row
+    slot is budgeted on top of the five that are actually allocated.
+    """
+    itemsize = _itemsize(dtype_name)
+    return plan_rowwise_norm(
+        m, n, itemsize,
+        bytes_per_cell=itemsize + 8,
+        bytes_per_col=0,
+        bytes_per_row=6 * 4 + _itemsize(out_dtype),
+        grain=32 if n <= 512 else None,
+    )
+
+
+@lru_cache(maxsize=128)
+def _compile_logsumexp_online(m: int, n: int, dtype_name: str, out_dtype: str):
+    """One pass over N, planner-chosen tile, optional fp32 partial output.
+
+    `out_dtype == "float32"` makes this a *stage 1*: the value it writes is the
+    logsumexp of the row it was handed, which is exactly the quantity the
+    two-stage axis split needs (see `_lse_axis_split_factor`).
+    """
+    plan = _plan_logsumexp(m, n, dtype_name, out_dtype)
+    sub_m = plan["sub_m"]
+    block_m = plan["block_m"]
+    block_n = plan["block_n"]
+    m_tiles = plan["m_tiles"]
+    n_tiles = plan["n_tiles"]
+    m_pad = plan["m_pad"]
+    has_m_tail = plan["has_m_tail"]
+    has_n_tail = plan["has_n_tail"]
+    launch_blocks = plan["launch_blocks"]
+    grid_repeats = plan["grid_repeats"]
+    need_cast = dtype_name != "float32"
+    out_need_cast = out_dtype != "float32"
+    pad_value = _LSE_PAD_VALUE[dtype_name]
+
+    @tilelang.jit(out_idx=[1], pass_configs={
+        tilelang.PassConfigKey.TL_ASCEND_AUTO_SYNC: True,
+        tilelang.PassConfigKey.TL_ASCEND_MEMORY_PLANNING: True,
+        tilelang.PassConfigKey.TL_ASCEND_AUTO_CV_COMBINE: True,
+    })
+    def factory():
+        @T.prim_func
+        def main(A: T.Tensor((m, n), dtype_name), C: T.Tensor((m_pad,), out_dtype)):
+            with T.Kernel(launch_blocks, is_npu=True) as (cid, vid):
+                src = T.alloc_ub((sub_m, block_n), dtype_name)
+                x32 = T.alloc_ub((sub_m, block_n), "float32")
+                work = T.alloc_ub((sub_m, block_n), "float32")
+                row_max = T.alloc_ub((sub_m,), "float32")
+                row_sum = T.alloc_ub((sub_m,), "float32")
+                tile_max = T.alloc_ub((sub_m,), "float32")
+                tile_sum = T.alloc_ub((sub_m,), "float32")
+                tmp = T.alloc_ub((sub_m,), "float32")
+                out = T.alloc_ub((sub_m,), out_dtype)
+                with T.Scope("V"):
+                    for rep in T.serial(grid_repeats):
+                        logical_cid = cid + rep * launch_blocks
+                        if logical_cid < m_tiles:
+                            row_base = logical_cid * block_m + vid * sub_m
+                            T.tile.fill(row_max, -T.infinity("float32"))
+                            T.tile.fill(row_sum, 0.0)
+                            for nt in T.serial(n_tiles):
+                                # A lane with no copied data (m-tail) or a
+                                # ragged trailing tile must read as "no
+                                # contribution", so pre-fill with the most
+                                # negative finite value of the dtype.
+                                if has_n_tail or has_m_tail:
+                                    T.tile.fill(src, pad_value)
+                                if not has_n_tail or nt < n_tiles - 1:
+                                    if not has_m_tail:
+                                        T.copy(A[row_base, nt * block_n], src)
+                                    else:
+                                        for r in T.serial(sub_m):
+                                            if row_base + r < m:
+                                                T.copy(A[row_base + r, nt * block_n], src[r, :])
+                                else:
+                                    for r in T.serial(sub_m):
+                                        if row_base + r < m:
+                                            for c in T.serial(block_n):
+                                                if c < n - nt * block_n:
+                                                    src[r, c] = A[row_base + r, nt * block_n + c]
+                                if need_cast:
+                                    T.tile.cast(x32, src, "CAST_NONE", sub_m * block_n)
+                                else:
+                                    T.copy(src, x32)
+                                # --- online recurrence, one pass over N ---
+                                T.reduce_max(x32, tile_max, dim=-1, clear=True)
+                                T.tile.max(tile_max, row_max, tile_max)   # m_new
+                                T.tile.sub(tmp, row_max, tile_max)        # m_old-m_new
+                                T.tile.exp(tmp, tmp)                      # <= 1
+                                T.tile.mul(tmp, row_sum, tmp)             # rescaled s
+                                T.tile.broadcast(work, tile_max)
+                                T.tile.sub(x32, x32, work)
+                                T.tile.exp(x32, x32)
+                                T.reduce_sum(x32, tile_sum, dim=-1, clear=True)
+                                T.tile.add(row_sum, tile_sum, tmp)
+                                T.copy(tile_max, row_max)
+                            T.tile.ln(row_sum, row_sum)
+                            T.tile.add(row_sum, row_sum, row_max)
+                            if out_need_cast:
+                                T.tile.cast(out, row_sum, "CAST_RINT", sub_m)
+                                T.copy(out, C[row_base : row_base + sub_m])
+                            else:
+                                T.copy(row_sum, C[row_base : row_base + sub_m])
+        return main
+    return factory()
+
+
+# --- R262: spreading a starved logsumexp over the reduction axis --------------
+#
+# The launch grid of every kernel in this file is a function of `m` alone, so a
+# small `m` uses a small fraction of the machine no matter how large `n` is.
+# `lm-head-logits` is m = 4: one row block, 1 of 48.  R198 already built the
+# cure for the plain associative reductions (`_axis_split_factor` +
+# `_FULL_STAGES` below); logsumexp short-circuited above it and never got it.
+#
+# logsumexp splits exactly as cleanly, because logsumexp of a concatenation is
+# the logsumexp of the per-chunk logsumexps:
+#
+#     lse(x) = lse_j( lse(chunk_j) )
+#
+# so BOTH stages are the same kernel: stage 1 is `(m*k, n/k) -> (m*k,)` fp32
+# partials, stage 2 is `(m, k) -> (m,)` in the output dtype.  `k` must divide
+# `n` only so that the reshape is a view; unlike `mean` the identity does not
+# require equal chunk sizes.
+#
+# ⚠️ This is a REASSOCIATION, not a bit-identical rewrite (see the online
+# recurrence note above) -- and stage 1 rounds its partial to fp32, which the
+# unsplit kernel never does.  fp32 holds a logsumexp of this magnitude to ~1e-7
+# relative; R262 §5 measures it against an fp64 reference.
+_LSE_AXIS_SPLIT = os.environ.get("TILEOPS_LSE_AXIS_SPLIT", "1") != "0"
+
+#: Stage 1 wants at least this many launch blocks before the extra kernel and
+#: GM round trip pay for themselves.  48 = `common.VECTOR_CORE_COUNT`.
+_LSE_SPLIT_TARGET_BLOCKS = 48
+#: ... and a case that already reaches this many is left alone.  8 is R198's
+#: `_SPLIT_MIN_BLOCKS`, kept identical so the two splits agree on "starved".
+_LSE_SPLIT_MIN_BLOCKS = 8
+#: Stage 1 must keep a wide tile or the split trades starvation for a narrow
+#: `block_n`, which is defect (1) again.  `common.TILE_WIDTH_CAP` is 1280 and
+#: the planner rounds down to a divisor, so require a chunk of at least this.
+#:
+#: ⚠️ 256, not 512.  512 was the first value and it forced `k = 200` for
+#: `lm-head-logits`, which is the STAGE 2 TRAP below: 200 is not a multiple of
+#: the planner's small-n grain (32), so `plan_rowwise_norm` rounds the tile up
+#: to 224, `has_n_tail` becomes True, and with `n_tiles == 1` that single tile
+#: is the ragged one -- so ALL of stage 2's load goes through the
+#: `for r: for c:` double scalar loop, 8 * 224 = 1792 scalar UB writes.
+#: Measured (R262-data/39_stage_timing.json): stage 1 = 5.75 us on 48 blocks
+#: reading the whole 800 KiB input, stage 2 = 36.50 us on ONE block reading
+#: 3.2 KiB.  Stage 2 was 86% of the op.
+_LSE_SPLIT_MIN_CHUNK = 256
+
+
+def _lse_axis_split_factor(m: int, n: int, dtype_name: str, out_dtype: str):
+    """Chunks to cut logsumexp's reduction axis into, or None to leave it alone.
+
+    Chosen against the ACTUAL planner output rather than a nominal block height:
+    `plan_rowwise_norm` picks `sub_m` (hence `block_m`) from the UB budget, so
+    the number of launch blocks a given `k` buys is not knowable without asking
+    it.  Candidates are scored on (blocks reached, chunk width kept).
+    """
+    if not _LSE_AXIS_SPLIT or m <= 0 or n <= 0:
+        return None
+    try:
+        base = _plan_logsumexp(m, n, dtype_name, out_dtype)
+    except NotImplementedError:
+        return None
+    if base["launch_blocks"] >= _LSE_SPLIT_MIN_BLOCKS:
+        return None                      # not starved; leave it alone
+    best = None
+    best_blocks = base["launch_blocks"]
+    k = 2
+    while k <= n // _LSE_SPLIT_MIN_CHUNK:
+        if n % k == 0:
+            try:
+                plan = _plan_logsumexp(m * k, n // k, dtype_name, "float32")
+            except NotImplementedError:
+                k += 1
+                continue
+            blocks = plan["launch_blocks"]
+            # 🚨 REJECT any k that leaves EITHER stage on a ragged tile.  Stage 2 is
+            # a single launch block by construction (m is small -- that is why
+            # we are splitting), so it has nothing to hide a scalar gather
+            # behind, and `n_tiles == 1` means the ragged tile is the only
+            # tile.  This one predicate is worth 2.4x of the whole op; see
+            # `_LSE_SPLIT_MIN_CHUNK`.
+            try:
+                stage2 = _plan_logsumexp(m, k, "float32", out_dtype)
+            except NotImplementedError:
+                k += 1
+                continue
+            if stage2["has_n_tail"] or plan["has_n_tail"]:
+                # Stage 1 matters for the same reason once the split has done
+                # its job: `k` is chosen so stage 1 has ONE n-tile per lane, so
+                # a ragged tile there is not amortised either.  Dropping only
+                # the stage-2 predicate picked k=256 for `lm-head-logits`,
+                # whose stage 1 is a ragged 416-wide tile -- it moves the
+                # scalar gather from stage 2 to stage 1 rather than removing
+                # it.  Requiring both gives k=320: 48 blocks, one 320-wide
+                # tile per lane in stage 1, one 320-wide tile in stage 2, no
+                # scalar path anywhere.
+                k += 1
+                continue
+            # Prefer more blocks; on a tie prefer the SMALLER k, i.e. the wider
+            # stage-1 chunk and the cheaper stage 2.
+            if blocks > best_blocks:
+                best_blocks = blocks
+                best = k
+            if best_blocks >= _LSE_SPLIT_TARGET_BLOCKS:
+                break
+        k += 1
+    return best
+
+
 _LOGICAL_OPS = frozenset({"all", "any"})
 
 
@@ -161,7 +443,7 @@ def _identity(op_kind: str) -> float:
 
 @lru_cache(maxsize=128)
 def _compile_extra(m: int, n: int, dtype_name: str, op_kind: str, correction: int,
-                   out_dtype: str | None = None):
+                   out_dtype: str | None = None, groups: int = 1):
     """Shared fp32 Welford/product reduction kernel.
 
     The Welford state follows the Chan merge used by the normalization family:
@@ -223,7 +505,7 @@ def _compile_extra(m: int, n: int, dtype_name: str, op_kind: str, correction: in
     def factory():
         @T.prim_func
         def main(
-            A: T.Tensor((m, n), dtype_name),
+            A: T.Tensor((groups * m, n), dtype_name),
             C: T.Tensor((m_tiles * block_m,), out_dtype),
             D: T.Tensor((m_tiles * block_m,), out_dtype),
         ):
@@ -277,100 +559,101 @@ def _compile_extra(m: int, n: int, dtype_name: str, op_kind: str, correction: in
                                 T.tile.fill(mean, 1.0)
                                 # R198: block_n independent running products.
                                 T.tile.fill(work, 1.0)
-                            for nt in T.serial(n_tiles):
-                                T.tile.fill(src, 0.0)
-                                if not has_n_tail or nt < n_tiles - 1:
-                                    if not has_m_tail:
-                                        T.copy(A[row_base, nt * block_n], src)
+                            for g in T.serial(groups):
+                                for nt in T.serial(n_tiles):
+                                    T.tile.fill(src, 0.0)
+                                    if not has_n_tail or nt < n_tiles - 1:
+                                        if not has_m_tail:
+                                            T.copy(A[g * m + row_base, nt * block_n], src)
+                                        else:
+                                            for r in T.serial(sub_m):
+                                                if row_base + r < m:
+                                                    T.copy(A[g * m + row_base + r, nt * block_n], src[r, :])
                                     else:
-                                        for r in T.serial(sub_m):
-                                            if row_base + r < m:
-                                                T.copy(A[row_base + r, nt * block_n], src[r, :])
-                                else:
-                                    # R198: the whole trailing tile is copied and
-                                    # the invalid columns are masked below, which
-                                    # replaces a per-element scalar gather.
-                                    if not has_m_tail:
-                                        T.copy(A[row_base, nt * block_n], src, pad_value=0)
+                                        # R198: the whole trailing tile is copied and
+                                        # the invalid columns are masked below, which
+                                        # replaces a per-element scalar gather.
+                                        if not has_m_tail:
+                                            T.copy(A[g * m + row_base, nt * block_n], src, pad_value=0)
+                                        else:
+                                            for r in T.serial(sub_m):
+                                                if row_base + r < m:
+                                                    T.copy(A[g * m + row_base + r, nt * block_n],
+                                                           src[r, :], pad_value=0)
+                                    # R198 r3: MTE2 -> V.  ``src`` was just filled
+                                    # by a GM copy and is about to be read by a
+                                    # vector op.  _compile and count_nonzero both
+                                    # barrier at this exact point; _compile_extra
+                                    # did not, and its main path used to be a scalar
+                                    # Welford loop that ordered things implicitly.
+                                    # Now that it is vector, the implicit guarantee
+                                    # is gone (§13.55 #1/#2).
+                                    T.barrier_all()
+                                    if need_cast:
+                                        T.tile.cast(x32, src, "CAST_NONE", sub_m * block_n)
                                     else:
-                                        for r in T.serial(sub_m):
-                                            if row_base + r < m:
-                                                T.copy(A[row_base + r, nt * block_n],
-                                                       src[r, :], pad_value=0)
-                                # R198 r3: MTE2 -> V.  ``src`` was just filled
-                                # by a GM copy and is about to be read by a
-                                # vector op.  _compile and count_nonzero both
-                                # barrier at this exact point; _compile_extra
-                                # did not, and its main path used to be a scalar
-                                # Welford loop that ordered things implicitly.
-                                # Now that it is vector, the implicit guarantee
-                                # is gone (§13.55 #1/#2).
-                                T.barrier_all()
-                                if need_cast:
-                                    T.tile.cast(x32, src, "CAST_NONE", sub_m * block_n)
-                                else:
-                                    T.copy(src, x32)
-                                if has_n_tail and nt == n_tiles - 1:
-                                    # Drive the padded columns of the trailing
-                                    # tile to this reduction's identity BEFORE
-                                    # any reduce touches them.  The identity is
-                                    # 1.0 for a product and 0.0 for a sum -- not
-                                    # the 0 that the input fill happens to leave
-                                    # behind (R090 / PROJECT_STATE 13.20).  Doing
-                                    # this here rather than relying on T.copy's
-                                    # pad_value keeps the tile sum correct even
-                                    # if the padded read returns neighbouring row
-                                    # data instead of zeros.
-                                    T.tile.select(
-                                        x32, valid, x32,
-                                        1.0 if op_kind == "prod" else 0.0,
-                                        "VSEL_TENSOR_SCALAR_MODE",
-                                    )
-                                if op_kind == "prod":
-                                    # R198: was sub_m * block_n scalar multiplies
-                                    # per tile on the main path.  The running
-                                    # products live in a full tile and are
-                                    # collapsed once, after the n loop.
-                                    T.tile.mul(work, work, x32)
-                                else:
-                                    # R198: Chan merge, one tile at a time.
-                                    # tile_sum -> tile_mean; deviations from
-                                    # tile_mean -> tile M2.  Same state and same
-                                    # merge formula as the scalar version, but the
-                                    # per-tile statistics come from two vector
-                                    # reduce_sum passes.
-                                    T.reduce_sum(x32, partial, dim=-1, clear=True)
+                                        T.copy(src, x32)
                                     if has_n_tail and nt == n_tiles - 1:
-                                        T.tile.fill(tile_count, float(tail_n))
+                                        # Drive the padded columns of the trailing
+                                        # tile to this reduction's identity BEFORE
+                                        # any reduce touches them.  The identity is
+                                        # 1.0 for a product and 0.0 for a sum -- not
+                                        # the 0 that the input fill happens to leave
+                                        # behind (R090 / PROJECT_STATE 13.20).  Doing
+                                        # this here rather than relying on T.copy's
+                                        # pad_value keeps the tile sum correct even
+                                        # if the padded read returns neighbouring row
+                                        # data instead of zeros.
+                                        T.tile.select(
+                                            x32, valid, x32,
+                                            1.0 if op_kind == "prod" else 0.0,
+                                            "VSEL_TENSOR_SCALAR_MODE",
+                                        )
+                                    if op_kind == "prod":
+                                        # R198: was sub_m * block_n scalar multiplies
+                                        # per tile on the main path.  The running
+                                        # products live in a full tile and are
+                                        # collapsed once, after the n loop.
+                                        T.tile.mul(work, work, x32)
                                     else:
-                                        T.tile.fill(tile_count, float(block_n))
-                                    T.tile.div(tile_mean, partial, tile_count)
-                                    T.tile.broadcast(work, tile_mean)
-                                    T.tile.sub(work, x32, work)
-                                    if has_n_tail and nt == n_tiles - 1:
-                                        # A padded lane holds (0 - tile_mean),
-                                        # which would otherwise be counted as a
-                                        # real deviation.  Force it to 0.
-                                        T.tile.select(work, valid, work, 0.0,
-                                                      "VSEL_TENSOR_SCALAR_MODE")
-                                    T.tile.mul(work, work, work)
-                                    T.reduce_sum(work, row_m2, dim=-1, clear=True)
-                                    # merged = count + tile_count
-                                    T.tile.add(merged, count, tile_count)
-                                    # delta  = tile_mean - mean
-                                    T.tile.sub(delta, tile_mean, mean)
-                                    # mean  += delta * tile_count / merged
-                                    T.tile.mul(ratio, delta, tile_count)
-                                    T.tile.div(ratio, ratio, merged)
-                                    T.tile.add(mean, mean, ratio)
-                                    # m2 += tile_m2 + delta^2 * count*tile_count/merged
-                                    T.tile.mul(cross, count, tile_count)
-                                    T.tile.div(cross, cross, merged)
-                                    T.tile.mul(ratio, delta, delta)
-                                    T.tile.mul(cross, cross, ratio)
-                                    T.tile.add(m2, m2, row_m2)
-                                    T.tile.add(m2, m2, cross)
-                                    T.copy(merged, count)
+                                        # R198: Chan merge, one tile at a time.
+                                        # tile_sum -> tile_mean; deviations from
+                                        # tile_mean -> tile M2.  Same state and same
+                                        # merge formula as the scalar version, but the
+                                        # per-tile statistics come from two vector
+                                        # reduce_sum passes.
+                                        T.reduce_sum(x32, partial, dim=-1, clear=True)
+                                        if has_n_tail and nt == n_tiles - 1:
+                                            T.tile.fill(tile_count, float(tail_n))
+                                        else:
+                                            T.tile.fill(tile_count, float(block_n))
+                                        T.tile.div(tile_mean, partial, tile_count)
+                                        T.tile.broadcast(work, tile_mean)
+                                        T.tile.sub(work, x32, work)
+                                        if has_n_tail and nt == n_tiles - 1:
+                                            # A padded lane holds (0 - tile_mean),
+                                            # which would otherwise be counted as a
+                                            # real deviation.  Force it to 0.
+                                            T.tile.select(work, valid, work, 0.0,
+                                                          "VSEL_TENSOR_SCALAR_MODE")
+                                        T.tile.mul(work, work, work)
+                                        T.reduce_sum(work, row_m2, dim=-1, clear=True)
+                                        # merged = count + tile_count
+                                        T.tile.add(merged, count, tile_count)
+                                        # delta  = tile_mean - mean
+                                        T.tile.sub(delta, tile_mean, mean)
+                                        # mean  += delta * tile_count / merged
+                                        T.tile.mul(ratio, delta, tile_count)
+                                        T.tile.div(ratio, ratio, merged)
+                                        T.tile.add(mean, mean, ratio)
+                                        # m2 += tile_m2 + delta^2 * count*tile_count/merged
+                                        T.tile.mul(cross, count, tile_count)
+                                        T.tile.div(cross, cross, merged)
+                                        T.tile.mul(ratio, delta, delta)
+                                        T.tile.mul(cross, cross, ratio)
+                                        T.tile.add(m2, m2, row_m2)
+                                        T.tile.add(m2, m2, cross)
+                                        T.copy(merged, count)
                             if op_kind == "prod":
                                 # R198: collapse the block_n running products.
                                 # This is the only scalar loop left on the prod
@@ -398,7 +681,8 @@ def _compile_extra(m: int, n: int, dtype_name: str, op_kind: str, correction: in
                                 T.barrier_all()
                                 T.copy(mean, D[row_base : row_base + sub_m])
                             else:
-                                T.tile.div(partial, m2, T.cast(float(n - correction), "float32"))
+                                T.tile.div(partial, m2,
+                                           T.cast(float(groups * n - correction), "float32"))
                                 if op_kind == "std":
                                     T.tile.sqrt(partial, partial)
                                 if op_kind == "var_mean":
@@ -520,7 +804,20 @@ def _compile(
     op_kind: str,
     diagnostic_sentinel: bool,
     block_n: int = _BLOCK_N,
+    groups: int = 1,
 ):
+    # R340: ``groups`` is the leading-reduced-axis extent.  The GM tensor is
+    # declared ``(groups * m, n)`` and row ``i`` of the logical reduction is the
+    # concatenation of rows ``g * m + i`` for ``g in [0, groups)``.  That is
+    # exactly the memory layout of a contiguous ``(groups, m, n)`` tensor whose
+    # first and last axis are reduced and whose middle axis is kept -- i.e.
+    # ``[4,128,4096] dim=[0,2]``, the case that sets four of this round's five
+    # ``ratio_min`` values.  Before R340 the launch wrapper handed that case a
+    # ``permute(...).contiguous()`` copy of the WHOLE tensor
+    # (``aclnnInplaceCopy_TransposeAiCore_Transpose`` in the coverage kernel
+    # names); with ``groups`` the same reduction reads each element once,
+    # straight out of the caller's buffer, in the same contiguous
+    # ``(_SUB_M, block_n)`` tiles as before.
     # R198 r3: block_n is a parameter (and part of the lru_cache key).  Stage 2
     # of the axis split reduces only k columns, and k is small by construction
     # (64 for the [4,128,4096] dim=[0,2] case).  With the fixed 256-wide tile
@@ -550,7 +847,7 @@ def _compile(
     def factory():
         @T.prim_func
         def main(
-            A: T.Tensor((m, n), dtype_name),
+            A: T.Tensor((groups * m, n), dtype_name),
             C: T.Tensor((m_tiles * _BLOCK_M,), out_dtype),
         ):
             with T.Kernel(launch_blocks, is_npu=True) as (cid, vid):
@@ -590,111 +887,112 @@ def _compile(
                                 T.copy(out, C[row_base : row_base + _SUB_M])
                                 T.barrier_all()
                             T.tile.fill(accum, _identity(op_kind))
-                            for nt in T.serial(n_tiles):
-                                if dtype_name == "uint8":
-                                    # T.tile.fill has no uint8 form: AscendC
-                                    # Duplicate rejects uint8 (R198 probe
-                                    # probe_uint8_ops.json), which is why this
-                                    # was a scalar loop.  It is only *needed*
-                                    # where some lane of src is not overwritten
-                                    # by the copy below, i.e. on a partial tile.
-                                    # On a full tile it was 16384 dead scalar
-                                    # stores sitting on the main path.
-                                    if has_m_tail or has_n_tail:
-                                        for r in T.serial(_SUB_M):
-                                            for c in T.serial(block_n):
-                                                src[r, c] = 0
-                                else:
-                                    T.tile.fill(src, 0)
-                                if not has_m_tail:
-                                    if not has_n_tail or nt < n_tiles - 1:
-                                        T.copy(A[row_base, nt * block_n], src)
+                            for g in T.serial(groups):
+                                for nt in T.serial(n_tiles):
+                                    if dtype_name == "uint8":
+                                        # T.tile.fill has no uint8 form: AscendC
+                                        # Duplicate rejects uint8 (R198 probe
+                                        # probe_uint8_ops.json), which is why this
+                                        # was a scalar loop.  It is only *needed*
+                                        # where some lane of src is not overwritten
+                                        # by the copy below, i.e. on a partial tile.
+                                        # On a full tile it was 16384 dead scalar
+                                        # stores sitting on the main path.
+                                        if has_m_tail or has_n_tail:
+                                            for r in T.serial(_SUB_M):
+                                                for c in T.serial(block_n):
+                                                    src[r, c] = 0
                                     else:
-                                        for r in T.serial(_SUB_M):
-                                            for c in T.serial(block_n):
-                                                if c < tail_n:
-                                                    src[r, c] = A[
-                                                        row_base + r, nt * block_n + c
-                                                    ]
-                                elif logical_cid < m_tiles - 1:
-                                    if not has_n_tail or nt < n_tiles - 1:
-                                        T.copy(A[row_base, nt * block_n], src)
-                                    else:
-                                        for r in T.serial(_SUB_M):
-                                            for c in T.serial(block_n):
-                                                if c < tail_n:
-                                                    src[r, c] = A[
-                                                        row_base + r, nt * block_n + c
-                                                    ]
-                                else:
-                                    for r in T.serial(_SUB_M):
-                                        if row_base + r < m:
-                                            if not has_n_tail or nt < n_tiles - 1:
-                                                T.copy(
-                                                    A[row_base + r, nt * block_n],
-                                                    src[r, :],
-                                                )
-                                            else:
+                                        T.tile.fill(src, 0)
+                                    if not has_m_tail:
+                                        if not has_n_tail or nt < n_tiles - 1:
+                                            T.copy(A[g * m + row_base, nt * block_n], src)
+                                        else:
+                                            for r in T.serial(_SUB_M):
                                                 for c in T.serial(block_n):
                                                     if c < tail_n:
                                                         src[r, c] = A[
-                                                            row_base + r,
-                                                            nt * block_n + c,
+                                                            g * m + row_base + r, nt * block_n + c
                                                         ]
-                                T.barrier_all()
-                                if dtype_name == "float32":
-                                    T.copy(src, calc)
-                                elif dtype_name == "uint8":
-                                    # R198: was 16384 scalar if_then_else per
-                                    # tile on the main path.  ``min(v, 1.0)``
-                                    # reproduces ``v != 0 ? 1.0 : 0.0`` exactly
-                                    # for every uint8 value (uint8 is >= 0, so
-                                    # 0 -> 0.0 and anything >= 1 -> 1.0), which
-                                    # keeps this bit-identical even for a
-                                    # non-canonical bool byte such as 5.
-                                    T.tile.cast(
-                                        narrow, src, "CAST_NONE", _SUB_M * block_n
-                                    )
-                                    T.tile.cast(
-                                        calc, narrow, "CAST_NONE", _SUB_M * block_n
-                                    )
-                                    T.tile.min(calc, calc, 1.0)
-                                else:
-                                    T.tile.cast(
-                                        calc, src, "CAST_NONE", _SUB_M * block_n
-                                    )
-                                if op_kind in {"l1", "inf"}:
-                                    T.tile.abs(calc, calc)
-                                elif op_kind == "l2":
-                                    T.tile.mul(calc, calc, calc)
-                                elif op_kind in _LOGICAL_OPS:
-                                    # R198: dropped a third 16384-iteration
-                                    # scalar loop that re-clamped calc to 0/1.
-                                    # Provably dead: logical ops are the only
-                                    # ops with dtype_name == "uint8" (the
-                                    # builder ties them together), so calc is
-                                    # already exactly 0.0 or 1.0 here.
-                                    pass
-                                if has_n_tail and nt == n_tiles - 1:
-                                    for r in T.serial(_SUB_M):
-                                        for c in T.serial(block_n):
-                                            if c >= tail_n:
-                                                calc[r, c] = _identity(op_kind)
-                                if op_kind in {"sum", "mean", "l1", "l2"}:
-                                    T.reduce_sum(calc, partial, dim=-1, clear=True)
-                                elif op_kind in {"amax", "inf", "any"}:
-                                    T.reduce_max(calc, partial, dim=-1, clear=True)
-                                else:
-                                    T.reduce_min(calc, partial, dim=-1, clear=True)
-                                T.barrier_all()
-                                if op_kind in {"sum", "mean", "l1", "l2"}:
-                                    T.tile.add(accum, accum, partial)
-                                elif op_kind in {"amax", "inf", "any"}:
-                                    T.tile.max(accum, accum, partial)
-                                else:
-                                    T.tile.min(accum, accum, partial)
+                                    elif logical_cid < m_tiles - 1:
+                                        if not has_n_tail or nt < n_tiles - 1:
+                                            T.copy(A[g * m + row_base, nt * block_n], src)
+                                        else:
+                                            for r in T.serial(_SUB_M):
+                                                for c in T.serial(block_n):
+                                                    if c < tail_n:
+                                                        src[r, c] = A[
+                                                            g * m + row_base + r, nt * block_n + c
+                                                        ]
+                                    else:
+                                        for r in T.serial(_SUB_M):
+                                            if row_base + r < m:
+                                                if not has_n_tail or nt < n_tiles - 1:
+                                                    T.copy(
+                                                        A[g * m + row_base + r, nt * block_n],
+                                                        src[r, :],
+                                                    )
+                                                else:
+                                                    for c in T.serial(block_n):
+                                                        if c < tail_n:
+                                                            src[r, c] = A[
+                                                                g * m + row_base + r,
+                                                                nt * block_n + c,
+                                                            ]
+                                    T.barrier_all()
+                                    if dtype_name == "float32":
+                                        T.copy(src, calc)
+                                    elif dtype_name == "uint8":
+                                        # R198: was 16384 scalar if_then_else per
+                                        # tile on the main path.  ``min(v, 1.0)``
+                                        # reproduces ``v != 0 ? 1.0 : 0.0`` exactly
+                                        # for every uint8 value (uint8 is >= 0, so
+                                        # 0 -> 0.0 and anything >= 1 -> 1.0), which
+                                        # keeps this bit-identical even for a
+                                        # non-canonical bool byte such as 5.
+                                        T.tile.cast(
+                                            narrow, src, "CAST_NONE", _SUB_M * block_n
+                                        )
+                                        T.tile.cast(
+                                            calc, narrow, "CAST_NONE", _SUB_M * block_n
+                                        )
+                                        T.tile.min(calc, calc, 1.0)
+                                    else:
+                                        T.tile.cast(
+                                            calc, src, "CAST_NONE", _SUB_M * block_n
+                                        )
+                                    if op_kind in {"l1", "inf"}:
+                                        T.tile.abs(calc, calc)
+                                    elif op_kind == "l2":
+                                        T.tile.mul(calc, calc, calc)
+                                    elif op_kind in _LOGICAL_OPS:
+                                        # R198: dropped a third 16384-iteration
+                                        # scalar loop that re-clamped calc to 0/1.
+                                        # Provably dead: logical ops are the only
+                                        # ops with dtype_name == "uint8" (the
+                                        # builder ties them together), so calc is
+                                        # already exactly 0.0 or 1.0 here.
+                                        pass
+                                    if has_n_tail and nt == n_tiles - 1:
+                                        for r in T.serial(_SUB_M):
+                                            for c in T.serial(block_n):
+                                                if c >= tail_n:
+                                                    calc[r, c] = _identity(op_kind)
+                                    if op_kind in {"sum", "mean", "l1", "l2"}:
+                                        T.reduce_sum(calc, partial, dim=-1, clear=True)
+                                    elif op_kind in {"amax", "inf", "any"}:
+                                        T.reduce_max(calc, partial, dim=-1, clear=True)
+                                    else:
+                                        T.reduce_min(calc, partial, dim=-1, clear=True)
+                                    T.barrier_all()
+                                    if op_kind in {"sum", "mean", "l1", "l2"}:
+                                        T.tile.add(accum, accum, partial)
+                                    elif op_kind in {"amax", "inf", "any"}:
+                                        T.tile.max(accum, accum, partial)
+                                    else:
+                                        T.tile.min(accum, accum, partial)
                             if op_kind == "mean":
-                                T.tile.mul(accum, accum, 1.0 / n)
+                                T.tile.mul(accum, accum, 1.0 / (groups * n))
                             elif op_kind == "l2":
                                 T.tile.sqrt(accum, accum)
                             if out_dtype == "uint8":
@@ -901,6 +1199,10 @@ _FULL_STAGES = {
 # most of its vector width.  Capped at 128 * 48 * 2 rows: past roughly two row
 # blocks per AI core there is nothing left to win, and the stage 2 input grows.
 _FULL_ROWS_CAP = _BLOCK_M * 48 * 2
+#: Ascend910B1 has 24 AI cores (each carrying two AIV contexts), so 24 blocks is
+#: exactly one launch wave.  R340 measured that the block count -- not the tile
+#: width -- is what the "largest rows that fits" rule was getting wrong.
+_CORE_BLOCKS = 24
 
 
 def _full_reduction_rows(n: int) -> int | None:
@@ -912,6 +1214,35 @@ def _full_reduction_rows(n: int) -> int | None:
         if n % rows == 0 and n // rows >= _BLOCK_N:
             best = rows
         rows += _BLOCK_M
+    if best is None:
+        return None
+    # --- R340: avoid a RAGGED SECOND WAVE ------------------------------------
+    # The rule above takes the largest legal `rows`, i.e. the most blocks.  When
+    # that lands strictly between one and two full waves the tail wave is nearly
+    # empty and costs a whole block-time for a fraction of the work.  Swept on
+    # the two manifest shapes that land there (R340-data/probe/p4-fullred32k.json
+    # and p5-rows{A,B}.json, D032 instrument, every point checked against torch):
+    #
+    #   n = 2**20   32 blocks (rows=4096)   16 blocks (rows=2048)
+    #     all/bool        15.25 us              12.25 us     -20 %
+    #     count_nonzero   40.00 us              25.00 us     -37 %
+    #
+    # Deliberately NOT applied above two waves: at 64 blocks (n = 2**23 and
+    # 2**21) the same sweep says the current choice is right --
+    # sum 27.50 us at 64 blocks against 29.75 at 16, var 40.75 against 48.50.
+    # So this narrows to exactly the ragged-tail regime and leaves the
+    # many-wave regime alone.  (count_nonzero at n = 2**23 would also prefer 16
+    # blocks -- 53.00 us against 93.88 -- but sum and var there would not, and
+    # they share this function; that headroom is left on the table, see R340 S6.)
+    if _CORE_BLOCKS < best // _BLOCK_M <= 2 * _CORE_BLOCKS:
+        one_wave = None
+        rows = _BLOCK_M
+        while rows <= _CORE_BLOCKS * _BLOCK_M:
+            if n % rows == 0 and n // rows >= _BLOCK_N:
+                one_wave = rows
+            rows += _BLOCK_M
+        if one_wave is not None:
+            best = one_wave
     return best
 
 
@@ -943,6 +1274,24 @@ _SPLIT_TARGET_BLOCKS = 48
 # GM round trip for no headroom worth chasing, and T195's second prohibition is
 # explicit that a path already past the baseline should not be touched.
 _SPLIT_MIN_BLOCKS = 8
+# --- R340: MINIMUM k IS A CORRECTNESS GUARD, NOT A TUNING KNOB ---------------
+# Stage 2 of every split in this file reduces a `(_SUB_M, k)` tile.  Swept on
+# `[4,128,4096] dim=[0,2]` (R340-data/probe/p3-ksweep1.log, D032 instrument, and
+# every point checked against torch on the same input):
+#
+#     k =  2   count_nonzero returns 32793 for a true count of 16384; `all`
+#              returns the wrong bool          <- WRONG ANSWER
+#     k =  4   same, count off by 16412        <- WRONG ANSWER
+#     k =  8   correct, 21.0 us
+#     k = 16   correct, 14.75 us               <- chosen
+#     k = 32   correct, 16.25 us
+#
+# `any` looks clean at k=2/4 only because its true answer is True on every row of
+# that input and corrupt lanes cannot flip it -- it is not evidence of safety.
+# No manifest shape reaches k <= 4 today (see R340-data/02_dispatch_matrix.txt),
+# so this floor changes no shipped dispatch; it closes the hole rather than
+# relying on the heuristics never to fall into it.
+_MIN_SPLIT_K = 8
 # --- MEASURED NEGATIVE RESULT: the axis split is OFF -------------------------
 # It is correct (60/60 bitwise identical to the unsplit path, including the
 # all-negative and +/-inf value classes that R090's hazard hides in) but it is
@@ -1013,7 +1362,7 @@ def _axis_split_factor(m: int, n: int) -> int | None:
     if (m + _BLOCK_M - 1) // _BLOCK_M >= _SPLIT_MIN_BLOCKS:
         return None                      # not starved; leave it alone
     best = None
-    k = 2
+    k = _MIN_SPLIT_K
     while k <= n // _BLOCK_N:
         if n % k == 0:
             blocks = (m * k + _BLOCK_M - 1) // _BLOCK_M
@@ -1023,6 +1372,194 @@ def _axis_split_factor(m: int, n: int) -> int | None:
             best = k                     # otherwise keep the widest split seen
         k += 1
     return best
+
+
+# --- R340: row-wise variance split (the m > 1 counterpart of the m == 1 one) --
+#
+# MEASURED, not assumed.  `[4,128,4096] dim=[0,2]` gives m = 128, so
+# `m_tiles = 1`, so `launch_block_count(1) = 1`: the whole 2 M-element Welford
+# ran on **one block = 2 of 96 vector contexts**.  R340-data/probe/
+# p2-pristine-decompose.json measured that kernel alone at 172.1 us against
+# 20.25 us for All/Any on the same geometry -- All/Any escape because
+# `op_kind in _FULL_STAGES` reaches `_axis_split_factor`, while `var`/`std`/
+# `var_mean` are caught by the `_WELFORD_OPS` test before any split is
+# considered and `_compile_extra` has no split for m > 1.
+#
+# The existing `_compile_welford_combine` cannot be reused: it combines k
+# partials of ONE row (m == 1) in a single block.  This one combines k partials
+# for EVERY row, in the usual (_BLOCK_M rows per block, two _SUB_M halves)
+# geometry.
+#
+# The identity is the same and it is exact, not an approximation, because every
+# partial covers exactly the same count c:
+#     mean_tot = (1/k) * sum_j mean_j
+#     M2_tot   = sum_j M2_j + c * sum_j (mean_j - mean_tot)^2
+# That equal-count property is why k must divide the per-group reduction length.
+_WELFORD_ROW_MIN_BLOCKS = 8
+# Stop growing k once stage 1 has this many row blocks.  SWEPT, not guessed:
+# R340-data/probe/p3-welford-k.json.  See the report for the table.
+# 16, not 24 or 48.  SWEPT on the shape this exists for (see the k table above):
+# k=8 -> 26.25 us, k=16 -> 17.00 us, k=32 -> 17.75 us.  The optimum is INTERIOR --
+# growing k past 16 makes it worse, the same shape of result cannbot's
+# count_nonzero iteration 5 found for `grid` (grid=16 beat grid=24 by 13.5 %).
+# With m = 128 the block count equals k, so a target of 16 lands on k = 16.
+_WELFORD_ROW_TARGET_BLOCKS = 16
+# UB: three fp32 (_SUB_M, k) tiles = 3 * 64 * k * 4 bytes, so k = 128 is 98304 B,
+# comfortably under UB_BUDGET_BYTES; 256 would be 196608 and is the R194 cliff.
+_WELFORD_ROW_MAX_K = 128
+
+
+def _welford_row_split_factor(m: int, n: int) -> int | None:
+    """Chunks to cut a row-wise variance's reduction axis into, or None.
+
+    Mirrors `_axis_split_factor`: only rescue the starved shapes (fewer than
+    `_WELFORD_ROW_MIN_BLOCKS` row blocks), require k to divide n exactly (equal
+    partial counts -- the combine identity depends on it) and require each chunk
+    to stay at least one `_EXTRA_BLOCK_N` wide so stage 1 keeps its vector width
+    and never reaches `_compile_extra`'s trailing-tile path.
+    """
+    if m <= 1 or n <= 0:
+        return None
+    if (m + _BLOCK_M - 1) // _BLOCK_M >= _WELFORD_ROW_MIN_BLOCKS:
+        return None                          # not starved; leave it alone
+    best = None
+    k = _MIN_SPLIT_K
+    k_cap = min(_WELFORD_ROW_MAX_K, n // _EXTRA_BLOCK_N)
+    while k <= k_cap:
+        if n % k == 0:
+            blocks = (m * k + _BLOCK_M - 1) // _BLOCK_M
+            best = k
+            if blocks >= _WELFORD_ROW_TARGET_BLOCKS:
+                break                        # smallest k that fills the machine
+        k += 1
+    return best
+
+
+@lru_cache(maxsize=128)
+def _compile_welford_rows(m: int, k: int, c: int, out_dtype: str, op_kind: str,
+                          correction: int):
+    """Stage 2 of the row-wise variance split: combine k equal partials per row.
+
+    ``MEANS``/``M2S`` are ``(m, k)`` fp32 exactly as ``_compile_extra``'s
+    ``welford_partial`` writeback leaves them.  ``c`` is the element count behind
+    one partial (``groups * n // k``), so the total behind one output row is
+    ``k * c`` and that -- not ``n`` -- is what the correction is applied to.
+    """
+    block_m = _BLOCK_M
+    sub_m = _SUB_M
+    m_tiles = (m + block_m - 1) // block_m
+    has_m_tail = m % block_m != 0
+    launch_blocks = launch_block_count(m_tiles)
+    grid_repeats = grid_repeat_count(m_tiles, launch_blocks)
+    total = k * c
+
+    @tilelang.jit(out_idx=[2, 3], pass_configs={
+        tilelang.PassConfigKey.TL_ASCEND_AUTO_SYNC: True,
+        tilelang.PassConfigKey.TL_ASCEND_MEMORY_PLANNING: True,
+        tilelang.PassConfigKey.TL_ASCEND_AUTO_CV_COMBINE: True,
+    })
+    def factory():
+        @T.prim_func
+        def main(
+            MEANS: T.Tensor((m, k), "float32"),
+            M2S: T.Tensor((m, k), "float32"),
+            C: T.Tensor((m_tiles * block_m,), out_dtype),
+            D: T.Tensor((m_tiles * block_m,), out_dtype),
+        ):
+            with T.Kernel(launch_blocks, is_npu=True) as (cid, vid):
+                mu = T.alloc_ub((sub_m, k), "float32")
+                m2 = T.alloc_ub((sub_m, k), "float32")
+                work = T.alloc_ub((sub_m, k), "float32")
+                acc = T.alloc_ub((sub_m,), "float32")
+                mean_tot = T.alloc_ub((sub_m,), "float32")
+                m2_tot = T.alloc_ub((sub_m,), "float32")
+                dev = T.alloc_ub((sub_m,), "float32")
+                out = T.alloc_ub((sub_m,), out_dtype)
+                with T.Scope("V"):
+                    for rep in T.serial(grid_repeats):
+                        logical_cid = cid + rep * launch_blocks
+                        if logical_cid < m_tiles:
+                            row_base = logical_cid * block_m + vid * sub_m
+                            T.tile.fill(mu, 0.0)
+                            T.tile.fill(m2, 0.0)
+                            if not has_m_tail:
+                                T.copy(MEANS[row_base, 0], mu)
+                                T.copy(M2S[row_base, 0], m2)
+                            else:
+                                for r in T.serial(sub_m):
+                                    if row_base + r < m:
+                                        T.copy(MEANS[row_base + r, 0], mu[r, :])
+                                        T.copy(M2S[row_base + r, 0], m2[r, :])
+                            T.barrier_all()          # MTE2 -> V (13.55 #1/#2)
+                            T.reduce_sum(mu, acc, dim=-1, clear=True)
+                            T.tile.mul(mean_tot, acc, 1.0 / k)
+                            T.reduce_sum(m2, m2_tot, dim=-1, clear=True)
+                            T.tile.broadcast(work, mean_tot)
+                            T.tile.sub(work, mu, work)
+                            T.tile.mul(work, work, work)
+                            T.reduce_sum(work, dev, dim=-1, clear=True)
+                            T.tile.mul(dev, dev, float(c))
+                            T.tile.add(m2_tot, m2_tot, dev)
+                            T.tile.div(
+                                m2_tot, m2_tot,
+                                T.cast(float(total - correction), "float32"),
+                            )
+                            if op_kind == "std":
+                                T.tile.sqrt(m2_tot, m2_tot)
+                            if out_dtype == "float32":
+                                T.copy(m2_tot, out)
+                            else:
+                                T.tile.cast(out, m2_tot, "CAST_RINT", sub_m)
+                            T.barrier_all()          # V -> MTE3 (13.55 #2)
+                            T.copy(out, C[row_base : row_base + sub_m])
+                            if out_dtype == "float32":
+                                T.copy(mean_tot, out)
+                            else:
+                                T.tile.cast(out, mean_tot, "CAST_RINT", sub_m)
+                            T.barrier_all()          # V -> MTE3 (13.55 #2)
+                            T.copy(out, D[row_base : row_base + sub_m])
+        return main
+
+    return factory()
+
+
+def _group_split(input_shape, reduced, order, n):
+    """Split a non-trailing reduction into (leading groups, per-group length).
+
+    R340.  Returns ``(groups, n_per_group)`` with ``groups * n_per_group == n``.
+
+    ``groups > 1`` is returned only when BOTH hold:
+
+    * today's launch wrapper would have materialised
+      ``x.permute(order).reshape(m, n).contiguous()`` -- i.e. the reduction has a
+      non-trailing axis -- and
+    * the kept axes form ONE CONTIGUOUS BLOCK of the input, so the caller's
+      buffer already *is* a ``(groups, m, n_per_group)`` tensor and
+      ``x.reshape(groups * m, n_per_group)`` is a pure view.
+
+    Under those two conditions the reduction over ``{leading axes} U {trailing
+    axes}`` is exactly "reduce rows ``g * m + i`` for all g" over a
+    ``(groups * m, n_per_group)`` matrix, which every factory in this file can
+    now do natively (``groups`` argument) without moving a byte.
+
+    Every other shape returns ``(1, n)``, i.e. byte-for-byte today's behaviour.
+    The known excluded shape is a kept block that is not contiguous, e.g.
+    ``(A,B,C,D) dim=[0,2]``: there the permuted view genuinely is a transpose.
+    """
+    ndim = len(input_shape)
+    if order == tuple(range(ndim)):
+        return 1, n                        # already trailing: no copy today
+    kept = [i for i in range(ndim) if i not in reduced]
+    if not kept:
+        return 1, n                        # full reduction: m == 1, no copy
+    first, last = kept[0], kept[-1]
+    if kept != list(range(first, last + 1)):
+        return 1, n                        # kept axes are not one block
+    groups = math.prod(input_shape[:first]) if first else 1
+    per_group = math.prod(input_shape[last + 1:]) if last + 1 < ndim else 1
+    if groups <= 1 or per_group <= 1 or groups * per_group != n:
+        return 1, n
+    return groups, per_group
 
 
 def build_reduction_kernel(
@@ -1064,11 +1601,31 @@ def build_reduction_kernel(
     m = math.prod(output_shape) if output_shape else 1
     n = math.prod(input_shape[i] for i in axes)
     order = tuple(i for i in range(len(input_shape)) if i not in reduced) + axes
+    # R340: n becomes the PER-GROUP reduction length; the true reduction length
+    # is groups * n.  groups == 1 leaves every downstream expression unchanged.
+    # logsumexp is excluded because its two factories (_compile_logsumexp /
+    # _compile_logsumexp_online) were not given the groups argument.
+    groups, n = (1, n) if op_kind == "logsumexp" else _group_split(
+        input_shape, reduced, order, n
+    )
     two_stage = None
     welford_split = None
+    welford_row_split = None
     prod_split = None
+    lse_split = None
     if op_kind == "logsumexp":
-        compiled = _compile_logsumexp(m, n, dtype_name, keepdim)
+        if not _LSE_ONLINE:
+            compiled = _compile_logsumexp(m, n, dtype_name, keepdim)
+        else:
+            k = _lse_axis_split_factor(m, n, dtype_name, out_dtype)
+            if k is None:
+                compiled = _compile_logsumexp_online(m, n, dtype_name, out_dtype)
+            else:
+                stage1 = _compile_logsumexp_online(m * k, n // k, dtype_name,
+                                                   "float32")
+                stage2 = _compile_logsumexp_online(m, k, "float32", out_dtype)
+                lse_split = (k, stage1, stage2)
+                compiled = stage1
     elif op_kind in _WELFORD_OPS and m == 1 and _full_reduction_rows(n) is not None:
         # Same starvation as everything else: m == 1 gives one row block, so the
         # vectorised Welford runs on 1 of 96 vector contexts.  Round 2 measured
@@ -1083,6 +1640,17 @@ def build_reduction_kernel(
                                           int(correction))
         welford_split = (k, stage1, stage2)
         compiled = stage1
+    elif op_kind in _WELFORD_OPS and _welford_row_split_factor(m, n) is not None:
+        # R340: m > 1 but too few row blocks to fill the machine.  Same move as
+        # `_axis_split_factor` makes for `_FULL_STAGES`, with a per-row combine.
+        k = _welford_row_split_factor(m, n)
+        stage1 = _compile_extra(m * k, n // k, dtype_name, "welford_partial",
+                                int(correction), out_dtype="float32",
+                                groups=groups)
+        stage2 = _compile_welford_rows(m, k, groups * (n // k), out_dtype,
+                                       op_kind, int(correction))
+        welford_row_split = (k, stage1, stage2)
+        compiled = stage1
     elif op_kind == "prod" and _prod_split_factor(m, n) is not None:
         # Same starvation as everything else in this file: ProdFwdOp's ratio_min
         # comes from [64,32768] dim=-1, i.e. m=64 -> one row block.  Both stages
@@ -1090,12 +1658,14 @@ def build_reduction_kernel(
         # running products and collapses once.
         k = _prod_split_factor(m, n)
         stage1 = _compile_extra(m * k, n // k, dtype_name, "prod",
-                                int(correction), out_dtype="float32")
+                                int(correction), out_dtype="float32",
+                                groups=groups)
         stage2 = _compile_extra(m, k, "float32", "prod", int(correction))
         prod_split = (k, stage1, stage2)
         compiled = stage1
     elif op_kind in _WELFORD_OPS or op_kind == "prod":
-        compiled = _compile_extra(m, n, dtype_name, op_kind, int(correction))
+        compiled = _compile_extra(m, n, dtype_name, op_kind, int(correction),
+                                  groups=groups)
     elif m == 1:
         rows = _full_reduction_rows(n)
         if rows is None:
@@ -1123,7 +1693,8 @@ def build_reduction_kernel(
         kind1, kind2 = _FULL_STAGES[op_kind]
         part_dtype = "uint8" if op_kind in _LOGICAL_OPS else "float32"
         stage1 = _compile(
-            m * k, n // k, dtype_name, part_dtype, kind1, diagnostic_sentinel
+            m * k, n // k, dtype_name, part_dtype, kind1, diagnostic_sentinel,
+            groups=groups,
         )
         # Size stage 2's tile so that k divides it exactly: no trailing tile,
         # therefore no scalar gather.
@@ -1135,22 +1706,46 @@ def build_reduction_kernel(
         two_stage = (k, stage1, stage2, "axis")
         compiled = stage1
     else:
-        compiled = _compile(m, n, dtype_name, out_dtype, op_kind, diagnostic_sentinel)
+        compiled = _compile(m, n, dtype_name, out_dtype, op_kind,
+                            diagnostic_sentinel, groups=groups)
 
     def launch(x):
         if tuple(x.shape) != input_shape:
             raise ValueError(f"{op_name} kernel shape mismatch")
         if logical:
             x = x.view(torch.uint8)
-        view = x if order == tuple(range(len(input_shape))) else x.permute(order)
-        flat = view.reshape(m, n)
-        if not flat.is_contiguous():
-            flat = flat.contiguous()
-        if prod_split is not None:
-            k, stage1, stage2 = prod_split
+        if groups > 1:
+            # R340: pure view of the caller's own buffer.  This is the line the
+            # whole round is about -- it replaces a
+            # ``permute(...).reshape(m, n).contiguous()`` that copied the ENTIRE
+            # tensor through HBM (read + write) before the reduction had read a
+            # single byte.  ``reshape`` preserves logical element order, so this
+            # is semantically identical whatever the caller's strides; it only
+            # avoids the copy when the caller is contiguous, which the op
+            # boundary (ops/reduction/reduce.py:398) guarantees.
+            flat = x.reshape(groups * m, n)
+        else:
+            view = x if order == tuple(range(len(input_shape))) else x.permute(order)
+            flat = view.reshape(m, n)
+            if not flat.is_contiguous():
+                flat = flat.contiguous()
+        if lse_split is not None:
+            k, stage1, stage2 = lse_split
+            # (m, n) -> (m, k, n//k) -> (m*k, n//k); contiguous, so a view.
             parts = stage1(flat.reshape(m * k, n // k))
             parts = parts[0] if isinstance(parts, (tuple, list)) else parts
             result = stage2(parts[: m * k].reshape(m, k))
+        elif prod_split is not None:
+            k, stage1, stage2 = prod_split
+            parts = stage1(flat.reshape(groups * m * k, n // k))
+            parts = parts[0] if isinstance(parts, (tuple, list)) else parts
+            result = stage2(parts[: m * k].reshape(m, k))
+        elif welford_row_split is not None:
+            k, stage1, stage2 = welford_row_split
+            # (groups, m, k, n//k) -> (groups*m*k, n//k); a view.
+            m2s, means = stage1(flat.reshape(groups * m * k, n // k))
+            result = stage2(means[: m * k].reshape(m, k),
+                            m2s[: m * k].reshape(m, k))
         elif welford_split is not None:
             k, stage1, stage2 = welford_split
             # stage 1 emits (M2, mean) per group; stage 2 returns
@@ -1169,8 +1764,10 @@ def build_reduction_kernel(
                 result = stage2(partials[:split].reshape(1, split))
             else:
                 # (m, n) -> (m, k, n//k) -> (m*k, n//k); contiguous, so this is
-                # a view, not a copy.
-                partials = stage1(flat.reshape(m * split, n // split))
+                # a view, not a copy.  With groups > 1 the same view has
+                # ``groups`` copies of that row block stacked on top of it, and
+                # stage 1 walks them with its own ``g`` loop.
+                partials = stage1(flat.reshape(groups * m * split, n // split))
                 if isinstance(partials, (tuple, list)):
                     partials = partials[0]
                 result = stage2(partials[: m * split].reshape(m, split))

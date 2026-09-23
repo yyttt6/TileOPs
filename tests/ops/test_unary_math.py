@@ -9,6 +9,11 @@ import torch
 
 from tests.test_base import FixtureBase, TestBase
 from tileops.ops.elementwise import (
+    AcosFwdOp,
+    AsinFwdOp,
+    AtanFwdOp,
+    Log2FwdOp,
+    TanFwdOp,
     AbsFwdOp,
     CeilFwdOp,
     CosFwdOp,
@@ -105,6 +110,39 @@ def _make_math_test(n_total, dtype, gen_fn, ref_fn, op_cls):
     test = UnaryMathTest(n_total, dtype, gen_fn=gen_fn, ref_fn=ref_fn)
     op = op_cls()
     test.check(op, *test.gen_inputs(), **_get_tolerances(dtype))
+
+
+def _fp64_reference_test(n_total, dtype, gen_fn, ref_fn, op_cls):
+    """Like ``_make_math_test`` but with the reference computed in float64.
+
+    PROJECT_STATE 13.134 (PM ruling, 2026-09-08).  For fp32 asin/acos the side that fails
+    a strict comparison is the reference: ``torch.asin`` on the NPU deviates from a float64
+    reference by up to 5.6e-5 over |x| in [0.6, 0.8] (peak at 1/sqrt(2)), while this kernel
+    stays within 3.5e-7 -- evidence in ``docs/reports/R263-data/05-asin-fp64-cross-check.txt``
+    and independently re-measured at 5.62e-05 / 5.67e-05 by R265.
+
+    The ruling is explicit that the fix is the reference *dtype*, NOT a wider ``atol``:
+    ``_get_tolerances`` is used unchanged below, so fp32 is still compared at
+    atol=rtol=1e-5.  Widening to 1e-4 would turn the case green with the same arithmetic
+    while also stopping it from catching a real kernel defect.
+
+    float64 runs on the CPU because the 910B1 has no fp64 pipeline, and the comparison
+    happens there too; fp32 -> fp64 on the tested side is lossless, so the number checked
+    is the kernel's true distance from the float64 result.
+    """
+    test = UnaryMathTest(n_total, dtype, gen_fn=gen_fn, ref_fn=ref_fn)
+    (x,) = test.gen_inputs()
+    op = op_cls()
+    with torch.no_grad():
+        out = op(x)
+    reference64 = ref_fn(x.detach().to("cpu", torch.float64))
+    assert reference64.dtype is torch.float64, "the reference must be the float64 one"
+    torch.testing.assert_close(
+        out.detach().to("cpu", torch.float64),
+        reference64,
+        equal_nan=True,
+        **_get_tolerances(dtype),
+    )
 
 
 # L1 tests (17 ops)
@@ -635,3 +673,55 @@ def test_reciprocal_int_input_validation() -> None:
     assert len(op.built_kernels(op._op_name)) == 2, "each semantic dtype keys its own entry"
     with pytest.raises(ValueError, match="dtype"):
         op(torch.ones(4, device=DEVICE, dtype=torch.float64))
+
+
+# --- T263: PDF op-list-150 entries 16 / 20 / 21 / 22 / 23 ------------------
+# log2 / tan / asin / acos / atan, on the same MathFixture the 17 L1 ops use.
+
+
+def _unit_interval(n: int, dtype: torch.dtype) -> torch.Tensor:
+    """Two-sided (-1, 1): the domain of asin / acos."""
+    return (torch.rand(n, device=DEVICE, dtype=dtype) * 2.0 - 1.0) * 0.999
+
+
+def _below_first_pole(n: int, dtype: torch.dtype) -> torch.Tensor:
+    """(0, 1.05]: below tan's pole at pi/2, so neither side overflows fp16."""
+    return torch.rand(n, device=DEVICE, dtype=dtype) + 0.05
+
+
+@MathFixture
+def test_log2(n_total: int, dtype: torch.dtype) -> None:
+    _make_math_test(n_total, dtype, _positive, torch.log2, Log2FwdOp)
+
+
+@MathFixture
+def test_tan(n_total: int, dtype: torch.dtype) -> None:
+    _make_math_test(n_total, dtype, _below_first_pole, torch.tan, TanFwdOp)
+
+
+@MathFixture
+def test_atan(n_total: int, dtype: torch.dtype) -> None:
+    _make_math_test(n_total, dtype, _randn, torch.atan, AtanFwdOp)
+
+
+@MathFixture
+def test_asin(n_total: int, dtype: torch.dtype) -> None:
+    # fp32 is compared against a float64 reference, at the SAME atol/rtol as every other
+    # fp32 case: ``torch.asin`` on NPU disagrees with float64 by up to 5.6e-5 over
+    # |x| in [0.6, 0.8] (peak at 1/sqrt(2)) while this kernel stays within 3.5e-7, so the
+    # NPU eager op is the failing side.  Ruled on in PROJECT_STATE 13.134; evidence in
+    # docs/reports/R263-data/05-asin-fp64-cross-check.txt.  fp16/bf16 keep the NPU eager
+    # reference -- their 1e-3 / 1.6e-2 tolerances are far above the reference's error.
+    if dtype is torch.float32:
+        _fp64_reference_test(n_total, dtype, _unit_interval, torch.asin, AsinFwdOp)
+    else:
+        _make_math_test(n_total, dtype, _unit_interval, torch.asin, AsinFwdOp)
+
+
+@MathFixture
+def test_acos(n_total: int, dtype: torch.dtype) -> None:
+    # Same reference caveat as test_asin above (acos = pi/2 - asin).
+    if dtype is torch.float32:
+        _fp64_reference_test(n_total, dtype, _unit_interval, torch.acos, AcosFwdOp)
+    else:
+        _make_math_test(n_total, dtype, _unit_interval, torch.acos, AcosFwdOp)

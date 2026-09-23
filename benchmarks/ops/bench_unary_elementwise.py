@@ -22,6 +22,9 @@ from benchmarks.baselines import TORCH_COMPILE_TAG, compiled_reference
 from benchmarks.benchmark_base import ManifestBenchmark, workloads_to_params
 from tileops.ops.elementwise import (
     AbsFwdOp,
+    AcosFwdOp,
+    AsinFwdOp,
+    AtanFwdOp,
     BitwiseNotFwdOp,
     CeilFwdOp,
     CosFwdOp,
@@ -33,6 +36,7 @@ from tileops.ops.elementwise import (
     IsinfFwdOp,
     IsnanFwdOp,
     Log1pFwdOp,
+    Log2FwdOp,
     LogFwdOp,
     LogicalNotFwdOp,
     NegFwdOp,
@@ -42,6 +46,7 @@ from tileops.ops.elementwise import (
     SignFwdOp,
     SinFwdOp,
     SqrtFwdOp,
+    TanFwdOp,
     TruncFwdOp,
 )
 from workloads.elementwise import (
@@ -414,4 +419,92 @@ def test_isfinite_bench(shape: tuple, dtype: torch.dtype) -> None:
     bm = ManifestBenchmark(_ISFINITE_OP, op, UnaryWorkload(shape, dtype))
     _profile_and_record(
         op, bm, inputs, torch.isfinite, {"shape": shape, "dtype": dtype, "n_total": n_total}
+    )
+
+
+# --- T263: PDF op-list-150 entries 16 / 20 / 21 / 22 / 23 ------------------
+# One block per new manifest entry, same shape as the blocks above so the L4
+# AST check can tie each ``load_workloads(<OpName>)`` / ``ManifestBenchmark``
+# call to its op.
+
+
+def _draw_unit_interval(shape: tuple, dtype: torch.dtype) -> tuple[torch.Tensor]:
+    """Inputs in (-1, 1) -- the domain of asin / acos.
+
+    ``draw_positive_away_from_zero`` reaches 1.5 and would put NaN on both
+    sides of the comparison; none of the shared generators in
+    ``workloads.elementwise`` produces a two-sided unit interval, so this
+    benchmark declares its own rather than widening a shared helper.
+    """
+    return ((torch.rand(shape, device="npu", dtype=dtype) * 2.0 - 1.0) * 0.999,)
+
+
+_LOG2_OP = "Log2FwdOp"
+
+
+@pytest.mark.parametrize("shape, dtype", workloads_to_params(_LOG2_OP))
+def test_log2_bench(shape: tuple, dtype: torch.dtype) -> None:
+    inputs = draw_positive_away_from_zero(shape, dtype)
+    n_total = inputs[0].numel()
+    op = Log2FwdOp()
+    bm = ManifestBenchmark(_LOG2_OP, op, UnaryWorkload(shape, dtype))
+    _profile_and_record(
+        op, bm, inputs, torch.log2, {"shape": shape, "dtype": dtype, "n_total": n_total}
+    )
+
+
+_TAN_OP = "TanFwdOp"
+
+
+@pytest.mark.parametrize("shape, dtype", workloads_to_params(_TAN_OP))
+def test_tan_bench(shape: tuple, dtype: torch.dtype) -> None:
+    # [0.5, 1.5] stays below the pole at pi/2, so neither side overflows.
+    inputs = draw_positive_away_from_zero(shape, dtype)
+    n_total = inputs[0].numel()
+    op = TanFwdOp()
+    bm = ManifestBenchmark(_TAN_OP, op, UnaryWorkload(shape, dtype))
+    _profile_and_record(
+        op, bm, inputs, torch.tan, {"shape": shape, "dtype": dtype, "n_total": n_total}
+    )
+
+
+_ASIN_OP = "AsinFwdOp"
+
+
+@pytest.mark.parametrize("shape, dtype", workloads_to_params(_ASIN_OP))
+def test_asin_bench(shape: tuple, dtype: torch.dtype) -> None:
+    inputs = _draw_unit_interval(shape, dtype)
+    n_total = inputs[0].numel()
+    op = AsinFwdOp()
+    bm = ManifestBenchmark(_ASIN_OP, op, UnaryWorkload(shape, dtype))
+    _profile_and_record(
+        op, bm, inputs, torch.asin, {"shape": shape, "dtype": dtype, "n_total": n_total}
+    )
+
+
+_ACOS_OP = "AcosFwdOp"
+
+
+@pytest.mark.parametrize("shape, dtype", workloads_to_params(_ACOS_OP))
+def test_acos_bench(shape: tuple, dtype: torch.dtype) -> None:
+    inputs = _draw_unit_interval(shape, dtype)
+    n_total = inputs[0].numel()
+    op = AcosFwdOp()
+    bm = ManifestBenchmark(_ACOS_OP, op, UnaryWorkload(shape, dtype))
+    _profile_and_record(
+        op, bm, inputs, torch.acos, {"shape": shape, "dtype": dtype, "n_total": n_total}
+    )
+
+
+_ATAN_OP = "AtanFwdOp"
+
+
+@pytest.mark.parametrize("shape, dtype", workloads_to_params(_ATAN_OP))
+def test_atan_bench(shape: tuple, dtype: torch.dtype) -> None:
+    inputs = draw_normal(shape, dtype)
+    n_total = inputs[0].numel()
+    op = AtanFwdOp()
+    bm = ManifestBenchmark(_ATAN_OP, op, UnaryWorkload(shape, dtype))
+    _profile_and_record(
+        op, bm, inputs, torch.atan, {"shape": shape, "dtype": dtype, "n_total": n_total}
     )

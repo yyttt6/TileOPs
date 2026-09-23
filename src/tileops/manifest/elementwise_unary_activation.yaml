@@ -523,3 +523,48 @@ NanToNumFwdOp:
     test: tests/ops/test_special_elementwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
     bench_manifest_driven: true
+
+# --- T263: PDF op-list-150 entry 36 ---------------------------------------
+# relu6. workloads + roofline copied verbatim from ReluFwdOp at the top of
+# this file (relu6 is the parameterless bounded ReLU; the PDF signature
+# ``relu6(x: T[*S]) -> out: T[*S]`` is relu's, not hardtanh's). The only
+# deliberate divergence from ReluFwdOp is that relu6 declares no ``inplace``
+# param and therefore no ``mutated`` input -- the PDF signature has none.
+# See docs/reports/R263.md 2 for the alternative (HardtanhFwdOp's workloads)
+# and why it was not used.
+Relu6FwdOp:
+  ref_api: "torch.nn.functional.relu6"
+  family: elementwise
+  status: implemented
+
+  torch_compile_fullgraph: true
+  signature:
+    inputs:
+      input: {dtype: "float16 | bfloat16 | float32"}
+    outputs:
+      output: {dtype: "same_as(input)"}
+    shape_rules:
+      - "output.shape == input.shape"
+
+  workloads:
+    # Hidden-state activation (Llama-3.1-8B prefill)
+    - {input_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-prefill"}
+    # Decode (single token)
+    - {input_shape: [1, 4096], dtypes: [bfloat16], label: "hidden-state-decode"}
+
+  roofline:
+    vars:
+      N: "product(input.shape)"
+    # FLOPs: relu6(x) = min(max(x, 0), 6). Per roofline.md 1.3, a two-sided
+    # clamp counts as one compare-and-select = 1 per elem, matching both
+    # ReluFwdOp and HardtanhFwdOp in this file.
+    flops: "N"
+    # Read input + write output
+    bytes: "2 * N * elem_bytes"
+
+  source:
+    kernel: src/tileops/kernels/families/elementwise_activation.py
+    op: tileops/ops/elementwise/activations.py
+    test: tests/ops/test_activation.py
+    bench: benchmarks/ops/bench_elementwise_manifest.py
+    bench_manifest_driven: true

@@ -1136,3 +1136,62 @@ def test_add_bool_broadcast() -> None:
     with torch.no_grad():
         out = op(a, b)
     _exact_compare(out, ref)
+
+
+# --- T263: PDF op-list-150 entries 24 / 49 --------------------------------
+# atan2 and bias_add. Both cover the same-shape and the broadcast case,
+# because those two land on different template paths and the broadcast one is
+# where the family loses 30-150x (docs/reports/R263.md section 5).
+
+
+class T263BinaryFixture(FixtureBase):
+    PARAMS = [
+        (
+            "shape, dtype",
+            [
+                pytest.param((256, 512), torch.float16, marks=pytest.mark.smoke),
+                pytest.param((256, 512), torch.bfloat16, marks=pytest.mark.smoke),
+                pytest.param((256, 512), torch.float32, marks=pytest.mark.smoke),
+                pytest.param((4, 32, 56, 56), torch.float32, marks=pytest.mark.full),
+            ],
+        ),
+    ]
+
+
+@T263BinaryFixture
+def test_atan2(shape, dtype: torch.dtype) -> None:
+    from tileops.ops.elementwise import Atan2FwdOp
+
+    torch.manual_seed(263)
+    y = torch.randn(shape, device=DEVICE, dtype=dtype)
+    x = torch.randn(shape, device=DEVICE, dtype=dtype)
+    # Keep the denominator off zero: atan2(0, 0) is 0 in torch but NaN here
+    # (see docs/reports/R263.md section 4).
+    x = x + torch.where(x >= 0, 0.5, -0.5).to(dtype)
+    atol, rtol = _get_tolerances(dtype)
+    got = Atan2FwdOp()(y, x)
+    torch.testing.assert_close(got, torch.atan2(y, x), atol=atol, rtol=rtol)
+
+
+@T263BinaryFixture
+def test_bias_add(shape, dtype: torch.dtype) -> None:
+    from tileops.ops.elementwise import BiasAddFwdOp
+
+    torch.manual_seed(263)
+    x = torch.randn(shape, device=DEVICE, dtype=dtype)
+    bias = torch.randn((shape[-1],), device=DEVICE, dtype=dtype)
+    got = BiasAddFwdOp()(x, bias)
+    # A pure add of exactly representable operands: require bit equality, not
+    # a tolerance. Measured max_abs_err is 0.0 on every manifest workload.
+    torch.testing.assert_close(got, torch.add(x, bias), atol=0.0, rtol=0.0)
+
+
+@pytest.mark.smoke
+def test_bias_add_rejects_non_rank1_bias() -> None:
+    """The PDF signature pins ``bias`` to rank 1; the builder enforces it."""
+    from tileops.ops.elementwise import BiasAddFwdOp
+
+    x = torch.randn((16, 32), device=DEVICE, dtype=torch.float16)
+    bias = torch.randn((16, 32), device=DEVICE, dtype=torch.float16)
+    with pytest.raises(Exception):
+        BiasAddFwdOp()(x, bias)

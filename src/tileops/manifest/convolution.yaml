@@ -256,3 +256,52 @@ Conv3dFwdOp:
     test: tests/ops/test_convolution.py
     bench: benchmarks/ops/bench_convolution.py
     bench_manifest_driven: true
+
+# ======================================================================================
+# R355 / T355 #142.  ``conv2d_fp8`` is the only row of the 150-row scope with no operator
+# at all (docs/reports/R267-data/oplist150.json, idx 142, "op": null).  This entry, the
+# class in tileops/ops/conv2d_fp8.py, the builder in kernels/families/convolution.py and
+# the harness adapter adapters/conv2d_fp8.py exist to give that row an honest measured
+# number.  The conv cluster is capped by a framework gap (``T.c2d_im2col`` /
+# ``load3dv2`` have no Ascend lowering, PROJECT_STATE 13.230), so this row is expected
+# to be slow; T355 asks for a ratio, not for 0.70.
+#
+# 🚨 DECLARED SEMANTICS, and the one place it differs from what a reader may assume:
+# there is NO dequantization scale.  The operands are float8_e4m3fn containers and the
+# op convolves the values they DECODE TO, accumulating in the fp16 Cube with an fp32
+# accumulator, and returns float16.  A per-tensor or per-channel scale is a caller
+# concern and folds into the output; adding one here would have invented a signature
+# that nothing in the 150-row source specifies.  R355.md section 6.1.
+# ======================================================================================
+Conv2dFp8FwdOp:
+  ref_api: "none"
+  family: convolution
+  status: implemented
+
+  signature:
+    inputs:
+      input: {dtype: "float8_e4m3fn", shape: "[N, C_in, H, W]"}
+      weight: {dtype: "float8_e4m3fn", shape: "[C_out, C_in_g, kH, kW]"}
+    outputs:
+      output: {dtype: "float16", shape: "[N, C_out, out_H, out_W]"}
+    params:
+      stride: {type: "int | tuple[int, int]", default: 1}
+      padding: {type: "int | tuple[int, int]", default: 0}
+      dilation: {type: "int | tuple[int, int]", default: 1}
+      groups: {type: int, default: 1}
+    shape_rules:
+      - "C_in % groups == 0"
+      - "C_out % groups == 0"
+      - "C_in_g == C_in // groups"
+
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float8_e4m3fn], label: "resnet-3x3"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float8_e4m3fn], label: "resnet-1x1"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float8_e4m3fn], label: "stride2"}
+
+  source:
+    kernel: src/tileops/kernels/families/convolution.py
+    op: tileops/ops/conv2d_fp8.py
+    test: tests/ops/test_convolution.py
+    bench: benchmarks/ops/bench_convolution.py
+    bench_manifest_driven: true

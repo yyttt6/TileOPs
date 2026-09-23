@@ -20,6 +20,8 @@ from benchmarks.benchmark_base import ManifestBenchmark, workload_params
 from tileops.manifest import load_workloads
 from tileops.ops.elementwise import (
     AddFwdOp,
+    Atan2FwdOp,
+    BiasAddFwdOp,
     BitwiseAndFwdOp,
     BitwiseOrFwdOp,
     BitwiseXorFwdOp,
@@ -51,6 +53,7 @@ from tileops.ops.elementwise import (
     NeFwdOp,
     PowFwdOp,
     PreluFwdOp,
+    Relu6FwdOp,
     ReluFwdOp,
     RemainderFwdOp,
     SeluFwdOp,
@@ -839,3 +842,55 @@ def test_lerp_tensor_manifest_bench(shape: tuple[int, ...], dtype: torch.dtype) 
         record_as=op,
         params=locals(),
     )
+
+
+# --- T263: PDF op-list-150 entries 36 / 24 / 49 ---------------------------
+# relu6 / atan2 / bias_add. Same block shape as the siblings above so the L4
+# AST check ties each ``load_workloads(<OpName>)`` / ``ManifestBenchmark``
+# call to its manifest entry.
+
+_RELU6_OP = "Relu6FwdOp"
+
+
+@pytest.mark.parametrize(
+    "shape, dtype", workload_params(load_workloads(_RELU6_OP), _shape_args, marks=_mark)
+)
+def test_relu6_manifest_bench(shape: tuple[int, ...], dtype: torch.dtype) -> None:
+    test = ShapedRandnWorkload(shape, dtype)
+    inputs = test.gen_inputs()
+    op = Relu6FwdOp()
+    bm = ManifestBenchmark(_RELU6_OP, op, test)
+    _record_unary(op, bm, inputs, F.relu6)
+
+
+_ATAN2_OP = "Atan2FwdOp"
+
+
+@pytest.mark.parametrize(
+    "input_shape, other_shape, dtype",
+    workload_params(load_workloads(_ATAN2_OP), _binary_args, marks=_mark),
+)
+def test_atan2_manifest_bench(input_shape: tuple, other_shape: tuple, dtype: torch.dtype) -> None:
+    test = BinaryManifestWorkload(input_shape, other_shape, dtype)
+    inputs = test.gen_inputs()
+    op = Atan2FwdOp()
+    bm = ManifestBenchmark(_ATAN2_OP, op, test)
+    _record_binary(op, bm, inputs, torch.atan2)
+
+
+_BIAS_ADD_OP = "BiasAddFwdOp"
+
+# ``bias_add``'s second operand is keyed ``bias_shape``, not ``other_shape``.
+_bias_args = functools.partial(_binary_args, rhs_key="bias_shape")
+
+
+@pytest.mark.parametrize(
+    "input_shape, bias_shape, dtype",
+    workload_params(load_workloads(_BIAS_ADD_OP), _bias_args, marks=_mark),
+)
+def test_bias_add_manifest_bench(input_shape: tuple, bias_shape: tuple, dtype: torch.dtype) -> None:
+    test = BinaryManifestWorkload(input_shape, bias_shape, dtype)
+    inputs = test.gen_inputs()
+    op = BiasAddFwdOp()
+    bm = ManifestBenchmark(_BIAS_ADD_OP, op, test)
+    _record_binary(op, bm, inputs, torch.add)

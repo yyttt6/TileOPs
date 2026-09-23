@@ -74,7 +74,12 @@ class FP8QuantFwdOp(Op):
         self.index_dim = index_dim
         self.in_dtype = input_tensor.dtype
         self.kernel = self._get_kernel(
-            (input_tensor),
+            # R355: was ``(input_tensor)`` -- parentheses, not a tuple.  ``Op.get_or_build_kernel``
+            # does ``tuple(inputs)``, so iterating a 4-D tensor handed the builder one positional
+            # argument PER ROW of dim 0, each with the wrong rank.  With no Ascend builder
+            # registered the call never got that far, so the defect stayed latent until this
+            # round registered one (R355.md section 5.2).
+            (input_tensor,),
             batch,
             seq_len_kv,
             kv_group,

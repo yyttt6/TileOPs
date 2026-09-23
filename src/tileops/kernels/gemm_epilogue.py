@@ -56,6 +56,69 @@ VEC_PER_BLOCK = 2
 UB_SCRATCH_RESERVE_BYTES = 8192
 
 
+def _staging_arm() -> str:
+    """Which bias staging this process builds.  ``r264`` is the control arm.
+
+    R356 measured that the T264 staging -- ``rows`` separate GM reads of the SAME
+    ``n``-element bias row, once per VECTOR CONTEXT -- is what this kernel's time
+    actually goes on, not the output's GM round trip:
+
+      square-1k-nn bf16, 48 blocks (96 vector contexts), rows = 8
+      => 96 * 8 = 768 GM reads of 2 KiB = 1.5 MB, 25.4 us at 62 GB/s,
+         against 4.2 MB of real y/out traffic that costs 6.8 us at 616 GB/s.
+
+      variant                                     eager     aiv_mte2_ratio
+      rows GM reads (T264, this arm's ``r264``)   32.30 us  0.871
+      1 GM read + rows-1 UB->UB copies (R356)      7.85 us  0.355
+      read+write with no bias at all (the floor)   6.81 us  0.451
+      torch ``y + bias`` on the same card          8.31 us  --
+
+    The two arms' outputs are bit-identical (md5, 1024x1024 bf16), which is what
+    ``docs/reports/R356-data/p5-epifix-1024-bias.log`` records: the copies move the
+    same bytes to the same place, only fewer times and not across the GM boundary.
+    Set ``TILEOPS_GEMM_EPILOGUE_ARM=r264`` to build the control arm.
+    """
+    import os
+
+    return os.environ.get("TILEOPS_GEMM_EPILOGUE_ARM", "r356").strip().lower()
+
+
+#: Launch width cap for the epilogue's VECTOR kernel, separate from
+#: ``common.LAUNCH_BLOCK_CAP`` (48) which the Cube and elementwise templates use.
+#:
+#: R356 fixed the bias staging and then measured what was left (R356 section 10
+#: clue 4): with the staging gone, the epilogue's own blockDim is worth ~2.25 us
+#: (~5%) on square-1k-nn, and it refused to pick a constant off ONE shape.
+#: T359 measured the surface over every manifest (m, n, dtype) and all three
+#: kinds -- R359-data/p1-epigeom-ALL.txt -- and the two forces separate cleanly:
+#:
+#:   * EAGER time is flat once the launch is wide enough to saturate GM: the
+#:     bandwidth this kernel can pull stops improving at 24 launch blocks
+#:     (48 vector contexts) and adding more buys nothing.
+#:   * GRAPH time carries a per-block ACL-replay cost on top, and it is a
+#:     function of blockDim ALONE (R356's two forced-tile groups give the same
+#:     graph-minus-eager curve at equal blockDim and different grid_repeats).
+#:
+#: So the right launch is the NARROWEST one that still saturates.  That is a
+#: measured physical threshold, not a constant fitted to a ratio.
+EPILOGUE_LAUNCH_BLOCK_CAP = 24
+
+
+def _geometry_arm() -> str:
+    """Which epilogue launch geometry this process builds.
+
+    ``r356`` is the control arm: ``common.LAUNCH_BLOCK_CAP`` (48), i.e. exactly
+    what shipped after R356.  Set ``TILEOPS_GEMM_EPILOGUE_GEOM=r356`` to build it.
+    """
+    import os
+
+    return os.environ.get("TILEOPS_GEMM_EPILOGUE_GEOM", "r359").strip().lower()
+
+
+def _launch_cap() -> int:
+    return LAUNCH_BLOCK_CAP if _geometry_arm() == "r356" else EPILOGUE_LAUNCH_BLOCK_CAP
+
+
 def _tile_budget(itemsize: int) -> int:
     """Elements per epilogue tile.
 
@@ -122,7 +185,7 @@ def _build_epilogue(m: int, n: int, dtype_name: str, kind: str) -> Callable:
     # the once-per-block bias staging is never amortised -- it is then a third of
     # the block's traffic.  Measured on square-1k-nn: 61.88 us with no cap
     # against a 21 us GEMM (ratio 0.3596); see R264-data/29-epi-launch-cap.txt.
-    launch_blocks = launch_block_count(min(block_count, LAUNCH_BLOCK_CAP))
+    launch_blocks = launch_block_count(min(block_count, _launch_cap()))
     grid_repeats = grid_repeat_count(block_count, launch_blocks)
     # Number of whole bias rows (or column windows) the staged tile holds.
     stage_slots = rows if rows else 1
@@ -132,6 +195,8 @@ def _build_epilogue(m: int, n: int, dtype_name: str, kind: str) -> Callable:
     # "Expected boolean argument for ! operator (logical NOT), but received 3
     # of type int32" (R264-data/08-hs-deadlock.txt).  Only a bool is folded.
     stage_once = bool(rows)
+    # A python BOOL for the same reason ``stage_once`` is one: only a bool is folded.
+    stage_r264 = bool(_staging_arm() == "r264")
     want_relu = kind == "bias_relu"
     want_gelu = kind == "bias_gelu"
 
@@ -182,9 +247,22 @@ def _build_epilogue(m: int, n: int, dtype_name: str, kind: str) -> Callable:
                     # `tile` elements per tile, still a contiguous copy and not a
                     # gather.
                     if stage_once:
-                        for slot in range(stage_slots):
-                            T.copy(bias[0:stage_width],
-                                   bias_ub[slot * stage_width:(slot + 1) * stage_width])
+                        if stage_r264:
+                            # T264's staging: one GM read per replicated row.
+                            for slot in range(stage_slots):
+                                T.copy(bias[0:stage_width],
+                                       bias_ub[slot * stage_width:
+                                               (slot + 1) * stage_width])
+                        else:
+                            # R356: read the row from GM ONCE, replicate inside UB.
+                            # A UB->UB copy does not touch MTE2 at all, and the
+                            # staged tile is byte-identical either way (measured:
+                            # R356-data/p5-epifix-1024-bias.log, md5 equal).
+                            T.copy(bias[0:stage_width], bias_ub[0:stage_width])
+                            for slot in range(1, stage_slots):
+                                T.copy(bias_ub[0:stage_width],
+                                       bias_ub[slot * stage_width:
+                                               (slot + 1) * stage_width])
                         T.copy(bias_ub, b32)
 
                     for grid_repeat in T.serial(grid_repeats):

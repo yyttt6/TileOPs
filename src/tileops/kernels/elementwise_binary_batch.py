@@ -60,6 +60,12 @@ def _live_bytes_per_element(in_dtype: str, out_dtype: str, op_kind: str) -> int:
             total += 4  # reciprocal_calc
         if op_kind in _ROUNDING_KINDS:
             total += 4 + 4  # rounded_calc, rounded_i32
+        if op_kind in _RECIPROCAL_KINDS:
+            # R334: three packed compare masks, 1/8 byte per element each.
+            # Rounded up to a whole byte -- the ladder below re-checks the
+            # emitted offsets anyway (``ub_fits``), so erring high only costs
+            # width, while erring low is a silent overflow.
+            total += 1
     return total
 
 
@@ -122,6 +128,23 @@ def _compile_batch(
         # is always 1 (PROJECT_STATE 13.57).
         launch_blocks = launch_block_count(min(block_count, LAUNCH_BLOCK_CAP))
         grid_repeats = grid_repeat_count(block_count, launch_blocks)
+        # --- Ragged tail (R334) ------------------------------------------
+        # Every ``same``-mode context starts at a multiple of ``tile``, so the
+        # ONE ragged tile is at ``(out_numel // tile) * tile`` and its length
+        # ``tail`` is a compile-time constant.  The shipped path fell into
+        # ``for lane in T.serial(tile)`` there, which iterates ``tile`` times
+        # no matter how short the tail is -- the same defect R200 round 1 hit
+        # in the spatial norm template (kernels/common.py, plan_spatial_tile).
+        # ``in_blk``/``out_blk`` are the elements-per-32-byte-block of the two
+        # widths; a partial-extent GM<->UB copy moves WHOLE 32-byte blocks, so
+        # only the ``*_vec`` prefix may go through T.copy (R200 TRAP 1).
+        # Packed masks are live only on the floor-mod correction path.
+        scratch_mask = tile if op_kind in _RECIPROCAL_KINDS else 256
+        tail = out_numel % tile if mode == "same" else 0
+        in_blk = 32 // ELEMENT_BYTES[in_dtype]
+        out_blk = 32 // ELEMENT_BYTES[out_dtype]
+        in_tail_vec = tail - tail % in_blk
+        out_tail_vec = tail - tail % out_blk
 
         @T.prim_func
         def main(
@@ -139,6 +162,13 @@ def _compile_batch(
                 reciprocal_calc = T.alloc_ub((tile,), "float32")
                 rounded_calc = T.alloc_ub((tile,), "float32")
                 rounded_i32 = T.alloc_ub((tile,), "int32")
+                # Packed compare masks for the vectorised floor-mod correction
+                # (1 bit per lane).  Allocated on every compile-time path at one
+                # grain when dead, so the frontend never sees a branch-local
+                # buffer name.
+                mask_dec = T.alloc_ub((scratch_mask // 8,), "uint8")
+                mask_inc = T.alloc_ub((scratch_mask // 8,), "uint8")
+                mask_nz = T.alloc_ub((scratch_mask // 8,), "uint8")
                 # One-element staging for the suffix-broadcast source scalar,
                 # kept allocated on every compile-time path so the frontend
                 # does not treat it as a branch-local name.
@@ -169,13 +199,41 @@ def _compile_batch(
                                     T.copy(A[start], a_ub)
                                     T.copy(B[start], b_ub)
                                 else:
+                                    # Not full: either THE ragged tile (there is
+                                    # at most one, and ``tail`` above is its
+                                    # compile-time length) or a context that
+                                    # starts past the end of the tensor and
+                                    # stores nothing.  Both used to run a
+                                    # ``tile``-long scalar loop; now the first
+                                    # costs one vector copy plus at most
+                                    # ``in_blk - 1`` scalar lanes and the second
+                                    # costs only the two fills that keep the
+                                    # downstream vector ops off stale UB.
                                     T.tile.fill(a_ub, 0)
                                     T.tile.fill(b_ub, 0)
-                                    for lane in T.serial(tile):
-                                        idx = start + lane
-                                        if idx < out_numel:
-                                            a_ub[lane] = A[idx]
-                                            b_ub[lane] = B[idx]
+                                    if tail:
+                                        # ``tail`` is a Python int (compile-time);
+                                        # keep it OUT of the TIR predicate -- the
+                                        # frontend cannot mix an int with a
+                                        # PrimExpr under ``and``.
+                                        if start < out_numel:
+                                            if in_tail_vec:
+                                                T.copy(
+                                                    A[start : start + in_tail_vec],
+                                                    a_ub[0:in_tail_vec],
+                                                )
+                                                T.copy(
+                                                    B[start : start + in_tail_vec],
+                                                    b_ub[0:in_tail_vec],
+                                                )
+                                            for lane in T.serial(in_blk):
+                                                if in_tail_vec + lane < tail:
+                                                    a_ub[in_tail_vec + lane] = A[
+                                                        start + in_tail_vec + lane
+                                                    ]
+                                                    b_ub[in_tail_vec + lane] = B[
+                                                        start + in_tail_vec + lane
+                                                    ]
                             elif mode == "tail_broadcast":
                                 # ``tile`` is a whole multiple of ``repeat`` and
                                 # the packed units are consecutive, so the only
@@ -372,59 +430,78 @@ def _compile_batch(
                                                 # one-ULP residual when that product
                                                 # rounds to a.  Split b into high/low
                                                 # fp32 parts (Dekker two-product) and
-                                                # retain that residual in the scalar
-                                                # correction loop.
-                                                for lane in T.serial(tile):
-                                                    reciprocal_calc[lane] = (
-                                                        4097.0 * b_calc[lane]
-                                                    )
-                                                    reciprocal_calc[lane] = (
-                                                        reciprocal_calc[lane]
-                                                        - (
-                                                            reciprocal_calc[lane]
-                                                            - b_calc[lane]
-                                                        )
-                                                    )
-                                                    c_calc[lane] = (
-                                                        b_calc[lane]
-                                                        - reciprocal_calc[lane]
-                                                    )
-                                                    reciprocal_calc[lane] = (
-                                                        rounded_calc[lane]
-                                                        * reciprocal_calc[lane]
-                                                    )
-                                                    c_calc[lane] = (
-                                                        rounded_calc[lane]
-                                                        * c_calc[lane]
-                                                    )
-                                                    reciprocal_calc[lane] = (
-                                                        a_calc[lane]
-                                                        - reciprocal_calc[lane]
-                                                    ) - c_calc[lane]
-                                                    if b_calc[lane] > 0.0:
-                                                        if reciprocal_calc[lane] < 0.0:
-                                                            rounded_calc[lane] = (
-                                                                rounded_calc[lane] - 1.0
-                                                            )
-                                                        elif (
-                                                            reciprocal_calc[lane]
-                                                            >= b_calc[lane]
-                                                        ):
-                                                            rounded_calc[lane] = (
-                                                                rounded_calc[lane] + 1.0
-                                                            )
-                                                    elif b_calc[lane] < 0.0:
-                                                        if reciprocal_calc[lane] > 0.0:
-                                                            rounded_calc[lane] = (
-                                                                rounded_calc[lane] - 1.0
-                                                            )
-                                                        elif (
-                                                            reciprocal_calc[lane]
-                                                            <= b_calc[lane]
-                                                        ):
-                                                            rounded_calc[lane] = (
-                                                                rounded_calc[lane] + 1.0
-                                                            )
+                                                # retain that residual.
+                                                #
+                                                # R334: this used to be
+                                                # ``for lane in T.serial(tile)`` -- ~12
+                                                # scalar fp ops and 4 scalar branches for
+                                                # EVERY element of EVERY tile, which is
+                                                # why RemainderFwdOp was ~150x slower than
+                                                # aclnn FloorMod on every shape, broadcast
+                                                # or not (17576 us at 8M where MulFwdOp,
+                                                # same template and same tiling, took 58).
+                                                # The two scalar branches collapse into
+                                                # two sign tests that are the SAME
+                                                # expression for b>0 and b<0:
+                                                #   q -= 1   <=>  r*b <  0
+                                                #   q += 1   <=>  r*b >= b*b  and b != 0
+                                                # (multiplying r<0 / r>=b by b flips the
+                                                # inequality exactly when b<0, which is
+                                                # the other arm of the original ``elif``;
+                                                # b == 0 has to be excluded by hand
+                                                # because r*b >= b*b is then 0 >= 0 and
+                                                # the scalar code changed nothing there).
+                                                # The two masks are disjoint: r*b < 0
+                                                # cannot also be >= b*b >= 0, which is
+                                                # what the original ``elif`` encoded.
+                                                T.tile.mul(reciprocal_calc, b_calc, 4097.0)
+                                                T.tile.sub(c_calc, reciprocal_calc, b_calc)
+                                                T.tile.sub(
+                                                    reciprocal_calc, reciprocal_calc, c_calc
+                                                )   # b_hi
+                                                T.tile.sub(c_calc, b_calc, reciprocal_calc)
+                                                # c_calc = b_lo
+                                                T.tile.mul(
+                                                    reciprocal_calc, rounded_calc, reciprocal_calc
+                                                )   # q * b_hi
+                                                T.tile.mul(c_calc, rounded_calc, c_calc)
+                                                # c_calc = q * b_lo
+                                                T.tile.sub(
+                                                    reciprocal_calc, a_calc, reciprocal_calc
+                                                )
+                                                T.tile.sub(
+                                                    reciprocal_calc, reciprocal_calc, c_calc
+                                                )   # residual r
+                                                T.tile.mul(c_calc, reciprocal_calc, b_calc)
+                                                # c_calc = r * b
+                                                T.tile.compare(mask_dec, c_calc, 0.0, "LT")
+                                                T.tile.compare(mask_nz, b_calc, 0.0, "NE")
+                                                T.tile.mul(
+                                                    reciprocal_calc, b_calc, b_calc
+                                                )   # b * b
+                                                T.tile.sub(
+                                                    c_calc, c_calc, reciprocal_calc
+                                                )   # r*b - b*b
+                                                T.tile.compare(mask_inc, c_calc, 0.0, "GE")
+                                                T.tile.bitwise_and(mask_inc, mask_inc, mask_nz)
+                                                T.tile.add(
+                                                    reciprocal_calc, rounded_calc, -1.0
+                                                )
+                                                T.tile.select(
+                                                    c_calc,
+                                                    mask_dec,
+                                                    reciprocal_calc,
+                                                    rounded_calc,
+                                                    "VSEL_TENSOR_TENSOR_MODE",
+                                                )
+                                                T.tile.add(reciprocal_calc, c_calc, 1.0)
+                                                T.tile.select(
+                                                    rounded_calc,
+                                                    mask_inc,
+                                                    reciprocal_calc,
+                                                    c_calc,
+                                                    "VSEL_TENSOR_TENSOR_MODE",
+                                                )
                                             if op_kind == "remainder":
                                                 T.tile.mul(c_calc, rounded_calc, b_calc)
                                                 T.tile.sub(c_calc, a_calc, c_calc)
@@ -473,7 +550,29 @@ def _compile_batch(
 
                             T.barrier_all()
 
-                            if mode == "tail_broadcast" or mode == "same":
+                            if mode == "same":
+                                if full:
+                                    T.copy(c_ub, C[start])
+                                else:
+                                    if tail:
+                                        # Mirror of the ragged load.
+                                        # ``out_tail_vec`` elements are a whole
+                                        # number of 32-byte blocks so the partial
+                                        # T.copy writes exactly those and nothing
+                                        # past ``out_numel``; the remaining
+                                        # < out_blk lanes go scalar.
+                                        if start < out_numel:
+                                            if out_tail_vec:
+                                                T.copy(
+                                                    c_ub[0:out_tail_vec],
+                                                    C[start : start + out_tail_vec],
+                                                )
+                                            for lane in T.serial(out_blk):
+                                                if out_tail_vec + lane < tail:
+                                                    C[
+                                                        start + out_tail_vec + lane
+                                                    ] = c_ub[out_tail_vec + lane]
+                            elif mode == "tail_broadcast":
                                 if full:
                                     T.copy(c_ub, C[start])
                                 else:

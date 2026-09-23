@@ -50,18 +50,23 @@ _ELEMENT_BYTES = {"float16": 2, "bfloat16": 2, "float32": 4}
 _NEEDS_TMP = frozenset({
     "gelu_none", "gelu_tanh", "gelu_and_mul", "gelu_tanh_and_mul",
     "hardswish", "leaky_relu", "elu", "mish", "selu", "softplus", "lerp",
-    "nan_to_num",
+    "nan_to_num", "atan2",
 })
-_NEEDS_TMP2 = frozenset({"mish", "softplus", "nan_to_num"})
-_NEEDS_ZERO = frozenset({"mish", "softplus"})
-# Packed compare masks: only the vectorised nan_to_num needs them.
-_NEEDS_MASK = frozenset({"nan_to_num"})
+_NEEDS_TMP2 = frozenset({"mish", "softplus", "nan_to_num", "atan2"})
+_NEEDS_ZERO = frozenset({"mish", "softplus", "atan2"})
+# Packed compare masks: the vectorised nan_to_num and the atan2 quadrant
+# resolution.  T263: atan2 lives in this template rather than in
+# ``elementwise_binary_batch`` precisely because the mask allocation here is
+# already MASK_GRAIN-aligned and there are seven fp32 tiles to spend.
+_NEEDS_MASK = frozenset({"nan_to_num", "atan2"})
 _KNOWN_KINDS = frozenset({
     "relu", "silu", "silu_and_mul",
     "gelu_none", "gelu_tanh", "gelu_and_mul", "gelu_tanh_and_mul",
     "hardswish", "hardsigmoid", "hardtanh", "leaky_relu", "elu", "mish",
     "selu", "softplus", "clamp", "clamp_min", "clamp_max", "clamp_scalar",
     "lerp", "nan_to_num",
+    # T263: relu6 is the fixed-bound hardtanh(0, 6); no extra scratch.
+    "relu6", "atan2",
 })
 
 _GATED_KINDS = frozenset({"silu_and_mul", "gelu_and_mul", "gelu_tanh_and_mul"})
@@ -82,6 +87,30 @@ def _shape_info(shapes: tuple[tuple[int, ...], ...]):
 
 def _round_down_grain(value: int) -> int:
     return max(MASK_GRAIN, int(value) - int(value) % MASK_GRAIN)
+
+
+def _round_up_grain(value: int) -> int:
+    value = max(1, int(value))
+    return ((value + MASK_GRAIN - 1) // MASK_GRAIN) * MASK_GRAIN
+
+
+def _largest_divisor_at_most(value: int, ceiling: int) -> int:
+    """Largest divisor of ``value`` that is <= ``ceiling`` (>= 1 always exists)."""
+    value = max(1, int(value))
+    ceiling = max(1, int(ceiling))
+    if ceiling >= value:
+        return value
+    best = 1
+    limit = int(math.isqrt(value))
+    for d in range(1, limit + 1):
+        if value % d:
+            continue
+        if d <= ceiling and d > best:
+            best = d
+        other = value // d
+        if other <= ceiling and other > best:
+            best = other
+    return best
 
 
 def _scalar_path_tile(out_numel: int, ceiling: int) -> int:
@@ -127,6 +156,21 @@ def _pick_tile(ceiling: int, out_numel: int, gate_width: int | None):
 
     Give up at most half the width chasing either -- below that the narrower
     DMA costs more than what it buys.
+
+    🚨 R274 step 1: "at most half the width" was the wrong stopping rule for the
+    GATED ops, because what is on the other side of it is not a narrower DMA, it
+    is the ``for lane in T.serial(tile)`` per-lane gather -- the same failure
+    class R263 measured on the broadcast entry point (30-150x) and R269 measured
+    on conv's im2col (113-135 cycle per scalar GM read).  A gate width with no
+    grain-aligned divisor (the ``tail-fp16`` probe's ``gate_width = 257`` is
+    prime) fell off the end of this loop into that gather.  So when the aligned
+    search fails, take the largest *unaligned* divisor instead: the tile is then
+    still wholly inside one output row, the two loads are still ordinary
+    ``T.copy`` calls, and the only thing given up is that the tile is no longer a
+    multiple of ``MASK_GRAIN`` -- which costs nothing here because no gated kind
+    allocates a packed compare mask (``_NEEDS_MASK``), and the buffers are padded
+    up to the grain by ``_round_up_grain`` so a vector op that rounds its extent
+    to a whole 32-byte block cannot walk into the next buffer.
     """
     ceiling = _round_down_grain(ceiling)
     floor = max(MASK_GRAIN, ceiling // 2)
@@ -136,6 +180,9 @@ def _pick_tile(ceiling: int, out_numel: int, gate_width: int | None):
             if gate_width % candidate == 0:
                 return candidate, True
             candidate -= MASK_GRAIN
+        unaligned = _largest_divisor_at_most(gate_width, ceiling)
+        if unaligned > 1:
+            return unaligned, True
     candidate = ceiling
     while candidate >= floor:
         if out_numel % (2 * candidate) == 0:
@@ -177,7 +224,9 @@ def _compile_activation(
     # an unlisted branch can never index past a shrunken allocation.
     conservative = op_kind not in _KNOWN_KINDS
     needs_b = conservative or input_count > 1 or gated
-    needs_c = conservative or input_count > 2
+    # T263: atan2 passes two tensors but its expression needs a third fp32
+    # tile, so it opts into the ``c`` allocation as scratch.
+    needs_c = conservative or input_count > 2 or op_kind == "atan2"
     needs_tmp = conservative or op_kind in _NEEDS_TMP
     needs_tmp2 = conservative or op_kind in _NEEDS_TMP2
     needs_zero = conservative or op_kind in _NEEDS_ZERO
@@ -220,12 +269,22 @@ def _compile_activation(
         )
         if scalar_load:
             tile = _scalar_path_tile(out_numel, _round_down_grain(ceiling))
-        scratch_b = tile if needs_b else MASK_GRAIN
-        scratch_c = tile if needs_c else MASK_GRAIN
-        scratch_zero = tile if needs_zero else MASK_GRAIN
-        scratch_tmp = tile if needs_tmp else MASK_GRAIN
-        scratch_tmp2 = tile if needs_tmp2 else MASK_GRAIN
-        scratch_mask = tile if needs_mask else MASK_GRAIN
+        # R274: ``tile`` is the number of LIVE lanes; ``span`` is how wide every
+        # buffer is actually allocated.  They differ only on the unaligned gated
+        # divisor introduced in ``_pick_tile`` -- everywhere else ``tile`` is
+        # already a multiple of MASK_GRAIN and ``span == tile``, so the emitted
+        # artifact for every previously-compiling signature is byte-identical.
+        # The padding is what makes the unaligned tile safe: a ``T.tile.*`` call
+        # addresses whole 32-byte blocks, so an operand of 257 fp32 lanes is
+        # executed over 264, and without the pad those 7 lanes are the next
+        # buffer.
+        span = _round_up_grain(tile)
+        scratch_b = span if needs_b else MASK_GRAIN
+        scratch_c = span if needs_c else MASK_GRAIN
+        scratch_zero = span if needs_zero else MASK_GRAIN
+        scratch_tmp = span if needs_tmp else MASK_GRAIN
+        scratch_tmp2 = span if needs_tmp2 else MASK_GRAIN
+        scratch_mask = span if needs_mask else MASK_GRAIN
         block_total = tile * 2
         logical_blocks = max(1, math.ceil(out_numel / block_total))
         launch_blocks = launch_block_count(min(logical_blocks, LAUNCH_BLOCK_CAP))
@@ -241,10 +300,10 @@ def _compile_activation(
                 Y: T.Tensor((out_numel,), dtype),
             ):
                 with T.Kernel(launch_blocks, is_npu=True) as (cid, vid):
-                    x_ub = T.alloc_ub((tile,), dtype)
-                    y_ub = T.alloc_ub((tile,), dtype)
-                    x32 = T.alloc_ub((tile,), compute_dtype)
-                    y32 = T.alloc_ub((tile,), compute_dtype)
+                    x_ub = T.alloc_ub((span,), dtype)
+                    y_ub = T.alloc_ub((span,), dtype)
+                    x32 = T.alloc_ub((span,), compute_dtype)
+                    y32 = T.alloc_ub((span,), compute_dtype)
                     b_ub = T.alloc_ub((scratch_b,), dtype)
                     c_ub = T.alloc_ub((scratch_c,), dtype)
                     b32 = T.alloc_ub((scratch_b,), compute_dtype)
@@ -281,7 +340,10 @@ def _compile_activation(
                                     gate_src = (start // gate_width) * (
                                         gate_width * 2
                                     ) + start % gate_width
-                                    T.copy(A[gate_src : gate_src + tile], x_ub)
+                                    T.copy(
+                                        A[gate_src : gate_src + tile],
+                                        x_ub if span == tile else x_ub[0:tile],
+                                    )
                                     T.copy(
                                         A[
                                             gate_src
@@ -289,7 +351,7 @@ def _compile_activation(
                                             + gate_width
                                             + tile
                                         ],
-                                        b_ub,
+                                        b_ub if span == tile else b_ub[0:tile],
                                     )
                                 else:
                                     T.tile.fill(x_ub, 0)
@@ -396,6 +458,76 @@ def _compile_activation(
                                 T.tile.max(y32, y32, 0.0)
                                 T.tile.min(y32, y32, 6.0)
                                 T.tile.mul(y32, y32, 0.16666666666666666)
+                            elif op_kind == "atan2":
+                                # atan2(num, den).  ``x32`` is the numerator
+                                # (manifest ``input``) and ``b32`` the
+                                # denominator (``other``), matching
+                                # ``torch.atan2(input, other)``.
+                                #
+                                # Three stages, all whole-tile vector ops:
+                                #   1. q = num / den, then atan(|q|) with the
+                                #      same [0, 1] range reduction and
+                                #      degree-6-in-z^2 minimax polynomial the
+                                #      unary ``atan`` uses (|err| <= 5.8e-7).
+                                #   2. restore the sign of q.
+                                #   3. add +-pi where the denominator is
+                                #      negative, sign taken from the numerator.
+                                # ``den == 0`` needs no special case: q becomes
+                                # +-inf, 1/|q| becomes 0, and the reduced branch
+                                # returns exactly +-pi/2.  ``num == den == 0``
+                                # yields NaN here where torch returns 0 -- see
+                                # docs/reports/R263.md 4.
+                                T.tile.div(tmp, x32, b32)
+                                T.tile.abs(tmp2, tmp)
+                                T.tile.compare(mask, tmp2, 1.0, "GT")
+                                T.tile.fill(c32, 1.0)
+                                T.tile.div(zero, c32, tmp2)
+                                T.tile.select(
+                                    c32, mask, zero, tmp2, "VSEL_TENSOR_TENSOR_MODE"
+                                )
+                                T.tile.mul(zero, c32, c32)
+                                T.tile.fill(tmp2, 0.008006898229)
+                                T.tile.mul(tmp2, tmp2, zero)
+                                T.tile.add(tmp2, tmp2, -0.03744297094)
+                                T.tile.mul(tmp2, tmp2, zero)
+                                T.tile.add(tmp2, tmp2, 0.08435407574)
+                                T.tile.mul(tmp2, tmp2, zero)
+                                T.tile.add(tmp2, tmp2, -0.1351217486)
+                                T.tile.mul(tmp2, tmp2, zero)
+                                T.tile.add(tmp2, tmp2, 0.198873209)
+                                T.tile.mul(tmp2, tmp2, zero)
+                                T.tile.add(tmp2, tmp2, -0.3332701333)
+                                T.tile.mul(tmp2, tmp2, zero)
+                                T.tile.add(tmp2, tmp2, 0.9999994166)
+                                T.tile.mul(tmp2, tmp2, c32)
+                                T.tile.fill(zero, 1.5707963267948966)
+                                T.tile.sub(zero, zero, tmp2)
+                                T.tile.select(
+                                    c32, mask, zero, tmp2, "VSEL_TENSOR_TENSOR_MODE"
+                                )
+                                T.tile.compare(mask, tmp, 0.0, "LT")
+                                T.tile.mul(zero, c32, -1.0)
+                                T.tile.select(
+                                    tmp2, mask, zero, c32, "VSEL_TENSOR_TENSOR_MODE"
+                                )
+                                T.tile.compare(mask, x32, 0.0, "LT")
+                                T.tile.fill(zero, 3.141592653589793)
+                                T.tile.mul(c32, zero, -1.0)
+                                T.tile.select(
+                                    tmp, mask, c32, zero, "VSEL_TENSOR_TENSOR_MODE"
+                                )
+                                T.tile.add(zero, tmp2, tmp)
+                                T.tile.compare(mask2, b32, 0.0, "LT")
+                                T.tile.select(
+                                    y32, mask2, zero, tmp2, "VSEL_TENSOR_TENSOR_MODE"
+                                )
+                            elif op_kind == "relu6":
+                                # relu6(x) = min(max(x, 0), 6): the same two
+                                # vector ops hardtanh below emits, with the
+                                # bounds fixed by the operator instead of read
+                                # from params.
+                                T.tile.max(y32, x32, 0.0)
+                                T.tile.min(y32, y32, 6.0)
                             elif op_kind == "hardtanh":
                                 T.tile.max(y32, x32, params[0])
                                 T.tile.min(y32, y32, params[1])
@@ -539,7 +671,10 @@ def _compile_activation(
                                 T.copy(y32, y_ub)
                             T.barrier_all()
                             if full:
-                                T.copy(y_ub, Y[start : start + tile])
+                                T.copy(
+                                    y_ub if span == tile else y_ub[0:tile],
+                                    Y[start : start + tile],
+                                )
                             else:
                                 if start < out_numel:
                                     T.copy(
@@ -577,6 +712,7 @@ def build_activation_kernel(
     output_shape: tuple[int, ...] | None = None,
 ):
     supported_kinds = {
+        "atan2",
         "clamp",
         "clamp_max",
         "clamp_min",
@@ -594,6 +730,7 @@ def build_activation_kernel(
         "mish",
         "nan_to_num",
         "relu",
+        "relu6",
         "selu",
         "silu",
         "silu_and_mul",

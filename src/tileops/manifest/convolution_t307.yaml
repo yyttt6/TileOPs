@@ -1,0 +1,1197 @@
+# T307 isolated manifest. Not globally registered. Workloads copied byte-for-byte.
+
+PointwiseConv2dOp:
+  ref_api: torch.nn.functional.conv2d
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_out]'
+        optional: true
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_out, out_H, out_W]'
+    params:
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+    - kH == 1 and kW == 1
+  # D059 predicate: kH == 1 and kW == 1
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnet-1x1
+  #   bottleneck-expand-1x1
+  #   bottleneck-reduce-1x1
+  #   late-stage-1x1
+  #   classifier-1x1
+  #   resnet-1x1-bias
+  #   bottleneck-expand-1x1-bias
+  #   bottleneck-reduce-1x1-bias
+  #   late-stage-1x1-bias
+  #   classifier-1x1-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # Forward donor tensor roles and all parameter values remain unchanged.
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], label: "resnet-1x1"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-expand-1x1"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-reduce-1x1"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "late-stage-1x1"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "classifier-1x1"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], bias_shape: [256], label: "resnet-1x1-bias"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [512], label: "bottleneck-expand-1x1-bias"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [128], label: "bottleneck-reduce-1x1-bias"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [1024], label: "late-stage-1x1-bias"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [2048], label: "classifier-1x1-bias"}
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 2 * N * C_out * out_H * out_W * C_in_g * kH * kW + (N * C_out * out_H * out_W if has_bias else 0)
+    bytes: (N * C_in * H * W + C_out * C_in_g * kH * kW + N * C_out * out_H * out_W + (C_out if has_bias else 0))
+      * elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+DepthwiseConv2dOp:
+  ref_api: torch.nn.functional.conv2d
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_out]'
+        optional: true
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_out, out_H, out_W]'
+    params:
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+    - groups == C_in
+  # D059 predicate: groups(default=1) == input_shape[1]
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   mobilenetv2-depthwise
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # Forward donor tensor roles and all parameter values remain unchanged.
+  workloads:
+    - input_shape: [1, 32, 56, 56]
+      C_out: 32
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: mobilenetv2-depthwise
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 2 * N * C_out * out_H * out_W * C_in_g * kH * kW + (N * C_out * out_H * out_W if has_bias else 0)
+    bytes: (N * C_in * H * W + C_out * C_in_g * kH * kW + N * C_out * out_H * out_W + (C_out if has_bias else 0))
+      * elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+GroupedConv2dOp:
+  ref_api: torch.nn.functional.conv2d
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_out]'
+        optional: true
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_out, out_H, out_W]'
+    params:
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+    - 1 < groups < C_in
+  # D059 predicate: 1 < groups(default=1) < input_shape[1]
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnext-grouped-3x3
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # Forward donor tensor roles and all parameter values remain unchanged.
+  workloads:
+    - input_shape: [1, 128, 28, 28]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: resnext-grouped-3x3
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 2 * N * C_out * out_H * out_W * C_in_g * kH * kW + (N * C_out * out_H * out_W if has_bias else 0)
+    bytes: (N * C_in * H * W + C_out * C_in_g * kH * kW + N * C_out * out_H * out_W + (C_out if has_bias else 0))
+      * elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+DilatedConv2dOp:
+  ref_api: torch.nn.functional.conv2d
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_out]'
+        optional: true
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_out, out_H, out_W]'
+    params:
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+    - _d_h != 1 or _d_w != 1
+  # D059 predicate: dilation exists and any(axis != 1)
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   deeplabv3-aspp-3x3-rate12
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # Forward donor tensor roles and all parameter values remain unchanged.
+  workloads:
+    - input_shape: [1, 2048, 32, 32]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [12, 12]
+      dilation: [12, 12]
+      dtypes: [float16]
+      label: deeplabv3-aspp-3x3-rate12
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 2 * N * C_out * out_H * out_W * C_in_g * kH * kW + (N * C_out * out_H * out_W if has_bias else 0)
+    bytes: (N * C_in * H * W + C_out * C_in_g * kH * kW + N * C_out * out_H * out_W + (C_out if has_bias else 0))
+      * elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+Conv2dBiasReluOp:
+  ref_api: tileops.ops.conv_variants.adapters.reference_bias_relu
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_out]'
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_out, out_H, out_W]'
+    params:
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+  # D059 predicate: bias_shape exists
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnet-3x3-bias
+  #   stem-3x3-s2-bias
+  #   stage-transition-3x3-s2-bias
+  #   highres-3x3-s1-bias
+  #   midres-5x5-s1-bias
+  #   stage-transition-5x5-s2-bias
+  #   stride2-bias
+  #   resnet-1x1-bias
+  #   bottleneck-expand-1x1-bias
+  #   bottleneck-reduce-1x1-bias
+  #   late-stage-1x1-bias
+  #   classifier-1x1-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # Forward donor input, weight and required bias=[C_out]; output=relu(conv2d(input,weight,bias)).
+  # No shape changes. The implementation uses a convolution/bias composition then a TileLang ReLU.
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], bias_shape: [64], label: "resnet-3x3-bias"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [64], label: "stem-3x3-s2-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [256], label: "stage-transition-3x3-s2-bias"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], bias_shape: [512], label: "highres-3x3-s1-bias"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], bias_shape: [128], label: "midres-5x5-s1-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], bias_shape: [256], label: "stage-transition-5x5-s2-bias"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], bias_shape: [128], label: "stride2-bias"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], bias_shape: [256], label: "resnet-1x1-bias"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [512], label: "bottleneck-expand-1x1-bias"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [128], label: "bottleneck-reduce-1x1-bias"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [1024], label: "late-stage-1x1-bias"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [2048], label: "classifier-1x1-bias"}
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 2 * N * C_out * out_H * out_W * C_in_g * kH * kW + (N * C_out * out_H * out_W if has_bias else 0) + N*C_out*out_H*out_W
+    bytes: (N * C_in * H * W + C_out * C_in_g * kH * kW + N * C_out * out_H * out_W + (C_out if has_bias else 0))
+      * elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+Conv1dCausalOp:
+  ref_api: tileops.ops.conv_variants.adapters.reference_causal
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, L_in]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_out]'
+        optional: true
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_out, L_out]'
+    params:
+      stride:
+        type: int | tuple[int]
+        default: 1
+      dilation:
+        type: int | tuple[int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - left == dilation * (kW - 1)
+    - L_out == (L_in - 1) // stride + 1
+  # D059 predicate: True (all donor rows)
+  # Donor: convolution.yaml::Conv1dFwdOp; selected labels:
+  #   whisper-large-conv1
+  #   wav2vec2-layer1
+  #   encodec-init
+  #   encodec-deep
+  #   whisper-large-conv1-bias
+  #   wav2vec2-layer1-bias
+  #   encodec-init-bias
+  #   encodec-deep-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # Donor Conv1dFwdOp input/weight/bias, stride, groups, dilation and dtype remain unchanged.
+  # All eight donor rows omit padding. Causal definition: left=dilation*(kW-1), right=0.
+  # Output time t reads source t*stride-dilation*(kW-1)+j*dilation, never future input.
+  # L_out=(L_in-1)//stride+1; output=[N,C_out,L_out].
+  # This left padding is variant semantics, not a mutation to donor workload fields.
+  # Reference: torch.nn.functional.conv1d(torch.nn.functional.pad(input,(left,0)),weight,bias,stride,0,dilation,groups).
+  workloads:
+    - {input_shape: [1, 80, 3000], C_out: 1280, kW: 3, dtypes: [float16, bfloat16], label: "whisper-large-conv1"}
+    - {input_shape: [1, 1, 16000], C_out: 512, kW: 10, stride: 5, dtypes: [float16, bfloat16], label: "wav2vec2-layer1"}
+    - {input_shape: [1, 1, 24000], C_out: 32, kW: 7, dtypes: [float16, bfloat16], label: "encodec-init"}
+    - {input_shape: [1, 128, 600], C_out: 256, kW: 10, dtypes: [float16, bfloat16], label: "encodec-deep"}
+    - {input_shape: [1, 80, 3000], C_out: 1280, kW: 3, dtypes: [float16, bfloat16], bias_shape: [1280], label: "whisper-large-conv1-bias"}
+    - {input_shape: [1, 1, 16000], C_out: 512, kW: 10, stride: 5, dtypes: [float16, bfloat16], bias_shape: [512], label: "wav2vec2-layer1-bias"}
+    - {input_shape: [1, 1, 24000], C_out: 32, kW: 7, dtypes: [float16, bfloat16], bias_shape: [32], label: "encodec-init-bias"}
+    - {input_shape: [1, 128, 600], C_out: 256, kW: 10, dtypes: [float16, bfloat16], bias_shape: [256], label: "encodec-deep-bias"}
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 2 * N * C_out * L_out * C_in_g * kW + (N * C_out * L_out if has_bias else 0)
+    bytes: (N * C_in * L_in + C_out * C_in_g * kW + N * C_out * L_out + (C_out if has_bias else 0)) * elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+Conv2dTransposeOp:
+  ref_api: torch.nn.functional.conv_transpose2d
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_out, out_H, out_W]'
+      weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+      bias:
+        dtype: same_as(input)
+        shape: '[C_in]'
+        optional: true
+    outputs:
+      output:
+        dtype: same_as(input)
+        shape: '[N, C_in, H, W]'
+    params:
+      input_shape:
+        type: tuple[int, int, int, int]
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+    - N == input_shape[0]
+    - C_in == input_shape[1]
+    - H == input_shape[2]
+    - W == input_shape[3]
+    - output_padding_H == H - ((out_H-1)*_s_h-2*_p_h+_d_h*(kH-1)+1)
+    - output_padding_W == W - ((out_W-1)*_s_w-2*_p_w+_d_w*(kW-1)+1)
+    - 0 <= output_padding_H < _s_h
+    - 0 <= output_padding_W < _s_w
+  # D059 predicate: True (all donor geometries)
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnet-3x3
+  #   stem-3x3-s2
+  #   stage-transition-3x3-s2
+  #   highres-3x3-s1
+  #   midres-5x5-s1
+  #   stage-transition-5x5-s2
+  #   stride2
+  #   resnet-1x1
+  #   bottleneck-expand-1x1
+  #   bottleneck-reduce-1x1
+  #   late-stage-1x1
+  #   classifier-1x1
+  #   deeplabv3-aspp-3x3-rate12
+  #   mobilenetv2-depthwise
+  #   resnext-grouped-3x3
+  #   resnet-3x3-bias
+  #   stem-3x3-s2-bias
+  #   stage-transition-3x3-s2-bias
+  #   highres-3x3-s1-bias
+  #   midres-5x5-s1-bias
+  #   stage-transition-5x5-s2-bias
+  #   stride2-bias
+  #   resnet-1x1-bias
+  #   bottleneck-expand-1x1-bias
+  #   bottleneck-reduce-1x1-bias
+  #   late-stage-1x1-bias
+  #   classifier-1x1-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # input=[N,C_out,out_H,out_W], weight=[C_out,C_in_g,kH,kW], output=[N,C_in,H,W].
+  # output_padding_H=H-((out_H-1)*sH-2*pH+dH*(kH-1)+1); likewise W.
+  # Thus 0<=output_padding_axis<stride_axis; original H,W uniquely fix the remainder.
+  # Optional donor bias presence is retained, but its tensor role is output-channel bias:
+  # transpose_bias_shape=[C_in], derived from donor input_shape[1], not donor C_out.
+  # Donor bias_shape bytes remain [C_out]; it records forward provenance, not the runtime transpose bias shape.
+  # Reference: torch.nn.functional.conv_transpose2d with the derived output_padding and bias.
+  # Implementation inserts stride-1 zeros plus output_padding trailing zeros, transposes grouped
+  # weight channels and reverses both kernel axes; forward padding=d*(k-1)-p, stride=1.
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], label: "resnet-3x3"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stem-3x3-s2"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stage-transition-3x3-s2"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], label: "highres-3x3-s1"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], label: "midres-5x5-s1"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], label: "stage-transition-5x5-s2"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], label: "stride2"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], label: "resnet-1x1"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-expand-1x1"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-reduce-1x1"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "late-stage-1x1"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "classifier-1x1"}
+    - input_shape: [1, 2048, 32, 32]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [12, 12]
+      dilation: [12, 12]
+      dtypes: [float16]
+      label: deeplabv3-aspp-3x3-rate12
+    - input_shape: [1, 32, 56, 56]
+      C_out: 32
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: mobilenetv2-depthwise
+    - input_shape: [1, 128, 28, 28]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: resnext-grouped-3x3
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], bias_shape: [64], label: "resnet-3x3-bias"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [64], label: "stem-3x3-s2-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [256], label: "stage-transition-3x3-s2-bias"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], bias_shape: [512], label: "highres-3x3-s1-bias"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], bias_shape: [128], label: "midres-5x5-s1-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], bias_shape: [256], label: "stage-transition-5x5-s2-bias"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], bias_shape: [128], label: "stride2-bias"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], bias_shape: [256], label: "resnet-1x1-bias"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [512], label: "bottleneck-expand-1x1-bias"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [128], label: "bottleneck-reduce-1x1-bias"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [1024], label: "late-stage-1x1-bias"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [2048], label: "classifier-1x1-bias"}
+
+  roofline:
+    flops: 2*N*C_out*out_H*out_W*C_in_g*kH*kW + (N*C_in*H*W if has_bias else 0)
+    bytes: (N*C_in*H*W + C_out*C_in_g*kH*kW + N*C_out*out_H*out_W + (C_in if has_bias else 0))*elem_bytes
+    vars:
+      has_bias: bias is not None
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+Conv2dDgradOp:
+  ref_api: torch.nn.grad.conv2d_input
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      grad_output:
+        dtype: float16 | bfloat16
+        shape: '[N, C_out, out_H, out_W]'
+      weight:
+        dtype: same_as(grad_output)
+        shape: '[C_out, C_in_g, kH, kW]'
+    outputs:
+      grad_input:
+        dtype: same_as(grad_output)
+        shape: '[N, C_in, H, W]'
+    params:
+      input_shape:
+        type: tuple[int, int, int, int]
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+    - N == input_shape[0]
+    - C_in == input_shape[1]
+    - H == input_shape[2]
+    - W == input_shape[3]
+    - output_padding_H == H - ((out_H-1)*_s_h-2*_p_h+_d_h*(kH-1)+1)
+    - output_padding_W == W - ((out_W-1)*_s_w-2*_p_w+_d_w*(kW-1)+1)
+    - 0 <= output_padding_H < _s_h
+    - 0 <= output_padding_W < _s_w
+  # D059 predicate: True (all donor geometries)
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnet-3x3
+  #   stem-3x3-s2
+  #   stage-transition-3x3-s2
+  #   highres-3x3-s1
+  #   midres-5x5-s1
+  #   stage-transition-5x5-s2
+  #   stride2
+  #   resnet-1x1
+  #   bottleneck-expand-1x1
+  #   bottleneck-reduce-1x1
+  #   late-stage-1x1
+  #   classifier-1x1
+  #   deeplabv3-aspp-3x3-rate12
+  #   mobilenetv2-depthwise
+  #   resnext-grouped-3x3
+  #   resnet-3x3-bias
+  #   stem-3x3-s2-bias
+  #   stage-transition-3x3-s2-bias
+  #   highres-3x3-s1-bias
+  #   midres-5x5-s1-bias
+  #   stage-transition-5x5-s2-bias
+  #   stride2-bias
+  #   resnet-1x1-bias
+  #   bottleneck-expand-1x1-bias
+  #   bottleneck-reduce-1x1-bias
+  #   late-stage-1x1-bias
+  #   classifier-1x1-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # grad_output=[N,C_out,out_H,out_W], weight=[C_out,C_in_g,kH,kW], grad_input=[N,C_in,H,W].
+  # grad_input is the adjoint linear convolution applied to grad_output; output_padding is
+  # H-((out_H-1)*sH-2*pH+dH*(kH-1)+1), likewise W, uniquely fixed by donor H,W.
+  # Forward bias has zero derivative with respect to input; donor bias_shape is retained
+  # as metadata but no bias tensor is an operand. Reference: torch.nn.grad.conv2d_input.
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], label: "resnet-3x3"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stem-3x3-s2"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stage-transition-3x3-s2"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], label: "highres-3x3-s1"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], label: "midres-5x5-s1"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], label: "stage-transition-5x5-s2"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], label: "stride2"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], label: "resnet-1x1"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-expand-1x1"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-reduce-1x1"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "late-stage-1x1"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "classifier-1x1"}
+    - input_shape: [1, 2048, 32, 32]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [12, 12]
+      dilation: [12, 12]
+      dtypes: [float16]
+      label: deeplabv3-aspp-3x3-rate12
+    - input_shape: [1, 32, 56, 56]
+      C_out: 32
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: mobilenetv2-depthwise
+    - input_shape: [1, 128, 28, 28]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: resnext-grouped-3x3
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], bias_shape: [64], label: "resnet-3x3-bias"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [64], label: "stem-3x3-s2-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [256], label: "stage-transition-3x3-s2-bias"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], bias_shape: [512], label: "highres-3x3-s1-bias"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], bias_shape: [128], label: "midres-5x5-s1-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], bias_shape: [256], label: "stage-transition-5x5-s2-bias"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], bias_shape: [128], label: "stride2-bias"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], bias_shape: [256], label: "resnet-1x1-bias"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [512], label: "bottleneck-expand-1x1-bias"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [128], label: "bottleneck-reduce-1x1-bias"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [1024], label: "late-stage-1x1-bias"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [2048], label: "classifier-1x1-bias"}
+
+  roofline:
+    flops: 2*N*C_out*out_H*out_W*C_in_g*kH*kW
+    bytes: (N*C_in*H*W + C_out*C_in_g*kH*kW + N*C_out*out_H*out_W)*elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+Conv2dWgradOp:
+  ref_api: torch.nn.grad.conv2d_weight
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+      grad_output:
+        dtype: same_as(input)
+        shape: '[N, C_out, out_H, out_W]'
+    outputs:
+      grad_weight:
+        dtype: same_as(input)
+        shape: '[C_out, C_in_g, kH, kW]'
+    params:
+      kH:
+        type: int
+      kW:
+        type: int
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - C_in % groups == 0
+    - C_out % groups == 0
+    - C_in_g == C_in // groups
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+  # D059 predicate: True (all donor geometries)
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnet-3x3
+  #   stem-3x3-s2
+  #   stage-transition-3x3-s2
+  #   highres-3x3-s1
+  #   midres-5x5-s1
+  #   stage-transition-5x5-s2
+  #   stride2
+  #   resnet-1x1
+  #   bottleneck-expand-1x1
+  #   bottleneck-reduce-1x1
+  #   late-stage-1x1
+  #   classifier-1x1
+  #   deeplabv3-aspp-3x3-rate12
+  #   mobilenetv2-depthwise
+  #   resnext-grouped-3x3
+  #   resnet-3x3-bias
+  #   stem-3x3-s2-bias
+  #   stage-transition-3x3-s2-bias
+  #   highres-3x3-s1-bias
+  #   midres-5x5-s1-bias
+  #   stage-transition-5x5-s2-bias
+  #   stride2-bias
+  #   resnet-1x1-bias
+  #   bottleneck-expand-1x1-bias
+  #   bottleneck-reduce-1x1-bias
+  #   late-stage-1x1-bias
+  #   classifier-1x1-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # input=[N,C_in,H,W], grad_output=[N,C_out,out_H,out_W], grad_weight=[C_out,C_in_g,kH,kW].
+  # Per group, columns=[C_in_g*kH*kW,N*out_H*out_W] and grad=[C_out_g,N*out_H*out_W].
+  # grad_weight=grad @ columns.T, reduction over every batch and spatial position.
+  # Forward bias has zero derivative with respect to weight; donor bias_shape remains
+  # metadata but no bias operand. Reference: torch.nn.grad.conv2d_weight.
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], label: "resnet-3x3"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stem-3x3-s2"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stage-transition-3x3-s2"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], label: "highres-3x3-s1"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], label: "midres-5x5-s1"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], label: "stage-transition-5x5-s2"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], label: "stride2"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], label: "resnet-1x1"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-expand-1x1"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-reduce-1x1"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "late-stage-1x1"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "classifier-1x1"}
+    - input_shape: [1, 2048, 32, 32]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [12, 12]
+      dilation: [12, 12]
+      dtypes: [float16]
+      label: deeplabv3-aspp-3x3-rate12
+    - input_shape: [1, 32, 56, 56]
+      C_out: 32
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: mobilenetv2-depthwise
+    - input_shape: [1, 128, 28, 28]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: resnext-grouped-3x3
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], bias_shape: [64], label: "resnet-3x3-bias"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [64], label: "stem-3x3-s2-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [256], label: "stage-transition-3x3-s2-bias"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], bias_shape: [512], label: "highres-3x3-s1-bias"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], bias_shape: [128], label: "midres-5x5-s1-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], bias_shape: [256], label: "stage-transition-5x5-s2-bias"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], bias_shape: [128], label: "stride2-bias"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], bias_shape: [256], label: "resnet-1x1-bias"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [512], label: "bottleneck-expand-1x1-bias"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [128], label: "bottleneck-reduce-1x1-bias"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [1024], label: "late-stage-1x1-bias"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [2048], label: "classifier-1x1-bias"}
+
+  roofline:
+    flops: 2*N*C_out*out_H*out_W*C_in_g*kH*kW
+    bytes: (N*C_in*H*W + C_out*C_in_g*kH*kW + N*C_out*out_H*out_W)*elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true
+
+Im2colOp:
+  ref_api: torch.nn.functional.unfold
+  family: convolution
+  status: implemented
+  torch_compile_fullgraph: false
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16
+        shape: '[N, C_in, H, W]'
+    outputs:
+      columns:
+        dtype: same_as(input)
+        shape: '[N, C_in*kH*kW, out_H*out_W]'
+    params:
+      kH:
+        type: int
+      kW:
+        type: int
+      stride:
+        type: int | tuple[int, int]
+        default: 1
+      padding:
+        type: int | tuple[int, int] | str
+        default: 0
+      dilation:
+        type: int | tuple[int, int]
+        default: 1
+      groups:
+        type: int
+        default: 1
+    shape_rules:
+    - _s_h == (stride[0] if isinstance(stride, (tuple, list)) else stride)
+    - _s_w == (stride[1] if isinstance(stride, (tuple, list)) else stride)
+    - _p_h == (padding[0] if isinstance(padding, (tuple, list)) else padding)
+    - _p_w == (padding[1] if isinstance(padding, (tuple, list)) else padding)
+    - _d_h == (dilation[0] if isinstance(dilation, (tuple, list)) else dilation)
+    - _d_w == (dilation[1] if isinstance(dilation, (tuple, list)) else dilation)
+    - not isinstance(_p_h, str) or _p_h in ('valid', 'same')
+    - not isinstance(_p_w, str) or _p_w in ('valid', 'same')
+    - _p_h != 'same' or _s_h == 1
+    - _p_w != 'same' or _s_w == 1
+    - out_H == (H if _p_h == 'same' else (H + 2 * (0 if _p_h == 'valid' else _p_h) - _d_h * (kH - 1) - 1) // _s_h
+      + 1)
+    - out_W == (W if _p_w == 'same' else (W + 2 * (0 if _p_w == 'valid' else _p_w) - _d_w * (kW - 1) - 1) // _s_w
+      + 1)
+  # D059 predicate: True (all donor geometries)
+  # Donor: convolution.yaml::Conv2dFwdOp; selected labels:
+  #   resnet-3x3
+  #   stem-3x3-s2
+  #   stage-transition-3x3-s2
+  #   highres-3x3-s1
+  #   midres-5x5-s1
+  #   stage-transition-5x5-s2
+  #   stride2
+  #   resnet-1x1
+  #   bottleneck-expand-1x1
+  #   bottleneck-reduce-1x1
+  #   late-stage-1x1
+  #   classifier-1x1
+  #   deeplabv3-aspp-3x3-rate12
+  #   mobilenetv2-depthwise
+  #   resnext-grouped-3x3
+  #   resnet-3x3-bias
+  #   stem-3x3-s2-bias
+  #   stage-transition-3x3-s2-bias
+  #   highres-3x3-s1-bias
+  #   midres-5x5-s1-bias
+  #   stage-transition-5x5-s2-bias
+  #   stride2-bias
+  #   resnet-1x1-bias
+  #   bottleneck-expand-1x1-bias
+  #   bottleneck-reduce-1x1-bias
+  #   late-stage-1x1-bias
+  #   classifier-1x1-bias
+  # Donor symbols N,C_in,H,W,C_out,kH,kW retain their forward meaning.
+  # groups defaults to 1; stride to 1; padding to 0; dilation to 1, per donor signature.
+  # Pair normalization repeats scalars on both spatial axes.
+  # C_in_g=C_in/groups; C_out_g=C_out/groups.
+  # out_H=(H+2*pH-dH*(kH-1)-1)//sH+1; likewise out_W.
+  # Workload fields remain donor metadata; adapter derives actual tensor roles below.
+  # No performance predicate, additional rows or dtype changes.
+  # input=[N,C_in,H,W]; output=[N,C_in*kH*kW,out_H*out_W].
+  # output[n,((c*kH+kh)*kW+kw),oh*out_W+ow] = input[n,c,oh*sH-pH+kh*dH,ow*sW-pW+kw*dW]
+  # when both source coordinates are in bounds, otherwise zero.
+  # This is torch.nn.functional.unfold ordering. Every input channel is retained;
+  # groups and C_out do not change extraction; weight and bias are not operands.
+  # donor bias_shape remains provenance only. No columns are dropped or grouped twice.
+  workloads:
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], label: "resnet-3x3"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stem-3x3-s2"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], label: "stage-transition-3x3-s2"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], label: "highres-3x3-s1"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], label: "midres-5x5-s1"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], label: "stage-transition-5x5-s2"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], label: "stride2"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], label: "resnet-1x1"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-expand-1x1"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "bottleneck-reduce-1x1"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "late-stage-1x1"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], label: "classifier-1x1"}
+    - input_shape: [1, 2048, 32, 32]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [12, 12]
+      dilation: [12, 12]
+      dtypes: [float16]
+      label: deeplabv3-aspp-3x3-rate12
+    - input_shape: [1, 32, 56, 56]
+      C_out: 32
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: mobilenetv2-depthwise
+    - input_shape: [1, 128, 28, 28]
+      C_out: 256
+      kH: 3
+      kW: 3
+      stride: [1, 1]
+      padding: [1, 1]
+      groups: 32
+      dtypes: [float16]
+      label: resnext-grouped-3x3
+    - {input_shape: [2, 64, 56, 56], C_out: 64, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16, bfloat16], bias_shape: [64], label: "resnet-3x3-bias"}
+    - {input_shape: [1, 3, 112, 112], C_out: 64, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [64], label: "stem-3x3-s2-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [float16], bias_shape: [256], label: "stage-transition-3x3-s2-bias"}
+    - {input_shape: [1, 256, 112, 112], C_out: 512, kH: 3, kW: 3, stride: [1, 1], padding: [1, 1], dtypes: [float16], bias_shape: [512], label: "highres-3x3-s1-bias"}
+    - {input_shape: [1, 64, 56, 56], C_out: 128, kH: 5, kW: 5, stride: [1, 1], padding: [2, 2], dtypes: [float16], bias_shape: [128], label: "midres-5x5-s1-bias"}
+    - {input_shape: [1, 128, 56, 56], C_out: 256, kH: 5, kW: 5, stride: [2, 2], padding: [2, 2], dtypes: [float16], bias_shape: [256], label: "stage-transition-5x5-s2-bias"}
+    - {input_shape: [1, 128, 28, 28], C_out: 128, kH: 3, kW: 3, stride: [2, 2], padding: [1, 1], dtypes: [bfloat16], bias_shape: [128], label: "stride2-bias"}
+    - {input_shape: [2, 64, 56, 56], C_out: 256, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16, bfloat16], bias_shape: [256], label: "resnet-1x1-bias"}
+    - {input_shape: [2, 128, 28, 28], C_out: 512, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [512], label: "bottleneck-expand-1x1-bias"}
+    - {input_shape: [2, 512, 28, 28], C_out: 128, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [128], label: "bottleneck-reduce-1x1-bias"}
+    - {input_shape: [1, 256, 14, 14], C_out: 1024, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [1024], label: "late-stage-1x1-bias"}
+    - {input_shape: [1, 512, 7, 7], C_out: 2048, kH: 1, kW: 1, stride: [1, 1], padding: [0, 0], dtypes: [float16], bias_shape: [2048], label: "classifier-1x1-bias"}
+
+  roofline:
+    flops: '0'
+    bytes: (N*C_in*H*W + N*C_in*kH*kW*out_H*out_W)*elem_bytes
+  source:
+    kernel: src/tileops/ops/conv_variants/kernels.py
+    op: src/tileops/ops/conv_variants/ops.py
+    adapter: src/tileops/ops/conv_variants/adapters.py
+    test: docs/reports/R307-data/correctness.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: true

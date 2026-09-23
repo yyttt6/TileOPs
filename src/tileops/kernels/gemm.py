@@ -430,6 +430,133 @@ def _build_bmm(batch: int, m: int, n: int, k: int, dtype_name: str) -> Callable:
     return _factory(dtype_name)
 
 
+@lru_cache(maxsize=32)
+def _build_bmm_pipelined(batch: int, m: int, n: int, k: int, dtype_name: str) -> Callable:
+    """Batched GEMM with the T264 asynchronous GM->L1 stage in front of T.mma.
+
+    This is :func:`_build_gemm_pipelined` with one extra leading index on all
+    three operands and ``trans_b`` pinned to False (BmmFwdOp's manifest is
+    ``[b, m, k] @ [b, k, n]``).  The schedule, the event numbering, the tile
+    plan and all three codegen constraints are that function's; read its
+    docstring for why the flag initialisation sits after the prologue copy and
+    why the ``M -> FIX`` pair before the readout is not optional.
+
+    It is a separate function rather than a ``batch``-parameterised version of
+    the dense builder on purpose: the dense GEMM kernel is the number T264
+    shipped, and factoring its K loop out into a shared macro would change the
+    source TVMScript re-reads for it (F022).  The duplication is the cheaper
+    risk.
+    """
+    plan = _pipelined_plan(m, n, k, 2)
+    if plan is None:  # pragma: no cover - build_bmm_kernel checks first
+        raise ValueError(f"no pipelined plan for m={m} n={n} k={k}")
+    block_m, block_n, block_k, kl0 = plan
+    s1, s2 = L1_STAGES, L0_STAGES
+    m_tiles = (m + block_m - 1) // block_m
+    n_tiles = (n + block_n - 1) // block_n
+    k_tiles = k // block_k
+    kk_steps = block_k // kl0
+    mn_tiles = m_tiles * n_tiles
+    logical_blocks = batch * mn_tiles
+    launch_blocks = launch_block_count(logical_blocks)
+    grid_repeats = grid_repeat_count(logical_blocks, launch_blocks)
+
+    @tilelang.jit(
+        out_idx=[-1],
+        pass_configs={
+            tilelang.PassConfigKey.TL_ASCEND_AUTO_CV_COMBINE: True,
+            # AUTO_SYNC off for the same reason as the dense pipelined path.
+            tilelang.PassConfigKey.TL_ASCEND_AUTO_SYNC: False,
+            tilelang.PassConfigKey.TL_ASCEND_MEMORY_PLANNING: True,
+            tilelang.PassConfigKey.TL_ASCEND_AUTO_CV_SYNC: False,
+        },
+        compile_flags=["-O3", "-DENABLE_BF16"],
+    )
+    def _factory(dtype: str = dtype_name) -> Callable:
+
+        @T.prim_func
+        def main(
+            a: T.Tensor((batch, m, k), dtype),
+            b: T.Tensor((batch, k, n), dtype),
+            c: T.Tensor((batch, m, n), dtype),
+        ):
+            with T.Kernel(launch_blocks, is_npu=True) as (cid, _):
+                for grid_repeat in T.serial(grid_repeats):
+                    logical_cid = cid + grid_repeat * launch_blocks
+                    if logical_cid < logical_blocks:
+                        batch_idx = logical_cid // mn_tiles
+                        mn_idx = logical_cid % mn_tiles
+                        m0 = (mn_idx // n_tiles) * block_m
+                        n0 = (mn_idx % n_tiles) * block_n
+
+                        a_l1 = T.alloc_L1((s1, block_m, block_k), dtype)
+                        b_l1 = T.alloc_L1((s1, block_k, block_n), dtype)
+                        a_l0 = T.alloc_L0A((s2, block_m, kl0), dtype)
+                        b_l0 = T.alloc_L0B((s2, kl0, block_n), dtype)
+                        c_l0 = T.alloc_L0C((block_m, block_n), "float")
+
+                        with T.Scope("C"):
+                            T.copy(a[batch_idx, m0:m0 + block_m, 0:block_k],
+                                   a_l1[0, :, :])
+                            T.copy(b[batch_idx, 0:block_k, n0:n0 + block_n],
+                                   b_l1[0, :, :])
+                            T.set_flag("mte2", "mte1", 0)
+                            T.set_flag("mte1", "mte2", 1)
+                            T.set_flag("m", "mte1", 0)
+                            T.set_flag("m", "mte1", 1)
+
+                            for kt in T.serial(k_tiles):
+                                nxt = kt + 1
+                                if nxt < k_tiles:
+                                    T.wait_flag("mte1", "mte2", nxt % s1)
+                                    k1 = nxt * block_k
+                                    T.copy(a[batch_idx, m0:m0 + block_m,
+                                             k1:k1 + block_k],
+                                           a_l1[nxt % s1, :, :])
+                                    T.copy(b[batch_idx, k1:k1 + block_k,
+                                             n0:n0 + block_n],
+                                           b_l1[nxt % s1, :, :])
+                                    T.set_flag("mte2", "mte1", nxt % s1)
+                                T.wait_flag("mte2", "mte1", kt % s1)
+
+                                for kk in T.serial(kk_steps):
+                                    T.wait_flag("m", "mte1", kk % s2)
+                                    T.copy(
+                                        a_l1[kt % s1, :, kk * kl0:kk * kl0 + kl0],
+                                        a_l0[kk % s2, :, :],
+                                    )
+                                    T.copy(
+                                        b_l1[kt % s1, kk * kl0:kk * kl0 + kl0, :],
+                                        b_l0[kk % s2, :, :],
+                                    )
+                                    T.set_flag("mte1", "m", kk % s2)
+                                    T.wait_flag("mte1", "m", kk % s2)
+                                    T.mma(
+                                        a_l0[kk % s2, :, :],
+                                        b_l0[kk % s2, :, :],
+                                        c_l0,
+                                        init=T.And(kt == 0, kk == 0),
+                                    )
+                                    T.set_flag("m", "mte1", kk % s2)
+
+                                T.set_flag("mte1", "mte2", kt % s1)
+
+                            T.wait_flag("mte1", "mte2", 0)
+                            T.wait_flag("mte1", "mte2", 1)
+                            T.wait_flag("m", "mte1", 0)
+                            T.wait_flag("m", "mte1", 1)
+                            T.set_flag("m", "fix", 0)
+                            T.wait_flag("m", "fix", 0)
+                            T.copy(c_l0,
+                                   c[batch_idx, m0:m0 + block_m, n0:n0 + block_n])
+                            T.set_flag("fix", "m", 0)
+                            T.wait_flag("fix", "m", 0)
+
+        return main
+
+    return _factory(dtype_name)
+
+
 def build_bmm_kernel(a_shape: tuple[int, ...], b_shape: tuple[int, ...], dtype) -> Callable:
     if len(a_shape) != 3 or len(b_shape) != 3:
         raise ValueError(f"BmmFwdOp expects 3D inputs, got a={a_shape}, b={b_shape}")
@@ -438,7 +565,14 @@ def build_bmm_kernel(a_shape: tuple[int, ...], b_shape: tuple[int, ...], dtype) 
         raise ValueError(f"BmmFwdOp shape mismatch: a={a_shape}, b={b_shape}")
     if k % 16:
         raise ValueError(f"BmmFwdOp requires K divisible by 16, got K={k}")
-    return _build_bmm(batch, m, b_shape[2], k, _dtype_name(dtype))
+    n = b_shape[2]
+    name = _dtype_name(dtype)
+    # Same dispatch rule as build_gemm_kernel: take the T.mma path when the
+    # shape has a pipelined plan, keep gemm_v0 otherwise.  All nine BmmFwdOp
+    # manifest workloads have a plan (every k is a multiple of its block_k).
+    if _pipelined_plan(m, n, k, 2) is not None:
+        return _build_bmm_pipelined(batch, m, n, k, name)
+    return _build_bmm(batch, m, n, k, name)
 
 
 @lru_cache(maxsize=32)
@@ -654,14 +788,64 @@ def build_grouped_gemm_kernel(
     # GEMM kernel.  This intentionally launches once per group; it is not a
     # single-kernel grouped GEMM implementation.
     dtype_name = _dtype_name(dtype)
+    import os
     import torch
+
+    #: Group partition of the most recent call made OUTSIDE an ACL Graph capture.
+    #:
+    #: R356: reading ``batch_sizes`` / ``batch_offsets`` is a device-to-host copy,
+    #: and a D2H copy inside ``torch.npu.graph(...)`` is rejected by the runtime
+    #: outright -- not slowly, with an error.  Verbatim, from
+    #: docs/reports/R356-data/p7-grouped-nt-fp16.log::
+    #:
+    #:   Not_Supported(EE1016): Synchronizing a stream failed. Reason: Stream
+    #:   (stream_id=44) during the capture stage is not supported.
+    #:   ... operation not permitted when a stream is capturing and the specified
+    #:   capture mode is not relaxed
+    #:
+    #: That is why canonical coverage recorded ``regime_unavailable_reason.graph =
+    #: "route-3 callable reads runtime group metadata on host; ACL Graph capture
+    #: rejects the required device-to-host synchronization"`` and #117 had an eager
+    #: ratio but no graph ratio.
+    #:
+    #: So the read happens only outside capture, and capture replays the partition
+    #: the last uncaptured call saw.  That is not a new assumption: an ACL Graph is
+    #: a FIXED sequence of launches bound to the addresses and shapes present at
+    #: capture time, so a captured grouped GEMM is already specific to one
+    #: partition however the partition is obtained.  Making it explicit is what
+    #: lets the operator be captured at all.  Outside capture nothing changes --
+    #: the same D2H, the same launches, the same bytes.
+    schedule_cache: dict[str, list[int]] = {}
+    grouped_arm = os.environ.get("TILEOPS_GROUPED_GEMM_ARM", "r356").strip().lower()
+
+    def _capturing() -> bool:
+        if grouped_arm == "r154":
+            return False  # control arm: always read the host copy, as before R356
+        try:
+            return bool(torch.npu.is_current_stream_capturing())
+        except Exception:  # noqa: BLE001 - absent API must not fail a normal call
+            return False
+
+    def _schedule(batch_sizes, batch_offsets):
+        if _capturing():
+            if "sizes" not in schedule_cache:
+                raise RuntimeError(
+                    "GroupedGemmFwdOp: ACL Graph capture cannot read the group "
+                    "metadata from the host; call the kernel at least once "
+                    "outside capture so the partition is known"
+                )
+            return schedule_cache["sizes"], schedule_cache["offsets"]
+        sizes = batch_sizes.detach().cpu().tolist()
+        offsets = batch_offsets.detach().cpu().tolist()
+        schedule_cache["sizes"] = sizes
+        schedule_cache["offsets"] = offsets
+        return sizes, offsets
 
     def invoke(a, b, batch_sizes, batch_offsets, batch_padded_offsets=None):
         del batch_padded_offsets  # retained in the public five-input ABI
         if tuple(a.shape) != tuple(a_shape) or tuple(b.shape) != tuple(b_shape):
             raise ValueError("GroupedGemmFwdOp runtime tensor shape mismatch")
-        sizes = batch_sizes.detach().cpu().tolist()
-        offsets = batch_offsets.detach().cpu().tolist()
+        sizes, offsets = _schedule(batch_sizes, batch_offsets)
         if len(sizes) != batch_count or len(offsets) != batch_count:
             raise ValueError("GroupedGemmFwdOp metadata length mismatch")
         chunks = []

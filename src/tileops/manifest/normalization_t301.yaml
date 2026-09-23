@@ -1,0 +1,696 @@
+# T301 B only. Full workload blocks are verbatim copies; see R301B.
+
+LayerNormBwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      grad_out:
+        dtype: same_as(x)
+      weight:
+        dtype: same_as(x)
+      mean:
+        dtype: float32
+      rstd:
+        dtype: float32
+    outputs:
+      grad_x:
+        dtype: same_as(x)
+      grad_weight:
+        dtype: same_as(x)
+      grad_bias:
+        dtype: same_as(x)
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - grad_out.shape == x.shape
+    - weight.shape == tuple(normalized_shape)
+    - rstd.shape == x.shape[:-len(normalized_shape)]
+    - grad_x.shape == x.shape
+    - grad_weight.shape == weight.shape
+    - mean.shape == rstd.shape
+    - grad_bias.shape == weight.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / LayerNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 12 * product(x.shape)
+    bytes: (3 * product(x.shape) + 3 * product(normalized_shape)) * elem_bytes + 8 * product(x.shape[:-len(normalized_shape)])
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+RMSNormBwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      grad_out:
+        dtype: same_as(x)
+      weight:
+        dtype: same_as(x)
+      rstd:
+        dtype: float32
+    outputs:
+      grad_x:
+        dtype: same_as(x)
+      grad_weight:
+        dtype: same_as(x)
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - grad_out.shape == x.shape
+    - weight.shape == tuple(normalized_shape)
+    - rstd.shape == x.shape[:-len(normalized_shape)]
+    - grad_x.shape == x.shape
+    - grad_weight.shape == weight.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 9 * product(x.shape)
+    bytes: (3 * product(x.shape) + 2 * product(normalized_shape)) * elem_bytes + 4 * product(x.shape[:-len(normalized_shape)])
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+GroupNormBwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      grad_out:
+        dtype: same_as(x)
+      weight:
+        dtype: same_as(x)
+        optional: true
+      mean:
+        dtype: float32
+      rstd:
+        dtype: float32
+      bias:
+        dtype: same_as(x)
+        optional: true
+    outputs:
+      grad_x:
+        dtype: same_as(x)
+      grad_weight:
+        dtype: same_as(x)
+      grad_bias:
+        dtype: same_as(x)
+    params:
+      num_groups:
+        type: int
+    shape_rules:
+    - grad_out.shape == x.shape
+    - weight is None or weight.shape == (x.shape[1],)
+    - bias is None or bias.shape == (x.shape[1],)
+    - grad_x.shape == x.shape
+    - grad_weight is None or grad_weight.shape == (x.shape[1],)
+    - grad_bias is None or grad_bias.shape == (x.shape[1],)
+    - num_groups > 0
+    - x.shape[1] % num_groups == 0
+    - mean.shape == (x.shape[0], num_groups)
+    - rstd.shape == mean.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / GroupNormFwdOp
+  workloads:
+    # Typical CV shapes, each side of the affine switch. The affine rows
+    # reuse the shapes above and only add the two keys.
+    - {x_shape: [8, 128, 32, 32], num_groups: 32, dtypes: [float16, bfloat16], label: "image-g32"}
+    - {x_shape: [4, 256, 28, 28], num_groups: 32, dtypes: [float16], label: "wider-channel-g32"}
+    - {x_shape: [4, 128, 30, 30], num_groups: 16, dtypes: [float16], label: "tail-spatial-g16"}
+    - {x_shape: [8, 128, 32, 32], num_groups: 32, dtypes: [float16, bfloat16],
+       weight_shape: [128], bias_shape: [128], label: "image-g32-affine"}
+    - {x_shape: [4, 256, 28, 28], num_groups: 32, dtypes: [float16],
+       weight_shape: [256], bias_shape: [256], label: "wider-channel-g32-affine"}
+    - {x_shape: [4, 128, 30, 30], num_groups: 16, dtypes: [float16],
+       weight_shape: [128], bias_shape: [128], label: "tail-spatial-g16-affine"}
+
+  roofline:
+    vars:
+      has_weight: weight is not None
+      has_bias: bias is not None
+    flops: 12 * product(x.shape)
+    bytes: 3 * product(x.shape) * elem_bytes + 2 * x.shape[1] * elem_bytes + (x.shape[1] * elem_bytes if has_weight else 0)
+      + (x.shape[1] * elem_bytes if has_bias else 0) + 8 * x.shape[0] * num_groups
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+InstanceNormBwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      grad_out:
+        dtype: same_as(x)
+      weight:
+        dtype: same_as(x)
+        optional: true
+      mean:
+        dtype: float32
+      rstd:
+        dtype: float32
+      bias:
+        dtype: same_as(x)
+        optional: true
+      running_mean:
+        dtype: float32
+        optional: true
+      running_var:
+        dtype: float32
+        optional: true
+    outputs:
+      grad_x:
+        dtype: same_as(x)
+      grad_weight:
+        dtype: same_as(x)
+      grad_bias:
+        dtype: same_as(x)
+    params:
+      eps:
+        type: float
+        default: 1.0e-05
+    shape_rules:
+    - grad_out.shape == x.shape
+    - weight is None or weight.shape == (x.shape[1],)
+    - bias is None or bias.shape == (x.shape[1],)
+    - grad_x.shape == x.shape
+    - grad_weight is None or grad_weight.shape == (x.shape[1],)
+    - grad_bias is None or grad_bias.shape == (x.shape[1],)
+    - mean.shape == (x.shape[0], x.shape[1])
+    - rstd.shape == mean.shape
+    - (running_mean is None) == (running_var is None)
+
+  # workloads copied byte-for-byte from normalization.yaml / InstanceNormFwdOp
+  workloads:
+    # Typical CV shapes (style transfer, image generation), affine on and off.
+    - {x_shape: [8, 128, 32, 32], weight_shape: [128], bias_shape: [128], dtypes: [float16, bfloat16], label: "image-affine"}
+    - {x_shape: [4, 256, 28, 28], weight_shape: [256], bias_shape: [256], dtypes: [float16], label: "wider-channel-affine"}
+    - {x_shape: [4, 64, 30, 30], weight_shape: [64], bias_shape: [64], dtypes: [float16], label: "tail-spatial-affine"}
+    # running_mean / running_var are per-channel (shape [C]) per
+    # torch.nn.functional.instance_norm.
+    - {x_shape: [8, 128, 32, 32], running_mean_shape: [128], running_var_shape: [128], dtypes: [float16, bfloat16], label: "image"}
+    - {x_shape: [4, 256, 28, 28], running_mean_shape: [256], running_var_shape: [256], dtypes: [float16], label: "wider-channel"}
+    - {x_shape: [4, 64, 30, 30], running_mean_shape: [64], running_var_shape: [64], dtypes: [float16], label: "tail-spatial"}
+
+  roofline:
+    vars:
+      has_weight: weight is not None
+      has_bias: bias is not None
+      has_running_mean: running_mean is not None
+    flops: 12 * product(x.shape)
+    bytes: 3 * product(x.shape) * elem_bytes + 2 * x.shape[1] * elem_bytes + (x.shape[1] * elem_bytes if has_weight else 0)
+      + (x.shape[1] * elem_bytes if has_bias else 0) + 8 * x.shape[0] * x.shape[1] + (8 * x.shape[1] if has_running_mean else
+      0)
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+WeightNormFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      g:
+        dtype: same_as(x)
+    outputs:
+      output:
+        dtype: same_as(x)
+      norm:
+        dtype: float32
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      dim:
+        type: int
+        default: 0
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - -x.ndim <= dim < x.ndim
+    - g.shape == (x.shape[dim],)
+    - output.shape == x.shape
+    - norm.shape == g.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 4 * product(x.shape)
+    bytes: (2 * product(x.shape) + x.shape[dim]) * elem_bytes + 4 * x.shape[dim]
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+LayerNormQuantFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      weight:
+        dtype: same_as(x)
+      bias:
+        dtype: same_as(x)
+        optional: true
+    outputs:
+      q:
+        dtype: float8_e4m3fn
+      scale:
+        dtype: float32
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      eps:
+        type: float
+        default: 1.0e-05
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - weight.shape == tuple(normalized_shape)
+    - q.shape == x.shape
+    - scale.shape == x.shape[:-len(normalized_shape)]
+  # FP8 E4M3FN dtype view of software-encoded bytes on Ascend 910B. Scale=max(amax(abs(y)),1e-12)/448; ties-to-even rounding.
+
+  # workloads copied byte-for-byte from normalization.yaml / LayerNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars:
+      has_bias: bias is not None
+    flops: 8 * product(x.shape)
+    bytes: (product(x.shape) + product(normalized_shape)) * elem_bytes + product(x.shape) + 4 * product(x.shape[:-len(normalized_shape)])
+      + (product(normalized_shape) * elem_bytes if has_bias else 0)
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+RMSNormQuantFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      weight:
+        dtype: same_as(x)
+    outputs:
+      q:
+        dtype: float8_e4m3fn
+      scale:
+        dtype: float32
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      eps:
+        type: float
+        default: 1.0e-06
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - weight.shape == tuple(normalized_shape)
+    - q.shape == x.shape
+    - scale.shape == x.shape[:-len(normalized_shape)]
+  # FP8 E4M3FN dtype view of software-encoded bytes on Ascend 910B. Scale=max(amax(abs(y)),1e-12)/448; ties-to-even rounding.
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 7 * product(x.shape)
+    bytes: (product(x.shape) + product(normalized_shape)) * elem_bytes + product(x.shape) + 4 * product(x.shape[:-len(normalized_shape)])
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+QKNormFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      k:
+        dtype: same_as(x)
+      q_weight:
+        dtype: same_as(x)
+      k_weight:
+        dtype: same_as(x)
+    outputs:
+      q_out:
+        dtype: same_as(x)
+      k_out:
+        dtype: same_as(x)
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      eps:
+        type: float
+        default: 1.0e-06
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - tuple(k.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - q_weight.shape == tuple(normalized_shape)
+    - k_weight.shape == tuple(normalized_shape)
+    - q_out.shape == x.shape
+    - k_out.shape == k.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 4 * (product(x.shape) + product(k.shape))
+    bytes: (2 * product(x.shape) + 2 * product(k.shape) + 2 * product(normalized_shape)) * elem_bytes
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+GemmaRMSNormFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      weight:
+        dtype: same_as(x)
+    outputs:
+      output:
+        dtype: same_as(x)
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      eps:
+        type: float
+        default: 1.0e-06
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - weight.shape == tuple(normalized_shape)
+    - output.shape == x.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 5 * product(x.shape)
+    bytes: (2 * product(x.shape) + product(normalized_shape)) * elem_bytes
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+GroupRMSNormFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      weight:
+        dtype: same_as(x)
+    outputs:
+      output:
+        dtype: same_as(x)
+      rstd:
+        dtype: float32
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      eps:
+        type: float
+        default: 1.0e-06
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - x.ndim >= 2
+    - len(normalized_shape) == 1
+    - weight.shape == x.shape[-2:]
+    - output.shape == x.shape
+    - rstd.shape == x.shape[:-1]
+  # Last two dimensions are [G,D]; 2-D inherited workloads are the no-leading-batch case.
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: 4 * product(x.shape)
+    bytes: (2 * product(x.shape) + product(x.shape[-2:])) * elem_bytes + 4 * product(x.shape[:-1])
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+BatchNormInferenceFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      weight:
+        dtype: float32
+      bias:
+        dtype: float32
+      running_mean:
+        dtype: float32
+      running_var:
+        dtype: float32
+    outputs:
+      output:
+        dtype: same_as(x)
+    params:
+      eps:
+        type: float
+        default: 1.0e-05
+    shape_rules:
+    - x.ndim >= 2
+    - weight.shape == (x.shape[1],)
+    - bias.shape == weight.shape
+    - running_mean.shape == weight.shape
+    - running_var.shape == weight.shape
+    - output.shape == x.shape
+
+  # workloads copied byte-for-byte from normalization.yaml / BatchNormFwdOp
+  workloads:
+    # ResNet-50 stages
+    - {x_shape: [32, 64], dtypes: [float16], label: "resnet50-fc"}
+    - {x_shape: [8, 64, 32, 32], dtypes: [float16], label: "resnet50-stage1"}
+    - {x_shape: [4, 128, 32, 32], dtypes: [float16], label: "resnet50-stage2"}
+    - {x_shape: [4, 256, 28, 28], dtypes: [float16], label: "resnet50-stage3"}
+    # Large spatial
+    - {x_shape: [4, 128, 1024, 1024], dtypes: [float16], label: "large-spatial"}
+
+  roofline:
+    vars: {}
+    flops: 4 * product(x.shape)
+    bytes: 2 * product(x.shape) * elem_bytes + 16 * x.shape[1]
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false
+
+SpectralNormPowerIterFwdOp:
+  ref_api: none
+  family: normalization
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float32 | float16 | bfloat16
+      u:
+        dtype: float32
+      v:
+        dtype: float32
+    outputs:
+      sigma:
+        dtype: float32
+      u_out:
+        dtype: float32
+      v_out:
+        dtype: float32
+    params:
+      normalized_shape:
+        type: list[int] | tuple[int, ...]
+      n_iter:
+        type: int
+        default: 1
+      eps:
+        type: float
+        default: 1.0e-12
+    shape_rules:
+    - len(normalized_shape) > 0
+    - tuple(x.shape[-len(normalized_shape):]) == tuple(normalized_shape)
+    - x.ndim == 2
+    - n_iter >= 0
+    - u.shape == (x.shape[0],)
+    - v.shape == (x.shape[1],)
+    - sigma.shape == ()
+    - u_out.shape == u.shape
+    - v_out.shape == v.shape
+  # Complete RMSNorm workloads reused as O-by-I matrices; normalized_shape validates I and does not change matrix semantics.
+
+  # workloads copied byte-for-byte from normalization.yaml / RMSNormFwdOp
+  workloads:
+    # Llama-3.1-8B (hidden_dim=4096)
+    - {x_shape: [2048, 4096], normalized_shape: [4096], dtypes: [float16, bfloat16], label: "llama-8b-prefill"}
+    - {x_shape: [1, 4096], normalized_shape: [4096], dtypes: [bfloat16], label: "llama-8b-decode"}
+    # Llama-3.1-70B (hidden_dim=8192)
+    - {x_shape: [2048, 8192], normalized_shape: [8192], dtypes: [float16, bfloat16], label: "llama-70b-prefill"}
+    - {x_shape: [1, 8192], normalized_shape: [8192], dtypes: [bfloat16], label: "llama-70b-decode"}
+    # Llama-3.1-405B (hidden_dim=16384)
+    - {x_shape: [2048, 16384], normalized_shape: [16384], dtypes: [float16, bfloat16], label: "llama-405b-prefill"}
+    - {x_shape: [1, 16384], normalized_shape: [16384], dtypes: [bfloat16], label: "llama-405b-decode"}
+
+  roofline:
+    vars: {}
+    flops: (4 * n_iter + 2) * product(x.shape) + (4 * n_iter + 2) * (x.shape[0] + x.shape[1])
+    bytes: product(x.shape) * elem_bytes + 8 * (x.shape[0] + x.shape[1]) + 4
+  source:
+    kernel: src/tileops/ops/norm/t301_primitives.py
+    op: tileops/ops/norm/t301.py
+    test: ../docs/reports/R301B-data/resumed/validate.py
+    bench: ../docs/reports/R301B-data/resumed/validate.py
+    bench_manifest_driven: false

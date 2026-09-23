@@ -42,6 +42,31 @@ class SubFwdOp(_AlphaScaledBinaryOp):
     _op_name = "sub"
 
 
+class BiasAddFwdOp(BinaryOp):
+    """T263: PDF entry 49 -- ``bias_add(x[M, N], bias[N]) -> out[M, N]``.
+
+    An add whose second operand is rank 1 and aligns with the last axis of
+    ``input``, so ``BinaryOp``'s broadcast machinery and ``AddFwdOp``'s
+    roofline both apply unchanged. The rank-1 constraint from the PDF
+    signature is enforced by the kernel builder; broadcasting itself follows
+    PyTorch, i.e. it is exactly ``torch.add(x, bias)``.
+    """
+
+    _op_name = "bias_add"
+    _other_name = "bias"
+
+    def _infer_output_shapes(self, input_shape: tuple, bias_shape: tuple) -> Dict[str, tuple]:
+        """Manifest ``shape_rules``: ``output.shape == broadcast_shapes(...)``.
+
+        Overridden for the same reason ``PowFwdOp`` overrides it: the manifest
+        names the second operand ``bias``, and ``_other_name`` only rebinds
+        ``forward``'s signature, not this one.
+        """
+        return {
+            "output": broadcast_or_raise("BiasAddFwdOp", input=input_shape, bias=bias_shape)
+        }
+
+
 class MulFwdOp(BinaryOp):
     """Element-wise multiplication with broadcast: y = input * other."""
 
@@ -153,6 +178,28 @@ class LerpFwdOp(BinaryOp):
         """
         self.weight = weight
         super().__init__(target=target, tune=tune)
+
+
+class Atan2FwdOp(BinaryOp):
+    """T263: PDF entry 24 -- ``atan2(y[*S], x[*S]) -> out[*S]``.
+
+    Argument order is ``torch.atan2(input, other)``: ``input`` is the
+    numerator (y) and ``other`` the denominator (x). Derived from
+    ``MaximumFwdOp`` -- same two-tensor broadcasting surface, same workloads.
+    """
+
+    _op_name = "atan2"
+
+    def _infer_output_shapes(self, input_shape: tuple, other_shape: tuple) -> Dict[str, tuple]:
+        """Manifest ``shape_rules``: ``output.shape == broadcast_shapes(...)``.
+
+        Spelled out rather than inherited so the shape rule can be checked
+        against the validator's ``SimpleNamespace`` mock, which has no
+        ``_other_name`` class attribute for the inherited body to read.
+        """
+        return {
+            "output": broadcast_or_raise("Atan2FwdOp", input=input_shape, other=other_shape)
+        }
 
 
 class MaximumFwdOp(BinaryOp):

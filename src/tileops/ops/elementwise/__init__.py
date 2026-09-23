@@ -34,6 +34,7 @@ from .activations import (
     HardtanhFwdOp,
     LeakyReluFwdOp,
     MishFwdOp,
+    Relu6FwdOp,
     ReluFwdOp,
     SeluFwdOp,
     SigmoidFwdOp,
@@ -45,6 +46,8 @@ from .activations import (
 from .alibi import AlibiFwdOp
 from .arithmetic import (
     AddFwdOp,
+    Atan2FwdOp,
+    BiasAddFwdOp,
     DivFwdOp,
     FloorDivideFwdOp,
     LerpFwdOp,
@@ -78,6 +81,9 @@ from .logical import LogicalAndFwdOp, LogicalNotFwdOp, LogicalOrFwdOp
 from .masked_fill import MaskedFillFwdOp, MaskedFillScalarFwdOp
 from .math_unary import (
     AbsFwdOp,
+    AcosFwdOp,
+    AsinFwdOp,
+    AtanFwdOp,
     CeilFwdOp,
     CosFwdOp,
     ErfFwdOp,
@@ -85,6 +91,7 @@ from .math_unary import (
     Expm1FwdOp,
     FloorFwdOp,
     Log1pFwdOp,
+    Log2FwdOp,
     LogFwdOp,
     NegFwdOp,
     ReciprocalFwdOp,
@@ -93,6 +100,7 @@ from .math_unary import (
     SignFwdOp,
     SinFwdOp,
     SqrtFwdOp,
+    TanFwdOp,
     TruncFwdOp,
 )
 from .nan_to_num import NanToNumFwdOp
@@ -102,8 +110,13 @@ from .where import WhereFwdOp
 
 __all__ = [
     "AbsFwdOp",
+    "AcosFwdOp",
+    "AsinFwdOp",
+    "Atan2FwdOp",
+    "AtanFwdOp",
     "AddFwdOp",
     "AlibiFwdOp",
+    "BiasAddFwdOp",
     "BinaryOp",
     "BitwiseAndFwdOp",
     "BitwiseNotFwdOp",
@@ -139,6 +152,7 @@ __all__ = [
     "LerpTensorFwdOp",
     "Log1pFwdOp",
     "LogFwdOp",
+    "Log2FwdOp",
     "LogicalAndFwdOp",
     "LogicalNotFwdOp",
     "LogicalOrFwdOp",
@@ -155,6 +169,7 @@ __all__ = [
     "PowFwdOp",
     "PreluFwdOp",
     "ReciprocalFwdOp",
+    "Relu6FwdOp",
     "ReluFwdOp",
     "RemainderFwdOp",
     "RoundFwdOp",
@@ -170,6 +185,7 @@ __all__ = [
     "SqrtFwdOp",
     "SubFwdOp",
     "TanhFwdOp",
+    "TanFwdOp",
     "TruncFwdOp",
     "UnaryOp",
     "WhereFwdOp",
@@ -185,6 +201,7 @@ __all__ = [
 # --- Unary ops whose output dtype follows the input ---
 for _cls in [
     ReluFwdOp,
+    Relu6FwdOp,
     # math
     ExpFwdOp,
     LogFwdOp,
@@ -203,6 +220,11 @@ for _cls in [
     ErfFwdOp,
     Log1pFwdOp,
     Expm1FwdOp,
+    Log2FwdOp,
+    TanFwdOp,
+    AsinFwdOp,
+    AcosFwdOp,
+    AtanFwdOp,
     # activations
     GeluFwdOp,
     SiluFwdOp,
@@ -226,6 +248,8 @@ for _cls in [LogicalNotFwdOp, IsnanFwdOp, IsinfFwdOp, IsfiniteFwdOp]:
 # ops need no separate registration group.
 for _cls in [
     AddFwdOp,
+    Atan2FwdOp,
+    BiasAddFwdOp,
     SubFwdOp,
     MulFwdOp,
     DivFwdOp,

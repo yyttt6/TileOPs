@@ -1,0 +1,399 @@
+# T301 A: new operators only. Workloads copied verbatim from named donors.
+
+CummaxFwdOp:
+  ref_api: torch.cummax
+  family: scan
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float16 | bfloat16 | float32
+    outputs:
+      values:
+        dtype: same_as(x)
+      indices:
+        dtype: int64
+    params:
+      dim:
+        type: int
+        default: -1
+    shape_rules:
+    - -x.ndim <= dim < x.ndim
+    - values.shape == x.shape
+    - indices.shape == x.shape
+  roofline:
+    vars:
+      N: product(x.shape)
+    flops: N
+    bytes: N * (2 * elem_bytes + 8)
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: scan.yaml::CumsumFwdOp.workloads
+  workloads:
+    # Hidden state cumulative sum (Llama-3.1-8B)
+  - {x_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-scan"}
+    # Long sequence cumulative sum
+  - {x_shape: [64, 32768], dtypes: [bfloat16], label: "long-seq-scan"}
+
+
+SortFwdOp:
+  ref_api: torch.sort
+  family: reduction
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float16 | bfloat16 | float32
+    outputs:
+      values:
+        dtype: same_as(x)
+      indices:
+        dtype: int64
+    params:
+      dim:
+        type: int
+        default: -1
+      descending:
+        type: bool
+        default: false
+    shape_rules:
+    - -x.ndim <= dim < x.ndim
+    - values.shape == x.shape
+    - indices.shape == x.shape
+  roofline:
+    vars:
+      M: product(x.shape)
+      N: x.shape[dim % x.ndim]
+      L: ceil(log2(max(x.shape[dim % x.ndim], 2)))
+    flops: M * L
+    bytes: M * (2 * elem_bytes + 8)
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: reduction.yaml::ProdFwdOp.workloads
+  workloads:
+    # Hidden state reduction (Llama-3.1-8B)
+  - {x_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-reduce"}
+    # Long sequence reduction
+  - {x_shape: [64, 32768], dtypes: [bfloat16], label: "long-seq-reduce"}
+
+
+MedianFwdOp:
+  ref_api: torch.median
+  family: reduction
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float16 | bfloat16 | float32
+    outputs:
+      values:
+        dtype: same_as(x)
+      indices:
+        dtype: int64
+    params:
+      dim:
+        type: int
+        default: -1
+      keepdim:
+        type: bool
+        default: false
+    shape_rules:
+    - -x.ndim <= dim < x.ndim
+    - values.shape == reduced_shape(x.shape, dim, keepdim)
+    - indices.shape == values.shape
+  roofline:
+    vars:
+      M: product(x.shape[i] for i in range(x.ndim) if i not in ({dim % x.ndim} if isinstance(dim, int) else {d % x.ndim for d in dim} if isinstance(dim,
+        (list, tuple)) and len(dim) > 0 else set(range(x.ndim))))
+      N: product(x.shape[i] for i in ({dim % x.ndim} if isinstance(dim, int) else {d % x.ndim for d in dim} if isinstance(dim, (list, tuple))
+        and len(dim) > 0 else set(range(x.ndim))))
+    flops: M * N
+    bytes: (M * N + M) * elem_bytes + M * 8
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: reduction.yaml::ProdFwdOp.workloads
+  workloads:
+    # Hidden state reduction (Llama-3.1-8B)
+  - {x_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-reduce"}
+    # Long sequence reduction
+  - {x_shape: [64, 32768], dtypes: [bfloat16], label: "long-seq-reduce"}
+
+
+MeanVarWelfordFwdOp:
+  ref_api: torch.var_mean
+  family: reduction
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float16 | bfloat16 | float32
+    outputs:
+      mean:
+        dtype: same_as(x)
+      var:
+        dtype: same_as(x)
+    params:
+      dim:
+        type: int | list[int] | tuple[int, ...] | None
+        default: null
+      keepdim:
+        type: bool
+        default: false
+      correction:
+        type: int
+        default: 1
+    shape_rules:
+    - mean.shape == reduced_shape(x.shape, dim, keepdim)
+    - var.shape == mean.shape
+    - correction >= 0
+  roofline:
+    vars:
+      M: product(x.shape[i] for i in range(x.ndim) if i not in ({dim % x.ndim} if isinstance(dim, int) else {d % x.ndim for d in dim} if isinstance(dim,
+        (list, tuple)) and len(dim) > 0 else set(range(x.ndim))))
+      N: product(x.shape[i] for i in ({dim % x.ndim} if isinstance(dim, int) else {d % x.ndim for d in dim} if isinstance(dim, (list, tuple))
+        and len(dim) > 0 else set(range(x.ndim))))
+    flops: 5 * M * N
+    bytes: (M * N + 2 * M) * elem_bytes
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: reduction.yaml::VarMeanFwdOp.workloads
+  workloads:
+    # Hidden state var+mean (Llama-3.1-8B)
+  - {x_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-var-mean"}
+    # Long sequence var+mean
+  - {x_shape: [64, 32768], dtypes: [bfloat16], label: "long-seq-var-mean"}
+  - {x_shape: [4, 128, 4096], dtypes: [float16], dim: [0, 2], label: "3d-multidim-reduce"}
+
+
+SegmentSumFwdOp:
+  ref_api: none
+  family: reduction
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float16 | bfloat16 | float32
+      segment_ids:
+        dtype: int32
+        shape: '[rows]'
+    outputs:
+      output:
+        dtype: same_as(x)
+    params:
+      num_segments:
+        type: int
+        default: 16
+    shape_rules:
+    - x.ndim >= 1
+    - segment_ids.shape == (x.shape[0],)
+    - num_segments > 0
+    - output.shape == (num_segments,) + x.shape[1:]
+  roofline:
+    vars:
+      N: product(x.shape)
+      D: product(x.shape[1:])
+      R: x.shape[0]
+    flops: N
+    bytes: (N + num_segments * D) * elem_bytes + R * 4
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: reduction.yaml::ProdFwdOp.workloads
+  workloads:
+    # Hidden state reduction (Llama-3.1-8B)
+  - {x_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-reduce"}
+    # Long sequence reduction
+  - {x_shape: [64, 32768], dtypes: [bfloat16], label: "long-seq-reduce"}
+
+
+MaskedReduceSumFwdOp:
+  ref_api: none
+  family: reduction
+  status: implemented
+  signature:
+    inputs:
+      x:
+        dtype: float16 | bfloat16 | float32
+      mask:
+        dtype: bool
+    outputs:
+      output:
+        dtype: same_as(x)
+    params:
+      dim:
+        type: int | list[int] | tuple[int, ...] | None
+        default: null
+      keepdim:
+        type: bool
+        default: false
+    shape_rules:
+    - mask.shape == x.shape
+    - output.shape == reduced_shape(x.shape, dim, keepdim)
+  roofline:
+    vars:
+      M: product(x.shape[i] for i in range(x.ndim) if i not in ({dim % x.ndim} if isinstance(dim, int) else {d % x.ndim for d in dim} if isinstance(dim,
+        (list, tuple)) and len(dim) > 0 else set(range(x.ndim))))
+      N: product(x.shape[i] for i in ({dim % x.ndim} if isinstance(dim, int) else {d % x.ndim for d in dim} if isinstance(dim, (list, tuple))
+        and len(dim) > 0 else set(range(x.ndim))))
+    flops: 2 * M * N
+    bytes: (M * N + M) * elem_bytes + M * N
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: reduction.yaml::SumFwdOp.workloads
+  workloads:
+    # Hidden state reduction (Llama-3.1-8B)
+  - {x_shape: [2048, 4096], dtypes: [float16, bfloat16], label: "hidden-state-reduce"}
+    # Long sequence reduction
+  - {x_shape: [64, 32768], dtypes: [bfloat16], label: "long-seq-reduce"}
+    # Non-last-axis reduction (exercises dim=0 path)
+  - {x_shape: [2048, 4096], dtypes: [bfloat16], dim: 0, label: "hidden-state-reduce-dim0"}
+    # Keepdim variant (exercises keepdim forwarding through the baseline)
+  - {x_shape: [2048, 4096], dtypes: [bfloat16], dim: -1, keepdim: true, label: "hidden-state-reduce-keepdim"}
+  - {x_shape: [4, 128, 4096], dtypes: [float16], dim: [0, 2], label: "3d-multidim-reduce"}
+
+
+CastFwdOp:
+  ref_api: torch.Tensor.to
+  family: elementwise
+  status: implemented
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16 | float32
+    outputs:
+      output:
+        dtype: float16 | bfloat16 | float32
+    params:
+      out_dtype:
+        type: str
+        default: float32
+    shape_rules:
+    - output.shape == input.shape
+    - out_dtype in ('float16', 'bfloat16', 'float32')
+  roofline:
+    vars:
+      N: product(input.shape)
+      O: 4 if out_dtype == 'float32' else 2
+    flops: N
+    bytes: N * (elem_bytes + O)
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: elementwise_unary_math.yaml::NegFwdOp.workloads
+  workloads:
+  - {input_shape: [4096, 4096], dtypes: [float16, bfloat16, float32], label: "elementwise-16M"}
+  - {input_shape: [16384, 16384], dtypes: [float16, bfloat16], label: "elementwise-256M"}
+
+
+CompareFwdOp:
+  ref_api: none
+  family: elementwise
+  status: implemented
+  signature:
+    inputs:
+      input:
+        dtype: float16 | bfloat16 | float32
+      other:
+        dtype: same_as(input)
+    outputs:
+      output:
+        dtype: bool
+    params:
+      predicate:
+        type: str
+        default: eq
+    shape_rules:
+    - output.shape == broadcast_shapes(input.shape, other.shape)
+    - predicate in ('eq', 'ne', 'lt', 'le', 'gt', 'ge')
+  roofline:
+    vars:
+      N: product(input.shape)
+      B: product(other.shape)
+      O: product(max(input.shape[-i] if i <= input.ndim else 1, other.shape[-i] if i <= other.ndim else 1) for i in range(1, max(input.ndim, other.ndim)
+        + 1))
+    flops: O
+    bytes: (N + B) * elem_bytes + O
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: elementwise_binary.yaml::EqFwdOp.workloads
+  workloads:
+    - {input_shape: [2048, 4096], other_shape: [2048, 4096], dtypes: [float16, bfloat16, float32], label: hidden-state-prefill}
+    - {input_shape: [16, 256, 56, 56], other_shape: [256, 1, 1], dtypes: [float16, bfloat16, float32], label: cnn-feat-broadcast}
+
+DequantizeFwdOp:
+  ref_api: none
+  family: quantization
+  status: implemented
+  signature:
+    inputs:
+      input_tensor:
+        dtype: int8 | uint8 | float16 | bfloat16 | float32
+        shape: '[batch, seq_len_kv, kv_group, index_dim]'
+    outputs:
+      output:
+        dtype: float32
+    params:
+      scale:
+        type: float
+        default: 0.0078125
+      zero_point:
+        type: int
+        default: 0
+    shape_rules:
+    - output.shape == input_tensor.shape
+  roofline:
+    vars:
+      N: product(input_tensor.shape)
+    flops: 2 * N
+    bytes: N * (elem_bytes + 4)
+  source:
+    kernel: src/tileops/ops/reduction/t301a_kernels.py
+    op: tileops/ops/reduction/t301a.py
+    test: ../docs/reports/R301A-data/resume/check_full.py
+    bench: ../tileops-ascend-harness/bench1.py
+    bench_manifest_driven: false
+
+  # workload_source: quantization.yaml::FP8QuantFwdOp.workloads
+  workloads:
+  - {batch: 1, seq_len_kv: 8192, kv_group: 1, index_dim: 64, in_dtype: float16, dtypes: [float16], label: "kv-index-8k-d64"}
+  - {batch: 1, seq_len_kv: 8192, kv_group: 1, index_dim: 64, in_dtype: bfloat16, dtypes: [bfloat16], label: "kv-index-8k-d64"}
+  - {batch: 1, seq_len_kv: 4096, kv_group: 1, index_dim: 128, in_dtype: float32, dtypes: [float32], label: "kv-index-4k-d128"}
+

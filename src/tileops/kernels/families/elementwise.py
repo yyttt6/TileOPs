@@ -11,6 +11,7 @@ import torch
 from .._registry import register
 from ..elementwise_binary import SUPPORTED_DTYPES, build_binary_kernel
 from ..elementwise_binary_batch import FLOAT_DTYPES, build_batch_binary
+from ..elementwise_activation import build_activation_kernel
 from ..elementwise_predicate import build_predicate_binary, build_where_kernel
 from ..generative import build_alibi_kernel, build_sinusoidal_kernel
 from ..elementwise_mixed import (
@@ -46,6 +47,48 @@ def build_add(input, other, *, alpha=1):
         op_kind="add",
         supported_dtypes=SUPPORTED_DTYPES,
         op_name="AddFwdOp",
+    )
+
+
+@register("BiasAddFwdOp")
+def build_bias_add(input, bias):
+    """T263: PDF entry 49. An add whose second operand is one axis wide.
+
+    Derived from ``build_add`` above -- same ``build_binary_kernel`` call with
+    ``alpha=1``; the rank-1 ``bias`` lands on the template's suffix-broadcast
+    path, which ``AddFwdOp``'s ``cnn-feat-broadcast`` workload already covers
+    with a rank-3 operand.
+    """
+    if input is None or bias is None:
+        raise ValueError("BiasAddFwdOp requires both input and bias tensors")
+    if input.device != bias.device:
+        raise ValueError(
+            f"BiasAddFwdOp requires both inputs on one device; received {input.device} and {bias.device}"
+        )
+    if input.dtype != bias.dtype:
+        raise TypeError(
+            f"BiasAddFwdOp requires input and bias to have the same dtype; received "
+            f"input={input.dtype}, bias={bias.dtype}"
+        )
+    # NB: builders are handed ``backend.protocol.TensorSpec`` (device / dtype /
+    # shape only), not a Tensor, so rank comes from ``len(.shape)``.
+    if len(bias.shape) != 1:
+        raise ValueError(
+            f"BiasAddFwdOp requires a rank-1 bias; received shape {tuple(bias.shape)}"
+        )
+    if not input.shape or bias.shape[0] != input.shape[-1]:
+        raise ValueError(
+            f"BiasAddFwdOp requires bias.shape[0] == input.shape[-1]; received "
+            f"input={tuple(input.shape)}, bias={tuple(bias.shape)}"
+        )
+    return build_binary_kernel(
+        tuple(input.shape),
+        tuple(bias.shape),
+        input.dtype,
+        1,
+        op_kind="add",
+        supported_dtypes=SUPPORTED_DTYPES,
+        op_name="BiasAddFwdOp",
     )
 
 
@@ -135,6 +178,30 @@ def build_lerp(input, end, *, weight=0.5):
     if not isinstance(weight, (int, float)) or isinstance(weight, bool):
         raise TypeError(f"LerpFwdOp weight must be a float, received {weight!r}")
     return _batch_builder("LerpFwdOp", "lerp")(input, end, scalar=float(weight))
+
+
+@register("Atan2FwdOp")
+def build_atan2(input, other):
+    """T263: PDF entry 24. ``atan2(y, x)`` with full quadrant resolution.
+
+    Routed to the activation template rather than the binary-batch one: the
+    expression needs packed compare masks, and only the activation template
+    keeps its tile MASK_GRAIN-aligned and its masks allocated at tile width.
+    The activation template also broadcasts two operands already (``clamp``
+    takes three), so the manifest's broadcast workload needs nothing new.
+    """
+    _check_device("Atan2FwdOp", input, other)
+    if input.dtype not in MIXED_FLOAT_DTYPES or other.dtype != input.dtype:
+        raise TypeError(
+            f"Atan2FwdOp supports float16, bfloat16, and float32 with matching "
+            f"operand dtypes; received {input.dtype}/{other.dtype}"
+        )
+    return build_activation_kernel(
+        (tuple(input.shape), tuple(other.shape)),
+        input.dtype,
+        op_kind="atan2",
+        op_name="Atan2FwdOp",
+    )
 
 
 @register("MaximumFwdOp")

@@ -31,6 +31,8 @@ def _unary(name, kind, params=()):
 
 
 build_relu = _unary("ReluFwdOp", "relu")
+# T263: PDF op-list-150 entry 36. Same parameterless surface as relu.
+build_relu6 = _unary("Relu6FwdOp", "relu6")
 build_silu = _unary("SiluFwdOp", "silu")
 build_hardswish = _unary("HardswishFwdOp", "hardswish")
 build_hardsigmoid = _unary("HardsigmoidFwdOp", "hardsigmoid")

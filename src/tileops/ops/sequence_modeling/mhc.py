@@ -99,6 +99,16 @@ class MHCPreFwdOp(Op):
         self.n_expand = n_expand
         self.c_x = c_x
         self.dtype = x.dtype
+        # The manifest declares these five as ``signature.params``, and a backend's
+        # ``build_kernel`` is called with them by keyword off the instance
+        # (``Op._manifest_params``) -- so holding them as call arguments alone is what the
+        # op is not allowed to do. They arrive per call, so the instance learns them here,
+        # before the build that reads them.
+        self.alpha_pre = alpha_pre
+        self.alpha_post = alpha_post
+        self.alpha_res = alpha_res
+        self.sinkhorn_repeat = sinkhorn_repeat
+        self.sinkhorn_eps = sinkhorn_eps
         self.kernel = self._get_kernel((phi, x, b), batch, n_expand, c_x, x.dtype, x.device.index)
         return self.kernel(
             phi, x, b, alpha_pre, alpha_post, alpha_res, sinkhorn_repeat, sinkhorn_eps

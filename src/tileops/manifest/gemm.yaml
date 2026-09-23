@@ -361,3 +361,63 @@ GemmBiasGeluFwdOp:
     test: tests/ops/test_gemm_epilogue.py
     bench: benchmarks/ops/bench_gemm_epilogue.py
     bench_manifest_driven: true
+
+GemmSplitKFwdOp:
+  ref_api: "torch.matmul"
+  family: gemm
+  status: implemented
+
+  # op-list-150.pdf #113  gemm_splitk(a: T[M,K], b: T[K,N]) -> c: T[M,N]
+  # Split-K is a SCHEDULE for the same product, so the semantics, the reference
+  # and the roofline are gemm's.  `split_k` is not a signature parameter: the
+  # kernel planner derives it from the tile geometry (see
+  # src/tileops/kernels/gemm_splitk.py), because whether splitting K helps is a
+  # fact about block count vs core count and not a caller's choice.
+  # Input-inferred exactly like GemmFwdOp: m/n/k and the dtype come from the
+  # forward inputs, so the roofline is func mode.
+  signature:
+    inputs:
+      a: {dtype: "float16 | bfloat16"}
+      b: {dtype: "same_as(a)"}
+    outputs:
+      c: {dtype: "same_as(a)"}
+    params:
+      trans_a: {type: bool, default: false}
+      trans_b: {type: bool, default: true}
+    shape_rules:
+    # a is [M, K] (trans_a is rejected by the op); N is b's non-K axis.
+    - "c.shape == (a.shape[0], (b.shape[0] if trans_b else b.shape[1]))"
+
+  workloads:
+  # VERBATIM COPY of GemmFwdOp.workloads (this file), all twelve entries, same
+  # labels, same m/n/k, same trans flags, same dtypes.  T267 hard constraint 2:
+  # a new op in an existing family reuses that family's workload set unchanged
+  # -- changing it would change the exam.  This is the same set GemmBiasFwdOp /
+  # GemmBiasReluFwdOp / GemmBiasGeluFwdOp copied in T264.
+  - {m: 1024, n: 1024, k: 1024, trans_a: false, trans_b: false, dtypes: [float16, bfloat16], label: "square-1k-nn"}
+  - {m: 128, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-gate-up"}
+  - {m: 128, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-decode-down"}
+  - {m: 4096, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-gate-up"}
+  - {m: 4096, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "ds-v3-prefill-down"}
+  - {m: 4096, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [float16, bfloat16], label: "ds-v3-prefill-attn-proj"}
+  - {m: 4096, n: 7168, k: 16384, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "k-dominant-7168x16384"}
+  - {m: 4096, n: 24576, k: 1536, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "wide-n-24576"}
+  - {m: 16, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m16-attn"}
+  - {m: 32, n: 4096, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m32-attn"}
+  - {m: 64, n: 7168, k: 2048, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m64-down"}
+  - {m: 96, n: 2112, k: 7168, trans_a: false, trans_b: true, dtypes: [bfloat16], label: "mid-m96-gate-up"}
+
+  roofline:
+    # Same formula GemmFwdOp uses.  Split-K does not change the contraction
+    # count, so the Cube roof is unchanged and the two ops stay comparable case
+    # by case.  The fp32 partials workspace traffic is deliberately NOT in the
+    # roofline: the roofline prices the op's semantics, not one schedule's
+    # scratch.
+    func: "tileops.perf.formulas.gemm_fwd_roofline"
+
+  source:
+    kernel: src/tileops/kernels/gemm_splitk.py
+    op: tileops/ops/gemm/gemm_splitk.py
+    test: tests/ops/test_gemm_splitk.py
+    bench: benchmarks/ops/bench_gemm_splitk.py
+    bench_manifest_driven: true

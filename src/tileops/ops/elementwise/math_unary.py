@@ -180,3 +180,40 @@ class Expm1FwdOp(UnaryOp):
     _op_name = "expm1"
     # Manifest: flops = "2 * N" (1 exp + 1 sub).
     FLOPS_PER_ELEM = 2
+
+
+# --- T263: PDF op-list-150 entries 16 / 20 / 21 / 22 / 23 ------------------
+# Each is the same one-tensor-in / one-tensor-out shape as LogFwdOp above, so
+# UnaryOp already supplies the ctor, the shape rule, and the roofline; only
+# the manifest ``_op_name`` differs. The kernel expression lives in
+# ``kernels/elementwise_unary.py``.
+
+
+class Log2FwdOp(UnaryOp):
+    """Element-wise log2(x)."""
+
+    _op_name = "log2"
+
+
+class TanFwdOp(UnaryOp):
+    """Element-wise tan(x)."""
+
+    _op_name = "tan"
+
+
+class AsinFwdOp(UnaryOp):
+    """Element-wise asin(x); NaN outside [-1, 1], as ``torch.asin``."""
+
+    _op_name = "asin"
+
+
+class AcosFwdOp(UnaryOp):
+    """Element-wise acos(x); NaN outside [-1, 1], as ``torch.acos``."""
+
+    _op_name = "acos"
+
+
+class AtanFwdOp(UnaryOp):
+    """Element-wise atan(x)."""
+
+    _op_name = "atan"

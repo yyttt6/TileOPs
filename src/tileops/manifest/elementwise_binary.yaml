@@ -707,3 +707,92 @@ BitwiseXorFwdOp:
     test: tests/ops/test_bitwise.py
     bench: benchmarks/ops/bench_elementwise_manifest.py
     bench_manifest_driven: true
+
+# --- T263: PDF op-list-150 entry 49 ---------------------------------------
+# bias_add(x: T[M, N], bias: T[N]) -> out: T[M, N].
+# ``input_shape`` / ``label`` / ``dtypes`` / ``roofline`` are AddFwdOp's above
+# (bias_add is an add whose second operand is one axis wide).  The one
+# unavoidable divergence: the PDF signature pins ``bias`` to rank 1, so
+# ``bias_shape`` is ``input_shape[-1]`` instead of AddFwdOp's ``other_shape``
+# -- AddFwdOp's [2048, 4096] and [256, 1, 1] are not rank-1 and cannot be
+# reused verbatim.  Element counts of the *first* operand, and therefore the
+# bytes moved, are unchanged.  See docs/reports/R263.md 2.
+BiasAddFwdOp:
+  ref_api: "torch.add"
+  family: elementwise
+  status: implemented
+  torch_compile_fullgraph: true
+
+  signature:
+    inputs:
+      input: {dtype: "float16 | bfloat16 | float32"}
+      bias: {dtype: "same_as(input)"}
+    outputs:
+      output: {dtype: "same_as(input)"}
+    shape_rules:
+      - "bias.ndim == 1"
+      - "bias.shape[0] == input.shape[-1]"
+      - "output.shape == broadcast_shapes(input.shape, bias.shape)"
+
+  workloads:
+    - {input_shape: [2048, 4096], bias_shape: [4096], dtypes: [float16, bfloat16, float32], label: hidden-state-prefill}
+    - {input_shape: [16, 256, 56, 56], bias_shape: [56], dtypes: [float16, bfloat16, float32], label: cnn-feat-broadcast}
+  roofline:
+    # AddFwdOp's formula, unchanged: flops = 2 * N, bytes = (a + b) reads +
+    # N writes. Reused as-is rather than adding a new function to perf/.
+    func: "tileops.perf.formulas.add_fwd_roofline"
+
+  source:
+    kernel: src/tileops/kernels/families/elementwise.py
+    op: tileops/ops/elementwise/arithmetic.py
+    test: tests/ops/test_binary_arith.py
+    bench: benchmarks/ops/bench_elementwise_manifest.py
+    bench_manifest_driven: true
+
+# --- T263: PDF op-list-150 entry 24 ---------------------------------------
+# atan2(y: T[*S], x: T[*S]) -> out: T[*S].
+# workloads copied verbatim from MaximumFwdOp above (the two-tensor,
+# same-dtype, broadcasting binary sibling); ``other_shape`` keys and labels
+# included unchanged. The roofline is MaximumFwdOp's formula written inline
+# (flops_per_elem = 1, bytes = both reads + one write) so that nothing has to
+# be added to src/tileops/perf/. See docs/reports/R263.md 2.
+Atan2FwdOp:
+  ref_api: "torch.atan2"
+  family: elementwise
+  status: implemented
+  torch_compile_fullgraph: true
+
+  signature:
+    inputs:
+      input: {dtype: "float16 | bfloat16 | float32"}
+      other: {dtype: "same_as(input)"}
+    outputs:
+      output: {dtype: "same_as(input)"}
+    shape_rules:
+      - "output.shape == broadcast_shapes(input.shape, other.shape)"
+
+  workloads:
+    - {input_shape: [2048, 4096], other_shape: [2048, 4096], dtypes: [float16, bfloat16, float32], label: hidden-state-prefill}
+    - {input_shape: [16, 256, 56, 56], other_shape: [256, 1, 1], dtypes: [float16, bfloat16, float32], label: cnn-feat-broadcast}
+  roofline:
+    # MaximumFwdOp's formula, referenced rather than recopied:
+    # ``_binary_broadcast_roofline(flops_per_elem=1, bool_output=False)`` ->
+    # flops = N, bytes = (a_numel + b_numel) * elem_bytes + N * elem_bytes.
+    # One named math function per output element is the same convention
+    # SinFwdOp / ErfFwdOp use.
+    # Inline mode was tried first and cannot express this: it needs
+    # ``product(output.shape)``, and a BinaryOp instance exposes
+    # ``out_shape`` / ``N_total`` but no ``output`` / ``output_shape``
+    # attribute for the codegen to bind, so ``eval_roofline`` was never
+    # installed and the class stayed abstract (R263-data/07-*).
+    # FOLLOW-UP for whoever owns src/tileops/perf/: add an
+    # ``atan2_fwd_roofline`` alias so this line stops naming ``maximum``.
+    # T263 forbids this worker from touching perf/.
+    func: "tileops.perf.formulas.maximum_fwd_roofline"
+
+  source:
+    kernel: src/tileops/kernels/families/elementwise.py
+    op: tileops/ops/elementwise/arithmetic.py
+    test: tests/ops/test_binary_arith.py
+    bench: benchmarks/ops/bench_elementwise_manifest.py
+    bench_manifest_driven: true

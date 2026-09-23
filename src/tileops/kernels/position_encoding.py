@@ -36,6 +36,59 @@ long scalar loop, then vector replication) and applied per tile with
 that fills its source and the gather itself; without it the gather reads stale
 UB and silently returns garbage on ~90% of lanes
 (``R196-data/probe_gather_sync.{py,log}``).
+
+R339 -- the neox rotation no longer goes through ``T.tile.gather`` at all
+-----------------------------------------------------------------------
+R196's three gathers are correct and they did remove the scalar loop, but R339
+priced them.  Ablations of this exact kernel on ``2d-b1-s8k-h32-d128`` (identical
+geometry, buffers, launch config and GM traffic; only the named instruction
+dropped -- ``docs/reports/R339-data/probe/p7_2db1.log``):
+
+    full (shipped)                              392.5 us
+    pair gather -> contiguous copy              335.1   (-57)
+    cos+sin gathers -> contiguous copies        264.5   (-128)
+    all three -> contiguous copies              214.8   (-178)
+
+i.e. **one gather over a 4096-element tile costs ~59 us, about 20x a contiguous
+copy of the same tile**, and the three of them were 45% of the kernel.
+``PipeUtilization`` says the same thing from the other side: we sat at
+``aiv_vec_ratio`` 0.78 with 290 us of vector busy, while the D036 pool winner
+(``ops-transformer-b1:aclnnRotaryPositionEmbedding``) sat at ``aiv_mte2_ratio``
+0.91 with only 67 us of vector busy -- 4.3x less vector work for the same
+arithmetic (``R339-data/prof/extract.json``).
+
+The neox rotation is ``y[:, :h] = x[:, :h]*cos - x[:, h:]*sin`` and
+``y[:, h:] = x[:, h:]*cos + x[:, :h]*sin``, i.e. six ordinary vector ops on the
+two *contiguous halves* of the head row, with no permutation and no sign mask.
+The fp32 expression is bit-identical to the old one (IEEE: ``a + (-(b*c))`` is
+``a - b*c``), and the manifest shapes stay at ``max_abs_err == 0.0``.
+
+Getting the halves into UB is the whole design problem, because
+``tilelang-ascend/src/tl_templates/ascend/common.h:305`` lowers a NARROW-WINDOW
+``T.copy`` between two UB buffers to a **scalar loop with one Cast/DataCopy per
+row** (the fast path needs ``src_cols == src_stride && dst_cols == dst_stride``).
+Splitting the head row inside UB therefore costs one instruction per row and is
+slower than the gathers it replaces -- measured, three different ways, in
+``R339-data/probe/p3_sweep.log``, ``p4_*.log`` and ``p5b_*.log``.
+``copy_gm_to_ub`` / ``copy_ub_to_gm`` in the same file are the opposite: a single
+``AscendC::DataCopyPad`` with blockCount/blockLen/srcStride, one instruction at
+any row count.
+
+So ``_compile_rope_neox`` splits the head row **in GM**: four strided
+``DataCopyPad``s per tile (x-left, x-right in; y-left, y-right out) over the flat
+``(batch*seq*num_heads, head_dim)`` view, and every UB operand the vector unit
+sees is a full contiguous buffer.  One work unit is ``rows_per_tile`` CONSECUTIVE
+rows of that view, so the DMA stride is ``half*itemsize`` (it walks one
+contiguous region and takes every other half-row) rather than a 128-byte burst
+every ``num_heads*head_dim`` bytes.
+
+In that row order the cos/sin rows have to be repeated ``num_heads`` times, and
+the repetition is over WHOLE ROWS -- a chain of ``log2(num_heads)`` fully
+contiguous UB->UB copies, i.e. the fast path above, one instruction each.  For
+the 1d layout ``num_heads == 1`` and the chain is empty.
+
+``non_neox`` keeps the R196 gather kernel: its pair is ``c ^ 1``, an interleave,
+whose halves are not contiguous windows of anything.
 """
 
 import math
@@ -143,6 +196,219 @@ def _plan(total_rows: int, outer: int, head_dim: int, half: int, group: int,
     return rows, max(1, rows // group)
 
 
+# --- Geometry for the R339 gather-free neox path ---------------------------
+# One tile holds `rows` consecutive rows of the flat (batch*seq*heads, head_dim)
+# view.  Declared UB per tile, counted buffer by buffer:
+#   xl_ub, xr_ub, yl_ub, yr_ub   (rows, half) dtype
+#   cos_ub, sin_ub               (rows_per_seq_block, half) dtype
+#   cs                           (rows_per_seq_block, half) fp32  (broadcast seed)
+#   a, b, c, d, e                (rows, half) fp32
+# Five fp32 tile buffers is the minimum for this expression: after
+#   e = xl*cos ; c = xr*cos ; a = xl*sin ; b = xr*sin
+# both products of each operand are live at once, and the two results are then
+# `e -= b` and `c += a`.
+#: Keep at least this many work units so the 96 vector lanes stay balanced.
+NEOX_MIN_UNITS = 192
+#: ... unless respecting it would make a vector operand shorter than this.
+NEOX_MIN_VEC = 256
+
+
+def _neox_ub_bytes(rows: int, seq_rows: int, half: int, elem: int) -> int:
+    total = _align32(rows * half, elem) * 4      # xl_ub, xr_ub, yl_ub, yr_ub
+    total += _align32(seq_rows * half, elem) * 2  # cos_ub, sin_ub
+    total += _align32(seq_rows * half, 4)         # cs
+    total += _align32(rows * half, 4) * 5         # a, b, c, d, e
+    return total
+
+
+#: Smallest half-row the GM split pays for.  The fast path buys ~59 us/gather of vector
+#: time and pays for it in MTE, because the four half-row DMAs move the same bytes in
+#: ``half*elem``-byte blocks instead of one contiguous burst.  Measured at 64 bytes
+#: (head_dim 64, fp16, ``neox-1d-2k-d64``): ``aiv_mte3_time`` 0.45 -> 3.37 us on a 17 us
+#: kernel, and the case goes 1.2373 -> 1.0154 at N=5 (R339 section 6c).  At 128 bytes --
+#: every other manifest RoPE case -- the same swap is a 1.6-2.0x win.  ⚠️ 64 B is the ONLY
+#: width measured below this line, so the constant is "not 64", not a located knee.
+NEOX_MIN_DMA_BYTES = 128
+
+
+def _neox_supported(head_dim: int, half: int, num_heads: int, elem: int) -> bool:
+    """The four things the gather-free path needs from the shape.
+
+    * ``num_heads`` a power of two -- the cos/sin repetition is a doubling chain.
+    * ``half * elem`` a whole number of 32-byte blocks -- the four half-row DMAs
+      are ``DataCopyPad`` with ``blockLen = half*elem``; a non-multiple would take
+      ``copy_gm_to_ub``'s padding branch, whose destination stride is computed as
+      ``(dstN - maskShapeN) * sizeof(T) / 32`` and is only exact when aligned.
+    * ``half * elem`` at least NEOX_MIN_DMA_BYTES -- below that the extra MTE costs more
+      than the three gathers it removes.
+    * an even ``head_dim`` (already guaranteed by the callers).
+    """
+    return (
+        num_heads >= 1
+        and (num_heads & (num_heads - 1)) == 0
+        and head_dim % 2 == 0
+        and (half * elem) % 32 == 0
+        and half * elem >= NEOX_MIN_DMA_BYTES
+    )
+
+
+def _neox_plan(seq_len: int, outer: int, head_dim: int, half: int,
+               num_heads: int, elem: int) -> int:
+    """Pick the number of seq rows per tile.
+
+    Must divide ``seq_len`` so a tile never straddles the cos/sin wrap or a batch
+    boundary.  Largest candidate that fits UB and still leaves NEOX_MIN_UNITS work
+    units; if that would make the vector operands shorter than NEOX_MIN_VEC, the
+    balance floor is dropped instead (the small shapes are launch-bound anyway).
+    """
+    divisors = [d for d in range(1, seq_len + 1) if seq_len % d == 0]
+    fits = [d for d in divisors
+            if _neox_ub_bytes(d * num_heads, d, half, elem) <= UB_BUDGET_BYTES]
+    if not fits:
+        return 0
+    balanced = [d for d in fits if outer // d >= NEOX_MIN_UNITS]
+    if balanced:
+        best = max(balanced)
+        if best * num_heads * half >= NEOX_MIN_VEC:
+            return best
+    return max(fits)
+
+
+def _compile_rope_neox(
+    seq_len: int,
+    head_dim: int,
+    half: int,
+    dtype_name: str,
+    batch: int,
+    num_heads: int,
+    seq_rows: int,
+):
+    """Gather-free neox RoPE.  See the R339 section of the module docstring."""
+    elem = _ELEM_BYTES[dtype_name]
+    outer = batch * seq_len
+    total_rows = outer * num_heads
+    rows = seq_rows * num_heads
+    steps = int(math.log2(num_heads))
+    units = outer // seq_rows
+    logical_blocks = max(1, math.ceil(units / 2))
+    launch_blocks = launch_block_count(min(logical_blocks, LAUNCH_BLOCK_CAP))
+    repeats = grid_repeat_count(logical_blocks, launch_blocks)
+    calc_dtype = "float32"
+    nh = num_heads
+
+    @tilelang.jit(out_idx=[-1])
+    def kernel():
+        @T.prim_func
+        def main(
+            X: T.Tensor((total_rows, head_dim), dtype_name),
+            COS: T.Tensor((seq_len, half), dtype_name),
+            SIN: T.Tensor((seq_len, half), dtype_name),
+            Y: T.Tensor((total_rows, head_dim), dtype_name),
+        ):
+            with T.Kernel(launch_blocks, is_npu=True) as (cid, vid):
+                xl_ub = T.alloc_ub((rows, half), dtype_name)
+                xr_ub = T.alloc_ub((rows, half), dtype_name)
+                yl_ub = T.alloc_ub((rows, half), dtype_name)
+                yr_ub = T.alloc_ub((rows, half), dtype_name)
+                cos_ub = T.alloc_ub((seq_rows, half), dtype_name)
+                sin_ub = T.alloc_ub((seq_rows, half), dtype_name)
+                cs = T.alloc_ub((seq_rows, half), calc_dtype)
+                a = T.alloc_ub((rows, half), calc_dtype)
+                b = T.alloc_ub((rows, half), calc_dtype)
+                c = T.alloc_ub((rows, half), calc_dtype)
+                d = T.alloc_ub((rows, half), calc_dtype)
+                e = T.alloc_ub((rows, half), calc_dtype)
+
+                with T.Scope("V"):
+                    for repeat in T.serial(repeats):
+                        unit = (cid + repeat * launch_blocks) * 2 + vid
+                        if unit < units:
+                            r0 = unit * seq_rows
+                            s0 = r0 % seq_len
+                            rr0 = r0 * nh
+                            T.copy(X[rr0:rr0 + rows, 0:half], xl_ub)
+                            T.copy(X[rr0:rr0 + rows, half:head_dim], xr_ub)
+                            T.copy(COS[s0:s0 + seq_rows, 0:half], cos_ub)
+                            T.copy(SIN[s0:s0 + seq_rows, 0:half], sin_ub)
+                            T.barrier_all()
+                            T.copy(xl_ub, a)
+                            T.copy(xr_ub, b)
+                            if steps == 0:
+                                # 1d layout: one cos/sin row per tile row already.
+                                T.copy(cos_ub, c)
+                                T.copy(sin_ub, d)
+                            else:
+                                # Repeat each table row num_heads times.  The copy
+                                # LENGTH has to be a compile-time constant (it is a
+                                # tilelang template parameter), so the chain is
+                                # written out and guarded by `steps`, which is a
+                                # closure int and is resolved when the prim_func is
+                                # parsed.  A `range()` loop would make the length a
+                                # TIR expression and bisheng would reject it.
+                                T.copy(cos_ub, cs)
+                                for k in T.serial(seq_rows):
+                                    T.copy(cs[k, 0:half], c[k * nh, 0:half])
+                                    if steps >= 1:
+                                        T.copy(c[k * nh:k * nh + 1, 0:half],
+                                               c[k * nh + 1:k * nh + 2, 0:half])
+                                    if steps >= 2:
+                                        T.copy(c[k * nh:k * nh + 2, 0:half],
+                                               c[k * nh + 2:k * nh + 4, 0:half])
+                                    if steps >= 3:
+                                        T.copy(c[k * nh:k * nh + 4, 0:half],
+                                               c[k * nh + 4:k * nh + 8, 0:half])
+                                    if steps >= 4:
+                                        T.copy(c[k * nh:k * nh + 8, 0:half],
+                                               c[k * nh + 8:k * nh + 16, 0:half])
+                                    if steps >= 5:
+                                        T.copy(c[k * nh:k * nh + 16, 0:half],
+                                               c[k * nh + 16:k * nh + 32, 0:half])
+                                    if steps >= 6:
+                                        T.copy(c[k * nh:k * nh + 32, 0:half],
+                                               c[k * nh + 32:k * nh + 64, 0:half])
+                                T.copy(sin_ub, cs)
+                                for k in T.serial(seq_rows):
+                                    T.copy(cs[k, 0:half], d[k * nh, 0:half])
+                                    if steps >= 1:
+                                        T.copy(d[k * nh:k * nh + 1, 0:half],
+                                               d[k * nh + 1:k * nh + 2, 0:half])
+                                    if steps >= 2:
+                                        T.copy(d[k * nh:k * nh + 2, 0:half],
+                                               d[k * nh + 2:k * nh + 4, 0:half])
+                                    if steps >= 3:
+                                        T.copy(d[k * nh:k * nh + 4, 0:half],
+                                               d[k * nh + 4:k * nh + 8, 0:half])
+                                    if steps >= 4:
+                                        T.copy(d[k * nh:k * nh + 8, 0:half],
+                                               d[k * nh + 8:k * nh + 16, 0:half])
+                                    if steps >= 5:
+                                        T.copy(d[k * nh:k * nh + 16, 0:half],
+                                               d[k * nh + 16:k * nh + 32, 0:half])
+                                    if steps >= 6:
+                                        T.copy(d[k * nh:k * nh + 32, 0:half],
+                                               d[k * nh + 32:k * nh + 64, 0:half])
+                            # e = xl*cos ; c = xr*cos ; a = xl*sin ; b = xr*sin.
+                            # Written into the operand buffers as they die so the
+                            # whole expression needs five fp32 tiles, not seven.
+                            T.tile.mul(e, a, c)
+                            T.tile.mul(c, b, c)
+                            T.tile.mul(a, a, d)
+                            T.tile.mul(b, b, d)
+                            # IEEE: x*cos + (-(pair*sin)) == x*cos - pair*sin, so
+                            # this is bit-identical to the R196 select path.
+                            T.tile.sub(e, e, b)
+                            T.tile.add(c, c, a)
+                            T.copy(e, yl_ub)
+                            T.copy(c, yr_ub)
+                            T.barrier_all()
+                            T.copy(yl_ub, Y[rr0:rr0 + rows, 0:half])
+                            T.copy(yr_ub, Y[rr0:rr0 + rows, half:head_dim])
+
+        return main
+
+    return kernel()
+
+
 @lru_cache(maxsize=128)
 def _compile_rope(
     n_total: int,
@@ -154,8 +420,21 @@ def _compile_rope(
     layout: str,
     batch: int,
     num_heads: int,
+    seq_rows: int = 0,
 ):
-    """Compile one ordinary RoPE layout."""
+    """Compile one ordinary RoPE layout.
+
+    ``seq_rows > 0`` selects the R339 gather-free neox kernel (see the module
+    docstring); 0 keeps the R196 gather kernel, which is what ``non_neox`` and any
+    shape the fast path does not support still use.  Both live behind this one
+    ``lru_cache`` on purpose: ``adapters/position_encoding._clear_compile_caches``
+    clears ``_compile_rope`` and ``_compile_position_ids`` by name, and a second
+    cache here would silently survive it.
+    """
+    if seq_rows:
+        return _compile_rope_neox(
+            seq_len, head_dim, half, dtype_name, batch, num_heads, seq_rows
+        )
     group = num_heads if layout == "2d" else 1
     total_rows = n_total // head_dim
     elem = _ELEM_BYTES[dtype_name]
@@ -426,15 +705,22 @@ def build_rope_kernel(
         raise ValueError(f"unsupported RoPE layout {layout!r}")
     if actual != expected:
         raise ValueError(f"RoPE shape mismatch: expected {expected}, got {actual}")
+    dtype_name = _dtype_name(dtype)
+    half = int(head_dim) // 2
+    elem = _ELEM_BYTES[dtype_name]
+    seq_rows = 0
+    if rotation == "neox" and _neox_supported(int(head_dim), half, h, elem):
+        seq_rows = _neox_plan(int(seq_len), b * int(seq_len), int(head_dim), half, h, elem)
     compiled = _compile_rope(
-        math.prod(expected), int(seq_len), int(head_dim), int(head_dim) // 2,
-        _dtype_name(dtype), rotation, layout, b, h,
+        math.prod(expected), int(seq_len), int(head_dim), half,
+        dtype_name, rotation, layout, b, h, seq_rows,
     )
+    in_shape = (b * int(seq_len) * h, int(head_dim)) if seq_rows else (-1,)
 
     def invoke(inp, cos, sin):
         if tuple(inp.shape) != expected:
             raise ValueError(f"RoPE input shape mismatch: expected {expected}, got {tuple(inp.shape)}")
-        flat = inp.contiguous().reshape(-1)
+        flat = inp.contiguous().reshape(*in_shape)
         result = compiled(flat, cos.contiguous(), sin.contiguous())
         return result.reshape(expected)
 

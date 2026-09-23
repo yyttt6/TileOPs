@@ -234,7 +234,6 @@ class _AvgPoolFwdOpBase(Op):
     def _generic_slot(self) -> str:
         return f"avg_pool{self.ndim}d_kernel"
 
-    @property
     def _param_tuples(self) -> tuple[Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]:
         """Return (kernel_size, stride, padding) as ndim-tuples."""
         return self.kernel_size, self.stride, self.padding

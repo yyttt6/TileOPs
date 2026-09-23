@@ -160,12 +160,37 @@ class BmmFwdOp(Op):
         return cube_roof(self.dtype)
 
 
+def _bmm_fp8_arm() -> str:
+    """Control-arm switch, the twin of ``kernels.families.gemm._fp8_bmm_arm``.
+
+    ``TILEOPS_FP8_BMM_ARM=r353`` restores the pre-T354 contract, where the Cube only
+    ever read ``b`` as $[B \\times N \\times K]$ and this op had to materialise one.
+    Anything else (including unset) selects the native-KN path.
+
+    Read here rather than imported so that ``tileops.ops`` keeps importing without
+    TileLang present; the two spellings are one ``os.environ.get`` each and the
+    docstring on each names the other.
+    """
+    import os
+
+    return os.environ.get("TILEOPS_FP8_BMM_ARM", "t354").strip().lower()
+
+
 class BmmFp8KNFwdOp(Op):
     """Batched FP8 GEMM over ``b`` in $[B \\times K \\times N]$: ``d[i] = (a[i] @ b[i]) * scale_a * scale_b``.
 
-    This is torch.bmm's memory order. The fp8-TN WGMMA kernel wants K innermost,
-    so this op transposes ``b`` before the call; ``BmmFp8NKFwdOp`` takes $[B \\times N \\times K]$
-    and hands it over as it stands.
+    This is torch.bmm's memory order, and since T354 it reaches the Cube unchanged:
+    the contraction is issued with ``transpose_B=False``, which is what
+    ``T.gemm_v0`` does by default. ``BmmFp8NKFwdOp`` takes $[B \\times N \\times K]$ and
+    is issued with ``transpose_B=True``. **Neither layout copies ``b``.**
+
+    Until T354 this op ran ``b.transpose(-2, -1).contiguous()`` first, on the stated
+    grounds that "the fp8-TN WGMMA kernel wants K innermost". WGMMA is a CUDA
+    instruction and no Ascend kernel in this tree ever needed it: measured on 910B1
+    the transpose cost 439-9793 us across the five manifest workloads -- 19-27 GB/s of
+    read+write traffic against a 1068 GB/s effective HBM roof -- and on
+    ``moe-prefill-b128`` it was 80% of the operator's whole runtime
+    (``docs/reports/R354.md``).
 
     """
 
@@ -194,10 +219,10 @@ class BmmFp8KNFwdOp(Op):
         self.dispatch_kernel()
         self._active_sig: Optional[tuple] = None
         self._active: Optional[Kernel] = None
-        # Shape-signatures for which we've already emitted the "slow path"
-        # warning; keeps a single BmmFp8KNFwdOp from spamming the log on every
-        # forward when a caller consistently passes b in [B,K,N] layout.
-        self._kn_warned: Set[Tuple[int, int, int, int]] = set()
+        # Shape-signatures for which we've already warned that ``b`` is not
+        # contiguous and therefore has to be copied; keeps a single op from
+        # spamming the log on every forward when a caller keeps passing a view.
+        self._layout_warned: Set[Tuple[int, int, int, int]] = set()
         self.batch: Optional[int] = None
         self.m: Optional[int] = None
         self.n: Optional[int] = None
@@ -364,41 +389,55 @@ class BmmFp8KNFwdOp(Op):
             )
             self._active = kernel
             self._active_sig = sig
-        if self.B_IS_NK:
+        if self.B_IS_NK or _bmm_fp8_arm() != "r353":
+            # Both declared layouts reach the Cube as they stand: [B,N,K] contracts
+            # with transpose_B=True, [B,K,N] with transpose_B=False.  ``contiguous()``
+            # is a no-op for an operand that already is; it only bites when the caller
+            # handed a VIEW of some other tensor, and that is what the warning is for.
+            if not b.is_contiguous():
+                shape_key = (self.batch, self.m, self.n, self.k)
+                if shape_key not in self._layout_warned:
+                    self._layout_warned.add(shape_key)
+                    warnings.warn(
+                        f"{type(self).__name__}: b (shape={self.b_shape}) is not "
+                        f"contiguous, so it is materialised with a DtoD copy before "
+                        f"the call. Both declared layouts -- [B,K,N] for "
+                        f"BmmFp8KNFwdOp, [B,N,K] for BmmFp8NKFwdOp -- reach the Cube "
+                        f"without a copy when the tensor they are given is "
+                        f"contiguous; pass one that is.",
+                        stacklevel=2,
+                    )
             b = b.contiguous()
         else:
-            # Slow path: [B,K,N] layout requires an extra DtoD transpose
-            # before the fp8-TN WGMMA kernel can consume it. Emit a one-shot
-            # warning per (B,M,N,K) shape so users know how to opt into the
-            # zero-copy fast path (pass b as [B,N,K]).
-            shape_key = (self.batch, self.m, self.n, self.k)
-            if shape_key not in self._kn_warned:
-                self._kn_warned.add(shape_key)
-                warnings.warn(
-                    f"BmmFp8KNFwdOp: b has layout [B,K,N] (shape={self.b_shape}); "
-                    f"triggering an extra transpose(-2,-1).contiguous() DtoD "
-                    f"copy before the fp8-TN WGMMA kernel. For best "
-                    f"performance pass b as [B,N,K] (K-innermost) for the "
-                    f"zero-copy fast path.",
-                    stacklevel=2,
-                )
+            # Control arm only (TILEOPS_FP8_BMM_ARM=r353): the pre-T354 body, where the
+            # Cube was compiled for [B,N,K] alone and this op paid a full DtoD transpose
+            # to produce one.  Kept so a tuning round can measure both arms on the same
+            # card in the same interleaving without a `git stash`; see R354.
             b = b.transpose(-2, -1).contiguous()
         scale_a = scale_a.reshape(1)
         scale_b = scale_b.reshape(1)
         return self._active(a, b, scale_a, scale_b)
 
     def compute_roof(self) -> str:
-        """FLOPs are matmul contractions; priced on the Cube unit."""
-        return cube_roof(self.dtype)
+        """FLOPs are matmul contractions; priced on the **fp16** Cube unit.
+
+        Same reason as :meth:`tileops.ops.gemm.gemm.GemmFp8FwdOp.compute_roof`:
+        910B1 has no FP8 Cube, the kernel decodes the byte to fp16 and issues
+        the contraction on the fp16 Cube, and :mod:`tileops.perf.profile`
+        deliberately refuses to invent an ``fp8`` entry.  Inherited by
+        :class:`BmmFp8NKFwdOp`.
+        """
+        return cube_roof(torch.float16)
 
 
 class BmmFp8NKFwdOp(BmmFp8KNFwdOp):
     """Batched FP8 GEMM over ``b`` in $[B \\times N \\times K]$.
 
-    K is innermost, which is the order the fp8-TN WGMMA kernel reads, so ``b``
-    reaches it without a transpose. Same kernel and same arithmetic as
-    ``BmmFp8KNFwdOp``; only the memory order ``b`` arrives in differs, and memory
-    order is part of the signature, so it is its own entry.
+    K is innermost, so the contraction is issued with ``transpose_B=True``. Same
+    arithmetic as ``BmmFp8KNFwdOp`` and, since T354, the same zero-copy treatment of
+    ``b``: only the memory order ``b`` arrives in differs, and which of the two Cube
+    spellings is compiled follows from it. Memory order is part of the signature, so
+    this is its own entry.
 
     ``b`` is $[B \\times N \\times K]$; every other argument, the return value and the
     errors are ``BmmFp8KNFwdOp.forward``'s.

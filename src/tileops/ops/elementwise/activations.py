@@ -21,6 +21,21 @@ class ReluFwdOp(_ParamFreeActivationOp):
     FLOPS_PER_ELEM = 1
 
 
+class Relu6FwdOp(UnaryOp):
+    """T263: PDF entry 36 -- relu6(x) = min(max(x, 0), 6).
+
+    ``ReluFwdOp`` above is the sibling this is derived from; the PDF signature
+    declares no parameters, so this subclasses ``UnaryOp`` directly instead of
+    ``_ParamFreeActivationOp`` (which would add an ``inplace`` ctor argument
+    the manifest entry does not declare).
+    """
+
+    _op_name = "relu6"
+    # Manifest: flops = "N". Per roofline.md 1.3, a two-sided clamp counts as
+    # one compare-and-select per element -- the same count HardtanhFwdOp uses.
+    FLOPS_PER_ELEM = 1
+
+
 class GeluFwdOp(_GeluApproximateBase):
     """Element-wise GELU honoring the manifest ``approximate`` contract.
 

@@ -43,6 +43,7 @@ if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
 import tileops.manifest as manifest_pkg  # noqa: E402
+from tileops.manifest.optional_coverage import optional_inputs_untested  # noqa: E402
 from tileops.manifest.dtype_rules import PROMOTE_INT_TO_FLOAT_RE, SAME_AS_RE  # noqa: E402
 from tileops.manifest.shape_rules import (  # noqa: E402
     dim_range_validity,
@@ -1017,7 +1018,7 @@ def _check_optional_shape_symbol_scope(
 def _check_optional_workload_coverage(
     op_name: str, entry: dict, optional: Collection[str]
 ) -> list[str]:
-    """Each optional input needs a passed row and an omitted row."""
+    """Retain omission validation; untested supplied paths are coverage facts."""
     errors: list[str] = []
     err = _emit_to(errors, "schema", op_name)
     workloads = entry.get("workloads")
@@ -1028,10 +1029,7 @@ def _check_optional_workload_coverage(
     rows = [row for row in workloads if isinstance(row, dict)]
     for name in sorted(optional):
         key = f"{name}_shape"
-        passed = any(key in row for row in rows)
         omitted = any(key not in row for row in rows)
-        if not passed:
-            err(f"no workload row passes optional input '{name}' — add a row carrying '{key}'")
         if not omitted:
             err(f"every workload row passes optional input '{name}' — add a row without '{key}'")
     return errors
@@ -1079,6 +1077,12 @@ def check_l0(
     sig = entry.get("signature")
     if isinstance(sig, dict):
         errors.extend(_l0_optional(op_name, entry, sig))
+        untested = optional_inputs_untested(entry)
+        if untested and warnings is not None:
+            warnings.append(
+                f"[coverage] {op_name}: optional_inputs_untested={untested!r}; "
+                "supplied-input paths have no declared workload coverage"
+            )
 
     # Top-level required fields
     missing_top = _REQUIRED_TOP - set(entry.keys())

@@ -71,6 +71,14 @@ class AlibiFwdOp(Op):
         Returns:
             ``output``, as the manifest declares.
         """
-        kernel = self.get_or_build_kernel(self._op_name, ())
-        out = kernel().reshape(self.num_heads, self.seq_len, self.seq_len)
+        # Nothing is read from this tensor: both the ascend builder
+        # (``kernels/families/elementwise.py`` ``build_alibi(probe, ...)``) and the kernel it
+        # returns (``kernels/generative.py`` ``main(PROBE, OUTPUT)``) are described with a
+        # probe, which is how an op with no semantic input still names a device and a dtype.
+        # The manifest's ``inputs: {}`` is about the *semantics*; the probe is the call.
+        probe = torch.empty(
+            (self.num_heads, self.seq_len, self.seq_len), dtype=self.dtype, device=self.device
+        )
+        kernel = self.get_or_build_kernel(self._op_name, (probe,))
+        out = kernel(probe).reshape(self.num_heads, self.seq_len, self.seq_len)
         return out if out.dtype == self.dtype else out.to(self.dtype)

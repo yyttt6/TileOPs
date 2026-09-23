@@ -12,6 +12,14 @@ from tileops.ops import (
 from workloads.convolution import Conv1dWorkload, Conv2dWorkload, Conv3dWorkload
 from workloads.device import DEVICE
 
+# Every op below is constructed with target="ascend" EXPLICITLY.
+# tileops.backend.dispatch.detect_target returns None for an "npu" device in
+# this distribution, so an op constructed without a target raises
+# OpNotAvailableError at its first forward.  That single omission is why all 18
+# tests in this file failed on this machine before T268 (R268 section 10.3
+# recorded the failure set; PHASE_B_CONTRACT section 4 warns about the same
+# thing).  It is the test harness that was wrong, not the kernels.
+
 for _op_cls in (Conv1dFwdOp, Conv2dFwdOp, Conv3dFwdOp):
     register_compile_contract(_op_cls)
 
@@ -227,7 +235,7 @@ class Conv1dTest(Conv1dWorkload, TestBase):
 
 @pytest.mark.smoke
 def test_conv1d_no_bias_matches_torch() -> None:
-    op = Conv1dFwdOp(stride=2, padding=2)
+    op = Conv1dFwdOp(stride=2, padding=2, target="ascend")
     x = torch.randn(1, 32, 256, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(64, 32, 5, device=DEVICE, dtype=torch.float16).contiguous()
     out = op(x, weight)
@@ -237,7 +245,7 @@ def test_conv1d_no_bias_matches_torch() -> None:
 
 @pytest.mark.smoke
 def test_conv1d_bias_matches_torch() -> None:
-    op = Conv1dFwdOp(stride=2, padding=2)
+    op = Conv1dFwdOp(stride=2, padding=2, target="ascend")
     x = torch.randn(1, 32, 256, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(64, 32, 5, device=DEVICE, dtype=torch.float16).contiguous()
     bias = torch.zeros(64, device=DEVICE, dtype=torch.float16).contiguous()
@@ -260,6 +268,7 @@ def test_conv1d_dilation_matches_torch(dilation, use_bias: bool) -> None:
         stride=stride,
         padding=padding,
         dilation=dilation,
+        target="ascend",
     )
     x = torch.randn(n, c_in, l_in, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(c_out, c_in, kernel_size, device=DEVICE, dtype=torch.float16).contiguous()
@@ -284,7 +293,7 @@ def test_conv1d_dilation_matches_torch(dilation, use_bias: bool) -> None:
 )
 def test_conv1d_same_padding_even_kernel_matches_torch(use_bias: bool) -> None:
     n, c_in, l_in, c_out, kernel_size = 1, 16, 129, 32, 2
-    op = Conv1dFwdOp(padding="same")
+    op = Conv1dFwdOp(padding="same", target="ascend")
     x = torch.randn(n, c_in, l_in, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(c_out, c_in, kernel_size, device=DEVICE, dtype=torch.float16).contiguous()
     bias = torch.randn(c_out, device=DEVICE, dtype=torch.float16).contiguous() if use_bias else None
@@ -539,6 +548,7 @@ def test_conv2d_no_bias_matches_torch() -> None:
         stride=2,
         padding=4,
         dilation=2,
+        target="ascend",
     )
     x = torch.randn(1, 32, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(64, 32, 5, 5, device=DEVICE, dtype=torch.float16).contiguous()
@@ -561,6 +571,7 @@ def test_conv2d_no_bias_grouped_matches_torch() -> None:
     op = Conv2dFwdOp(
         padding=1,
         groups=groups,
+        target="ascend",
     )
     x = torch.randn(1, 16, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(32, 2, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
@@ -727,6 +738,7 @@ def test_conv3d_no_bias_matches_torch() -> None:
         stride=2,
         padding=2,
         dilation=2,
+        target="ascend",
     )
     x = torch.randn(1, 8, 8, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(16, 8, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
@@ -749,6 +761,7 @@ def test_conv3d_no_bias_grouped_matches_torch() -> None:
     op = Conv3dFwdOp(
         padding=1,
         groups=groups,
+        target="ascend",
     )
     x = torch.randn(1, 8, 4, 12, 12, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(16, 2, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
@@ -762,6 +775,7 @@ def test_conv3d_accepts_zero_bias() -> None:
     op = Conv3dFwdOp(
         stride=2,
         padding=1,
+        target="ascend",
     )
     x = torch.randn(1, 8, 8, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(16, 8, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
@@ -780,7 +794,7 @@ def test_conv3d_accepts_zero_bias() -> None:
 
 @pytest.mark.smoke
 def test_conv2d_dynamic_shape_kernel_cache_and_roofline() -> None:
-    op = Conv2dFwdOp(stride=1, padding=1)
+    op = Conv2dFwdOp(stride=1, padding=1, target="ascend")
     x1 = torch.randn(1, 16, 32, 32, dtype=torch.float16, device=DEVICE)
     w1 = torch.randn(24, 16, 3, 3, dtype=torch.float16, device=DEVICE)
     x2 = torch.randn(2, 16, 32, 32, dtype=torch.float16, device=DEVICE)
@@ -805,11 +819,14 @@ def test_conv2d_dynamic_shape_kernel_cache_and_roofline() -> None:
 @pytest.mark.smoke
 def test_inputs_on_different_devices_are_rejected() -> None:
     """The kernel memo lets the first input's device speak for the rest, so they agree."""
-    op = Conv2dFwdOp(padding=1)
+    op = Conv2dFwdOp(padding=1, target="ascend")
     x = torch.randn(1, 8, 8, 8, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(4, 8, 3, 3, dtype=torch.float16).contiguous()
 
-    with pytest.raises(ValueError, match="every input on cuda"):
+    # The message names the device the FIRST input is on, which on this machine
+    # is npu:0; the literal "cuda" is left over from a CUDA-era copy of this
+    # test and never matched here.  Assert the device-independent part.
+    with pytest.raises(ValueError, match="expects every input on"):
         op(x, weight)
 
 
@@ -823,7 +840,7 @@ def test_inputs_on_different_devices_are_rejected() -> None:
 @pytest.mark.parametrize("use_bias", [False, True], ids=["no-bias", "bias"])
 def test_conv2d_cold_traces_fullgraph_and_owns_its_graph_nodes(use_bias: bool) -> None:
     """Cold is the whole contract: a warm op has nothing left for dynamo to trace into."""
-    op = Conv2dFwdOp(padding=1)
+    op = Conv2dFwdOp(padding=1, target="ascend")
     x = torch.randn(1, 32, 16, 16, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(64, 32, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     bias = torch.randn(64, device=DEVICE, dtype=torch.float16).contiguous() if use_bias else None
@@ -837,7 +854,7 @@ def test_conv2d_cold_traces_fullgraph_and_owns_its_graph_nodes(use_bias: bool) -
 @pytest.mark.smoke
 @pytest.mark.usefixtures("isolated_dynamo")
 def test_conv1d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
-    op = Conv1dFwdOp(padding=1)
+    op = Conv1dFwdOp(padding=1, target="ascend")
     x = torch.randn(1, 32, 128, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(64, 32, 3, device=DEVICE, dtype=torch.float16).contiguous()
 
@@ -848,7 +865,7 @@ def test_conv1d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
 @pytest.mark.smoke
 @pytest.mark.usefixtures("isolated_dynamo")
 def test_conv3d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
-    op = Conv3dFwdOp(padding=1)
+    op = Conv3dFwdOp(padding=1, target="ascend")
     x = torch.randn(1, 16, 8, 8, 8, device=DEVICE, dtype=torch.float16).contiguous()
     weight = torch.randn(32, 16, 3, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
 
@@ -860,7 +877,7 @@ def test_conv3d_cold_traces_fullgraph_and_owns_its_graph_nodes() -> None:
 @pytest.mark.usefixtures("isolated_dynamo")
 def test_a_non_contiguous_input_compiles_to_the_shape_the_fake_promised() -> None:
     """The fake speaks before the body normalizes contiguity, so it promises contiguous."""
-    op = Conv2dFwdOp(padding=1)
+    op = Conv2dFwdOp(padding=1, target="ascend")
     x = torch.randn(1, 32, 16, 32, device=DEVICE, dtype=torch.float16)[:, :, :, ::2]
     weight = torch.randn(64, 32, 3, 3, device=DEVICE, dtype=torch.float16).contiguous()
     assert not x.is_contiguous()
