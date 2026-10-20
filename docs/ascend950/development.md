@@ -28,6 +28,14 @@ Do not install the GPU development constraints over another project's NPU enviro
 The official release wheel is available on PyPI; custom local versions do not satisfy
 this benchmark's version check.
 
+The core/dev dependency set uses 0.1.15 on every target. The upstream GPU benchmark
+bundle has a separate constraint: vLLM 0.27.1
+[pins TileLang 0.1.12](https://pypi.org/pypi/vllm/0.27.1/json).
+Consequently the full GPU `[bench]` extra and image need a baseline dependency
+migration before they can use this branch. The unchanged `constraints-runner-lock.txt`
+records that upstream image, not a validated 950 environment. Do not override these
+dependencies with `--no-deps` to claim a compatible GPU benchmark stack.
+
 ## Shared benchmark
 
 Every developer and baseline adapter uses this entry point from the same revision:

@@ -155,7 +155,8 @@ python -m pytest -q tests -m smoke           # verify; requires a CUDA GPU
 For CUDA container setup, test tiers and build troubleshooting, see
 [development.md](docs/development.md#dev-docker-image). The upstream image carries
 TileLang 0.1.12; this branch requires 0.1.15. GPU hardware validation of the new
-version is separate from the Ascend 950 CI.
+version is separate from the Ascend 950 CI. The upstream vLLM baseline also pins
+0.1.12, so its full GPU benchmark environment cannot yet install on this branch.
 
 ## Documentation
 

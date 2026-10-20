@@ -25,26 +25,19 @@ The `dev` dependency group (pip 25.1 or later) adds the linters, pre-commit, pyt
 
 ## Dev Docker image
 
-The upstream prebuilt image carries CUDA 13.2, PyTorch 2.13 (cu132), TileLang 0.1.12
-and benchmark baselines. This branch pins TileLang 0.1.15; upgrade it inside the
-CUDA environment before testing this branch. Ascend environments use the separate
+The upstream prebuilt image
+`ghcr.io/tile-ai/tileops-dev:cuda13.2-torch2.13-tilelang0.1.12` carries CUDA 13.2,
+PyTorch 2.13, TileLang 0.1.12 and benchmark baselines. Its vLLM 0.27.1 package
+[requires TileLang 0.1.12](https://pypi.org/pypi/vllm/0.27.1/json).
+This branch requires 0.1.15, so replacing TileLang in that image would violate
+vLLM's declared dependencies. Use the upstream revision with that image.
+
+For this branch's CUDA core/dev work, use a fresh environment and the source
+installation above. GPU hardware validation with 0.1.15 remains pending. The full
+`[bench]` extra and runner image require a compatible baseline dependency migration;
+`constraints-runner-lock.txt` retains the original upstream image closure for reference.
+It is not this branch's install lock. Ascend environments use the separate
 [950 setup](ascend950/development.md).
-
-```bash
-docker run --rm -it --gpus all \
-  -v "$(pwd)":/workspace -w /workspace \
-  ghcr.io/tile-ai/tileops-dev:cuda13.2-torch2.13-tilelang0.1.12
-
-# inside the container
-pip install --no-deps 'tilelang===0.1.15'
-pip install -e . --no-deps
-python -m pytest -q tests -m smoke
-```
-
-`--no-deps` keeps the container's other runtime dependencies intact. The upgraded
-GPU stack must pass GPU correctness checks before its performance is published.
-
-Tags follow `cuda<major.minor>-torch<major.minor>-tilelang<version>`, where `<version>` is the release [Prerequisites](../README.md#installation) names; pull that one rather than a floating tag. `tileops-dev` is the stage the CI image `tileops-ci-runner` builds on: the same software stack, without the runner agent and its user, so a green run inside it is the same environment CI reports on.
 
 To build the image, roll out a new one, or bump TileLang, see [`.github/runner/README.md`](../.github/runner/README.md).
 

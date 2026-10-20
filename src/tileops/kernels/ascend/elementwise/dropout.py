@@ -22,8 +22,7 @@ _THREADS_BY_DTYPE = {"float16": 2048, "bfloat16": 2048, "float32": 1024}
 def _dropout_iter_body(
     x_ub, y_ub, n: int, threads: int, seed: int, p: float, scale: float, step, num_blocks: int, bx
 ) -> None:
-    """One tile's worth of inverted dropout, with a step-folded RNG stream (module
-    docstring §3.3)."""
+    """One tile of inverted dropout with a step-folded RNG stream."""
     with T.SimtVF(threads=threads):
         tx = T.get_thread_binding()
         seq = (step * num_blocks + bx) * threads + tx

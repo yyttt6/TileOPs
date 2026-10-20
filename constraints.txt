@@ -1,6 +1,7 @@
 # Versions for CI / runner builds, with the reasoning. Membership lives in pyproject (project
-# deps) or the runner Dockerfile's install lists (CI-only tooling); the resolved closure lives in
-# constraints-runner-lock.txt.
+# deps) or the runner Dockerfile's install lists (CI-only tooling).
+# constraints-runner-lock.txt preserves the upstream CUDA image's 0.1.12 closure;
+# it is not an install lock for this branch. See docs/ascend950/development.md.
 #
 # No `+cu132`: the CUDA variant comes from the install index, so this file also fits the CPU
 # preflight. torch/torchvision follow vllm 0.27.1's exact pins; see requirements.in for torchaudio.
@@ -9,8 +10,9 @@ torchvision==0.28.0
 torchaudio==2.11.0
 # What torch 2.13.0 requires. Follow torch; never pick independently.
 triton==3.7.1
-# The release pyproject.toml declares; the runner image installs it unless built from a
-# TILELANG_GIT_SHA. vllm 0.27.1 pins the same version.
+# The official release required by this branch's core/dev and Ascend environment.
+# The upstream vllm baseline pins 0.1.12, so its full GPU bench extra needs a separate
+# dependency migration before it can install with this release.
 tilelang==0.1.15
 # ABI-coupled to tilelang: MUST sit inside the range tilelang's metadata declares
 # (verify_runtime_stack.py checks it). Re-confirm on every tilelang change.
