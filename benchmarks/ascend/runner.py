@@ -24,7 +24,8 @@ def source_fingerprint():
         paths.extend(
             p
             for p in (ROOT / name).rglob("*")
-            if p.suffix in {".py", ".yaml", ".sh"} and "__pycache__" not in p.parts
+            if p.suffix in {".py", ".yaml", ".sh", ".c", ".cc", ".cpp", ".h", ".hpp", ".cu", ".cuh"}
+            and "__pycache__" not in p.parts
         )
     paths.extend(
         ROOT / name for name in ("pyproject.toml", "constraints.txt", "constraints-runner-lock.txt")
@@ -36,6 +37,17 @@ def source_fingerprint():
 
 def _write(path, value):
     path.write_text(json.dumps(value, indent=2, default=str, ensure_ascii=False) + "\n")
+
+
+def runtime_versions(get_version):
+    """Keep unavailable component queries visible in the environment record."""
+    result = {}
+    for module in ("CANN", "RUNTIME", "COMPILER", "DRIVER", "TOOLKIT", "OPP"):
+        try:
+            result[module] = get_version(module=module)
+        except Exception as exc:
+            result[module] = {"error": str(exc)}
+    return result
 
 
 def benchmark_case(case, implementations, timer, *, name, verify_only=False):
@@ -134,6 +146,8 @@ def main(argv=None):
         "tilelang": version("tilelang"),
         "torch": torch.__version__,
         "torch_npu": torch_npu.__version__,
+        "cann_components": runtime_versions(torch_npu.utils.get_cann_version),
+        "python": sys.version,
         "device": device_name,
         "reservation": reservation,
         "ops": selected,

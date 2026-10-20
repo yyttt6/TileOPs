@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +24,7 @@ def main():
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
+    owner = f"ci/ascend950/{uuid.uuid4().hex}"
     env = dict(os.environ, PYTHONPATH=os.pathsep.join((str(ROOT / "src"), str(ROOT))))
     steps = []
     if args.phase in ("cpu", "all"):
@@ -74,7 +76,7 @@ def main():
                     sys.executable,
                     "scripts/benchmark_ascend.py",
                     "--owner",
-                    "ci/ascend950-manifest",
+                    f"{owner}/manifest-device",
                     "--timeout",
                     "5400",
                     "--run-dir",
@@ -97,7 +99,7 @@ def main():
                 str(ROOT / "scripts/npu_guard.py"),
                 "run",
                 "--owner",
-                f"ci/ascend950-{name}",
+                f"{owner}/{name}",
                 "--wait",
                 "600",
                 "--timeout",

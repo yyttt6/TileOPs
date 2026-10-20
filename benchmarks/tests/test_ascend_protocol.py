@@ -161,3 +161,32 @@ def test_clock_policy_rejects_above_rated_before_setting(monkeypatch):
     )
     with pytest.raises(ValueError, match="rated"), policy:
         pytest.fail("above-rated policy accepted")
+
+
+def test_runtime_versions_retain_unavailable_queries():
+    from benchmarks.ascend.runner import runtime_versions
+
+    def get_version(*, module):
+        if module == "DRIVER":
+            raise RuntimeError("unavailable")
+        return "9.2.0"
+
+    versions = runtime_versions(get_version)
+    assert versions["CANN"] == "9.2.0"
+    assert versions["DRIVER"] == {"error": "unavailable"}
+    assert set(versions) == {"CANN", "RUNTIME", "COMPILER", "DRIVER", "TOOLKIT", "OPP"}
+
+
+def test_source_fingerprint_includes_native_code(monkeypatch, tmp_path):
+    from benchmarks.ascend import runner
+
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    header = tmp_path / "src/tileops/csrc/kernel.h"
+    header.parent.mkdir(parents=True)
+    header.write_text("void kernel();\n")
+    for name in ("pyproject.toml", "constraints.txt", "constraints-runner-lock.txt"):
+        (tmp_path / name).write_text("")
+    before = runner.source_fingerprint()
+    assert "src/tileops/csrc/kernel.h" in before
+    header.write_text("void kernel(int);\n")
+    assert before != runner.source_fingerprint()
