@@ -122,6 +122,10 @@ states what each layer of an op owns.
 
 ## Installation
 
+This branch adds Ascend 950 implementations alongside upstream CUDA implementations.
+Ascend users should follow the [950 environment and CI guide](docs/ascend950/development.md).
+The following release verification describes upstream v0.1.0; this branch uses its Ascend-specific dependency constraints.
+
 ```bash
 pip install tileops
 ```
@@ -140,7 +144,7 @@ there, and are outside the release verification.
 To develop TileOPs, install it from source:
 
 ```bash
-git clone https://github.com/tile-ai/TileOPs
+git clone -b ascend950 https://github.com/yyttt6/TileOPs
 cd TileOPs
 pip install -e . --group dev -c constraints.txt   # constraints.txt pins what CI validates
 pre-commit install
@@ -148,9 +152,10 @@ pre-commit install
 python -m pytest -q tests -m smoke           # verify; requires a CUDA GPU
 ```
 
-A prebuilt Docker image includes the full stack and provides the CI environment. See
-[development.md](https://github.com/tile-ai/TileOPs/blob/main/docs/development.md#dev-docker-image)
-for details, test tiers, benchmarks and build troubleshooting.
+For CUDA container setup, test tiers and build troubleshooting, see
+[development.md](docs/development.md#dev-docker-image). The upstream image carries
+TileLang 0.1.12; this branch requires 0.1.15. GPU hardware validation of the new
+version is separate from the Ascend 950 CI.
 
 ## Documentation
 

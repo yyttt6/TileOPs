@@ -5,10 +5,10 @@ description = "TileOPs kernels for efficient LLM inference."
 readme = "README.md"
 authors = [{ name="Tile-AI"}]
 dependencies = [
-    # What .github/workflows/release.yml verifies on an SM90 device, from official PyPI, on
-    # Python 3.12 and 3.13. Widening a pin means verifying it there first.
+    # Shared API versions. Device runtimes such as torch_npu are installed by the site.
+    # The Ascend 950 environment and validation scope are in docs/ascend950/development.md.
     "torch>=2.13.0,<2.14.0",
-    "tilelang==0.1.12",
+    "tilelang==0.1.15",
     "pyyaml>=6.0.1,<7",
 ]
 requires-python = ">=3.12"
@@ -33,6 +33,9 @@ Homepage = "https://github.com/tile-ai/TileOPs"
 Repository = "https://github.com/tile-ai/TileOPs"
 Documentation = "https://tile-ai.github.io/TileOPs.github.io/"
 Issues = "https://github.com/tile-ai/TileOPs/issues"
+
+[project.entry-points."tileops.backends"]
+ascend950 = "tileops.ascend"
 
 # Development dependencies: groups, not extras, so the published metadata lists none.
 [dependency-groups]
@@ -88,7 +91,7 @@ where = ["src"]
 tileops = ["**/*.h", "**/*.yaml", "py.typed"]
 
 [tool.codespell]
-ignore-words-list = "nd, te, ist, LOD, offen, NotIn, HSA"
+ignore-words-list = "nd, te, ist, LOD, offen, NotIn, HSA, CANN"
 skip = [
     "build",
     "dist",

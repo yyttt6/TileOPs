@@ -25,7 +25,10 @@ The `dev` dependency group (pip 25.1 or later) adds the linters, pre-commit, pyt
 
 ## Dev Docker image
 
-The prebuilt dev image ships the whole stack — CUDA 13.2, PyTorch 2.13 (cu132), the TileLang release TileOPs declares, and the benchmark baselines — so nothing needs resolving locally:
+The upstream prebuilt image carries CUDA 13.2, PyTorch 2.13 (cu132), TileLang 0.1.12
+and benchmark baselines. This branch pins TileLang 0.1.15; upgrade it inside the
+CUDA environment before testing this branch. Ascend environments use the separate
+[950 setup](ascend950/development.md).
 
 ```bash
 docker run --rm -it --gpus all \
@@ -33,11 +36,13 @@ docker run --rm -it --gpus all \
   ghcr.io/tile-ai/tileops-dev:cuda13.2-torch2.13-tilelang0.1.12
 
 # inside the container
+pip install --no-deps 'tilelang===0.1.15'
 pip install -e . --no-deps
 python -m pytest -q tests -m smoke
 ```
 
-`--no-deps` is deliberate: the image already carries the pinned stack, and letting pip resolve dependencies would replace it.
+`--no-deps` keeps the container's other runtime dependencies intact. The upgraded
+GPU stack must pass GPU correctness checks before its performance is published.
 
 Tags follow `cuda<major.minor>-torch<major.minor>-tilelang<version>`, where `<version>` is the release [Prerequisites](../README.md#installation) names; pull that one rather than a floating tag. `tileops-dev` is the stage the CI image `tileops-ci-runner` builds on: the same software stack, without the runner agent and its user, so a green run inside it is the same environment CI reports on.
 
