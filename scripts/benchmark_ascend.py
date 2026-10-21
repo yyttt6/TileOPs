@@ -18,6 +18,12 @@ def main():
     parser.add_argument("--owner", required=True)
     parser.add_argument("--wait", type=int, default=600)
     parser.add_argument("--timeout", type=int, default=1800)
+    parser.add_argument(
+        "--guard",
+        type=Path,
+        default=Path(os.environ.get("TILEOPS_NPU_GUARD", Path(__file__).parent / "npu_guard.py")),
+        help="site-audited host guard Python entry; defaults to the bundled guard",
+    )
     args, rest = parser.parse_known_args()
     if "--help" in rest:
         return 0
@@ -26,7 +32,7 @@ def main():
     root = Path(__file__).resolve().parents[1]
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join((str(root / "src"), str(root)))
-    guard = root / "scripts/npu_guard.py"
+    guard = args.guard.resolve(strict=True)
     command = [
         sys.executable,
         str(guard),

@@ -96,7 +96,11 @@ def main():
             # Imports on an NPU host also belong to the host reservation.
             command = [
                 sys.executable,
-                str(ROOT / "scripts/npu_guard.py"),
+                str(
+                    Path(
+                        os.environ.get("TILEOPS_NPU_GUARD", ROOT / "scripts/npu_guard.py")
+                    ).resolve(strict=True)
+                ),
                 "run",
                 "--owner",
                 f"{owner}/{name}",

@@ -55,6 +55,12 @@ launch, and checks for foreign driver activity while running. It is a cooperativ
 lock: unrelated programs can ignore it. Never delete a held lock or reset a device to
 make a run start. Guard exits 75, 76 and 78 invalidate the run.
 
+Sites with a different physical device mapping can supply their audited Python
+guard entry with `--guard /absolute/path/to/npu_guard.py` or `TILEOPS_NPU_GUARD`.
+It must implement the same host lock and process-ownership contract; this option
+does not disable reservation validation. Containers need the actual host lock and
+host PID visibility. A private container lock is insufficient.
+
 The fixed formal protocol is `ascend950-profiler-locked-v1`:
 
 | Item         | Rule                                                                                                                                                    |
@@ -114,6 +120,13 @@ on trusted pushes or manual dispatch, after preflight. Its runner needs the `asc
 label and `ASCEND_ENV_SCRIPT`, pointing to the prepared runtime environment. The test
 entry uses the actual checked-out source, not another editable checkout. Existing GPU
 workflows and the 910 `main` branch retain their own hardware scope.
+
+The public website uses a separate `Official Ascend 950 nightly` workflow in
+`yyttt6/TileOPs.github.io`, scheduled at 00:00 UTC on the remote production runner.
+This branch's local correctness CI does not publish website performance. The
+remote workflow freezes the source commit before checks and preserves the shared
+protocol, raw samples, source hashes and clock readbacks. No supported host clock
+control or reservation means the remote device stage remains blocked.
 
 For multiple Linux users, install the repository, environment and result root in
 locations those users can traverse. A checkout under a private `/root` directory is
