@@ -29,8 +29,8 @@ from workloads.attention.topk_select import TopKSelectCall
 
 
 def _gqa_dense_workload(call: Any) -> Any:
-    """A call passing FP8 scales or RoPE tables is a prefill; any other is a decode step."""
-    if call.present("q_scale") or call.present("rope_cos"):
+    """Use the prefill workload for multiple query tokens or optional operands."""
+    if call.indices["S_q"] != 1 or call.present("q_scale") or call.present("rope_cos"):
         return GQADensePrefillCall(call)
     return GQADenseDecodeCall(call)
 
