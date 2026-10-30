@@ -65,6 +65,32 @@ CPU metadata checks do not reserve the card. Any NPU imports that initialize the
 runtime, compilation requiring the runtime, or operator execution still belongs
 inside the site's shared `npu-guard run` command.
 
+## Portable activation example
+
+On another installation, substitute your actual roots and compiler path; do not
+copy the administration server's absolute prefix:
+
+```bash
+export ASCEND950_RUNTIME_ROOT=/path/to/cann-9.1.0
+export ASCEND950_COMPILER_ROOT=/path/to/cann-9.2.0
+source "$ASCEND950_RUNTIME_ROOT/set_env.sh"
+export ASCEND_RUNTIME_ROOT="$ASCEND950_RUNTIME_ROOT"
+export ASCEND_OPP_PATH="$ASCEND950_RUNTIME_ROOT/opp"
+export ASCEND_AICPU_PATH="$ASCEND950_RUNTIME_ROOT"
+export LD_LIBRARY_PATH="$ASCEND950_RUNTIME_ROOT/lib64:/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/driver/lib64/common:${LD_LIBRARY_PATH:-}"
+export ASCEND_HOME_PATH="$ASCEND950_COMPILER_ROOT"
+export ASCEND_TOOLKIT_HOME="$ASCEND950_COMPILER_ROOT"
+export PATH="$ASCEND950_COMPILER_ROOT/bin:$ASCEND950_COMPILER_ROOT/tools/bisheng_compiler/bin:$PATH"
+export CXX=/path/to/g++-12
+export USE_ASCEND=ON USE_CUDA=OFF USE_ROCM=OFF ASCEND_NPU_ARCH=dav-3510
+export TILELANG_CACHE_DIR=/path/to/private-cache/ascend950-arm64-v1/tilelang
+```
+
+Use a fresh profile-specific compilation cache. Existing objects compiled with
+beta headers must not be treated as release-SDK validation. All these settings
+apply only to the calling shell and its children; shared system SDK links and
+other developers' runtime installations remain separate.
+
 ## Acceptance and upgrades
 
 - Correctness and regression acceptance use server2's physical 32 Cube / 64 Vector
@@ -80,8 +106,11 @@ inside the site's shared `npu-guard run` command.
   release profile. A PR must supply a correct supported fallback or first land and
   validate a new pinned compiler profile. A hardware core-count check alone does
   not establish that a compiler feature exists.
-- Correctness and performance are separate. Any toolchain change used for published
-  timing requires new aligned baseline/operator measurements on the target hardware.
+- Correctness and performance are separate. Remeasure affected TileOPs timings
+  when their compilation profile changes. Baseline caches are reusable only when
+  their own hardware, source, environment and timing identities still match.
+  This contract governs TileOPs development/CI; do not silently rebuild original
+  vendor baselines with the TileOPs compiler profile or alter their isolated environments.
 
 The older `development.md` runtime paragraph is superseded by this contract and
 its machine-readable lock. It must not be used to equate beta and release builds.
