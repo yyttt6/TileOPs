@@ -340,9 +340,10 @@ class AscendGroupedGemmKernel(Kernel, GroupedGemmFwdInterface):
         name = torch.npu.get_device_name(device_index)
         if "Ascend950" not in name:
             raise RuntimeError(f"These grouped GEMM schedules require Ascend 950, got {name}")
-        # Every schedule keeps one persistent block per Cube core of the measured device.
-        if get_num_cube_cores(device_id=device_index or 0) != 32:
-            raise RuntimeError("These grouped GEMM schedules are measured on 32 Cube cores")
+        # The schedules launch a fixed grid of 32 blocks. Larger devices can run
+        # that grid unchanged; do not enlarge it without retuning the schedule.
+        if get_num_cube_cores(device_id=device_index or 0) < 32:
+            raise RuntimeError("These grouped GEMM schedules require at least 32 Cube cores")
         dtype = _dtype_name(call.dtype)
         self._compiled_fn = _make_grouped_kernel(
             call.numel,
