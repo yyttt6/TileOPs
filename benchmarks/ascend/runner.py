@@ -162,7 +162,9 @@ def main(argv=None):
     from benchmarks.ascend.clocks import ClockPolicy
     from benchmarks.ascend.timing import ProfilerTimer
 
-    passed = failed = 0
+    from benchmarks.ascend.support import unsupported_reason
+
+    passed = failed = unsupported = 0
     completed = False
     clock_context = nullcontext() if args.verify_only else ClockPolicy(args.clock_config)
     try:
@@ -188,6 +190,16 @@ def main(argv=None):
                         torch.manual_seed(seed)
                         row["seed"] = seed
                         try:
+                            reason = unsupported_reason(
+                                op_name, case, registry.REGISTERED_KERNEL_TYPES
+                            )
+                            if reason is not None:
+                                row.update(status="unsupported", reason=reason)
+                                unsupported += 1
+                                output.write(json.dumps(row, default=str) + "\n")
+                                output.flush()
+                                print(f"{op_name} {case.id}: unsupported ({reason})", flush=True)
+                                continue
                             op = op_class(**case.arguments)
                             implementations = {"tileops": entry(op_name).binder(op, case)}
                             if args.include_reference:
@@ -235,6 +247,7 @@ def main(argv=None):
                 else "failed",
                 "passed": passed,
                 "failed": failed,
+                "unsupported": unsupported,
                 "source_changed": changed,
                 "verify_only": args.verify_only,
             },

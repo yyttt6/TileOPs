@@ -15,3 +15,11 @@ Both runners run in Docker on the local server. CPU jobs have no NPU devices or 
 Regression is correctness-only; performance measurement and baseline cache refresh are separate. A green CPU check does not establish device correctness. Results and guard receipts are retained as GitHub Actions artifacts. An operator is included in regression once its implementation is registered in the checked-out commit.
 
 Host deployment configuration: `/opt/tileops-ci/config`; immutable Python environment snapshot: `/opt/tileops-ci/runtime/venv`; containers: `tileops-ci-cpu`, `tileops-ci-npu`; image: `tileops-ci:20261030`. Persistent volumes retain runner configuration and compilation caches. The runners restart automatically with Docker. Deployment evidence and rebuild inputs are in `reports/ci-docker-20261030` in the administration workspace.
+
+Explicit unsupported manifest cases are reported separately from passes and failures.
+FFT currently has eight supported complex64 cases and two declared complex128
+cases (`throughput-4k-complex128`, `scientific-1m-complex128`) that Ascend refuses
+because FP64 is unavailable. The runner verifies that refusal before allocating
+inputs, records its reason, and never counts these two cases as passes. Other
+exceptions remain failures; a run containing no passed cases cannot succeed.
+The declaration must be updated if the kernel gains support.
