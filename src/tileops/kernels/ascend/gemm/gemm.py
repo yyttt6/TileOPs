@@ -24,10 +24,10 @@ def _make_gemm_kernel(m: int, n: int, k: int, dtype: str, device_index: int):
     name = torch.npu.get_device_name(device_index)
     if "Ascend950" not in name:
         raise RuntimeError(f"These GEMM schedules require Ascend 950, got {name}")
-    # Every schedule keeps one persistent block per Cube core of the measured device.
+    # The schedules launch 32 blocks unchanged, including on larger devices.
     cube_cores = get_num_cube_cores(device_id=device_index or 0)
-    if cube_cores != 32:
-        raise RuntimeError(f"These GEMM schedules are measured on 32 Cube cores, got {cube_cores}")
+    if cube_cores < 32:
+        raise RuntimeError(f"These GEMM schedules require at least 32 Cube cores, got {cube_cores}")
     return compile_schedule(m, n, k, dtype)
 
 
