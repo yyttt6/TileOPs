@@ -39,6 +39,10 @@ jobs:
         with:
           ref: ${{ inputs.revision || github.sha }}
           persist-credentials: false
+      - name: Check canonical compiler profile without device initialization
+        run: |
+          source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
+          python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/toolchain-cpu.json"
       - name: CPU contracts (NPU autoload disabled)
         run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/cpu-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
@@ -46,6 +50,11 @@ jobs:
         with:
           name: ascend950-cpu
           path: ${{ runner.temp }}/cpu-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ascend950-toolchain-cpu
+          path: ${{ runner.temp }}/toolchain-cpu.json
   device:
     needs: preflight
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'cpu')
@@ -66,10 +75,16 @@ jobs:
         run: |
           set -eo pipefail
           source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
-          source /opt/tileops-ci/server2-20261030/config/device-env.sh
+          source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
+          TORCH_DEVICE_BACKEND_AUTOLOAD=0 python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/toolchain-npu.json"
           python /opt/tileops-ci/server2-20261030/config/device-job.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ascend950-device
           path: ${{ runner.temp }}/device-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ascend950-toolchain-npu
+          path: ${{ runner.temp }}/toolchain-npu.json

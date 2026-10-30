@@ -1,0 +1,82 @@
+# Ascend 950 toolchain contract
+
+This file and `config/ascend950-toolchain.json` define one CI profile. A version
+string such as "CANN 9.2" or "TileLang 0.1.15" alone is insufficient: prereleases,
+source builds and release wheels can expose different compiler interfaces.
+
+## Profile v1
+
+| Component | Exact selection |
+| --- | --- |
+| Python (canonical CI) | 3.12.15 |
+| torch | 2.13.0+cpu |
+| torch-npu | 2.13.0rc1 |
+| TileLang | official 0.1.15 ARM64 wheel; native binary/template hashes in the lock |
+| Device compiler and headers | CANN **9.2.0 release**, from the locked vendor artifact; beta.2 is a different SDK |
+| CANN runtime and OPP | **9.1.0**, separately fingerprinted compatibility components |
+| Host C++ compiler | GCC 12.3.0 |
+| Target | dav-3510, physical Ascend950DT_9582 with 32 Cube / 64 Vector |
+
+This profile upgrades the compiler SDK, while retaining the already deployed runtime
+and OPP. It is an explicitly pinned compatibility combination, **not a full CANN
+9.2.0 runtime installation**. Do not replace its runtime libraries with the SDK's
+libraries implicitly. A runtime upgrade requires a new validated profile.
+
+The vendor artifact and extracted installer hashes are recorded in the lock.
+CI's versioned activation entry is
+`/opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh`.
+
+## Release policy
+
+The accepted profile is the one recorded by the protected branch's toolchain lock
+and checked by CI. Developers must reproduce failures with that profile before a
+compiler mismatch is treated as an operator defect. An author-side passing result
+from another profile is useful evidence, but does not replace the canonical run.
+
+The profile pins Python, torch, torch-npu, TileLang, CANN compiler and headers,
+host C++ compiler, and the authoritative device class. Critical native binaries and
+headers have SHA256 fingerprints. ARM64 CI is the release gate. Local x86_64 work
+must use matching release sources; it is not certified by the ARM64 binary hashes.
+
+Use an isolated Python environment, install the exact snapshot in
+`requirements/ascend950-ci.lock.txt` with dependencies already accounted for
+(`pip install --no-deps -r requirements/ascend950-ci.lock.txt`), and install the
+CANN release artifact identified by the lock. Do not install a beta package under
+the same name, overwrite a shared environment, or mix headers from another SDK.
+
+The CI deployment's environment entry is
+`/opt/tileops-ci/server2-20261030/config/device-env.sh`; per-job Python environments
+are prepared by the adjacent `prepare-python.sh`. Those paths are deployment
+locations, not portable developer installation paths.
+
+Before using the NPU, check the environment without initializing a device:
+
+```bash
+TORCH_DEVICE_BACKEND_AUTOLOAD=0 python scripts/ci/check_ascend_toolchain.py
+```
+
+A mismatch reports the component and expected profile before operator compilation.
+CPU metadata checks do not reserve the card. Any NPU imports that initialize the
+runtime, compilation requiring the runtime, or operator execution still belongs
+inside the site's shared `npu-guard run` command.
+
+## Acceptance and upgrades
+
+- Correctness and regression acceptance use server2's physical 32 Cube / 64 Vector
+  Ascend950DT_9582. A 36-core development device is not a performance substitute.
+- A profile must pass CPU contracts plus representative Cube, Vector, and public
+  operator correctness checks before becoming the default. Record the exact cases;
+  a smoke test is not full-regression evidence.
+- Upgrade through a dedicated toolchain change. Test the candidate in a separate
+  prefix and cache, retain the previous profile, then update the lock and CI together.
+- Run full registered-operator regression after an upgrade and retain its failures;
+  do not relax numerical tolerances to accommodate a toolchain change.
+- Unmerged compiler features (such as cross-block batch scheduling) are outside the
+  release profile. A PR must supply a correct supported fallback or first land and
+  validate a new pinned compiler profile. A hardware core-count check alone does
+  not establish that a compiler feature exists.
+- Correctness and performance are separate. Any toolchain change used for published
+  timing requires new aligned baseline/operator measurements on the target hardware.
+
+The older `development.md` runtime paragraph is superseded by this contract and
+its machine-readable lock. It must not be used to equate beta and release builds.
