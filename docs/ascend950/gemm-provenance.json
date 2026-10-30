@@ -1,0 +1,971 @@
+{
+  "schema_version": 1,
+  "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
+  "repository_commit": "14d55960d4187a0467e05a8503494ecc8ab48f7b",
+  "scope": "Ascend 950DT 16-bit GemmFwdOp: all 20 manifest cases (18 BF16, 2 float16). The float16 cases reuse their BF16 sibling schedule with the operand dtype switched. Not a public performance receipt.",
+  "device": {
+    "model": "Ascend950DT_9582",
+    "cube_cores": 32,
+    "vector_cores": 64,
+    "dense_bfloat16_peak_tflops": 432,
+    "physical_node": "/dev/davinci7"
+  },
+  "campaign": {
+    "protocol": "issue1-default-clock-task-adapter-v1",
+    "warmup": 3,
+    "independent_sessions": 15,
+    "eviction_bytes": 1073741824,
+    "metric": "arithmetic mean of raw ffts device execution interval unions",
+    "clock_policy": "unchanged platform default",
+    "formal_pending": true,
+    "reason": "Task-private protocol adapter; the public default-clock receipt and the host-wide reservation are unavailable.",
+    "workspace": "Task acceptance workspace, kept outside the repository.",
+    "environment": {
+      "tilelang": "0.1.15",
+      "torch": "2.7.1+cpu",
+      "torch_npu": "2.7.1.post11",
+      "CANN": "9.2"
+    },
+    "float16_baseline": "DeepGEMM BF16 arm on the same shape and round; DeepGEMM has no float16 entry point and the matrix unit runs both 16-bit dtypes at the same rate."
+  },
+  "replay": {
+    "entry_point": "scripts/benchmark_ascend.py --op GemmFwdOp --verify-only",
+    "run_dir": "gemm-bf16/all-verify-004, site result directory kept outside the repository",
+    "status": "passed",
+    "passed": 20,
+    "failed": 0,
+    "source_changed": false,
+    "verify_only": true,
+    "source_fingerprint_sha256": "ad3aae1ebced4b60de26ae608a9b7f5a83d43f4364d8a89c88cbd91062d7c71f",
+    "started_at": "2026-10-28T07:11:13.745310+00:00",
+    "finished_at": "2026-10-28T07:11:46.826015+00:00",
+    "environment": {
+      "tilelang": "0.1.15",
+      "torch": "2.13.0+cpu",
+      "torch_npu": "2.13.0.rc1",
+      "python": "3.12.11",
+      "CANN": {
+        "CANN": "9.2.0",
+        "RUNTIME": "9.2.0",
+        "COMPILER": "9.2.0",
+        "DRIVER": "25.6.rc1",
+        "TOOLKIT": "9.2.0",
+        "OPP": "9.2.0"
+      }
+    },
+    "guard": {
+      "path": "Site copy of scripts/npu_guard.py with the physical device node remapped",
+      "sha256": "41e0d5f42853ab1a29b064dccee93945e13d25046c0ad4024219ec1ce519ff65",
+      "repository_guard_sha256": "e42a2f6849444af00a23905402e757604958f448b102bc6493e91546d543b4e6",
+      "difference": "the physical device node: /dev/davinci0 -> /dev/davinci7",
+      "limitation": "The /run/lock/ascend-npu reservation is container-scoped on this site; this replay is site-scoped correctness evidence, not a formal receipt."
+    }
+  },
+  "verification": {
+    "tir_equivalence": {
+      "checked": 18,
+      "equal": 18,
+      "method": "Rebuild the ported PrimFunc and the measured main; compare TVMScript after renaming the template operands to the port names and removing the unused shared buffer that no served case uses."
+    },
+    "kernel_source_equivalence": {
+      "checked": 18,
+      "equal": 18,
+      "method": "Compile both PrimFuncs for ascend with out_idx=-1 and compare the generated kernel source after normalizing the symbol names and the parameter order."
+    },
+    "dtype_projection": {
+      "checked": 2,
+      "equal": 2,
+      "method": "Build each float16 schedule and its BF16 sibling from the same config; the TVMScript is equal after replacing the dtype name."
+    },
+    "cpu_contracts": {
+      "passed": 270,
+      "deselected": 2
+    },
+    "benchmark_contracts": {
+      "passed": 97,
+      "skipped": 14
+    }
+  },
+  "cases": [
+    {
+      "id": "square-1k-bfloat16",
+      "shape": [
+        1024,
+        1024,
+        1024
+      ],
+      "layout": "NN",
+      "dtype": "bfloat16",
+      "module": "dynamic_tail",
+      "config": {
+        "tile_m": 128,
+        "tile_n": 128,
+        "tile_k": 128,
+        "stages": 3,
+        "l0_stages": 2,
+        "blocks": 32
+      },
+      "configuration_source": "Public persistent BMM parameterization",
+      "measured_source_sha256": "b1f8fe028c3ad5ca6344c7cc5968c478b554f7dad7f0391d28483e6e5c4f4510",
+      "port_source_sha256": "0d062ee0f699e73adacb6d2e859f75e2288ceb399a75091ab37072b81c38d4b2",
+      "tir_sha256": "b695188005f205f7349399f08c3f258ef6fbfe0713605774e24739385963fa6a",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "749ece7d2261c639fcdb06df3add3acd53e1f736352f192343b037d3f4c584a1",
+      "campaign": {
+        "result": "results/full-performance-001/square-1k-bfloat16/result.json",
+        "latency_us": 10.381133333333334,
+        "tflops": 206.86408497466556,
+        "peak_percent": 47.885204855246656,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 10.062133333333334,
+        "ratio": 0.969271177841854
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-decode-qkv-a-bfloat16",
+      "shape": [
+        128,
+        2112,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "bf16_nt_128_2112_7168",
+      "config": {
+        "blocks": 27,
+        "a_l0_shape": [
+          2,
+          128,
+          128
+        ],
+        "a_l1_shape": [
+          2,
+          128,
+          256
+        ],
+        "b_l0_shape": [
+          2,
+          80,
+          128
+        ],
+        "b_l1_shape": [
+          2,
+          80,
+          256
+        ],
+        "tile_m": 128,
+        "tile_n": 80
+      },
+      "configuration_source": "Existing TileProf high-performance schedule; source pins retained",
+      "measured_source_sha256": "f703f6e953957d0f7a812a38441bbd2760c98611bb21bdf277678a024d2df466",
+      "port_source_sha256": "e95abe0402ecdcfa62c17286653f54fb51c9114f48b1972592535d41ed82bb56",
+      "tir_sha256": "3e8dc998b6d21c539c8f5b5b01315bcf32c8093213dbd16aa5dec6ba2eda4c94",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "57fea43010782d3fcd3739679e92011e918b67fd16bbd657008755c86a4e29cb",
+      "campaign": {
+        "result": "results/full-performance-001/ds-v3-decode-qkv-a-bfloat16/result.json",
+        "latency_us": 25.806333333333335,
+        "tflops": 150.17774303465558,
+        "peak_percent": 34.76336644320731,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 26.22106666666667,
+        "ratio": 1.0160709903253724
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 1.0
+      }
+    },
+    {
+      "id": "ds-v3-decode-down-bfloat16",
+      "shape": [
+        128,
+        7168,
+        2048
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "bf16_nt_128_7168_2048",
+      "config": {
+        "blocks": 32,
+        "a_l0_shape": [
+          2,
+          128,
+          64
+        ],
+        "a_l1_shape": [
+          2,
+          128,
+          128
+        ],
+        "b_l0_shape": [
+          2,
+          224,
+          64
+        ],
+        "b_l1_shape": [
+          2,
+          224,
+          256
+        ],
+        "tile_m": 128,
+        "tile_n": 224
+      },
+      "configuration_source": "Existing TileProf high-performance schedule; source pins retained",
+      "measured_source_sha256": "360dbf785ff6bae554b771a88bdf7ac5d88512a82a5f9c6377c373481ca5635a",
+      "port_source_sha256": "b18511b0c879f8e7fb2c4eadc5018a88f099ac40ccf8128bed83fb76550778bc",
+      "tir_sha256": "06cd0d444fdd547ea7877aea67a45e13950274bfd8328d024a30a319cb63083e",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "f49c8ede6c93a0de1714f4fc33def34ac50dfb9194c23b830dc5e28d8c0a4949",
+      "campaign": {
+        "result": "results/full-performance-001/ds-v3-decode-down-bfloat16/result.json",
+        "latency_us": 15.993866666666666,
+        "tflops": 234.97109625356387,
+        "peak_percent": 54.39145746610275,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 15.479,
+        "ratio": 0.967808493255748
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-prefill-qkv-a-bfloat16",
+      "shape": [
+        4096,
+        2112,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "bf16_nt_4096_2112_7168",
+      "config": {
+        "blocks": 32,
+        "a_l0_shape": [
+          3,
+          128,
+          64
+        ],
+        "a_l1_shape": [
+          4,
+          256,
+          128
+        ],
+        "b_l0_shape": [
+          2,
+          240,
+          64
+        ],
+        "b_l1_shape": [
+          4,
+          240,
+          128
+        ],
+        "tile_m": 256,
+        "tile_n": 240
+      },
+      "configuration_source": "Existing TileProf high-performance schedule; source pins retained",
+      "measured_source_sha256": "891bd2ac2b3ecb0aa20416f54039f65866bf0b21074e4bb23270b05509a9d679",
+      "port_source_sha256": "f941fb51aebd8ce5f6209fd2ef9224959549e7b2f71fd6f9874023e9f839815e",
+      "tir_sha256": "88f02ed436a77cf786b62ec9894f9262a66e2bcb7bc0b4f63f2f946f77d7a4ed",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "cffd352a058dc697fce0b84312eeb2f9bd4f5eb80ee6abfcb74c5e0079cfd13a",
+      "campaign": {
+        "result": "results/full-performance-001/ds-v3-prefill-qkv-a-bfloat16/result.json",
+        "latency_us": 329.26733333333334,
+        "tflops": 376.64586831773977,
+        "peak_percent": 87.1865435920694,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 292.474,
+        "ratio": 0.8882569583782984
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-prefill-down-bfloat16",
+      "shape": [
+        4096,
+        7168,
+        2048
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 256,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 4
+      },
+      "configuration_source": "Reused pinned TileLang example configuration, selected from valid same-device baseline; not TileProf search output",
+      "measured_source_sha256": "c66e9dfebfc65664b9c1d87fa5cd7a50ffd78f5926b09d6a4d62a2800466a916",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "7fa48eb6989f64ccb2ddb45b658e546eb0062a8b9d06278417e2c67ad3c1801a",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "a12a7772f35508921dd2d1032576f7038f1f23a1044359dfbdffab2ecf838038",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/ds-v3-prefill-down-bfloat16/result.json",
+        "latency_us": 291.5632,
+        "tflops": 412.46317878250755,
+        "peak_percent": 95.477587681136,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 282.8907333333333,
+        "ratio": 0.9702552768433509
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-prefill-mlp-up-bfloat16",
+      "shape": [
+        4096,
+        4096,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 256,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 4
+      },
+      "configuration_source": "Reused pinned TileLang example configuration, selected from valid same-device baseline; not TileProf search output",
+      "measured_source_sha256": "9f5b2b1719111d0d2e9cd478e95424110480e195c8375633592c4b1f9977b496",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "21a7785bcd78bd390d9087343b874a3d208980b0259b8d810d56e571312e1eb3",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "552706f327d4f072480baf60d0e5b1613cf2a93d0c57b194f45ad168371592a9",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/ds-v3-prefill-mlp-up-bfloat16/result.json",
+        "latency_us": 566.0394,
+        "tflops": 424.91418190323856,
+        "peak_percent": 98.35976432945337,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 560.8708666666666,
+        "ratio": 0.9908689512897276
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-prefill-o-proj-bfloat16",
+      "shape": [
+        4096,
+        7168,
+        16384
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 256,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 4
+      },
+      "configuration_source": "Reused pinned TileLang example configuration, selected from valid same-device baseline; not TileProf search output",
+      "measured_source_sha256": "afe8e93541362b220df421eb144603f4b391fbfc81e06ddcc630b956f092c8a8",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "02d18e12a1e5654ddea0d2aa13ac473037f129ab5097ac770c45d3fa6794610e",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "0bd40ec1696a899d3e58982c02ba304c14495f52ffb78c4ea1d85a04ece5c7d6",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/ds-v3-prefill-o-proj-bfloat16/result.json",
+        "latency_us": 2238.7546666666663,
+        "tflops": 429.73564215343544,
+        "peak_percent": 99.475843091073,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 2229.8314,
+        "ratio": 0.9960141828850089
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-prefill-q-b-bfloat16",
+      "shape": [
+        4096,
+        24576,
+        1536
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 256,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 4
+      },
+      "configuration_source": "Reused pinned TileLang example configuration, selected from valid same-device baseline; not TileProf search output",
+      "measured_source_sha256": "cd6ce73b8cf1a5d3a30ca00a3cf32db1e98f1ecbd68e6687adb335789ae6b475",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "1d8c404d2f6f623998fe396f0dc732fc12fdc9fb31a0f9b898ef77eb58f115dd",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "c49c125767354f6499fefd3e710592335ef28a5546fd2e51fb4a560939599cbf",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/ds-v3-prefill-q-b-bfloat16/result.json",
+        "latency_us": 747.8222666666667,
+        "tflops": 413.51756840618276,
+        "peak_percent": 95.72165935328304,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 719.6663333333333,
+        "ratio": 0.962349431692058
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-m16-mlp-up-bfloat16",
+      "shape": [
+        16,
+        4096,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "bf16_nt_16_4096_7168",
+      "config": {
+        "blocks": 32,
+        "a_l0_shape": [
+          1,
+          16,
+          128
+        ],
+        "a_l1_shape": [
+          1,
+          16,
+          256
+        ],
+        "b_l0_shape": [
+          2,
+          128,
+          128
+        ],
+        "b_l1_shape": [
+          2,
+          128,
+          256
+        ],
+        "tile_m": 16,
+        "tile_n": 128
+      },
+      "configuration_source": "Existing TileProf high-performance schedule; source pins retained",
+      "measured_source_sha256": "e466da78c88a72eafab543ef671a918d0557d38d4e9fe8ce5f5ca0c36e99dd3a",
+      "port_source_sha256": "50bb67f36967c9d4322a1530dc1e71c7ef5f5aec33d31ce328690fb6d49142c2",
+      "tir_sha256": "a7694f2054d4e4dd5f727c7ff5e5637f7726110c17fab56b7a424bee349ccaf7",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "99ecd403961be5c8f1860529eab883e0d671a2541d10b4a41183baec7e363e73",
+      "campaign": {
+        "result": "results/full-performance-001/ds-v3-m16-mlp-up-bfloat16/result.json",
+        "latency_us": 24.097333333333335,
+        "tflops": 38.988716427820506,
+        "peak_percent": 9.025165839773265,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 21.910466666666665,
+        "ratio": 0.9092486028882862
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.5
+      }
+    },
+    {
+      "id": "ds-v3-m32-mlp-up-bfloat16",
+      "shape": [
+        32,
+        4096,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "bf16_nt_32_4096_7168",
+      "config": {
+        "blocks": 32,
+        "a_l0_shape": [
+          2,
+          32,
+          128
+        ],
+        "a_l1_shape": [
+          1,
+          32,
+          256
+        ],
+        "b_l0_shape": [
+          2,
+          128,
+          128
+        ],
+        "b_l1_shape": [
+          2,
+          128,
+          256
+        ],
+        "tile_m": 32,
+        "tile_n": 128
+      },
+      "configuration_source": "Existing TileProf high-performance schedule; source pins retained",
+      "measured_source_sha256": "ef9a60259508a066c586583075ace302d27a659e220ac194c9991f95f1401b3d",
+      "port_source_sha256": "60031e2efd678dffc8f1bc52daa31cda268dcfbba31c54c604e678362c249172",
+      "tir_sha256": "f9bb621c7a45224701b8d10bccc24825d130fb7956c010e9937d37e0d168193a",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "8342fa4eb21161ae1d27e5a269717c631e00a2506eb532b250a31d2eb132680d",
+      "campaign": {
+        "result": "results/full-performance-001/ds-v3-m32-mlp-up-bfloat16/result.json",
+        "latency_us": 26.1434,
+        "tflops": 71.87466787028467,
+        "peak_percent": 16.637654599602932,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 22.187333333333335,
+        "ratio": 0.8486781877389068
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 1.0
+      }
+    },
+    {
+      "id": "ds-v3-m64-down-bfloat16",
+      "shape": [
+        64,
+        7168,
+        2048
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 64,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 1
+      },
+      "configuration_source": "Reused pinned TileLang example configuration, selected from valid same-device baseline; not TileProf search output",
+      "measured_source_sha256": "611b34f68776a0f0584e71982cdc7ee2e3d1e79539cdc887e853b09ff0456a14",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "6375306988eb0541886345856144983b0f292de8e02589a44ef0e7493b019b61",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "3548cdda09916a5ddee036eab667a941ebf4a3f38c451933da159d0b0fb177d0",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/ds-v3-m64-down-bfloat16/result.json",
+        "latency_us": 14.422,
+        "tflops": 130.29040299542365,
+        "peak_percent": 30.15981550819992,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 13.6642,
+        "ratio": 0.9474552766606572
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-m96-qkv-a-bfloat16",
+      "shape": [
+        96,
+        2112,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 96,
+        "tile_n": 96,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 1
+      },
+      "configuration_source": "Pinned TileLang example parameter candidate: N96 avoids second output-tile wave; not autotuned",
+      "measured_source_sha256": "69a49c04fa289878ab01e7946337d2f964ac54b1fc51e160ae27be588c173056",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "eb3d10424e18b7fc53de315189f04fc26888ee96c21d6e1ef10e25a4e961b5ba",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "21ac30d161c25d592db51a0734dc858ef3ce9954b19fd76ca85e37f18accc54c",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/ds-v3-m96-qkv-a-bfloat16/result.json",
+        "latency_us": 25.082533333333334,
+        "tflops": 115.88353669751594,
+        "peak_percent": 26.824892754054616,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 23.2932,
+        "ratio": 0.9286621766009813
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 1.0
+      }
+    },
+    {
+      "id": "ds-v3-m1-qkv-a-bfloat16",
+      "shape": [
+        1,
+        2112,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "l1_direct_tail",
+      "config": {
+        "tile_m": 16,
+        "tile_n": 80,
+        "tile_k": 512,
+        "stages": 2,
+        "blocks": 32,
+        "l1_direct": true,
+        "unit_flag": true
+      },
+      "configuration_source": "Parameterized L1-direct dynamic M/N-tail candidate; physics-guided configuration, not autotuned",
+      "measured_source_sha256": "89ac0798a5fd9a2a92ba8948ddc046ef7b61b2e9a5da343d38a811c717e1674e",
+      "port_source_sha256": "00655afe8537ef1c1a9c7315563a9ba42185e97124c5cc8e8637c4b230671988",
+      "tir_sha256": "2db8139d8ee248982a70f7668b709e55b69b8ba8220df0b9e2e3381b0484f4da",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "ea432b4a5ee5714a1b612901beea07b6d9a79b18f4802bb85a55cc396c188812",
+      "campaign": {
+        "result": "results/tail-k512-m1-full/ds-v3-m1-qkv-a-bfloat16/result.json",
+        "latency_us": 13.4666,
+        "tflops": 2.2483501403472292,
+        "peak_percent": 0.5204514213766734,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 12.367266666666666,
+        "ratio": 0.9183659325046163
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.03125
+      }
+    },
+    {
+      "id": "ds-v3-m2-qkv-a-bfloat16",
+      "shape": [
+        2,
+        2112,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "l1_direct_tail",
+      "config": {
+        "tile_m": 16,
+        "tile_n": 80,
+        "tile_k": 512,
+        "stages": 2,
+        "blocks": 32,
+        "l1_direct": true,
+        "unit_flag": true
+      },
+      "configuration_source": "Parameterized L1-direct dynamic M/N-tail candidate; physics-guided configuration, not autotuned",
+      "measured_source_sha256": "2a7152928d3967c027e337f676edb91a66f596148382f5ecc318016a67ea28e8",
+      "port_source_sha256": "00655afe8537ef1c1a9c7315563a9ba42185e97124c5cc8e8637c4b230671988",
+      "tir_sha256": "d88a5dab233c0969c7db6d1de56df960ae0efe9e27ed6e2a29af942dbe349974",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "ebaeaa7a569d0734fc0e5e97a5efe2ea02eb8b6a4577d9a57c1bbc2579872ea5",
+      "campaign": {
+        "result": "results/tail-k512-m2-full/ds-v3-m2-qkv-a-bfloat16/result.json",
+        "latency_us": 13.4744,
+        "tflops": 4.494097251083536,
+        "peak_percent": 1.0403002896026703,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 12.319866666666666,
+        "ratio": 0.9143165311009519
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.125
+      }
+    },
+    {
+      "id": "qwen3-8b-gate-up-decode-bfloat16",
+      "shape": [
+        1,
+        24576,
+        4096
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "dynamic_tail",
+      "config": {
+        "tile_m": 16,
+        "tile_n": 128,
+        "tile_k": 128,
+        "stages": 3,
+        "l0_stages": 2,
+        "blocks": 32
+      },
+      "configuration_source": "Public persistent BMM parameterization",
+      "measured_source_sha256": "ce5d049d4f6c313ad5921b526b90c7f5ebfb0603ae29cb4e158d5491d716105a",
+      "port_source_sha256": "0d062ee0f699e73adacb6d2e859f75e2288ceb399a75091ab37072b81c38d4b2",
+      "tir_sha256": "16b4d0c2f0a1a521bd21a5ae9633c3a8b99eec10233c6bdc75376cad8b2ea8b7",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "0cbf20545542e75bb74d5802b0337a7ae1c0f50a066113168f6661fc8eebca41",
+      "campaign": {
+        "result": "results/full-performance-001/qwen3-8b-gate-up-decode-bfloat16/result.json",
+        "latency_us": 68.92466666666667,
+        "tflops": 2.920965769390736,
+        "peak_percent": 0.676149483655263,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 58.7416,
+        "ratio": 0.8522580208343409
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "qwen3-8b-gate-up-b32-bfloat16",
+      "shape": [
+        32,
+        24576,
+        4096
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 32,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 1
+      },
+      "configuration_source": "Reused pinned TileLang example configuration, selected from valid same-device baseline; not TileProf search output",
+      "measured_source_sha256": "5bff4a1b568ed871bce2b554cec95aa582eef2e36040a80ae007583d95cf3e0a",
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "tir_sha256": "cf49132a4a0b0212c08b76cfe6e996984545dea71358cde668b5bfc71ec55c67",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 1,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "badb5f23860549bdeaab7eb843508fb77407eebac3ca8884e92972f5eda564ae",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/qwen3-8b-gate-up-b32-bfloat16/result.json",
+        "latency_us": 67.7278,
+        "tflops": 95.12269620451276,
+        "peak_percent": 22.01914263993351,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 61.07346666666667,
+        "ratio": 0.9017488633421825
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "qwen3-8b-down-prefill-bfloat16",
+      "shape": [
+        128,
+        4096,
+        12288
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "dynamic_tail",
+      "config": {
+        "tile_m": 128,
+        "tile_n": 128,
+        "tile_k": 128,
+        "stages": 3,
+        "l0_stages": 2,
+        "blocks": 32
+      },
+      "configuration_source": "Public persistent BMM parameterization",
+      "measured_source_sha256": "4bd058d414a81da30fcf5690a60e25016563bba2e431a62315aa55de18751aad",
+      "port_source_sha256": "0d062ee0f699e73adacb6d2e859f75e2288ceb399a75091ab37072b81c38d4b2",
+      "tir_sha256": "1243b036c0108746d498bf66898619bb03a193ace8e75f997ef0f75fa9c86145",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "f60b69e58ae071968e49692d6d4b6ae7d965287263098ecf765faf95a01ca8b7",
+      "campaign": {
+        "result": "results/full-performance-001/qwen3-8b-down-prefill-bfloat16/result.json",
+        "latency_us": 54.127066666666664,
+        "tflops": 238.04914401420857,
+        "peak_percent": 55.10396852180754,
+        "fastest_baseline": "torch_npu",
+        "fastest_baseline_us": 49.29846666666666,
+        "ratio": 0.9107913970336468
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 1.0
+      }
+    },
+    {
+      "id": "vit-l16-in21k-head-bfloat16",
+      "shape": [
+        256,
+        21843,
+        1024
+      ],
+      "layout": "NT",
+      "dtype": "bfloat16",
+      "module": "l1_direct_tail",
+      "config": {
+        "tile_m": 256,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "l1_direct": true,
+        "unit_flag": true
+      },
+      "configuration_source": "Parameterized L1-direct dynamic M/N-tail candidate; physics-guided configuration, not autotuned",
+      "measured_source_sha256": "3aa4d1b3cebe917f2680ffd3e026ff3f44d4ccf29883979d2b219370e03b56ca",
+      "port_source_sha256": "00655afe8537ef1c1a9c7315563a9ba42185e97124c5cc8e8637c4b230671988",
+      "tir_sha256": "2e7e519d029510b8665bee2700891c7650c88b08821cc93bcacdc8be43e8ce7c",
+      "tir_equal_after_normalization": true,
+      "dropped_unused_shared_buffers": 0,
+      "kernel_source_equal_after_normalization": true,
+      "kernel_source_sha256": "48d5cb73d22f2f4d4c51befae52d61aded3adce6c73321575b03bf260533a2a9",
+      "campaign": {
+        "result": "results/selected-v4-performance-001/vit-l16-in21k-head-bfloat16/result.json",
+        "latency_us": 42.27726666666667,
+        "tflops": 270.8789779219407,
+        "peak_percent": 62.70346711156035,
+        "fastest_baseline": "deepgemm",
+        "fastest_baseline_us": 38.12453333333333,
+        "ratio": 0.9017738453605483
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "square-1k-float16",
+      "shape": [
+        1024,
+        1024,
+        1024
+      ],
+      "layout": "NN",
+      "dtype": "float16",
+      "module": "dynamic_tail",
+      "config": {
+        "tile_m": 128,
+        "tile_n": 128,
+        "tile_k": 128,
+        "stages": 3,
+        "l0_stages": 2,
+        "blocks": 32
+      },
+      "projection_of": "square-1k-bfloat16",
+      "tir_dtype_projection": true,
+      "port_source_sha256": "0d062ee0f699e73adacb6d2e859f75e2288ceb399a75091ab37072b81c38d4b2",
+      "campaign": {
+        "protocol": "issue1-default-clock-task-adapter-v1",
+        "latency_us": 10.289333333333333,
+        "tflops": 208.70969755086173,
+        "peak_percent": 48.312429988625404,
+        "fastest_baseline": "deepgemm-bfloat16",
+        "fastest_baseline_us": 8.865133333333334,
+        "ratio": 0.8615848127510691,
+        "formal_pending": true
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    },
+    {
+      "id": "ds-v3-prefill-mlp-up-float16",
+      "shape": [
+        4096,
+        4096,
+        7168
+      ],
+      "layout": "NT",
+      "dtype": "float16",
+      "module": "swizzled_persistent",
+      "config": {
+        "tile_m": 256,
+        "tile_n": 256,
+        "tile_k": 256,
+        "stages": 2,
+        "blocks": 32,
+        "window": 4
+      },
+      "projection_of": "ds-v3-prefill-mlp-up-bfloat16",
+      "tir_dtype_projection": true,
+      "port_source_sha256": "7f3d6c4557ab264b1c23ea82d5ac00fe732ca8c0f8c02a4504f2dfec41595256",
+      "campaign": {
+        "protocol": "issue1-default-clock-task-adapter-v1",
+        "latency_us": 566.1708,
+        "tflops": 424.8155655077938,
+        "peak_percent": 98.33693646013745,
+        "fastest_baseline": "deepgemm-bfloat16",
+        "fastest_baseline_us": 560.782,
+        "ratio": 0.9904820241524289,
+        "formal_pending": true
+      },
+      "replay": {
+        "status": "verified",
+        "max_abs_err": 0.0
+      }
+    }
+  ]
+}
