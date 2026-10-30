@@ -9,7 +9,7 @@ from tileops.kernels.fft import FFTC2CCall, FFTC2CFourStepKernel
 from tileops.ops import FFTC2CFwdOp
 from workloads.device import run_device
 from workloads.fft import FFTWorkload
-from workloads.numerics import compare_outputs
+from workloads.numerics import Exact, compare_outputs
 
 
 class FFTTest(FFTWorkload, TestBase):
@@ -65,7 +65,7 @@ def test_fft_c2c(n: int, dtype: torch.dtype, batch_shape: tuple) -> None:
     batch = math.prod(batch_shape) if batch_shape else 1
     # The check holds up to six copies of the output at once; one more is headroom.
     need = 7 * batch * n * (8 if dtype == torch.complex64 else 16)
-    free, _total = torch.accelerator.get_memory_info(run_device())
+    free, _total = torch.get_device_module(run_device()).mem_get_info(run_device())
     if need > free:
         pytest.skip(f"n={n} {dtype} needs {need >> 20} MiB free, device has {free >> 20} MiB")
     test = FFTTest(n, dtype, batch_shape=batch_shape)
@@ -87,18 +87,19 @@ def test_fft_c2c_in_99_kb_of_shared_memory(n: int) -> None:
 def test_fft_batch_above_grid_y_limit() -> None:
     """The symbolic batch is grid.x, so batch may exceed CUDA grid.y's 65535 limit."""
     n = 64
-    x = torch.randn(65536, n, device=run_device(), dtype=torch.complex64)
+    workload = FFTWorkload(n, torch.complex64, batch_shape=(65536,))
+    (x,) = workload.gen_inputs()
 
     got = FFTC2CFwdOp()(x)
 
-    workload = FFTWorkload(x.shape[-1], x.dtype)
     compare_outputs(got, workload.ref_program(x), workload.verification(x))
 
 
 @pytest.mark.smoke
 def test_fft_lazy_conjugate_input() -> None:
     """A conjugate view keeps its conj bit through contiguous(); view_as_real rejects it."""
-    x = torch.randn(4, 64, device=run_device(), dtype=torch.complex64).conj()
+    (x,) = FFTWorkload(64, torch.complex64, batch_shape=(4,)).gen_inputs()
+    x = x.conj()
 
     got = FFTC2CFwdOp()(x)
 
@@ -124,11 +125,11 @@ def test_every_power_of_two_through_2_28_has_a_kernel(dtype: torch.dtype) -> Non
 
 @pytest.mark.smoke
 def test_fft_n1_is_an_out_of_place_identity() -> None:
-    x = torch.randn(3, 1, device=run_device(), dtype=torch.complex64)
+    (x,) = FFTWorkload(1, torch.complex64, batch_shape=(3,)).gen_inputs()
 
     got = FFTC2CFwdOp()(x)
 
-    torch.testing.assert_close(got, x, atol=0, rtol=0)
+    compare_outputs(got, x, Exact(atol=0, rtol=0))
     assert got.data_ptr() != x.data_ptr()
 
 
@@ -153,3 +154,35 @@ def test_tune_configures_every_kernel_of_a_four_step_plan(monkeypatch: pytest.Mo
 
     workload = FFTWorkload(x.shape[-1], x.dtype)
     compare_outputs(got, workload.ref_program(x), workload.verification(x))
+
+
+@pytest.mark.smoke
+def test_fft_strided_input() -> None:
+    """A noncontiguous transformed axis is materialized without changing its order."""
+    (wide,) = FFTTest(128, torch.complex64, batch_shape=(3,)).gen_inputs()
+    x = wide[..., ::2]
+    FFTTest(64, torch.complex64, batch_shape=(3,)).check(FFTC2CFwdOp(), x)
+
+
+@pytest.mark.smoke
+def test_fft_partial_row_packet() -> None:
+    """The final packed batch includes one valid row and preserves every output."""
+    test = FFTTest(64, torch.complex64, batch_shape=(65,))
+    test.check(FFTC2CFwdOp(), *test.gen_inputs())
+
+
+@pytest.mark.smoke
+def test_fft_partial_vf_group() -> None:
+    """An odd row packet keeps inter-stage synchronization valid for every row."""
+    test = FFTTest(1024, torch.complex64, batch_shape=(289,))
+    test.check(FFTC2CFwdOp(), *test.gen_inputs())
+
+
+@pytest.mark.smoke
+def test_fft_ascend_complex128_unsupported() -> None:
+    """FP64 is unsupported and must be refused before building an FP32 substitute."""
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("requires the Ascend backend")
+    with pytest.raises(ValueError, match="FP64/complex128 is unsupported"):
+        FFTC2CFwdOp().key_for("fft_c2c", FFTC2CCall(n=4096, dtype=torch.complex128, device=device))

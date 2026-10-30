@@ -3,6 +3,7 @@
 import pytest
 import torch
 
+from workloads.device import run_device
 from workloads.numerics import (
     Custom,
     Exact,
@@ -17,6 +18,34 @@ from workloads.numerics import (
 )
 
 pytestmark = pytest.mark.smoke
+
+
+def test_npu_complex_comparison_retains_magnitude_tolerance():
+    if torch.device(run_device()).type != "npu":
+        pytest.skip("requires the NPU complex comparison path")
+    target = torch.zeros(1, dtype=torch.complex64).to(run_device())
+    evidence = Exact(atol=1e-4, rtol=0)
+    within = torch.tensor([5e-5 + 0j], dtype=torch.complex64).to(run_device())
+    assert compare_outputs(within, target, evidence).checked_outputs == 1
+    # Each component is within atol, but the complex magnitude is outside it.
+    outside = torch.tensor([8e-5 + 8e-5j], dtype=torch.complex64).to(run_device())
+    with pytest.raises(AssertionError):
+        compare_outputs(outside, target, evidence)
+    with pytest.raises(AssertionError, match="device mismatch"):
+        compare_outputs(within.cpu(), target, evidence)
+
+    def overwrite(value):
+        value.view(torch.float32).add_(1)
+        return value
+
+    with pytest.raises(AssertionError, match="overwrote the shared inputs"):
+        verify(
+            lambda value: value.clone(),
+            (target,),
+            evidence=Exact(atol=0, rtol=0),
+            requests={"bad": Request(overwrite, (target,), preserve_inputs=True)},
+        )
+    torch.testing.assert_close(target.cpu(), torch.zeros(1, dtype=torch.complex64), atol=0, rtol=0)
 
 
 def _verify_one(subject, inputs, *, reference, evidence, subject_inputs=None):
