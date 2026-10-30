@@ -13,20 +13,11 @@ an NPU installation remain visible through `tileops.load_failures()`.
 
 ## Runtime
 
-Use **the official TileLang 0.1.15 release**, including its Ascend 950 backend. The
-validated machine uses Python 3.12, PyTorch 2.13, torch-npu 2.13.0rc1 and CANN 9.2.
-Configure CANN and Bisheng through the site's environment script before running any
-command. Keep the NPU environment separate from CUDA dependency installations.
-
-```bash
-python -m pip install --no-deps 'tilelang===0.1.15'
-python -m pip install --no-deps -e .
-```
-
-`--no-deps` assumes a compatible PyTorch/torch-npu/CANN environment already exists.
-Do not install the GPU development constraints over another project's NPU environment.
-The official release wheel is available on PyPI; custom local versions do not satisfy
-this benchmark's version check.
+Use the canonical [Ascend 950 toolchain contract](toolchain.md) and its
+`config/ascend950-toolchain.json` lock. It distinguishes CANN releases from beta
+builds and pins native binary/header fingerprints in addition to package versions.
+A generic "CANN 9.2" or "TileLang 0.1.15" installation is not an environment match.
+Do not install GPU dependency bundles into the isolated NPU environment.
 
 The core/dev dependency set uses 0.1.15 on every target. The upstream GPU benchmark
 bundle has a separate constraint: vLLM 0.27.1
