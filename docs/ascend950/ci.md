@@ -2,10 +2,10 @@
 
 The maintained branch is `ascend950`. Historical `main` / Ascend 910B workflows are retired.
 
-| Trigger | Checks | Runner |
-| --- | --- | --- |
-| Pull request or push | CPU manifest, API and benchmark contracts, packaging coverage | `tileops-cpu-server2` |
-| Manual `correctness` | CPU checks, then the selected operators on the supplied revision | `tileops-npu-server2` |
+| Trigger                                | Checks                                                             | Runner                |
+| -------------------------------------- | ------------------------------------------------------------------ | --------------------- |
+| Pull request or push                   | CPU manifest, API and benchmark contracts, packaging coverage      | `tileops-cpu-server2` |
+| Manual `correctness`                   | CPU checks, then the selected operators on the supplied revision   | `tileops-npu-server2` |
 | Daily 00:00 UTC or manual `regression` | CPU checks, then every registered Ascend operator's manifest cases | `tileops-npu-server2` |
 
 Use Actions → Ascend 950 → Run workflow. For a PR, supply its exact head SHA and comma-separated manifest operator names. Device checks require a maintainer-triggered run; ordinary PR updates do not request the card. External PR workflow approval remains enabled.

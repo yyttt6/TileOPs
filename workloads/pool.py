@@ -36,8 +36,13 @@ class AvgPoolWorkload(WorkloadBase):
         self.divisor_override = divisor_override
         self.dtype = dtype
 
-    def gen_inputs(self, *shape: int) -> tuple[torch.Tensor]:
+    def gen_inputs(self, *shape: int, storage_offset: int = 0) -> tuple[torch.Tensor]:
         x = torch.randn(*shape, device=run_device(), dtype=self.dtype).contiguous()
+        if storage_offset:
+            storage = x.new_empty(x.numel() + storage_offset)
+            view = storage[storage_offset:].view_as(x)
+            view.copy_(x)
+            x = view
         return (x,)
 
     def ref_program(self, input: torch.Tensor) -> torch.Tensor:
