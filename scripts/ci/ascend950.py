@@ -91,6 +91,7 @@ def main():
     for name, command in steps:
         if (
             name != "manifest-device"
+            and env.get("TORCH_DEVICE_BACKEND_AUTOLOAD") != "0"
             and Path("/usr/local/Ascend/driver/lib64/driver/libdrvdsmi_host.so").exists()
         ):
             # Imports on an NPU host also belong to the host reservation.
