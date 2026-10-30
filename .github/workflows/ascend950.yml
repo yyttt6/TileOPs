@@ -61,6 +61,7 @@ jobs:
           CI_OPERATORS: ${{ inputs.operators }}
         run: |
           set -eo pipefail
+          source /ci/prepare-python.sh "$GITHUB_WORKSPACE"
           source /ci/device-env.sh
           python /ci/device-job.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4

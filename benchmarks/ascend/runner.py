@@ -135,6 +135,8 @@ def main(argv=None):
     manifest = load_manifest()
     supported = {op for op, kinds in registry.REGISTERED_KERNEL_TYPES.items() if "ascend" in kinds}
     selected = sorted(supported) if args.op == ["all"] else args.op
+    if not selected:
+        raise RuntimeError("No Ascend operators registered; check the installed backend entry point")
     missing = set(selected) - supported
     if missing:
         raise ValueError(f"No Ascend implementation registered: {sorted(missing)}")
