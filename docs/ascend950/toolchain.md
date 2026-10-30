@@ -49,11 +49,16 @@ The CI deployment's environment entry is
 are prepared by the adjacent `prepare-python.sh`. Those paths are deployment
 locations, not portable developer installation paths.
 
-Before using the NPU, check the environment without initializing a device:
+On the canonical ARM64 environment, check the profile without initializing a device:
 
 ```bash
 TORCH_DEVICE_BACKEND_AUTOLOAD=0 python scripts/ci/check_ascend_toolchain.py
 ```
+
+The strict ARM64 binary check deliberately rejects an x86_64 machine. Local
+development should match the release sources and package versions, then use the
+canonical remote CI for certification; do not compare ARM64 native hashes to x86
+binaries or conceal a local source build behind the release version string.
 
 A mismatch reports the component and expected profile before operator compilation.
 CPU metadata checks do not reserve the card. Any NPU imports that initialize the

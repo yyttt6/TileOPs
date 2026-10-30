@@ -8,6 +8,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.smoke
+
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/ci/check_ascend_toolchain.py"
 
 
