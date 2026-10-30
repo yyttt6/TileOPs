@@ -18,7 +18,8 @@ autoload and use a separate runner workspace; CPU checks do not reserve the card
 
 Deployment root: `/opt/tileops-ci/server2-20261030`. Runtime snapshots, job Python
 environments, runner workspaces and compilation caches are isolated from baseline
-and development directories. Both runners share the existing container's user and
+and development directories. CPU TorchInductor uses a private GCC 12 extracted
+under `compiler/`; the default system compiler is unchanged. Both runners share the existing container's user and
 device permissions: this is environment separation, not a security sandbox.
 Do not run unreviewed external code with device jobs; selected NPU tests require a
 maintainer dispatch. Daily 00:00 UTC runs full registered-operator correctness.

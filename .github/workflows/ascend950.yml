@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 30
     env:
       TORCH_DEVICE_BACKEND_AUTOLOAD: "0"
+      CXX: /opt/tileops-ci/server2-20261030/compiler/usr/bin/g++-12
       TORCHINDUCTOR_CACHE_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-inductor
       TORCH_EXTENSIONS_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-extensions
       TRITON_CACHE_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-triton
