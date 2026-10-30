@@ -82,7 +82,8 @@ where = ["src"]
 tileops = ["**/*.h", "**/*.yaml"]
 
 [tool.codespell]
-ignore-words-list = "nd, te, ist, LOD, offen, NotIn, HSA, CANN"
+# lint: codespell allow: CANN names the Ascend toolkit; ignore entries are lowercase.
+ignore-words-list = "nd, te, ist, LOD, offen, NotIn, HSA, cann"
 skip = [
     "build",
     "dist",
