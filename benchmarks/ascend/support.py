@@ -1,7 +1,7 @@
 """Explicit, verified unsupported manifest cases; never infer support from failures."""
 
 
-def unsupported_reason(op_name, case, kernel_types):
+def unsupported_reason(op_name, case, kernel_types, *, device="npu"):
     if op_name != "FFTC2CFwdOp" or case.id not in {
         "throughput-4k-complex128",
         "scientific-1m-complex128",
@@ -16,7 +16,7 @@ def unsupported_reason(op_name, case, kernel_types):
 
     kernel = kernel_types[op_name]["ascend"]
     reason = kernel.refusal(
-        FFTC2CCall(n=shape[-1], dtype=torch.complex128, device=torch.device("npu", 0))
+        FFTC2CCall(n=shape[-1], dtype=torch.complex128, device=torch.device(device))
     )
     if not reason or "FP64/complex128 is unsupported" not in reason:
         raise RuntimeError("FFT support changed; update the explicit unsupported-case declaration")

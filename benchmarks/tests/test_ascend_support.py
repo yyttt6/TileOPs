@@ -15,7 +15,10 @@ def case(name, dtype="complex128", n=4096):
 )
 def test_declared_fft_cases_require_real_kernel_refusal(name, n):
     reason = unsupported_reason(
-        "FFTC2CFwdOp", case(name, n=n), {"FFTC2CFwdOp": {"ascend": AscendFFTC2CKernel}}
+        "FFTC2CFwdOp",
+        case(name, n=n),
+        {"FFTC2CFwdOp": {"ascend": AscendFFTC2CKernel}},
+        device="cpu",
     )
     assert "FP64/complex128 is unsupported" in reason
 
@@ -38,4 +41,5 @@ def test_new_support_cannot_remain_hidden(monkeypatch):
             "FFTC2CFwdOp",
             case("throughput-4k-complex128"),
             {"FFTC2CFwdOp": {"ascend": AscendFFTC2CKernel}},
+            device="cpu",
         )
