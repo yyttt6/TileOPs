@@ -1,60 +1,70 @@
 name: Ascend 950
-
 on:
   push:
     branches: [ascend950]
   pull_request:
     branches: [ascend950]
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
-
+    inputs:
+      mode:
+        description: CPU, selected operator correctness, or full registered-operator regression
+        type: choice
+        options: [cpu, correctness, regression]
+        default: cpu
+      revision:
+        description: Commit SHA or PR head ref to verify (blank uses this branch)
+        default: ''
+      operators:
+        description: Comma-separated manifest op names for correctness
+        default: ''
 permissions:
   contents: read
-
 concurrency:
-  group: ascend950-${{ github.ref }}
-  cancel-in-progress: false
-
+  group: ascend950-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, tileops-cpu-docker]
+    timeout-minutes: 30
+    env:
+      TORCH_DEVICE_BACKEND_AUTOLOAD: "0"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - uses: pre-commit/action@v3.0.1
-        with:
-          extra_args: --all-files --show-diff-on-failure
-      - name: Install contract dependencies
-        run: pip install -e '.[dev]' -c constraints.txt
-      - name: CPU contracts
-        run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/ascend950-cpu"
+          ref: ${{ inputs.revision || github.sha }}
+          persist-credentials: false
+      - name: CPU contracts (container has no NPU devices)
+        run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/cpu-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ascend950-cpu
-          path: ${{ runner.temp }}/ascend950-cpu
-          if-no-files-found: warn
-
-  npu-correctness:
+          path: ${{ runner.temp }}/cpu-${{ github.run_id }}-${{ github.run_attempt }}
+  device:
     needs: preflight
-    if: github.repository == 'yyttt6/TileOPs' && github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, ascend-950]
-    timeout-minutes: 110
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'cpu')
+    runs-on: [self-hosted, tileops-npu-docker]
+    timeout-minutes: 180
+    concurrency:
+      group: ascend950-device
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.revision || github.sha }}
           persist-credentials: false
-      - name: Verify the actual checkout on Ascend 950
-        shell: bash
+      - name: Correctness under the host NPU reservation
+        env:
+          CI_MODE: ${{ inputs.mode || 'regression' }}
+          CI_OPERATORS: ${{ inputs.operators }}
         run: |
           set -eo pipefail
-          test -n "$ASCEND_ENV_SCRIPT"
-          source "$ASCEND_ENV_SCRIPT"
-          python scripts/ci/ascend950.py --phase device --output "$RUNNER_TEMP/ascend950-device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          source /ci/device-env.sh
+          python /ci/device-job.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ascend950-device
-          path: ${{ runner.temp }}/ascend950-device-${{ github.run_id }}-${{ github.run_attempt }}
-          if-no-files-found: error
+          path: ${{ runner.temp }}/device-${{ github.run_id }}-${{ github.run_attempt }}
