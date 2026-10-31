@@ -6,7 +6,8 @@ The public family imports, op signatures, workloads and numerical contracts are 
 For example, `from tileops.gemm import BmmFwdOp` serves NPU tensors through the Ascend
 implementation and CUDA tensors through the existing CUDA implementation.
 
-The backend currently implements 41 ops across elementwise, Bmm and Cumsum. Registration
+The backend currently implements 43 ops across elementwise, Bmm, Cumsum, MoE
+pre-permute and Engram decode. Registration
 does not compile a kernel or query device properties. On an installation without
 `torch_npu`, the Ascend entry point performs no registration. Backend import errors in
 an NPU installation remain visible through `tileops.load_failures()`.
@@ -26,6 +27,29 @@ Consequently the full GPU `[bench]` extra and image need a baseline dependency
 migration before they can use this branch. The unchanged `constraints-runner-lock.txt`
 records that upstream image, not a validated 950 environment. Do not override these
 dependencies with `--no-deps` to claim a compatible GPU benchmark stack.
+
+## Engram decode
+
+`EngramDecodeFwdOp` runs in two launches. The Cube projection tiles the batch
+in groups of 16 and the output dimension in groups of 64, sharing each K/V weight
+tile across the batch rows while distributing output columns across cores. It
+writes FP32 K/V intermediates. A Vector launch then processes one batch row per
+core, keeping the full-row RMSNorm reductions, gate, dilated convolution, SiLU
+and history update together. The public inputs, outputs and rounding points are
+the same as the shared decode workload.
+
+The manifest includes these serving cases:
+
+| Case         | Batch | Memory width | Hidden width | History | Convolution width | Dilation | Dtype |
+| ------------ | ----: | -----------: | -----------: | ------: | ----------------: | -------: | ----- |
+| `serving-b1` |     1 |          512 |          256 |      12 |                 4 |        3 | FP16  |
+| `serving-b4` |     4 |         1024 |          512 |      20 |                 4 |        5 | FP16  |
+| `serving-b8` |     8 |          512 |          256 |      18 |                 4 |        3 | BF16  |
+
+Select `--op EngramDecodeFwdOp` with the shared benchmark below. Correctness
+checks both the output and the complete updated history. Performance measurement
+covers the complete operator invocation and retains the device records of both
+launches; separately measured stages are only diagnostics.
 
 ## Shared benchmark
 
