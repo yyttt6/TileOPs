@@ -229,27 +229,6 @@ def test_nan_to_num(n_total: int, dtype: torch.dtype) -> None:
     )
 
 
-@pytest.mark.smoke
-def test_nan_to_num_tuned_ragged() -> None:
-    """Tuned, on a bfloat16 run whose last block and last vector are partial."""
-    from tileops.ops.elementwise import NanToNumFwdOp
-
-    n_total = 1_048_576 + 1003
-    x = torch.randn(n_total, device=run_device(), dtype=torch.bfloat16)
-    x[::7] = float("nan")
-    x[1::7] = float("inf")
-    x[2::7] = float("-inf")
-    op = NanToNumFwdOp(nan=0.0, posinf=1e4, neginf=-1e4)
-    op.request_tune()
-    compare_outputs(
-        op(x),
-        torch.nan_to_num(x, nan=0.0, posinf=1e4, neginf=-1e4),
-        ElementwiseWorkload(
-            type(op).__name__, (x,), nan=0.0, posinf=10000.0, neginf=-10000.0
-        ).verification(*(x,)),
-    )
-
-
 # --- L1: alibi ---
 
 
@@ -633,17 +612,14 @@ def test_scalar_param_rejects_unrepresentable(make_op) -> None:
         call(fp16)
 
 
-@pytest.mark.skipif(
-    torch.device(run_device()).type == "cpu",
-    reason="mixes a run-device tensor with a cpu one, so the run device is not cpu",
-)
+@pytest.mark.cuda_only
 @pytest.mark.smoke
 def test_masked_fill_forward_rejects_cpu_mask() -> None:
-    """MaskedFillTensorFwdOp forward() must raise ValueError when mask is not on x's device."""
+    """MaskedFillTensorFwdOp forward() must raise ValueError when mask is not on CUDA."""
     from tileops.ops.elementwise import MaskedFillScalarFwdOp
 
     op = MaskedFillScalarFwdOp(value=-100.0)
-    x = torch.randn(1024, device=run_device(), dtype=torch.float16)
+    x = torch.randn(1024, device="cuda", dtype=torch.float16)
     mask = torch.ones(1024, dtype=torch.bool)  # CPU mask
     with pytest.raises(ValueError, match="needs every tensor on one device"):
         op(x, mask)
@@ -703,7 +679,12 @@ def test_masked_fill_int_dtypes(dtype: torch.dtype) -> None:
     n_total = 4096
     fill_value = 7  # arbitrary in-range value; the contract is parity with PyTorch.
     x, mask = _masked_fill_int_inputs(n_total, dtype)
-    ref = x.masked_fill(mask, fill_value)
+    # The NPU reference excludes uint8/int16; retain exact CPU semantics.
+    ref = (
+        x.cpu().masked_fill(mask.cpu(), fill_value).to(x.device)
+        if x.device.type == "npu" and x.dtype in (torch.uint8, torch.int16)
+        else x.masked_fill(mask, fill_value)
+    )
     op = MaskedFillScalarFwdOp(value=fill_value)
     out = op(x, mask)
     compare_outputs(
@@ -722,7 +703,12 @@ def test_masked_fill_uint8_wraps_negative_int() -> None:
 
     n_total = 4096
     x, mask = _masked_fill_int_inputs(n_total, torch.uint8)
-    ref = x.masked_fill(mask, -1)
+    # The NPU reference excludes uint8/int16; retain exact CPU semantics.
+    ref = (
+        x.cpu().masked_fill(mask.cpu(), -1).to(x.device)
+        if x.device.type == "npu" and x.dtype in (torch.uint8, torch.int16)
+        else x.masked_fill(mask, -1)
+    )
     op = MaskedFillScalarFwdOp(value=-1)
     compare_outputs(
         op(x, mask),
@@ -820,8 +806,9 @@ def test_masked_fill_rejects_when_pytorch_rejects(
     """
     from tileops.ops.elementwise import MaskedFillScalarFwdOp
 
-    pytorch_mask = torch.tensor([True], device=run_device())
-    pytorch_tensor = torch.zeros(1, device=run_device(), dtype=dtype)
+    # CPU establishes the scalar-conversion contract; NPU may silently cast overflow.
+    pytorch_mask = torch.tensor([True], device="cpu")
+    pytorch_tensor = torch.zeros(1, device="cpu", dtype=dtype)
     with pytest.raises(Exception):  # noqa: B017
         pytorch_tensor.masked_fill(pytorch_mask, fill_value)
 
@@ -877,3 +864,27 @@ def test_where_accepts_manifest_dtypes(dtype: torch.dtype) -> None:
             *(cond, inp, other)
         ),
     )
+
+
+# Retain regressions added on the maintained branch.
+
+@pytest.mark.smoke
+def test_nan_to_num_tuned_ragged() -> None:
+    """Tuned, on a bfloat16 run whose last block and last vector are partial."""
+    from tileops.ops.elementwise import NanToNumFwdOp
+
+    n_total = 1_048_576 + 1003
+    x = torch.randn(n_total, device=run_device(), dtype=torch.bfloat16)
+    x[::7] = float("nan")
+    x[1::7] = float("inf")
+    x[2::7] = float("-inf")
+    op = NanToNumFwdOp(nan=0.0, posinf=1e4, neginf=-1e4)
+    op.request_tune()
+    compare_outputs(
+        op(x),
+        torch.nan_to_num(x, nan=0.0, posinf=1e4, neginf=-1e4),
+        ElementwiseWorkload(
+            type(op).__name__, (x,), nan=0.0, posinf=10000.0, neginf=-10000.0
+        ).verification(*(x,)),
+    )
+

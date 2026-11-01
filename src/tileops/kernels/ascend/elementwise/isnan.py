@@ -1,168 +1,141 @@
-"""Ascend 950 implementations for IsnanFwdOp."""
+"""Ascend isnan: native SIMD self-comparison and packed output, with exact tails."""
 
 import functools
 from typing import ClassVar
-
-import tilelang
-import tilelang.ascend.language as T
 import torch
-from tilelang.carver.arch.driver import get_num_vector_cores
+from tileops.kernels.kernel_base import Kernel
+from tileops.kernels.elementwise.call_spec import UnaryPredicateFwdInterface
 
-from tileops.backend import register_kernel_type
-from tileops.kernels.elementwise.call_spec import ElementwiseCall, UnaryPredicateFwdInterface
-from tileops.kernels.kernel_base import Entry, Kernel
-
-__all__ = ["AscendIsnanKernel"]
-FLOAT_DTYPES = (torch.float16, torch.bfloat16, torch.float32)
-INT_DTYPES = (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64)
-NON_FLOAT_DTYPES = INT_DTYPES + (torch.bool,)
-_TILE_FP32 = 8192
-_TILE_FP16_BF16 = 16384
-_NUM_STAGES_FP32 = 2
-_NUM_STAGES_FP16_BF16 = 2
-_FALLBACK_VECTOR_CORES = 72
-_MAX_THREADS = 2048
+try:
+    import tilelang
+    import tilelang.ascend.language as T
+except ImportError:
+    T = None
 
 
-def _floor_pow2(n: int) -> int:
-    """Largest power of two ``<= n`` (``n >= 1``)."""
-    p = 1
-    while p * 2 <= n:
-        p *= 2
-    return p
+def _predicate(value, dtype):
+    if dtype in ("float16", "bfloat16", "float32"):
+        return T.isnan(T.cast(value, "float32"))
+    return T.bool(False)
 
 
-@functools.lru_cache(maxsize=1)
-def _calibrated_num_blocks() -> int:
-    """Persistent-grid block count for the pipelined, large-``n`` path."""
-    try:
-        queried = get_num_vector_cores(device_id=0)
-    except Exception:
-        queried = None
-    if not queried:
-        return _FALLBACK_VECTOR_CORES
-    return _floor_pow2(int(queried))
+if T is not None:
 
+    @T.macro
+    def _body(a, c, width: int, dtype: str, native: bool):
+        if native:
+            with T.SimdVF():
+                if dtype != "float32":
+                    mask = T.simd.pset(16)
+                    one = T.simd.vdup(T.int16(1), "int16", mask)
+                    zero = T.simd.vdup(T.int16(0), "int16", mask)
+                    for i in range(width // 128):
+                        av = T.simd.vld(a[i * 128])
+                        pred = T.simd.vcmp(av, av, mask, "ne")
+                        val = T.simd.vsel(one, zero, pred)
+                        T.simd.vsts(c[i * 128], val, mask, dist="PK_B16")
+                    if width % 128:
+                        last = width // 128 * 128
+                        mask32 = T.simd.pset(32)
+                        av32 = T.simd.vcvt(T.simd.vld(a[last], dist="UNPK_B16"), "float32", part=0)
+                        pred32 = T.simd.vcmp(av32, av32, mask32, "ne")
+                        one32 = T.simd.vdup(T.int32(1), "int32", mask32)
+                        zero32 = T.simd.vdup(T.int32(0), "int32", mask32)
+                        val32 = T.simd.vsel(one32, zero32, pred32)
+                        T.simd.vsts(c[last], val32, mask32, dist="PK4_B32")
+                else:
+                    mask = T.simd.pset(32)
+                    one = T.simd.vdup(T.int32(1), "int32", mask)
+                    zero = T.simd.vdup(T.int32(0), "int32", mask)
+                    for i in range(width // 64):
+                        av = T.simd.vld(a[i * 64])
+                        pred = T.simd.vcmp(av, av, mask, "ne")
+                        val = T.simd.vsel(one, zero, pred)
+                        T.simd.vsts(c[i * 64], val, mask, dist="PK4_B32")
+        else:
+            with T.SimtVF(threads=1024):
+                for i in T.Parallel(width // 4):
+                    p0 = T.cast(_predicate(a[i * 4], dtype), "int32")
+                    p1 = T.cast(_predicate(a[i * 4 + 1], dtype), "int32")
+                    p2 = T.cast(_predicate(a[i * 4 + 2], dtype), "int32")
+                    p3 = T.cast(_predicate(a[i * 4 + 3], dtype), "int32")
+                    c[i] = T.bitwise_or(
+                        T.bitwise_or(p0, T.shift_left(p1, 8)),
+                        T.bitwise_or(T.shift_left(p2, 16), T.shift_left(p3, 24)),
+                    )
 
-def _dtype_str(dtype: torch.dtype) -> str:
-    return str(dtype).split(".")[-1]
+    @functools.lru_cache(maxsize=256)
+    def build(n, dtype, native, tile, blocks=64, stages=2):
+        tile = min(n, tile)
+        full, tail = divmod(n, tile)
+        grid = min(blocks, full)
+        pack = 1 if native else 4
+        out_dtype = "uint8" if native else "int32"
 
+        @T.prim_func
+        def main(A: T.Tensor((n,), dtype), C: T.Tensor((n // pack,), out_dtype)):
+            with T.Kernel(grid) as bx:
+                a = T.alloc_shared((tile,), dtype)
+                c = T.alloc_shared((tile // pack,), out_dtype)
+                T.annotate_buffer_versions({a: stages, c: stages})
+                for step in T.Pipelined((full + grid - 1) // grid, num_stages=stages):
+                    block = step * grid + bx
+                    if block < full:
+                        start = block * tile
+                        T.copy(A[start : start + tile], a)
+                        _body(a, c, tile, dtype, native)
+                        T.copy(c, C[start // pack : (start + tile) // pack], l2_cache_ctrl=0)
+                if tail:
+                    if bx == 0:
+                        at = T.alloc_shared((tail,), dtype)
+                        ct = T.alloc_shared((tail // pack,), out_dtype)
+                        T.copy(A[full * tile : n], at)
+                        _body(at, ct, tail, dtype, native)
+                        T.copy(ct, C[full * tile // pack : n // pack], l2_cache_ctrl=0)
 
-def _tile_for_dtype(dtype: str) -> int:
-    return _TILE_FP32 if dtype == "float32" else _TILE_FP16_BF16
-
-
-def _num_stages_for_dtype(dtype: str) -> int:
-    return _NUM_STAGES_FP32 if dtype == "float32" else _NUM_STAGES_FP16_BF16
-
-
-@T.macro
-def _isnan_body(x_ub, y_ub, n: int, threads: int) -> None:
-    """``y_ub[:n] = isnan(x_ub[:n])`` as bool, compiler-vectorized over ``threads``."""
-    with T.SimtVF(threads=threads):
-        for i in T.Parallel(n):
-            y_ub[i] = T.isnan(T.cast(x_ub[i], "float32"))
-
-
-@functools.lru_cache(maxsize=64)
-def _make_isnan_persistent(n_total: int, dtype: str, num_blocks: int, tile: int, num_stages: int):
-    block_span = num_blocks * tile
-    assert n_total % block_span == 0, (
-        f"_make_isnan_persistent requires n_total ({n_total}) to divide num_blocks*tile ({block_span}) exactly; the caller routes other shapes elsewhere"
-    )
-    iterations = n_total // block_span
-
-    @T.prim_func
-    def main(X: T.Tensor((n_total,), dtype), Y: T.Tensor((n_total,), "bool")):
-        with T.Kernel(num_blocks) as bx:
-            x_ub = T.alloc_shared((tile,), dtype)
-            y_ub = T.alloc_shared((tile,), "bool")
-            T.annotate_buffer_versions({x_ub: num_stages, y_ub: num_stages})
-            for step in T.Pipelined(iterations, num_stages=num_stages):
-                begin = (step * num_blocks + bx) * tile
-                T.copy(X[begin : begin + tile], x_ub)
-                _isnan_body(x_ub, y_ub, tile, threads=min(_MAX_THREADS, tile))
-                T.copy(y_ub, Y[begin : begin + tile])
-
-    return tilelang.compile(main, target="ascend", out_idx=-1)
-
-
-@functools.lru_cache(maxsize=64)
-def _make_isnan_generic_single_block(n_total: int, dtype: str, tile: int):
-    full_tiles, remainder = divmod(n_total, tile)
-
-    @T.prim_func
-    def main(X: T.Tensor((n_total,), dtype), Y: T.Tensor((n_total,), "bool")):
-        with T.Kernel(1):
-            if full_tiles:
-                x_ub = T.alloc_shared((tile,), dtype)
-                y_ub = T.alloc_shared((tile,), "bool")
-                T.annotate_buffer_versions({x_ub: 2, y_ub: 2})
-                for step in T.Pipelined(full_tiles, num_stages=2):
-                    begin = step * tile
-                    T.copy(X[begin : begin + tile], x_ub)
-                    _isnan_body(x_ub, y_ub, tile, threads=min(_MAX_THREADS, tile))
-                    T.copy(y_ub, Y[begin : begin + tile])
-            if remainder:
-                xt_ub = T.alloc_shared((remainder,), dtype)
-                yt_ub = T.alloc_shared((remainder,), "bool")
-                begin = full_tiles * tile
-                T.copy(X[begin : begin + remainder], xt_ub)
-                _isnan_body(xt_ub, yt_ub, remainder, threads=min(128, remainder))
-                T.copy(yt_ub, Y[begin : begin + remainder])
-
-    return tilelang.compile(main, target="ascend", out_idx=-1)
-
-
-def _make_isnan_kernel(n_total: int, dtype: str):
-    if n_total <= 0:
-        raise ValueError(f"n_total must be positive, got {n_total}")
-    tile = _tile_for_dtype(dtype)
-    num_stages = _num_stages_for_dtype(dtype)
-    num_blocks = _calibrated_num_blocks()
-    block_span = num_blocks * tile
-    if n_total % block_span == 0:
-        return _make_isnan_persistent(n_total, dtype, num_blocks, tile, num_stages)
-    return _make_isnan_generic_single_block(n_total, dtype, tile)
+        return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
 class AscendIsnanKernel(Kernel, UnaryPredicateFwdInterface):
-    """IsNaN on Ascend NPUs: ``y = isnan(x)``, a new contiguous ``torch.bool`` tensor."""
-
     devices: ClassVar[frozenset[str]] = frozenset({"npu"})
-    supported_archs = None
 
     @classmethod
-    def refusal(cls, call: ElementwiseCall) -> "str | None":
-        return None
+    def entry_for(cls, call):
+        return call, lambda: cls(call.n_total, call.dtype)
 
-    @classmethod
-    def entry_for(cls, call: ElementwiseCall) -> Entry:
-        return (call, lambda: cls(call.n_total, call.dtype))
-
-    def __init__(self, n_total: int, dtype: torch.dtype) -> None:
+    def __init__(self, n_total, dtype):
         super().__init__()
-        self.n_total = n_total
-        self.dtype = dtype
-        self._compiled_fn = (
-            _make_isnan_kernel(n_total, _dtype_str(dtype)) if dtype in FLOAT_DTYPES else None
-        )
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        """Return ``isnan(input)`` elementwise; nothing is written in place."""
-        if input.device.type != "npu":
-            raise ValueError(
-                f"{type(self).__name__} is an Ascend NPU kernel; got {input.device}. Another target's backend serves other devices."
+        self.n, self.dtype = n_total, dtype
+        self.padded = (n_total + 3) // 4 * 4
+        if n_total:
+            native = dtype in (torch.float16, torch.bfloat16, torch.float32) and n_total % 64 == 0
+            tile = 16384 if native and dtype != torch.float32 else 8192
+            if dtype == torch.int64:
+                tile = 4096
+            self.compiled = build(
+                self.padded,
+                "uint8" if dtype == torch.bool else str(dtype).removeprefix("torch."),
+                native,
+                tile,
             )
-        if self.dtype not in FLOAT_DTYPES:
-            return torch.zeros(input.shape, dtype=torch.bool, device=input.device)
-        flat_input = input.reshape(-1)
-        if flat_input.numel() != self.n_total:
-            raise ValueError(
-                f"{type(self).__name__} was built for n_total={self.n_total}, got {flat_input.numel()} elements"
-            )
-        flat_output = self._compiled_fn(flat_input)
-        return flat_output.reshape(input.shape)
+        else:
+            self.compiled = None
+
+    def forward(self, input):
+        if input.device.type != "npu" or input.dtype != self.dtype or input.numel() != self.n:
+            raise ValueError("Input must match the NPU kernel dtype and element count")
+        if not self.n:
+            return torch.empty(input.shape, dtype=torch.bool, device=input.device)
+        a = input.contiguous().reshape(-1)
+        if self.dtype == torch.bool:
+            a = a.view(torch.uint8)
+        if self.padded != self.n:
+            a = torch.nn.functional.pad(a, (0, self.padded - self.n))
+        out = self.compiled(a)
+        return out.view(torch.uint8).view(torch.bool)[: self.n].reshape(input.shape)
 
 
-register_kernel_type("IsnanFwdOp", "ascend", AscendIsnanKernel)
+if T is not None:
+    from tileops.backend import register_kernel_type
+
+    register_kernel_type("IsnanFwdOp", "ascend", AscendIsnanKernel)

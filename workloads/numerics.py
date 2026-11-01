@@ -443,6 +443,12 @@ def _restore(tensors: list, snapshot: list) -> None:
 def _unchanged(tensors: list, snapshot: list) -> bool:
     try:
         for tensor, source in zip(tensors, snapshot, strict=True):
+            if tensor.device.type == "npu" and tensor.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
+                # NPU IsClose does not accept FP8. Every FP8 value converts exactly
+                # to FP32; preserve the same zero-tolerance/equal-NaN comparison.
+                if tensor.dtype != source.dtype:
+                    return False
+                tensor, source = tensor.float(), source.float()
             torch.testing.assert_close(tensor, source, rtol=0, atol=0, equal_nan=True)
     except AssertionError:
         return False

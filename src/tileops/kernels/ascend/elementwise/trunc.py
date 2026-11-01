@@ -1,163 +1,107 @@
-"""Ascend 950 implementations for TruncFwdOp."""
-
+"""Ascend trunc with native vector rounding and bounded tails."""
 import functools
 from typing import ClassVar
-
-import tilelang
-import tilelang.ascend.language as T
 import torch
-from tilelang.carver.arch.driver import get_num_vector_cores
+from tileops.kernels.elementwise.call_spec import UnaryElementwiseFwdInterface
+from tileops.kernels.kernel_base import Kernel
+try:
+    import tilelang
+    import tilelang.ascend.language as T
+except ImportError:
+    T = None
 
-from tileops.backend import register_kernel_type
-from tileops.kernels.elementwise._dtype import FLOAT_DTYPES
-from tileops.kernels.elementwise.call_spec import ElementwiseCall, UnaryElementwiseFwdInterface
-from tileops.kernels.elementwise.math_unary import INT_DTYPES
-from tileops.kernels.kernel_base import Entry, Kernel
+_NATIVE_TRUNC_PRELUDE = r"""#include <c_api/asc_simd.h>
+template <typename V>
+__simd_callee__ inline void tileops_trunc_native(V &value, vector_bool mask) {
+    asc_trunc(value, value, mask);
+}
+"""
 
-__all__ = ["AscendTruncKernel"]
-_ALL_DTYPES = INT_DTYPES + FLOAT_DTYPES
-_UB_BUDGET_BYTES = 216 * 1024
-_NUM_STAGES = 3
-_FALLBACK_VECTOR_CORES = 64
-_MAX_THREADS = 2048
+if T is not None:
+    @T.macro
+    def _body(x, y, width: int, dtype: str, floating: bool):
+        if floating:
+            with T.SimdVF():
+                bits = 32 if dtype == "float32" else 16
+                lanes = 256 // (bits // 8)
+                mask = T.simd.pset(bits)
+                int_dtype = "int32" if dtype == "float32" else "int16"
+                int_vector = "int32x64" if dtype == "float32" else "int16x128"
+                float_vector = dtype + ("x64" if dtype == "float32" else "x128")
+                sign_mask = T.simd.vdup(T.cast(-(1 << (bits - 1)), int_dtype), int_dtype)
+                value = T.simd.alloc_local(1, dtype)
+                for i in range(width // lanes):
+                    original = T.simd.vld(x[i * lanes])
+                    sign = T.simd.vand(T.reinterpret(original, int_vector), sign_mask, mask)
+                    value[0] = original
+                    T.evaluate(T.call_extern("void", "tileops_trunc_native", value[0], mask))
+                    # Native vtrc clears -0; rounding cannot change the sign.
+                    result_bits = T.simd.vor(T.reinterpret(value[0], int_vector), sign, mask)
+                    T.simd.vsts(y[i * lanes], T.reinterpret(result_bits, float_vector), mask)
+        else:
+            with T.SimdVF():
+                mask = T.simd.pset(8)
+                for i in range(width // 256):
+                    T.simd.vsts(y[i * 256], T.simd.vld(x[i * 256]), mask)
 
-
-def _floor_pow2(n: int) -> int:
-    """Largest power of two ``<= n`` (``n >= 1``)."""
-    p = 1
-    while p * 2 <= n:
-        p *= 2
-    return p
-
-
-@functools.lru_cache(maxsize=1)
-def _calibrated_num_blocks(fallback: int = _FALLBACK_VECTOR_CORES) -> int:
-    """Persistent-grid block count for the large, bandwidth-bound tiled path."""
-    try:
-        queried = get_num_vector_cores(device_id=0)
-    except Exception:
-        queried = None
-    if not queried:
-        return fallback
-    return _floor_pow2(int(queried))
-
-
-def _tile_elems_for_dtype(dtype_str: str) -> int:
-    """The largest power-of-two element count keeping the tiled path's UB use in budget."""
-    itemsize = getattr(torch, dtype_str).itemsize
-    max_elems = _UB_BUDGET_BYTES // (2 * _NUM_STAGES * itemsize)
-    return _floor_pow2(max_elems)
-
-
-def _dtype_str(dtype: torch.dtype) -> str:
-    return str(dtype).split(".")[-1]
-
-
-@T.macro
-def _trunc_body(x_ub, y_ub, n: int, threads: int) -> None:
-    """``y_ub[:n] = trunc(x_ub[:n])``, computed in fp32, compiler-vectorized over ``threads``."""
-    with T.SimtVF(threads=threads):
-        for i in T.Parallel(n):
-            y_ub[i] = T.cast(T.trunc(T.cast(x_ub[i], "float32")), y_ub.dtype)
-
-
-@functools.lru_cache(maxsize=64)
-def _build_single_block(n_total: int, dtype_str: str):
-    """One block, one untiled GM->UB->compute->UB->GM pass over ``n_total`` elements."""
-
-    @T.prim_func
-    def main(X: T.Tensor((n_total,), dtype_str), Y: T.Tensor((n_total,), dtype_str)):
-        with T.Kernel(1):
-            x_ub = T.alloc_shared((n_total,), dtype_str)
-            y_ub = T.alloc_shared((n_total,), dtype_str)
-            T.copy(X, x_ub)
-            _trunc_body(x_ub, y_ub, n_total, threads=min(n_total, _MAX_THREADS))
-            T.copy(y_ub, Y)
-
-    return tilelang.compile(main, target="ascend", out_idx=-1)
-
-
-@functools.lru_cache(maxsize=64)
-def _build_tiled(n_total: int, dtype_str: str, num_blocks: int, tile_elems: int, num_stages: int):
-    """Persistent-block, pipelined main loop over an exact multiple of ``tile_elems``."""
-    block_span = num_blocks * tile_elems
-    assert n_total % block_span == 0, (
-        f"_build_tiled requires n_total ({n_total}) to divide num_blocks*tile_elems ({block_span}) exactly; the caller routes other shapes elsewhere"
-    )
-    iterations = n_total // block_span
-
-    @T.prim_func
-    def main(X: T.Tensor((n_total,), dtype_str), Y: T.Tensor((n_total,), dtype_str)):
-        with T.Kernel(num_blocks) as bx:
-            x_ub = T.alloc_shared((tile_elems,), dtype_str)
-            y_ub = T.alloc_shared((tile_elems,), dtype_str)
-            T.annotate_buffer_versions({x_ub: num_stages, y_ub: num_stages})
-            for step in T.Pipelined(iterations, num_stages=num_stages):
-                begin = (step * num_blocks + bx) * tile_elems
-                T.copy(X[begin : begin + tile_elems], x_ub)
-                _trunc_body(x_ub, y_ub, tile_elems, threads=min(tile_elems, _MAX_THREADS))
-                T.copy(y_ub, Y[begin : begin + tile_elems])
-
-    return tilelang.compile(main, target="ascend", out_idx=-1)
-
-
-def _build_trunc_kernel(n_total: int, dtype_str: str):
-    """Pick the tiling for ``n_total`` elements: persistent tiled path, or single-block
-    fallback."""
-    tile_elems = _tile_elems_for_dtype(dtype_str)
-    if n_total < tile_elems:
-        return _build_single_block(n_total, dtype_str)
-    num_blocks = _calibrated_num_blocks()
-    block_span = num_blocks * tile_elems
-    if n_total % block_span == 0:
-        return _build_tiled(n_total, dtype_str, num_blocks, tile_elems, _NUM_STAGES)
-    if n_total == tile_elems:
-        return _build_single_block(n_total, dtype_str)
-    raise NotImplementedError(
-        f"AscendTruncKernel: n_total={n_total} dtype={dtype_str} fits neither the tiled path (needs a multiple of num_blocks*tile_elems={block_span}) nor the single-block fallback (needs n_total<={tile_elems}); no manifest/test shape should reach this"
-    )
-
+    @functools.lru_cache(maxsize=256)
+    def build(n, dtype, floating, tile=16384, blocks=64, stages=3):
+        full, tail = divmod(n, tile)
+        grid = min(blocks, full) if full else 1
+        padded_tail = (tail + 255) // 256 * 256
+        @T.prim_func
+        def main(X: T.Tensor((n,), dtype), Y: T.Tensor((n,), dtype)):
+            with T.Kernel(grid, prelude=_NATIVE_TRUNC_PRELUDE) as bx:
+                if full:
+                    x = T.alloc_shared((tile,), dtype)
+                    y = T.alloc_shared((tile,), dtype)
+                    T.annotate_buffer_versions({x: stages, y: stages})
+                    for step in T.Pipelined((full + grid - 1) // grid, num_stages=stages):
+                        block = step * grid + bx
+                        if block < full:
+                            begin = block * tile
+                            T.copy(X[begin:begin + tile], x)
+                            _body(x, y, tile, dtype, floating)
+                            T.copy(y, Y[begin:begin + tile], l2_cache_ctrl=0)
+                if tail:
+                    if bx == 0:
+                        xt = T.alloc_shared((padded_tail,), dtype)
+                        yt = T.alloc_shared((padded_tail,), dtype)
+                        T.copy(X[full * tile:n], xt[:tail])
+                        _body(xt, yt, padded_tail, dtype, floating)
+                        T.copy(yt[:tail], Y[full * tile:n], l2_cache_ctrl=0)
+        return tilelang.compile(main, target="ascend", out_idx=-1)
 
 class AscendTruncKernel(Kernel, UnaryElementwiseFwdInterface):
-    """Ascend NPU trunc: ``y = trunc(x)`` (truncate toward zero), computed in fp32 for every float
-    dtype, mirroring ``TruncFwdKernel.op_func``; integer inputs pass through unchanged."""
-
     devices: ClassVar[frozenset[str]] = frozenset({"npu"})
-    supported_archs = None
-
     @classmethod
-    def refusal(cls, call: ElementwiseCall) -> "str | None":
-        if call.dtype not in _ALL_DTYPES:
-            return f"serves dtypes {_ALL_DTYPES}, not {call.dtype}"
+    def refusal(cls, call):
         return None
-
     @classmethod
-    def entry_for(cls, call: ElementwiseCall) -> Entry:
-        return (call, lambda: cls(call.n_total, call.dtype))
-
-    def __init__(self, n_total: int, dtype: torch.dtype) -> None:
+    def entry_for(cls, call):
+        return call, lambda: cls(call.n_total, call.dtype)
+    def __init__(self, n_total, dtype):
         super().__init__()
-        self.n_total = n_total
-        self.dtype = dtype
-        self._compiled_fn = (
-            None if dtype in INT_DTYPES else _build_trunc_kernel(n_total, _dtype_str(dtype))
-        )
+        if dtype not in (torch.float16, torch.bfloat16, torch.float32, torch.int8, torch.uint8, torch.int16, torch.int32, torch.int64):
+            raise TypeError("unsupported trunc dtype")
+        if T is None:
+            raise ImportError("tilelang.ascend is required")
+        self.n_total, self.dtype = n_total, dtype
+        self.storage_dtype = dtype if dtype.is_floating_point else torch.uint8
+        self.storage_size = n_total if dtype.is_floating_point else n_total * dtype.itemsize
+        if n_total:
+            tile = 16384 if self.storage_dtype.itemsize <= 2 else 8192
+            stages = 3
+            while (2 * tile * stages + 2 * ((self.storage_size % tile + 255) // 256 * 256)) * self.storage_dtype.itemsize > 248 * 1024:
+                tile //= 2
+            self.compiled = build(self.storage_size, str(self.storage_dtype).split('.')[-1], dtype.is_floating_point, tile, 64, stages)
+    def forward(self, input):
+        if input.device.type != 'npu' or input.dtype != self.dtype or input.numel() != self.n_total:
+            raise ValueError("input must match compiled NPU kernel")
+        if not self.n_total:
+            return torch.empty_like(input)
+        flat = input.contiguous().reshape(-1).view(self.storage_dtype)
+        return self.compiled(flat).view(self.dtype).reshape(input.shape)
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        """Apply trunc elementwise; nothing is written in place."""
-        if input.device.type != "npu":
-            raise ValueError(
-                f"{type(self).__name__} is an Ascend NPU kernel; got {input.device}. Another target's backend serves other devices."
-            )
-        if self.dtype in INT_DTYPES:
-            return input.clone()
-        flat_input = input.reshape(-1)
-        if flat_input.numel() != self.n_total:
-            raise ValueError(
-                f"{type(self).__name__} was built for n_total={self.n_total}, got {flat_input.numel()} elements"
-            )
-        flat_output = self._compiled_fn(flat_input)
-        return flat_output.reshape(input.shape)
-
-
-register_kernel_type("TruncFwdOp", "ascend", AscendTruncKernel)
+import tileops.backend
+tileops.backend.register_kernel_type("TruncFwdOp", "ascend", AscendTruncKernel)

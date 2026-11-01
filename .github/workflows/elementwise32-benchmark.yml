@@ -1,0 +1,34 @@
+name: Elementwise 32-core benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      operators:
+        description: all, or comma-separated manifest operator names
+        default: all
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: [self-hosted, tileops-npu-server2, ascend950-32core]
+    timeout-minutes: 720
+    concurrency:
+      group: ascend950-device
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate the admitted baseline and run the frozen suite
+        env:
+          SELECTED_OPERATORS: ${{ inputs.operators }}
+        run: |
+          set -eo pipefail
+          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
+          source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
+          TORCH_DEVICE_BACKEND_AUTOLOAD=0 python scripts/ci/check_ascend_toolchain.py --output "$RUNNER_TEMP/elementwise32-toolchain.json"
+          python scripts/ci/elementwise32/run.py \
+            --baseline-cache /opt/tileops-ci/server2-20261030/baseline-cache/current \
+            --output "$RUNNER_TEMP/elementwise32-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --operators "$SELECTED_OPERATORS"
+      # Raw guard, environment, source and profiler evidence stays in the private
+      # runner workspace. Web publication is a separate audited operation.
