@@ -3,7 +3,7 @@ import dataclasses
 
 
 def check_eager(torch, case, inputs, reference):
-    from workloads.numerics import compare_outputs
+    from workloads.numerics import Custom, compare_outputs
 
     def cpu(value):
         if isinstance(value, torch.Tensor):
@@ -19,7 +19,15 @@ def check_eager(torch, case, inputs, reference):
     try:
         actual = case.reference(*inputs)
         torch.npu.synchronize()
-        check = compare_outputs(cpu(actual), cpu(reference), case.verification)
+        evidence = case.verification
+        if isinstance(evidence, Custom):
+            # Custom validators can close over the supplied inputs. Rebind the
+            # unchanged workload policy to the same input values on CPU.
+            rebound = case.workload.verification(*cpu(inputs))
+            assert isinstance(rebound, Custom) and rebound.reason == evidence.reason
+            assert rebound.controls == evidence.controls and rebound.probe == evidence.probe
+            evidence = rebound
+        check = compare_outputs(cpu(actual), cpu(reference), evidence)
         assert check.checked_outputs == check.total_outputs and check.checked_outputs > 0
         return dict(eligible=True, verification=dataclasses.asdict(check),
                     contract='Same expected outputs and original tolerances as TileOPs verification')
