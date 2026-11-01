@@ -44,31 +44,33 @@ def parse_profile(prof_path, repeats, *, seq_to_name=None, exclude_name_marker=N
             v = struct.unpack_from('<16q', raw, offset)
             if v[1] == 0:
                 continue
-            kind = v[0] & 255
-            if kind not in (0x2A, 0x6A):
-                raise ValueError('Unsupported FFTS record kind: ' + hex(kind))
+            # CANN Utils.get_func_type defines only the low six header bits
+            # as the record function. Higher packet flags are not core roles.
+            kind = v[0] & 63
+            if kind != 0x2A:
+                raise ValueError('Unsupported FFTS record function: ' + hex(kind))
             if v[15] < v[14] or v[14] <= 0:
                 raise ValueError('Invalid kernel timestamp')
-            role = 'AIV' if kind == 0x6A else 'AIC'
+            role = 'AIV' if v[2] >= 1 << 31 else 'AIC'
             raw_count += 1
             if role == 'AIV':
                 aiv_cycles += v[1]
             else:
                 aic_cycles += v[1]
-            # 0x40 distinguishes the AIC/AIV record kind. Preserve every other
-            # header bit and the FFTS context; unlike a global interval union,
-            # independent task IDs remain separate even when they overlap.
-            key = (v[0] & ~0x40, (v[2] >> 16) & 65535)
+            # Task identity is in the upper header word. Packet flags in the
+            # lower word may differ between records of the same task. Retain
+            # the FFTS context and reject ambiguous stream mappings below.
+            key = ((v[0] >> 32) & 0xFFFFFFFF, (v[2] >> 16) & 65535)
             groups[key].append((role, v[14], v[15]))
     if not raw_count:
         raise ValueError('No valid FFTS activity')
     tasks = []
     excluded_count = excluded_ns = 0
     marker_seen = False
-    for (header, context), records in groups.items():
-        seq = (header >> 32) & 65535
+    for (task_id, context), records in groups.items():
+        seq = task_id & 65535
         roles = {r[0] for r in records}
-        if len(roles) > 1 and len(streams[seq]) > 1:
+        if len(streams[seq]) > 1:
             raise ValueError('Ambiguous multi-stream task ID; retain trace for full decoding')
         for role in roles:
             intervals = {(start, end) for r, start, end in records if r == role}
@@ -83,7 +85,7 @@ def parse_profile(prof_path, repeats, *, seq_to_name=None, exclude_name_marker=N
             excluded_count += 1
             excluded_ns += end - start
             continue
-        tasks.append(dict(task_id=seq, context_id=context, stream_ids=sorted(streams[seq]),
+        tasks.append(dict(task_id=task_id, context_id=context, stream_ids=sorted(streams[seq]),
                           name=name, core_roles=sorted(roles), start_ns=start, end_ns=end,
                           duration_us=(end-start)/1000))
     if require_marker_seen and exclude_name_marker and not marker_seen:

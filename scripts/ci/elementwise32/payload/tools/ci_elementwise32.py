@@ -89,7 +89,7 @@ def validate_rows(rows, expected):
                 assert math.isclose(reparsed['latency_ms'], value, rel_tol=1e-9, abs_tol=1e-12)
 
 
-def controller(output, selected):
+def controller(output, selected, attempt_tag=None):
     admission = ROOT / 'BASELINE_ADMISSION.json'
     gate = json.loads(admission.read_text())
     assert gate['status'] == 'passed' and gate['server1_complete'] is True
@@ -101,21 +101,40 @@ def controller(output, selected):
     output.mkdir(parents=True, exist_ok=True)
     from baseline_cache_guard_binding import capture_guard
     frozen = fingerprint()
-    write(output / 'sources.json', frozen)
+    sources_path = output / 'sources.json'
+    if sources_path.exists() and json.loads(sources_path.read_text()) != frozen:
+        backup = output / ('sources.' + sha(sources_path)[:16] + '.json')
+        if not backup.exists():
+            backup.write_bytes(sources_path.read_bytes())
+    write(sources_path, frozen)
     write(output / 'baseline-admission.json', gate)
     results = []
     for p in plan:
-        directory = output / p['op']
+        primary = output / p['op']
+        directory = primary
+        pointer = primary / 'LATEST_ATTEMPT.json'
+        if pointer.exists():
+            directory = output / json.loads(pointer.read_text())['path']
+            assert directory.resolve().is_relative_to(output.resolve())
         if directory.exists():
             receipt = directory / 'receipt.json'
             prior = json.loads(receipt.read_text()) if receipt.exists() else {}
-            if prior.get('status') == 'passed' and prior.get('sources') == frozen:
+            admitted = prior.get('sources') == frozen
+            proof = directory / 'READMISSION.json'
+            if not admitted and proof.exists():
+                proof = json.loads(proof.read_text())
+                admitted = (proof.get('status') == 'passed'
+                            and proof.get('current_sources') == frozen
+                            and proof.get('original_receipt_sha256') == sha(receipt))
+            if prior.get('status') == 'passed' and admitted:
                 validate_rows([json.loads(l) for l in (directory / 'measurements.jsonl').read_text().splitlines()], p['case_ids'])
                 results.append(prior)
                 continue
-            raise RuntimeError('Preserve existing failed/incomplete attempt; use a new output path: ' + str(directory))
-        directory.mkdir()
-        owner = 'ci/elementwise32/' + output.name + '/' + p['op']
+            if not attempt_tag:
+                raise RuntimeError('Preserve existing failed/incomplete attempt; select --attempt-tag: ' + str(directory))
+            directory = primary / 'attempts' / attempt_tag
+        directory.mkdir(parents=True)
+        owner = 'ci/elementwise32/' + output.parent.name + '/' + p['op'] + '/' + str(time.time_ns())
         command = ['npu-guard', 'run', '--owner', owner, '--wait', '600', '--timeout', '5400', '--',
                    sys.executable, str(Path(__file__).resolve()), '--device-child', p['script'],
                    '--output', str(directory), '--op', p['op']]
@@ -143,6 +162,8 @@ def controller(output, selected):
                        started_at=started, finished_at=time.time(), sources=frozen,
                        guard_implementation=before['files'], baseline_catalog_sha256=gate['catalog_sha256'])
         write(directory / 'receipt.json', receipt)
+        if directory != primary:
+            write(pointer, dict(path=str(directory.relative_to(output)), status=receipt['status']))
         results.append(receipt)
         summary = dict(status='running', expected=len(plan), completed=len(results),
                        passed=sum(r['status'] == 'passed' for r in results),
@@ -159,8 +180,11 @@ if __name__ == '__main__':
     p.add_argument('--device-child')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--op', action='append')
+    p.add_argument('--attempt-tag')
     a = p.parse_args()
     if a.device_child:
         child(ROOT / a.device_child, a.output, a.op[0])
     else:
-        raise SystemExit(controller(a.output, a.op))
+        if a.attempt_tag and not __import__('re').fullmatch(r'[A-Za-z0-9_-]+', a.attempt_tag):
+            p.error('Use a simple attempt tag')
+        raise SystemExit(controller(a.output, a.op, a.attempt_tag))

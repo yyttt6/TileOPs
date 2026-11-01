@@ -64,3 +64,15 @@ def test_truncated_raw_data_is_not_admitted(tmp_path):
     (tmp_path / 'ffts_profile.slice_0').write_bytes(b'incomplete')
     with pytest.raises(ValueError, match='Truncated'):
         parse_profile(tmp_path, 1)
+
+
+@pytest.mark.smoke
+def test_packet_flags_do_not_split_one_mixed_task(tmp_path):
+    records = []
+    for role, flags, start, end in [('AIC', 18, 1000, 2000), ('AIV', 19, 999, 2001)]:
+        values = list(struct.unpack('<16q', record(1, role, start, end)))
+        values[0] = (1 << 32) | 0x2A | (flags << 6)
+        records.append(struct.pack('<16q', *values))
+    result = parse(tmp_path, *records)
+    assert result['profile_kernel_count'] == 1
+    assert result['profile_kernel_us'] == pytest.approx(1.002)
