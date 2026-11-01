@@ -290,7 +290,11 @@ def test_sinusoidal(seq_len: int, d_model: int, dtype: torch.dtype) -> None:
 
     op = SinusoidalFwdOp(seq_len=seq_len, d_model=d_model, out_dtype=dtype, device=run_device())
     out = op()
-    ref = sinusoidal_reference(seq_len, d_model, dtype)
+    # NPU pow rounds the reusable divisors differently enough to shift the
+    # phase. Evaluate the same FP32 formula independently with the original
+    # workload tolerance.
+    reference_device = "cpu" if out.device.type == "npu" else out.device
+    ref = sinusoidal_reference(seq_len, d_model, dtype, device=reference_device).to(out.device)
 
     compare_outputs(
         out,

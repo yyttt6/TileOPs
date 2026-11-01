@@ -77,7 +77,17 @@ def test_clamp_family_registered_implementation_is_dispatched(op_name: str) -> N
 
     cls = getattr(mod, op_name)
     kw = _clamp_construct_kwargs(op_name)
-    ((key, default_kernel_cls),) = cls(**kw).kernel_types.items()
+    implementations = {
+        **cls(**kw).kernel_types,
+        **registry.REGISTERED_KERNEL_TYPES.get(op_name, {}),
+    }
+    device_type = torch.device(run_device()).type
+    # An Ascend call must exercise a subclass of its NPU implementation.
+    # A subclass of the declared CUDA kernel cannot serve an NPU tensor.
+    ((key, default_kernel_cls),) = [
+        (key, kernel) for key, kernel in implementations.items()
+        if device_type in kernel.devices
+    ]
 
     class MarkerKernel(default_kernel_cls):  # type: ignore[misc, valid-type]
         """Subclass marker; identical behavior, distinct identity."""

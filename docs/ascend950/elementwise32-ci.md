@@ -34,6 +34,18 @@ reference differs. Public and boundary regressions are run separately through
 `payload/tools/ci_elementwise_public.py`; original reference discrepancies must
 remain recorded and must not be described as original-reference passes.
 
+Ascend public tests use independent CPU references for Sinusoidal's FP32 phase
+calculation, BF16 true division and the float32 floored division modes. The
+original tolerances, NaN checks and exact bitwise assertions are retained. The
+NPU reference differs on subnormal divisors, subnormal quotients and some integer
+boundaries. A preferred-implementation test must subclass an implementation that
+serves the selected device; a CUDA-only subclass cannot serve an NPU call.
+
+The initial physical32 public run preserved 770 passes and six failures. Separate
+guarded probes established the numerical reference discrepancies without changing
+production kernels. Any corrected targeted run is recorded alongside the original
+run, with source equivalence for unaffected tests and retained profiler windows.
+
 Private guard, environment and source evidence stays on the CI host. Website data
 contains measured values and measurement identifiers, without machine-origin or
 timing-mode labels. Missing or unverified TileOPs results retain a NaN ratio.

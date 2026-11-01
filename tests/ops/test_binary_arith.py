@@ -10,8 +10,8 @@ import functools
 import pytest
 import torch
 
-from tests.workload_test_base import FixtureBase, TestBase
 from tests.ops._div_reference import div_reference
+from tests.workload_test_base import FixtureBase, TestBase
 from tileops.ops.elementwise import (
     AddFwdOp,
     DivFwdOp,
@@ -1238,7 +1238,13 @@ def test_bfloat16_div_channel_broadcast_matches_torch_bit_for_bit() -> None:
         return raw.to(torch.int16).view(torch.bfloat16)
 
     a, b = bits((4, 64, 16, 16)), bits((64, 1, 1))
-    out, ref = DivFwdOp()(a, b), torch.div(a, b)
+    out = DivFwdOp()(a, b)
+    # The NPU reference flushes some BF16 subnormal quotients. Keep the
+    # original CUDA semantics and the exact bitwise check on these same inputs.
+    ref = (
+        div_reference(a.cpu(), b.cpu()).to(out.device)
+        if out.device.type == "npu" else torch.div(a, b)
+    )
     number = ~ref.isnan()
     assert torch.equal(out.isnan(), ~number)
     assert torch.equal(out[number].view(torch.int16), ref[number].view(torch.int16))
@@ -1289,7 +1295,14 @@ def test_float32_floor_ops_match_torch_bit_for_bit(a_shape, b_shape) -> None:
         (RemainderFwdOp(), torch.remainder),
     ]
     for op, ref_fn in cases:
-        out, ref = op(a, b), ref_fn(a, b)
+        out = op(a, b)
+        # NPU floor division differs for tiny divisors and integer boundaries.
+        # The independent CPU oracle follows the existing CUDA algorithm;
+        # the NaN and bitwise assertions below remain unchanged.
+        if out.device.type == "npu" and not isinstance(op, RemainderFwdOp):
+            ref = div_reference(a.cpu(), b.cpu(), "floor").to(out.device)
+        else:
+            ref = ref_fn(a, b)
         number = ~ref.isnan()
         assert torch.equal(out.isnan(), ~number)
         assert torch.equal(out[number].view(torch.int32), ref[number].view(torch.int32))

@@ -86,14 +86,15 @@
     "src/tileops/ops/elementwise/sinusoidal.py": "5ff84a474188a37793de5ad5dd0f848e11677846f207bd6605f01138376e5960",
     "src/tileops/ops/elementwise/where.py": "19c2839dcedb166decf2c85f7c10c1e1d1ead4bd040f6b79e82a2f5f11c49943",
     "tests/ops/_div_reference.py": "5d9edbf6cdb3e330accbc595d9c59c3893cb51f196aef62d21812f93a25ef6b2",
-    "tests/ops/test_binary_arith.py": "000943ee7f5d4b0d44814df20bb9123a8a17c5586a4ffe006abe029b6f4d3b7e",
+    "tests/ops/test_binary_arith.py": "fb99b4dd4eccca1ce9aa993b3dc7734416f3893e03d7d906bc16619adacac1e3",
     "tests/ops/test_comparison_boundaries.py": "0046252698e4b34e6624f0249d5c4b8e7f0eede264614f24422bff63781d38ca",
-    "tests/ops/test_special_elementwise.py": "98aa6b9fe107a3123640131b7b5cd1567a893c0a743cf5ae884c1748cde31c2a",
+    "tests/ops/test_special_elementwise.py": "a847105e35a8c92ce93f8dc3b5a685b5853b034ff4f7ca48794349713b5e1978",
     "tests/ops/test_unary_math.py": "1b41dd8275524ee973881ef1eb6b38c2e4eb59527e62be32e10ded104538effc",
     "tests/ops/test_where_clamp_masked_fill_conformance.py": "f2c8d00ab5147c0eb8c4831171be9d42d18d87578310d19f83e8bb535dbba9bb",
     "workloads/elementwise.py": "d63468dd833d235ea55daaf5f02cb7acf52c1fbbea5a1313c94c8ea259af2528",
     "workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
-    "src/tileops/kernels/ascend/elementwise/__init__.py": "5966fb86e12105da2c8a2f0d54246f9da88e5046b6da3d1a35fc6991576514fb"
+    "src/tileops/kernels/ascend/elementwise/__init__.py": "5966fb86e12105da2c8a2f0d54246f9da88e5046b6da3d1a35fc6991576514fb",
+    "tests/ops/test_elementwise_unary_activation_conformance.py": "63b07862d8377950b71d444cb90dc7cf7c3fdd8eda13dae1a3eed0312636fade"
   },
   "operators": [
     "LogicalAndFwdOp",
@@ -169,7 +170,8 @@
   ],
   "integration_changes": [
     "Register all completed70ops; remove obsolete RoundDecimalsKernel import replaced by current RoundKernel.",
-    "Retain maintained-branch _nan helper docstring; runtime code identical. Retain3 maintained-branch added regression tests."
+    "Retain maintained-branch _nan helper docstring; runtime code identical. Retain3 maintained-branch added regression tests.",
+    "Preserve original public failure evidence; CPU reference calculations on Ascend for Sinusoidal/BF16 div/FP32 floored div retain tolerances and bitwise checks; choose an applicable device kernel for the preferred-registration test. No production kernel changes."
   ],
   "retained_maintained_branch_tests": [
     [

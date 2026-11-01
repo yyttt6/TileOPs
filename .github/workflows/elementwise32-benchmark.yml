@@ -21,6 +21,9 @@ jobs:
       - name: Validate the admitted baseline and run the frozen suite
         env:
           SELECTED_OPERATORS: ${{ inputs.operators }}
+          OMP_NUM_THREADS: '4'
+          MKL_NUM_THREADS: '4'
+          OPENBLAS_NUM_THREADS: '4'
         run: |
           set -eo pipefail
           source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
