@@ -335,117 +335,14 @@ def _profiled_kernel_names(torch, torch_npu, fn, repeats: int = 2) -> frozenset[
     return frozenset(seq_to_name.values())
 
 
-def _parse_ffts_profile(
-    prof_path: Path,
-    repeats: int,
-    exclude_name_marker: str | None = None,
-    exclude_names: frozenset[str] = frozenset(),
-    require_marker_seen: bool = False,
-) -> dict[str, float]:
-    """Read raw kernel durations emitted by ``torch_npu.profiler``.
-
-    CANN 9.2 can fail to produce ``kernel_details.csv`` for small or unusual
-    operators even though the raw AIC/AIV stream is complete.  The raw
-    ``ffts_profile`` records are also the source consumed by TileLang's Ascend
-    profiler helper, so they are the stable common denominator here.
-
-    ``exclude_name_marker`` (substring) and ``exclude_names`` (exact match) drop records
-    whose resolved kernel name matches, so the cache-flush kernel's own time (Finding 1) and a
-    ``reset()`` callback's device time (Finding 2) are not summed into the op's own latency.
-    Name resolution only runs when something needs excluding -- it costs extra file I/O per
-    case, which most cases (no reset) should not pay.
-
-    ``require_marker_seen`` (Fix 1b): under the per-repeat-isolated design (see
-    ``_time_reference``), the profiling window opened for a timed repeat spans *only* the
-    bracketed op call -- the flush (and ``reset``) already ran, and were ``synchronize()``-d
-    to completion, *before* the window opened. So the flush kernel is now expected to be
-    absent from every such window; its *presence* would indicate the isolation leaked, not
-    its absence indicating broken name resolution (the old assumption, back when one
-    continuous session covered the flush and every repeat together). Only the one-time,
-    once-per-process self-test (``_verify_flush_marker_resolvable``) that deliberately
-    profiles the flush kernel together with a call passes ``require_marker_seen=True``;
-    every per-repeat call in the main timed loop leaves it at the new default (``False``).
-    """
-    total_ns = 0
-    count = 0
-    aic_cycles = 0
-    aiv_cycles = 0
-    excluded_ns = 0
-    excluded_count = 0
-    records_seen = 0  # every valid record, whether or not it was excluded by name
-    needs_names = bool(exclude_name_marker or exclude_names)
-    seq_to_name = _resolve_kernel_names(prof_path) if needs_names else {}
-    flush_kernel_seen = False
-    for path in prof_path.rglob("ffts_profile*"):
-        if path.name.endswith(".done") or path.stat().st_size == 0:
-            continue
-        data = path.read_bytes()
-        for offset in range(0, len(data) - (len(data) % 128), 128):
-            values = struct.unpack_from("<16q", data, offset)
-            cycles = values[1]
-            if cycles == 0:
-                continue
-            duration = values[15] - values[14]
-            if duration < 0:
-                continue
-            records_seen += 1
-            if needs_names:
-                seq = (values[0] >> 32) & 0xFFFF
-                name = seq_to_name.get(seq, "")
-                is_flush = bool(exclude_name_marker) and exclude_name_marker in name
-                flush_kernel_seen = flush_kernel_seen or is_flush
-                if is_flush or name in exclude_names:
-                    excluded_ns += duration
-                    excluded_count += 1
-                    continue
-            total_ns += duration
-            count += 1
-            if values[2] >= (1 << 31):
-                aiv_cycles += cycles
-            else:
-                aic_cycles += cycles
-    if records_seen == 0:
-        raise RuntimeError(f"torch_npu.profiler emitted no ffts_profile records under {prof_path}")
-    if require_marker_seen and exclude_name_marker and not flush_kernel_seen:
-        # Only asserted by the one-time self-test, which deliberately puts the flush
-        # kernel inside the profiled window: if name resolution never once matched it
-        # there, resolution itself is broken on this toolchain version and every other
-        # exclusion in this process is equally untrustworthy -- fail loudly instead of
-        # silently reporting a flushed-looking number that still has the flush kernel's
-        # own time baked in (or, worse, had unrelated records excluded). Checked before
-        # the count == 0 short-circuit below, since the self-test's whole window is
-        # expected to contain nothing *but* the (excluded) flush kernel.
-        raise RuntimeError(
-            "cache-flush kernel never matched by name during profile parsing; "
-            "kernel name resolution (hash_dic/task_track) may be broken for this CANN "
-            "version, which would make Finding 1/2's exclusion logic silently unreliable"
-        )
-    if count == 0:
-        # Fix 1b: a window that legitimately contains only excluded (flush/reset)
-        # records -- e.g. _verify_flush_marker_resolvable's self-test, which profiles
-        # the flush kernel alone with nothing else to time -- has nothing to report a
-        # latency for.  This is distinct from records_seen == 0 (profiler emitted
-        # nothing at all, the pre-existing fault this check used to catch).
-        return {
-            "latency_ms": 0.0,
-            "profile_kernel_us": 0.0,
-            "profile_kernel_count": 0.0,
-            "profile_aic_cycles": 0.0,
-            "profile_aiv_cycles": 0.0,
-            "profile_excluded_kernel_count": excluded_count / repeats,
-            "profile_excluded_kernel_us": excluded_ns / repeats / 1e3,
-        }
-    result = {
-        "latency_ms": total_ns / repeats / 1e6,
-        "profile_kernel_us": total_ns / repeats / 1e3,
-        "profile_kernel_count": count / repeats,
-        "profile_aic_cycles": aic_cycles / repeats,
-        "profile_aiv_cycles": aiv_cycles / repeats,
-    }
-    if needs_names:
-        result["profile_excluded_kernel_count"] = excluded_count / repeats
-        result["profile_excluded_kernel_us"] = excluded_ns / repeats / 1e3
-    return result
+def _parse_ffts_profile(prof_path, repeats, exclude_name_marker=None,
+                        exclude_names=frozenset(), require_marker_seen=False):
+    from tools.kernel_task_profile import parse_profile
+    return parse_profile(prof_path, repeats,
+                         seq_to_name=_resolve_kernel_names(prof_path),
+                         exclude_name_marker=exclude_name_marker,
+                         exclude_names=exclude_names,
+                         require_marker_seen=require_marker_seen)
 
 
 # Fix 1b: devices already self-tested this process (see _verify_flush_marker_resolvable).
@@ -536,6 +433,17 @@ def _isolate_before_call(torch, torch_npu, reset, flush_kernel, flush_buffer) ->
     torch.npu.synchronize()
 
 
+@contextlib.contextmanager
+def _profile_directory():
+    retained = os.environ.get('TILEOPS_PROFILE_DIR')
+    if retained:
+        Path(retained).mkdir(parents=True, exist_ok=True)
+        yield tempfile.mkdtemp(prefix='repeat_', dir=retained)
+    else:
+        with tempfile.TemporaryDirectory(prefix='tileops_baseline_rep_') as directory:
+            yield directory
+
+
 def _time_one_isolated_repeat(
     torch,
     torch_npu,
@@ -600,7 +508,7 @@ def _time_one_isolated_repeat(
     still structurally required to produce a correct number.
     """
     _isolate_before_call(torch, torch_npu, reset, flush_kernel, flush_buffer)
-    with tempfile.TemporaryDirectory(prefix="tileops_baseline_rep_") as prof_dir:
+    with _profile_directory() as prof_dir:
         old_work_path = os.environ.get("ASCEND_WORK_PATH")
         os.environ["ASCEND_WORK_PATH"] = prof_dir
         try:
@@ -636,6 +544,10 @@ def _time_one_isolated_repeat(
                 os.environ.pop("ASCEND_WORK_PATH", None)
             else:
                 os.environ["ASCEND_WORK_PATH"] = old_work_path
+    if os.environ.get('TILEOPS_PROFILE_DIR'):
+        from tools.kernel_task_profile import trace_digest
+        parsed['profile_path'] = str(prof.prof_if.prof_path)
+        parsed['profile_trace_sha256'] = trace_digest(parsed['profile_path'])
     del out
     if parsed.get("profile_excluded_kernel_count", 0) != 0:
         raise RuntimeError("cache flush unexpectedly appeared inside isolated timing window")
@@ -708,11 +620,14 @@ def _time_reference(
     total_excluded_ns = 0.0
     total_excluded_count = 0.0
     samples_ms = []
+    retained_profiles = []
     for _ in range(repeats):
         parsed = _time_one_isolated_repeat(
             torch, torch_npu, fn, inputs, reset, flush_kernel, flush_buffer, reset_kernel_names
         )
         samples_ms.append(parsed["latency_ms"])
+        if 'profile_path' in parsed:
+            retained_profiles.append({k: parsed[k] for k in ['profile_path', 'profile_trace_sha256', 'profile_kernel_tasks']})
         total_kernel_ns += parsed["profile_kernel_us"] * 1e3
         total_kernel_count += parsed["profile_kernel_count"]
         total_aic_cycles += parsed["profile_aic_cycles"]
@@ -735,6 +650,7 @@ def _time_reference(
         "profile_excluded_kernel_us": total_excluded_ns / repeats / 1e3,
         "cold_latency_ms": cold_ms,
         "latency_samples_ms": samples_ms,
+        "retained_profiles": retained_profiles,
         "latency_median_ms": statistics.median(samples_ms),
         "latency_stdev_ms": statistics.stdev(samples_ms) if len(samples_ms) > 1 else 0.0,
         "latency_min_ms": min(samples_ms),

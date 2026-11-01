@@ -8,7 +8,7 @@ import os
 import time
 from pathlib import Path
 
-PROTOCOL_ID = "ascend950-isolated-ffts-v2"
+PROTOCOL_ID = "ascend950-isolated-ffts-v3"
 PROTOCOL = {
     "id": PROTOCOL_ID,
     "warmup": 3,
@@ -16,7 +16,7 @@ PROTOCOL = {
     "cache_flush_mib": 1024,
     "reset": "before flush and synchronize, outside profiling",
     "window": "one NPU profiler session per repeat",
-    "metric": "mean of summed device kernel durations; excludes host launch gaps",
+    "metric": "mean of summed distinct kernel task spans; AIC/AIV roles counted once; excludes host launch gaps",
     "samples": "all 15 samples retained; no outlier removal",
 }
 TERMINAL_FAILURES = {"failed", "failed_verification", "failed_correctness", "unverified",

@@ -16,8 +16,10 @@ runtime core limits, complete case coverage, input preservation, source hashes,
 guard receipts and all 15 positive finite profiler samples are checked before a
 result can pass. The benchmark uses three warmups and 15 independent profiling
 sessions, with 1 GiB cache eviction and synchronization outside each measured
-window. Device kernel durations are summed, including overlapping kernels, and
-averaged across all 15 samples. Host launch gaps are excluded.
+window. Version 3 sums distinct kernel task spans, including overlapping kernels,
+and averages all 15 samples. The AIC and AIV records of one mixed-core task count
+as one kernel. Host launch gaps are excluded. Every raw profiling window is
+retained and reparsed on CPU before its measurement can pass.
 
 The fresh eager result is also checked against the same expected outputs and
 unchanged workload tolerances. A measured eager callable that fails this check is

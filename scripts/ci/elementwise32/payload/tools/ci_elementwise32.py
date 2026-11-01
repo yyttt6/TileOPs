@@ -41,6 +41,7 @@ def child(script, output, op):
     assert (hardware['cube'], hardware['vector']) == (32, 64)
     torch.npu.set_device_limit(0, cube_num=32, vector_num=64)
     assert torch.npu.get_device_limit(0) == {'cube_core_num': 32, 'vector_core_num': 64}
+    os.environ['TILEOPS_PROFILE_DIR'] = str(output / 'profiles')
     try:
         sys.argv = [str(script), '--op', op, '--output', str(output / 'measurements.jsonl')]
         runpy.run_path(str(script), run_name='__main__')
@@ -78,7 +79,14 @@ def validate_rows(rows, expected):
             samples = timing['latency_samples_ms']
             assert len(samples) == 15 and all(math.isfinite(x) and x > 0 for x in samples)
             assert math.isclose(timing['latency_ms'], statistics.mean(samples), rel_tol=1e-9)
-            assert timing['measurement_protocol'] == 'ascend950-isolated-ffts-v2'
+            assert timing['measurement_protocol'] == 'ascend950-isolated-ffts-v3'
+            from kernel_task_profile import parse_profile, trace_digest
+            profiles = timing['retained_profiles']
+            assert len(profiles) == 15
+            for value, trace in zip(samples, profiles, strict=True):
+                assert trace_digest(trace['profile_path']) == trace['profile_trace_sha256']
+                reparsed = parse_profile(trace['profile_path'], 1)
+                assert math.isclose(reparsed['latency_ms'], value, rel_tol=1e-9, abs_tol=1e-12)
 
 
 def controller(output, selected):
