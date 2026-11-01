@@ -20,6 +20,7 @@ from benchmarks.api import cases
 from workloads.device import set_run_device
 from tools.measure_baselines import _time_reference, _tensor_digest
 from tools.baseline_protocol import seed_case
+from tools.elementwise_eager_check import check_eager
 sys.path.insert(0, str(ROOT/'docs/ascend950/dev/logroots4_20261028'))
 from full_digest import tensor_digest as _tensor_digest, PROTOCOL as DIGEST_PROTOCOL
 
@@ -64,6 +65,7 @@ for case in cases(a.op):
          'source_manifest':frozen,'runtime_limit':torch.npu.get_device_limit(0),
          'environment':{'torch':torch.__version__,'torch_file':torch.__file__,'tilelang':tilelang.__file__,'host':__import__('platform').node(),'device':torch.npu.get_device_name(0),'timer_sha256':hashlib.sha256((ROOT/'tools/measure_baselines.py').read_bytes()).hexdigest()},
          'time':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()}
+    row['eager_correctness'] = check_eager(torch, case, xs, ref)
     if not a.no_time:
         row.update(_time_reference(torch,torch_npu,op,tuple(xs),3,a.repeats))
         row['eager'] = _time_reference(torch,torch_npu,case.reference,tuple(xs),3,a.repeats)

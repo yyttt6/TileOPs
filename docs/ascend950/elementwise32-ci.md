@@ -19,6 +19,12 @@ sessions, with 1 GiB cache eviction and synchronization outside each measured
 window. Device kernel durations are summed, including overlapping kernels, and
 averaged across all 15 samples. Host launch gaps are excluded.
 
+The fresh eager result is also checked against the same expected outputs and
+unchanged workload tolerances. A measured eager callable that fails this check is
+diagnostic data and is excluded from the baseline comparison. This is especially
+relevant when a target-device reference differs from the established CPU semantic
+reference.
+
 The archived local development measurements are preliminary. Physical 32-core CI
 results supply the authoritative timings. Numerical comparisons retain the
 workload tolerances and the established CPU semantic references where the NPU
