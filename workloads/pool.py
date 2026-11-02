@@ -101,7 +101,7 @@ class MaxPoolWorkload(WorkloadBase):
         return (x,)
 
     def ref_program(self, input: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
-        return max_pool_ref(self.ndim)(
+        result = max_pool_ref(self.ndim)(
             input,
             kernel_size=self.kernel_size,
             stride=self.stride,
@@ -110,6 +110,11 @@ class MaxPoolWorkload(WorkloadBase):
             ceil_mode=self.ceil_mode,
             return_indices=self.return_indices,
         )
+        if self.return_indices:
+            # Some backends return int32 indices; the public contract requires int64.
+            values, indices = result
+            return values, indices.to(torch.int64)
+        return result
 
     def verification(self, *inputs):
         return pool_verification(maximum=True)
