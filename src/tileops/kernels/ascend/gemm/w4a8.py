@@ -35,15 +35,20 @@ _CAST_STAGES = 2
 def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
     """The tile ``(tile_m, tile_n, tile_k, stages, blocks)`` one call runs with.
 
-    Prefill rows take the 256-wide tile measured fastest there; it needs whole N tiles
-    and the L0C budget allows exactly one 256x256 FP32 accumulator. Rows below that
-    keep the narrower tile: a 256-row tile would compute three quarters of its output
-    for nothing, and on decode rows the N direction still has to fill 32 Cube cores.
+    A 256-deep K stage with two operand versions is what this GEMM wants at every row
+    count, so the row tile is what gives: it grows with the call up to the 256 rows
+    the L0C budget allows, and shrinks by 64 rows when the L1 operand budget cannot
+    hold the deeper stage at 256. Row tiles below that stay narrow so a short call
+    does not compute rows it has no tokens for. The column tile prefers 224, which
+    splits 7168 into exactly 32 tiles — one per Cube core.
     """
-    if m >= 512 and n % 256 == 0:
-        return 256, 256, 128, 2, 32
-    tile_m = 128 if m > 64 else 64 if m > 16 else 16
-    return tile_m, 128, 128, 3, 32
+    tile_m = 16 if m <= 16 else 64 if m <= 64 else 128 if m <= 256 else 256
+    tile_n = 224 if n % 224 == 0 else 256 if n % 256 == 0 else 128
+    tile_k = 256 if k % 256 == 0 else 128
+    # Two operand versions cost 2 * (rows + columns) * tile_k * stages bytes in L1.
+    while tile_m > 16 and 2 * (tile_m + tile_n) * tile_k * 2 >= 512 * 1024:
+        tile_m -= 64
+    return tile_m, tile_n, tile_k, 2, 32
 
 
 def _dequant_program(n: int, k: int, group_size: int):
