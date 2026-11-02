@@ -9,10 +9,24 @@ import torch
 from tilelang.layout import make_ascend_compact_nz_layout
 
 from tileops.backend import register_kernel_type
+from tileops.kernels.ascend.attention.nsa_common import (
+    calibrated_cube_blocks,
+    check_inputs,
+    reduce_max_rows,
+    reduce_sum_rows,
+)
 from tileops.kernels.attention.call_spec import NSACall, NSACompressedFwdInterface
 from tileops.kernels.kernel_base import Kernel, vector_aligned
 
 __all__ = ["AscendNSACompressedFwdVarlenKernel"]
+
+# The three compressed manifest call configurations, in the dtypes they run in.
+# ``refusal`` reads the same table.
+_CONFIGURATIONS = (
+    (8, 8192, 256, 32, 2, 128, 128, 32, 0.08838834764831845, torch.float16),
+    (4, 4096, 128, 32, 2, 128, 128, 32, 0.08838834764831845, torch.float16),
+    (2, 1024, 33, 32, 2, 128, 128, 32, 0.08838834764831845, torch.bfloat16),
+)
 
 
 def _make_nsa_compressed_varlen_kernel(
@@ -26,15 +40,10 @@ def _make_nsa_compressed_varlen_kernel(
     block_size: int,
     scale: float,
     dtype: str,
-    num_blocks: int = 36,
-    projection_first_task: int = 0,
-    projection_steps: int = 0,
-    projection_stride: int = 0,
+    num_blocks: int,
 ):
     """Build one persistent token/head-tile program, retaining full GM addresses.
 
-    Projection parameters select diagnostic persistent-task streams. Their zero
-    production defaults cover all tokens and never change the output shapes.
     The runtime closed-chunk count can exceed one tile even at a manifest shape:
     request boundaries are inputs, not constants of a compiled specialization.
     """
@@ -52,38 +61,9 @@ def _make_nsa_compressed_varlen_kernel(
     token_tasks = heads_kv * head_groups
     tasks = tokens * token_tasks
     grid = min(num_blocks, tasks)
-    projected = projection_steps > 0
-    if projected:
-        assert projection_first_task >= 0 and projection_stride >= grid
-        assert projection_first_task + (projection_steps - 1) * projection_stride + grid <= tasks
-        steps = projection_steps
-    else:
-        assert projection_first_task == projection_steps == projection_stride == 0
-        steps = (tasks + grid - 1) // grid
-
-    @T.macro
-    def reduce_max_rows(source, destination):
-        # Keep each row's result at its contiguous four-byte scalar address.
-        # The explicit store also states its one-element memory footprint.
-        with T.SimdVF():
-            full = T.simd.pset(32, "PAT_ALL")
-            one = T.simd.pset(32, "PAT_VL1")
-            for row in T.serial(vector_rows):
-                identity = T.simd.vdup(T.float32(-3.4028234663852886e38), "float32", full)
-                reduced = T.simd.vcmax(T.simd.vld(source[row, 0]), full)
-                value = T.simd.vmax(identity, reduced, full)
-                T.simd.vsts(destination[row], value, one, dist="ONEPT_B32", extent=1)
-
-    @T.macro
-    def reduce_sum_rows(source, destination):
-        with T.SimdVF():
-            full = T.simd.pset(32, "PAT_ALL")
-            one = T.simd.pset(32, "PAT_VL1")
-            for row in T.serial(vector_rows):
-                identity = T.simd.vdup(T.float32(0), "float32", full)
-                reduced = T.simd.vcadd(T.simd.vld(source[row, 0]), full)
-                value = T.simd.vadd(identity, reduced, full)
-                T.simd.vsts(destination[row], value, one, dist="ONEPT_B32", extent=1)
+    steps = (tasks + grid - 1) // grid
+    max_rows = reduce_max_rows(vector_rows, softmax_tile)
+    sum_rows = reduce_sum_rows(vector_rows, softmax_tile)
 
     @T.prim_func
     def main(
@@ -154,10 +134,7 @@ def _make_nsa_compressed_varlen_kernel(
             )
 
             for step in T.serial(steps):
-                if projected:
-                    task = projection_first_task + step * projection_stride + bx
-                else:
-                    task = step * grid + bx
+                task = step * grid + bx
                 if task < tasks:
                     token_row = task // token_tasks
                     kv_head = task % token_tasks // head_groups
@@ -211,7 +188,7 @@ def _make_nsa_compressed_varlen_kernel(
                                         scores[h, s] * scale,
                                         -T.infinity("float32"),
                                     )
-                            reduce_max_rows(scores, block_maximum)
+                            max_rows(scores, block_maximum)
                             if tile == 0:
                                 with T.SimtVF(threads=128):
                                     for h in T.Parallel(vector_rows):
@@ -227,7 +204,7 @@ def _make_nsa_compressed_varlen_kernel(
                                     scores[h, s] = T.exp(scores[h, s] - maximum[h])
                                     if s < key_tile:
                                         probabilities[h, s] = T.cast(scores[h, s], dtype)
-                            reduce_sum_rows(scores, block_sum)
+                            sum_rows(scores, block_sum)
                             T.dual_copy(probabilities[:vector_rows, :], p_l1)
                             T.copy(p_l1, p_l0)
                             T.gemm(
@@ -295,7 +272,7 @@ def _compile_nsa_compressed_varlen_kernel(
     block_size: int,
     scale: float,
     dtype: str,
-    num_blocks: int = 36,
+    num_blocks: int,
 ):
     return tilelang.compile(
         _make_nsa_compressed_varlen_kernel(
@@ -329,11 +306,6 @@ class AscendNSACompressedFwdVarlenKernel(Kernel, NSACompressedFwdInterface):
 
     @classmethod
     def refusal(cls, call: NSACall) -> str | None:
-        configurations = (
-            (8, 8192, 256, 32, 2, 128, 128, 32, 0.08838834764831845, torch.float16),
-            (4, 4096, 128, 32, 2, 128, 128, 32, 0.08838834764831845, torch.float16),
-            (2, 1024, 33, 32, 2, 128, 128, 32, 0.08838834764831845, torch.bfloat16),
-        )
         configuration = (
             call.batch,
             call.c_seq_len,
@@ -346,7 +318,7 @@ class AscendNSACompressedFwdVarlenKernel(Kernel, NSACompressedFwdInterface):
             call.scale,
             call.dtype,
         )
-        if configuration not in configurations:
+        if configuration not in _CONFIGURATIONS:
             return "requires one of the three NSACompressedVarlenFwdOp manifest configurations"
         return super().refusal(call)
 
@@ -368,6 +340,7 @@ class AscendNSACompressedFwdVarlenKernel(Kernel, NSACompressedFwdInterface):
             call.block_size,
             call.scale,
             self.dtype_str,
+            calibrated_cube_blocks(),
         )
 
     def forward(
@@ -379,13 +352,23 @@ class AscendNSACompressedFwdVarlenKernel(Kernel, NSACompressedFwdInterface):
         chunk_offsets: torch.Tensor,
         token_indices: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        inputs = (q, k_cmp, v_cmp, offsets, chunk_offsets, token_indices)
-        for tensor in inputs:
-            if tensor.device.type != "npu" or tensor.device != q.device:
-                raise ValueError("NSA compressed inputs must be on one NPU device")
+        expected = (
+            ("q", q, (self.call.c_seq_len, self.call.heads, self.call.dim), self.dtype),
+            ("k_cmp", k_cmp, (self.call.chunk_num, self.call.heads_kv, self.call.dim), self.dtype),
+            (
+                "v_cmp",
+                v_cmp,
+                (self.call.chunk_num, self.call.heads_kv, self.call.dim_v),
+                self.dtype,
+            ),
+            ("offsets", offsets, (self.call.batch + 1,), torch.int32),
+            ("chunk_offsets", chunk_offsets, (self.call.batch + 1,), torch.int32),
+            ("token_indices", token_indices, (self.call.c_seq_len, 2), torch.int32),
+        )
+        check_inputs(self, expected)
         # The manifest accepts strided inputs. Normalize reads without changing
         # the caller's tensors; vectorized payload loads also need aligned bases.
-        normalized = tuple(tensor.contiguous() for tensor in inputs)
+        normalized = tuple(tensor.contiguous() for _, tensor, _shape, _dtype in expected)
         normalized = tuple(
             vector_aligned(tensor) if i < 3 else tensor for i, tensor in enumerate(normalized)
         )

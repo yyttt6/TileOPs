@@ -73,7 +73,8 @@ class NSATopKVarlenFwdOp(Op):
 
     def _writes_no_elements(self, call: object) -> bool:
         """Enforce the Ascend domain before the shared empty-output shortcut."""
-        if call.device.type == "npu":
+        empty = super()._writes_no_elements(call)
+        if empty and call.device.type == "npu":
             indices = call.indices
             request = NSACall(
                 batch=indices["N"],
@@ -89,7 +90,7 @@ class NSATopKVarlenFwdOp(Op):
                 device=call.device,
             )
             self.key_for("nsa_topk_varlen_kernel", request)
-        return super()._writes_no_elements(call)
+        return empty
 
     def roofline_data_terms(self) -> "dict[str, int]":
         """The (token, chunk) pairs this call's request lengths make it score."""
@@ -189,7 +190,8 @@ class NSAVarlenFwdOp(Op):
 
     def _writes_no_elements(self, call: object) -> bool:
         """Enforce the Ascend domain before the shared empty-output shortcut."""
-        if call.device.type == "npu":
+        empty = super()._writes_no_elements(call)
+        if empty and call.device.type == "npu":
             indices = call.indices
             request = NSACall(
                 batch=indices["N"],
@@ -205,7 +207,7 @@ class NSAVarlenFwdOp(Op):
                 device=call.device,
             )
             self.key_for("nsa_fwd_varlen_kernel", request)
-        return super()._writes_no_elements(call)
+        return empty
 
     def roofline_data_terms(self) -> "dict[str, int]":
         """The key rows this call's selection scores and the distinct rows it reads."""
@@ -300,7 +302,8 @@ class NSACompressedVarlenFwdOp(Op):
 
     def _writes_no_elements(self, call: object) -> bool:
         """Enforce the Ascend domain before the shared empty-output shortcut."""
-        if call.device.type == "npu":
+        empty = super()._writes_no_elements(call)
+        if empty and call.device.type == "npu":
             indices = call.indices
             request = NSACall(
                 batch=indices["N"],
@@ -316,7 +319,7 @@ class NSACompressedVarlenFwdOp(Op):
                 device=call.device,
             )
             self.key_for("nsa_compressed_fwd_varlen_kernel", request)
-        return super()._writes_no_elements(call)
+        return empty
 
     def roofline_data_terms(self) -> "dict[str, int]":
         """The (token, chunk) pairs this call's request lengths make it score."""

@@ -9,10 +9,26 @@ import torch
 from tilelang.layout import make_ascend_compact_nz_layout
 
 from tileops.backend import register_kernel_type
+from tileops.kernels.ascend.attention.nsa_common import (
+    VECTOR_LANES,
+    calibrated_cube_blocks,
+    check_inputs,
+    reduce_max_rows,
+    reduce_sum_rows,
+)
 from tileops.kernels.attention.call_spec import NSACall, NSAFwdInterface
 from tileops.kernels.kernel_base import Kernel
 
 __all__ = ["AscendNSAFwdVarlenKernel"]
+
+# The four manifest call configurations this implementation serves, keyed by the
+# TileLang dtype string the builder takes. ``refusal`` reads the same table.
+_CONFIGURATIONS = (
+    (4, 8192, 16, 1, 64, 1, 32, True, 0.1, "float16"),
+    (2, 8192, 16, 1, 64, 4, 32, True, 0.1, "float16"),
+    (2, 8190, 16, 1, 64, 4, 32, False, 0.1, "float16"),
+    (2, 1024, 32, 2, 128, 8, 32, True, 0.08838834764831845, "bfloat16"),
+)
 
 
 def _make_nsa_varlen_kernel(
@@ -26,24 +42,11 @@ def _make_nsa_varlen_kernel(
     is_causal: bool,
     scale: float,
     dtype: str,
-    num_blocks: int = 36,
-    projection_first_task: int = 0,
-    projection_steps: int = 0,
-    projection_stride: int = 0,
+    num_blocks: int,
 ):
-    """Consume each selected-slot prefix once, initializing at its first valid block.
-
-    The three optional projection arguments are for diagnostic task streams only.
-    Their all-zero production default covers every task and retains the full ABI.
-    """
+    """Consume each selected-slot prefix once, initializing at its first valid block."""
     from contextlib import nullcontext
 
-    configurations = (
-        (4, 8192, 16, 1, 64, 1, 32, True, 0.1, "float16"),
-        (2, 8192, 16, 1, 64, 4, 32, True, 0.1, "float16"),
-        (2, 8190, 16, 1, 64, 4, 32, False, 0.1, "float16"),
-        (2, 1024, 32, 2, 128, 8, 32, True, 0.08838834764831845, "bfloat16"),
-    )
     assert (
         batch,
         tokens,
@@ -55,46 +58,18 @@ def _make_nsa_varlen_kernel(
         is_causal,
         scale,
         dtype,
-    ) in configurations, "unified NSA supports only the four manifest call configurations"
+    ) in _CONFIGURATIONS, "unified NSA supports only the four manifest call configurations"
     assert num_blocks > 0, "num_blocks must be positive"
     head_tile = 16
     vector_rows = 8
     key_tile = 32
-    softmax_tile = 64
+    softmax_tile = VECTOR_LANES
     kv_versions = 2 if selected_blocks > 1 else 1
     tasks = tokens * heads_kv
     grid = min(num_blocks, tasks)
-    projected = projection_steps > 0
-    if projected:
-        assert projection_first_task >= 0 and projection_stride >= grid
-        assert projection_first_task + (projection_steps - 1) * projection_stride + grid <= tasks
-        steps = projection_steps
-    else:
-        assert projection_first_task == projection_steps == projection_stride == 0
-        steps = (tasks + grid - 1) // grid
-
-    @T.macro
-    def reduce_max_rows(src, dst):
-        # Each 64-score row reduces to one float at its own scalar address.
-        with T.SimdVF():
-            full = T.simd.pset(32, "PAT_ALL")
-            one = T.simd.pset(32, "PAT_VL1")
-            for row in T.serial(vector_rows):
-                identity = T.simd.vdup(T.float32(-3.402823e38), "float32", full)
-                reduced = T.simd.vcmax(T.simd.vld(src[row, 0]), full)
-                result = T.simd.vmax(identity, reduced, full)
-                T.simd.vsts(dst[row], result, one, dist="ONEPT_B32", extent=1)
-
-    @T.macro
-    def reduce_sum_rows(src, dst):
-        with T.SimdVF():
-            full = T.simd.pset(32, "PAT_ALL")
-            one = T.simd.pset(32, "PAT_VL1")
-            for row in T.serial(vector_rows):
-                identity = T.simd.vdup(T.float32(0.0), "float32", full)
-                reduced = T.simd.vcadd(T.simd.vld(src[row, 0]), full)
-                result = T.simd.vadd(identity, reduced, full)
-                T.simd.vsts(dst[row], result, one, dist="ONEPT_B32", extent=1)
+    steps = (tasks + grid - 1) // grid
+    max_rows = reduce_max_rows(vector_rows, softmax_tile)
+    sum_rows = reduce_sum_rows(vector_rows, softmax_tile)
 
     @T.prim_func
     def main(
@@ -166,10 +141,7 @@ def _make_nsa_varlen_kernel(
             # Only SPU control writes it; no VF result is shared through a scalar.
             seen_epoch = T.alloc_var("int32", init=0)
             for step in T.serial(steps):
-                if projected:
-                    task = projection_first_task + step * projection_stride + bx
-                else:
-                    task = step * grid + bx
+                task = step * grid + bx
                 if task < tasks:
                     token = task // heads_kv
                     kv_head = task % heads_kv
@@ -235,7 +207,7 @@ def _make_nsa_varlen_kernel(
                                                 scores[h, s] * scale,
                                                 -T.infinity("float32"),
                                             )
-                                    reduce_max_rows(scores, block_maximum)
+                                    max_rows(scores, block_maximum)
                                     if selected_blocks > 1:
                                         if seen_epoch == 0:
                                             with T.SimtVF(threads=128):
@@ -259,7 +231,7 @@ def _make_nsa_varlen_kernel(
                                                 scores[h, s] = T.exp(scores[h, s] - maximum[h])
                                             if s < key_tile:
                                                 probabilities[h, s] = T.cast(scores[h, s], dtype)
-                                    reduce_sum_rows(scores, block_sum)
+                                    sum_rows(scores, block_sum)
                                     T.dual_copy(probabilities[:vector_rows, :], p_l1)
                                     T.copy(p_l1, p_l0)
                                     T.gemm(
@@ -327,7 +299,7 @@ def _compile_nsa_varlen_kernel(
     is_causal: bool,
     scale: float,
     dtype: str,
-    num_blocks: int = 36,
+    num_blocks: int,
 ):
     return tilelang.compile(
         _make_nsa_varlen_kernel(
@@ -356,12 +328,6 @@ class AscendNSAFwdVarlenKernel(Kernel, NSAFwdInterface):
 
     @classmethod
     def refusal(cls, call: NSACall) -> str | None:
-        configurations = (
-            (4, 8192, 16, 1, 64, 1, 32, True, 0.1, torch.float16),
-            (2, 8192, 16, 1, 64, 4, 32, True, 0.1, torch.float16),
-            (2, 8190, 16, 1, 64, 4, 32, False, 0.1, torch.float16),
-            (2, 1024, 32, 2, 128, 8, 32, True, 0.08838834764831845, torch.bfloat16),
-        )
         configuration = (
             call.batch,
             call.c_seq_len,
@@ -372,9 +338,9 @@ class AscendNSAFwdVarlenKernel(Kernel, NSAFwdInterface):
             call.block_size,
             call.is_causal,
             call.scale,
-            call.dtype,
+            Kernel.dtype_to_str(call.dtype),
         )
-        if configuration not in configurations:
+        if configuration not in _CONFIGURATIONS:
             return "requires one of the four declared NSAVarlenFwdOp manifest call configurations"
         return super().refusal(call)
 
@@ -396,6 +362,7 @@ class AscendNSAFwdVarlenKernel(Kernel, NSAFwdInterface):
             call.is_causal,
             call.scale,
             self.dtype_str,
+            calibrated_cube_blocks(),
         )
 
     def forward(
@@ -408,13 +375,22 @@ class AscendNSAFwdVarlenKernel(Kernel, NSAFwdInterface):
         offsets: torch.Tensor,
         token_indices: torch.Tensor,
     ) -> torch.Tensor:
-        inputs = (q, k, v, block_indices, block_counts, offsets, token_indices)
-        for tensor in inputs:
-            if tensor.device.type != "npu" or tensor.device != q.device:
-                raise ValueError("NSA inputs must be on one NPU device")
-            if not tensor.is_contiguous():
-                raise ValueError("NSA inputs must be contiguous")
-        return self._compiled(*inputs)
+        expected = (
+            ("q", q, (self.call.c_seq_len, self.call.heads, self.call.dim), self.dtype),
+            ("k", k, (self.call.c_seq_len, self.call.heads_kv, self.call.dim), self.dtype),
+            ("v", v, (self.call.c_seq_len, self.call.heads_kv, self.call.dim), self.dtype),
+            (
+                "block_indices",
+                block_indices,
+                (self.call.c_seq_len, self.call.heads_kv, self.call.selected_blocks),
+                torch.int32,
+            ),
+            ("block_counts", block_counts, (self.call.c_seq_len, self.call.heads_kv), torch.int32),
+            ("offsets", offsets, (self.call.batch + 1,), torch.int32),
+            ("token_indices", token_indices, (self.call.c_seq_len, 2), torch.int32),
+        )
+        check_inputs(self, expected)
+        return self._compiled(*(tensor.contiguous() for _, tensor, _shape, _dtype in expected))
 
 
 register_kernel_type("NSAVarlenFwdOp", "ascend", AscendNSAFwdVarlenKernel)

@@ -9,10 +9,26 @@ import torch
 from tilelang.layout import make_ascend_compact_nz_layout
 
 from tileops.backend import register_kernel_type
+from tileops.kernels.ascend.attention.nsa_common import (
+    calibrated_cube_blocks,
+    check_inputs,
+    reduce_max_rows,
+    reduce_sum_rows,
+)
 from tileops.kernels.attention.call_spec import NSACall, NSATopKFwdInterface
 from tileops.kernels.kernel_base import Kernel, vector_aligned
 
 __all__ = ["AscendNSATopKVarlenKernel"]
+
+# The five manifest call configurations this implementation serves, in both dtypes.
+# ``refusal`` reads the same table.
+_CONFIGURATIONS = (
+    (8, 8192, 32, 2, 128, 256, 16, 32, 1.0),
+    (4, 4096, 32, 2, 128, 128, 16, 32, 1.0),
+    (3, 5153, 32, 2, 128, 163, 16, 32, 0.08838834764831845),
+    (1, 16384, 32, 2, 128, 256, 32, 64, 0.08838834764831845),
+    (4, 8192, 64, 2, 64, 256, 8, 32, 0.125),
+)
 
 
 def _make_nsa_topk_varlen_kernel(
@@ -26,23 +42,9 @@ def _make_nsa_topk_varlen_kernel(
     block_size: int,
     scale: float,
     dtype: str,
-    num_blocks: int = 36,
-    projection_first_task: int = 0,
-    projection_steps: int = 0,
-    projection_stride: int = 0,
+    num_blocks: int,
 ):
-    """Cache one FP32 QK matrix and rank its complete GQA importance rows.
-
-    Projection arguments select diagnostic global task streams. Their zero
-    production defaults write the complete output through the same template.
-    """
-    configurations = (
-        (8, 8192, 32, 2, 128, 256, 16, 32, 1.0),
-        (4, 4096, 32, 2, 128, 128, 16, 32, 1.0),
-        (3, 5153, 32, 2, 128, 163, 16, 32, 0.08838834764831845),
-        (1, 16384, 32, 2, 128, 256, 32, 64, 0.08838834764831845),
-        (4, 8192, 64, 2, 64, 256, 8, 32, 0.125),
-    )
+    """Cache one FP32 QK matrix and rank its complete GQA importance rows."""
     assert (
         batch,
         tokens,
@@ -53,7 +55,7 @@ def _make_nsa_topk_varlen_kernel(
         selected_blocks,
         block_size,
         scale,
-    ) in configurations, "Ascend NSA TopK supports the five declared workload configurations"
+    ) in _CONFIGURATIONS, "Ascend NSA TopK supports the five declared workload configurations"
     assert dtype in ("float16", "bfloat16")
     assert num_blocks > 0
     group = heads // heads_kv
@@ -62,56 +64,10 @@ def _make_nsa_topk_varlen_kernel(
     chunk_pad = 1 << (chunk_num - 1).bit_length()
     tasks = tokens * heads_kv
     grid = min(num_blocks, tasks)
-    projected = projection_steps > 0
-    if projected:
-        assert projection_first_task >= 0 and projection_stride >= grid
-        assert projection_first_task + (projection_steps - 1) * projection_stride + grid <= tasks
-        steps = projection_steps
-    else:
-        assert projection_first_task == projection_steps == projection_stride == 0
-        steps = (tasks + grid - 1) // grid
-
-    @T.macro
-    def reduce_max_rows(src, dst, rows: int):
-        # A reduction produces one scalar per row. Spell out its address and
-        # store width instead of relying on provider-specific row lowering.
-        with T.SimdVF():
-            mask = T.simd.pset(32, "PAT_ALL")
-            one = T.simd.pset(32, "PAT_VL1")
-            for row in T.serial(rows):
-                identity = T.simd.vdup(T.float32(-3.402823e38), "float32", mask)
-                first = T.simd.vcmax(T.simd.vld(src[row, 0]), mask)
-                second = T.simd.vcmax(T.simd.vld(src[row, 64]), mask)
-                acc0 = T.simd.vmax(identity, first, mask)
-                acc1 = T.simd.vmax(acc0, second, mask)
-                if chunk_pad == 256:
-                    third = T.simd.vcmax(T.simd.vld(src[row, 128]), mask)
-                    fourth = T.simd.vcmax(T.simd.vld(src[row, 192]), mask)
-                    acc2 = T.simd.vmax(acc1, third, mask)
-                    acc3 = T.simd.vmax(acc2, fourth, mask)
-                    T.simd.vsts(dst[row], acc3, one, dist="ONEPT_B32", extent=1)
-                else:
-                    T.simd.vsts(dst[row], acc1, one, dist="ONEPT_B32", extent=1)
-
-    @T.macro
-    def reduce_sum_rows(src, dst, rows: int):
-        with T.SimdVF():
-            mask = T.simd.pset(32, "PAT_ALL")
-            one = T.simd.pset(32, "PAT_VL1")
-            for row in T.serial(rows):
-                identity = T.simd.vdup(T.float32(0.0), "float32", mask)
-                first = T.simd.vcadd(T.simd.vld(src[row, 0]), mask)
-                second = T.simd.vcadd(T.simd.vld(src[row, 64]), mask)
-                acc0 = T.simd.vadd(identity, first, mask)
-                acc1 = T.simd.vadd(acc0, second, mask)
-                if chunk_pad == 256:
-                    third = T.simd.vcadd(T.simd.vld(src[row, 128]), mask)
-                    fourth = T.simd.vcadd(T.simd.vld(src[row, 192]), mask)
-                    acc2 = T.simd.vadd(acc1, third, mask)
-                    acc3 = T.simd.vadd(acc2, fourth, mask)
-                    T.simd.vsts(dst[row], acc3, one, dist="ONEPT_B32", extent=1)
-                else:
-                    T.simd.vsts(dst[row], acc1, one, dist="ONEPT_B32", extent=1)
+    steps = (tasks + grid - 1) // grid
+    max_rows = reduce_max_rows(group, chunk_pad)
+    sum_rows = reduce_sum_rows(group, chunk_pad)
+    max_best = reduce_max_rows(1, chunk_pad)
 
     @T.prim_func
     def main(
@@ -172,10 +128,7 @@ def _make_nsa_topk_varlen_kernel(
                 }
             )
             for step in T.serial(steps):
-                if projected:
-                    task = projection_first_task + step * projection_stride + bx
-                else:
-                    task = step * grid + bx
+                task = step * grid + bx
                 if task < tasks:
                     token = task // heads_kv
                     kv_head = task % heads_kv
@@ -216,7 +169,7 @@ def _make_nsa_topk_varlen_kernel(
                             exponentials[g, c] = T.if_then_else(
                                 c < closed, scores[g, c], -T.infinity("float32")
                             )
-                    reduce_max_rows(exponentials, row_maximum, group)
+                    max_rows(exponentials, row_maximum)
                     with T.SimtVF(threads=128):
                         for g, c in T.Parallel(group, chunk_pad):
                             exponentials[g, c] = T.if_then_else(
@@ -224,7 +177,7 @@ def _make_nsa_topk_varlen_kernel(
                                 T.exp(exponentials[g, c] - row_maximum[g]),
                                 0.0,
                             )
-                    reduce_sum_rows(exponentials, row_sum, group)
+                    sum_rows(exponentials, row_sum)
                     with T.SimtVF(threads=128):
                         for g in T.Parallel(group):
                             row_maximum[g] = T.if_then_else(
@@ -254,7 +207,7 @@ def _make_nsa_topk_varlen_kernel(
                     # Rank unquantized FP32 scores. Min-id resolves equal scores
                     # deterministically; the public contract permits any tie.
                     for rank in T.serial(selected_blocks):
-                        reduce_max_rows(importance, best_score, 1)
+                        max_best(importance, best_score)
                         with T.SimtVF(threads=128):
                             for c in T.Parallel(chunk_pad):
                                 candidate_ids[0, c] = T.if_then_else(
@@ -262,7 +215,7 @@ def _make_nsa_topk_varlen_kernel(
                                     -T.cast(c, "float32"),
                                     -T.cast(chunk_pad, "float32"),
                                 )
-                        reduce_max_rows(candidate_ids, best_id, 1)
+                        max_best(candidate_ids, best_id)
                         with T.SimtVF(threads=128):
                             for _ in T.Parallel(1):
                                 if rank < candidates:
@@ -291,7 +244,7 @@ def _compile_nsa_topk_varlen_kernel(
     block_size: int,
     scale: float,
     dtype: str,
-    num_blocks: int = 36,
+    num_blocks: int,
 ):
     return tilelang.compile(
         _make_nsa_topk_varlen_kernel(
@@ -320,13 +273,6 @@ class AscendNSATopKVarlenKernel(Kernel, NSATopKFwdInterface):
 
     @classmethod
     def refusal(cls, call: NSACall) -> str | None:
-        configurations = (
-            (8, 8192, 32, 2, 128, 256, 16, 32, 1.0),
-            (4, 4096, 32, 2, 128, 128, 16, 32, 1.0),
-            (3, 5153, 32, 2, 128, 163, 16, 32, 0.08838834764831845),
-            (1, 16384, 32, 2, 128, 256, 32, 64, 0.08838834764831845),
-            (4, 8192, 64, 2, 64, 256, 8, 32, 0.125),
-        )
         configuration = (
             call.batch,
             call.c_seq_len,
@@ -338,7 +284,10 @@ class AscendNSATopKVarlenKernel(Kernel, NSATopKFwdInterface):
             call.block_size,
             call.scale,
         )
-        if configuration not in configurations or call.dtype not in (torch.float16, torch.bfloat16):
+        if configuration not in _CONFIGURATIONS or call.dtype not in (
+            torch.float16,
+            torch.bfloat16,
+        ):
             return "requires one of the ten declared NSATopKVarlenFwdOp manifest calls"
         return super().refusal(call)
 
@@ -360,6 +309,7 @@ class AscendNSATopKVarlenKernel(Kernel, NSATopKFwdInterface):
             call.block_size,
             call.scale,
             self.dtype_str,
+            calibrated_cube_blocks(),
         )
 
     def forward(
@@ -370,11 +320,15 @@ class AscendNSATopKVarlenKernel(Kernel, NSATopKFwdInterface):
         chunk_offsets: torch.Tensor,
         token_indices: torch.Tensor,
     ) -> torch.Tensor:
-        inputs = (q, k_cmp, offsets, chunk_offsets, token_indices)
-        for tensor in inputs:
-            if tensor.device.type != "npu" or tensor.device != q.device:
-                raise ValueError("NSA TopK inputs must be on one NPU device")
-        normalized = tuple(tensor.contiguous() for tensor in inputs)
+        expected = (
+            ("q", q, (self.call.c_seq_len, self.call.heads, self.call.dim), self.dtype),
+            ("k_cmp", k_cmp, (self.call.chunk_num, self.call.heads_kv, self.call.dim), self.dtype),
+            ("offsets", offsets, (self.call.batch + 1,), torch.int32),
+            ("chunk_offsets", chunk_offsets, (self.call.batch + 1,), torch.int32),
+            ("token_indices", token_indices, (self.call.c_seq_len, 2), torch.int32),
+        )
+        check_inputs(self, expected)
+        normalized = tuple(tensor.contiguous() for _, tensor, _shape, _dtype in expected)
         return self._compiled(
             *(vector_aligned(tensor) if i < 2 else tensor for i, tensor in enumerate(normalized))
         )
