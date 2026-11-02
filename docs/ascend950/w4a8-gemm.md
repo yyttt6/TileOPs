@@ -25,11 +25,12 @@ the vector and Cube cores of the same device:
   `PK4_B32` stores the FP8 lanes back to back. Two rows per block keep the packed
   read and the FP8 write in flight. The pass is bandwidth-bound — it reads
   `N*K/2` bytes and writes `N*K` — and runs at 1.6-1.7 TB/s.
-- **GEMM.** A native FP8 NT matmul: 256x256 tiles over a 128-deep K stage from 512
-  rows up, 16/64/128-row tiles below so a short call does not compute rows it has
-  no tokens for, FP32 accumulation in L0C, one 64-deep MAD step per L0 operand
-  version. The wider tile needs whole N tiles; when N is not a multiple of 256 the
-  schedule falls back to 128-wide tiles.
+- **GEMM.** A native FP8 NT matmul: a 256-deep K stage with two operand versions
+  at every row count, a 16/64/128/256-row tile that grows with the call and does
+  not compute rows it has no tokens for, and a 224-wide column tile wherever N
+  allows it. The row tile shrinks by 64 rows when the L1 operand budget cannot
+  hold the deeper stage at 256 rows. FP32 accumulation in L0C, one 64-deep MAD
+  step per L0 operand version.
 - **Scale.** `out = bf16(acc * token[m] * channel[n])`, on the vector unit, one
   row per block in column tiles (a wide N is walked in the widest divisor of N
   that keeps the row buffers inside the vector unit's 192 KiB). The pass is
@@ -38,8 +39,8 @@ the vector and Cube cores of the same device:
 The unpack has no DeepGEMM counterpart: DeepGEMM's Ascend kernels take MX
 E8M0 block scales, whose float32 slots must hold exponent-only factors, so a
 per-group FP8 scale grid is not hardware-native there. The GEMM is DeepGEMM's
-`fp8_gemm_nt` translated to TileLang — same tile, same L0 staging, same
-persistent tile scheduler.
+`fp8_gemm_nt` translated to TileLang — same persistent tile scheduler and L0
+staging, with the tiles retuned here.
 
 ## Measured performance
 
@@ -56,16 +57,22 @@ sum of the three passes plus their launches.
 
 | Case                | M×N×K           | Unpack µs | GEMM µs | Scale µs | Forward µs | TFLOP/s | FP8 GEMM only µs | Forward / FP8 GEMM |
 | ------------------- | --------------- | --------- | ------- | -------- | ---------- | ------- | ---------------- | ------------------ |
-| `ds-r1-down-b1`     | 1×7168×18432    | 119.8     | 88.2    | 3.4      | 211.4      | 1.2     | 88.2             | 2.40x              |
-| `ds-r1-down-b64`    | 64×7168×18432   | 119.3     | 99.8    | 4.0      | 224.6      | 75.3    | 99.8             | 2.25x              |
-| `ds-r1-down-4k`     | 4096×7168×18432 | 119.3     | 1433.9  | 74.4     | 1625.1     | 666.0   | 1433.9           | 1.13x              |
-| `ds-r1-up-4k`       | 4096×18432×7168 | 130.4     | 1396.9  | 228.8    | 1759.6     | 615.1   | 1396.9           | 1.26x              |
-| `llama-70b-down-4k` | 4096×8192×28672 | 206.2     | 2752.1  | 86.1     | 3054.0     | 630.0   | 2752.1           | 1.11x              |
+| `ds-r1-down-b1`     | 1×7168×18432    | 120.0     | 47.3    | 3.3      | 170.7      | 1.5     | 47.3             | 3.61x              |
+| `ds-r1-down-b64`    | 64×7168×18432   | 119.3     | 53.2    | 4.0      | 177.2      | 95.5    | 53.2             | 3.33x              |
+| `ds-r1-down-4k`     | 4096×7168×18432 | 119.3     | 1292.8  | 74.3     | 1491.0     | 725.9   | 1292.8           | 1.15x              |
+| `ds-r1-up-4k`       | 4096×18432×7168 | 130.6     | 1381.7  | 229.2    | 1749.7     | 618.6   | 1381.7           | 1.27x              |
+| `llama-70b-down-4k` | 4096×8192×28672 | 206.2     | 2363.0  | 86.3     | 2659.1     | 723.6   | 2363.0           | 1.13x              |
 
-Prefill rows land at 615-666 TFLOP/s end to end (71-77% of the FP8 peak), and
-the GEMM alone at 757 TFLOP/s (88% of peak) on the DeepSeek-R1 down shape. The
+Prefill rows land at 619-726 TFLOP/s end to end (72-84% of the FP8 peak), and
+the GEMM alone at 837 TFLOP/s (97% of peak) on the DeepSeek-R1 down shape. The
 unpack's 119 µs on the DeepSeek-R1 weight is the HBM floor for its 198 MB of
 traffic.
+
+Two tile decisions carry most of the GEMM's rate. The K stage is 256 deep at
+every row count — a 128-deep stage leaves the Cube waiting on its operands even
+at batch 1 — and the column tile is 224 wherever N allows it, which splits 7168
+into exactly 32 tiles, one per Cube core. Both are why a batch-1 call reads the
+FP8 weight at 2.8 TB/s instead of 1.5.
 
 The FP8-GEMM column is the strongest runnable reference on this site, and it is
 the right one for this op: the FP8 matmul is the same Cube work, so the ratio is
@@ -78,9 +85,9 @@ ago, so the failure is in the toolchain pairing rather than in this op. No
 serves A16W4/A16W8 (BF16/FP16 activations), which runs at the BF16 tensor-core
 rate and is not a like-for-like baseline for this function.
 
-The decode rows are the honest weak point: at batch 1 the unpack costs more than
-the GEMM it feeds, because the two-pass design writes the whole FP8 weight to GM
-and reads it back. Fusing the unpack into the GEMM's operand path would remove
+The decode rows are the honest weak point: at batch 1 the unpack costs 2.5x the
+GEMM it feeds, because the two-pass design writes the whole FP8 weight to GM and
+reads it back, and that pass does not shrink with the token count. Fusing the unpack into the GEMM's operand path would remove
 that round trip, but `asc_copy_ub2l1` carries 16- and 32-bit element types only,
 so an FP8 tile cannot reach L1 from the vector unit; the fused schedule needs
 either that copy to accept FP8 or a Cube-side unpack, and neither exists today.
