@@ -19,6 +19,7 @@ does not introduce a numerical merge threshold.
 
 Results and provenance are in the Actions summary and ascend950-pr-performance artifact.
 Evidence persists at /opt/tileops-ci/server2-20261030/pr-evidence/ on server2.
-For existing PRs, dispatch Ascend 950 with mode=performance and revision=PR head SHA.
-Normal PR events run against GitHub's merge revision; manual head runs are identified
+For existing PRs, dispatch Ascend 950 with mode=performance and revision=the current PR merge SHA. This also includes current
+CI fixes when the PR branch predates them.
+Normal PR events run against GitHub's merge revision; manual runs are identified
 by their exact commit and are not a substitute for resolving merge conflicts.

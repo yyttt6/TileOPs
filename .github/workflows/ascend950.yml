@@ -22,7 +22,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ascend950-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: ascend950-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.revision || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   preflight:
