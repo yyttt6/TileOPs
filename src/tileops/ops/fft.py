@@ -22,6 +22,9 @@ class FFTC2CFwdOp(Op):
     length from 1 to 2**28 is served in complex64 and complex128 on sm_80, sm_86,
     sm_89, and sm_90.
 
+    On Ascend, only complex64 is supported, for power-of-two lengths from 1
+    through 65536. Ascend rejects complex128 inputs.
+
     * ``n = 1`` returns a copy of the input.
     * Up to 16384 (8192 at complex128), one launch holds a whole transform. With
       99 KB of shared memory per block (sm_86, sm_89), 8192 (complex128) and
@@ -63,6 +66,8 @@ class FFTC2CFwdOp(Op):
             Output tensor of same shape as input with FFT applied along the
             last dimension.
         """
+        if input.device.type == "npu" and input.dtype == torch.complex128:
+            raise ValueError("FP64/complex128 is unsupported by this Ascend FFT; use complex64")
         n = input.shape[-1]
         if n == 1:
             return input.clone()
