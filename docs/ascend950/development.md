@@ -11,47 +11,6 @@ does not compile a kernel or query device properties. On an installation without
 `torch_npu`, the Ascend entry point performs no registration. Backend import errors in
 an NPU installation remain visible through `tileops.load_failures()`.
 
-The backend also registers `EngramGateConvFwdOp` and `EngramGateConvBwdOp` through
-their existing sequence-modeling interfaces. The implementation uses two pure
-AIV launches for forward and three for backward. Arithmetic and reductions run
-in explicit SIMD VFs over 64 FP32 lanes, with masks for hidden-width tails.
-UB initialization also uses masked SIMD stores, including buffers shorter than
-one vector register, so clearing convolution history does not emit scalar loops.
-Byte-granular DMA handles tensor rows and the four-byte saved statistics without
-SIMT helpers. Projection GEMMs and the outer `H + Y` residual remain the caller's
-responsibility.
-
-Forward follows the workload reference's rounding points: `vhat` is stored in
-the input dtype before its reciprocal RMS is computed, while the output residual
-uses FP32 `alpha * v`. It returns all five saved tensors for backward. Backward
-reads those actual saved tensors, recomputes the convolution, and writes FP32
-per-token weight-gradient partials before an ordered reduction. The reduction
-loads bounded row tiles and partitions hidden channels across AIV blocks while
-preserving the original token order within each channel. Value and gate gradients
-share a kernel and pass their intermediate gradient through UB, avoiding a GM
-write/read and an extra launch. Storage from the finished value phase is reused
-by the gate phase to keep the 4096-channel case within the UB budget.
-No floating-point atomics are used. The shared `rms_w_h`
-gradient includes both the H and k paths.
-
-Both implementations support FP16 and BF16, four causal convolution taps with
-dilation one, short sequences, and hidden widths up to 4096, including widths
-that are not alignment multiples. Larger widths are explicitly declined because
-the initial backward stages retain a complete channel row in UB. Backward pads
-its output storage to 16 channels and crops the public
-results; callers must not assume contiguous output strides. Correctness coverage
-in `tests/ops/test_engram_ascend.py` includes the four manifest workloads, actual
-forward-to-backward saved-state handoff, non-unit RMSNorm weights, short sequence
-tails, hidden widths of one and 4096, and repeated backward calls.
-
-A CPU-only torch installation can run reference and registration checks and
-compile the Ascend device sources with the matching TileLang/CANN toolchain.
-Use Python 3.12 and torch 2.13 as required by this repository; an older Python
-environment that imports TileLang successfully may still fail to import TileOPs.
-Physical NPU execution additionally requires `torch_npu` and the canonical
-toolchain profile below. CANN Simulator accuracy and traces do not establish
-real-device correctness or performance.
-
 ## Runtime
 
 Use the canonical [Ascend 950 toolchain contract](toolchain.md) and its
