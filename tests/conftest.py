@@ -56,12 +56,15 @@ def pytest_runtest_teardown() -> None:
     # bounds a worker to its current case; it does not bound eight concurrent cases, a few of which
     # are tens of GiB alone. The threshold is a cost gate, not a limit: zero is equally correct.
     cache_release_bytes = 2 << 30
-    if current_accelerator_type() is None:
+    kind = current_accelerator_type()
+    if kind is None:
         return
-    if torch.accelerator.memory_reserved() < cache_release_bytes:
+    # Some backend allocators expose counters only through their device module.
+    device_module = torch.get_device_module(kind)
+    if device_module.memory_reserved() < cache_release_bytes:
         return
     gc.collect()
-    torch.accelerator.empty_cache()
+    device_module.empty_cache()
 
 
 @pytest.fixture
