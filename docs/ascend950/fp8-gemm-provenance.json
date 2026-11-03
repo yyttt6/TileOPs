@@ -24,7 +24,11 @@
       "tilelang": "0.1.15",
       "torch": "2.13.0+cpu",
       "torch_npu": "2.13.0rc1",
-      "cann": "9.2.0 (V100R001C12SPC001B237)"
+      "python": "3.12.11",
+      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+      "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
+      "driver": "25.6.rc1",
+      "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
     }
   },
   "baseline": {
@@ -44,10 +48,50 @@
     "tolerances": "The shared workload numeric policy: atol 2e-2 * sqrt(max(1, K/1024)), rtol 2e-2."
   },
   "cases": [
-    {"case": "decode-qkv-a", "m": 128, "n": 2112, "k": 7168, "scale_mode": "per_tensor", "us": 26.0, "tflops": 149.2},
-    {"case": "prefill-qkv-a", "m": 4096, "n": 2112, "k": 7168, "scale_mode": "per_tensor", "us": 203.8, "tflops": 608.7},
-    {"case": "decode-down", "m": 128, "n": 7168, "k": 2048, "scale_mode": "block128", "us": 65.4, "tflops": 57.4},
-    {"case": "prefill-down", "m": 4096, "n": 7168, "k": 2048, "scale_mode": "block128", "us": 455.0, "tflops": 264.3},
-    {"case": "kv-b", "m": 128, "n": 32768, "k": 512, "scale_mode": "block128", "us": 174.4, "tflops": 24.6}
+    {
+      "case": "decode-qkv-a",
+      "m": 128,
+      "n": 2112,
+      "k": 7168,
+      "scale_mode": "per_tensor",
+      "us": 26.0,
+      "tflops": 149.2
+    },
+    {
+      "case": "prefill-qkv-a",
+      "m": 4096,
+      "n": 2112,
+      "k": 7168,
+      "scale_mode": "per_tensor",
+      "us": 203.8,
+      "tflops": 608.7
+    },
+    {
+      "case": "decode-down",
+      "m": 128,
+      "n": 7168,
+      "k": 2048,
+      "scale_mode": "block128",
+      "us": 65.4,
+      "tflops": 57.4
+    },
+    {
+      "case": "prefill-down",
+      "m": 4096,
+      "n": 7168,
+      "k": 2048,
+      "scale_mode": "block128",
+      "us": 455.0,
+      "tflops": 264.3
+    },
+    {
+      "case": "kv-b",
+      "m": 128,
+      "n": 32768,
+      "k": 512,
+      "scale_mode": "block128",
+      "us": 174.4,
+      "tflops": 24.6
+    }
   ]
 }
