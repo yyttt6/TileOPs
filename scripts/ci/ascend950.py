@@ -52,6 +52,7 @@ def main():
                         "tests/test_target_conformance.py",
                         "tests/test_ascend_toolchain.py",
                         "tests/test_kernel_dispatch.py",
+                        "tests/test_pool_workload.py",
                         f"--junitxml={output / 'contracts.xml'}",
                     ],
                 ),

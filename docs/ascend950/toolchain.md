@@ -6,16 +6,16 @@ source builds and release wheels can expose different compiler interfaces.
 
 ## Profile v1
 
-| Component | Exact selection |
-| --- | --- |
-| Python (canonical CI) | 3.12.15 |
-| torch | 2.13.0+cpu |
-| torch-npu | 2.13.0rc1 |
-| TileLang | official 0.1.15 ARM64 wheel; native binary/template hashes in the lock |
+| Component                   | Exact selection                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------------- |
+| Python (canonical CI)       | 3.12.15                                                                            |
+| torch                       | 2.13.0+cpu                                                                         |
+| torch-npu                   | 2.13.0rc1                                                                          |
+| TileLang                    | official 0.1.15 ARM64 wheel; native binary/template hashes in the lock             |
 | Device compiler and headers | CANN **9.2.0 release**, from the locked vendor artifact; beta.2 is a different SDK |
-| CANN runtime and OPP | **9.1.0**, separately fingerprinted compatibility components |
-| Host C++ compiler | GCC 12.3.0 |
-| Target | dav-3510, physical Ascend950DT_9582 with 32 Cube / 64 Vector |
+| CANN runtime and OPP        | **9.1.0**, separately fingerprinted compatibility components                       |
+| Host C++ compiler           | GCC 12.3.0                                                                         |
+| Target                      | dav-3510, physical Ascend950DT_9582 with 32 Cube / 64 Vector                       |
 
 This profile upgrades the compiler SDK, while retaining the already deployed runtime
 and OPP. It is an explicitly pinned compatibility combination, **not a full CANN
