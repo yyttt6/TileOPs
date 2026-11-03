@@ -40,7 +40,7 @@ The unpack has no DeepGEMM counterpart: DeepGEMM's Ascend kernels take MX
 E8M0 block scales, whose float32 slots must hold exponent-only factors, so a
 per-group FP8 scale grid is not hardware-native there. The GEMM is DeepGEMM's
 `fp8_gemm_nt` translated to TileLang — same persistent tile scheduler and L0
-staging, with the tiles retuned here.
+staging, with the tiles re-tuned here.
 
 ## Measured performance
 
@@ -52,16 +52,18 @@ window. No clock lock or platform setting was changed. **This is a task-protocol
 result, not a public formal receipt**: the maintained clock policy and baseline
 package are still unpublished, so performance acceptance remains pending.
 
-Latency is microseconds. The stages are measured separately, so `forward` is the
-sum of the three passes plus their launches.
+Latency is microseconds. The three passes are timed in separate windows, so the
+`Σ stages` column is their sum, not a single measured call of the complete op; a
+direct end-to-end measurement of the three-launch sequence is not part of this
+record.
 
-| Case                | M×N×K           | Unpack µs | GEMM µs | Scale µs | Forward µs | TFLOP/s | FP8 GEMM only µs | Forward / FP8 GEMM |
-| ------------------- | --------------- | --------- | ------- | -------- | ---------- | ------- | ---------------- | ------------------ |
-| `ds-r1-down-b1`     | 1×7168×18432    | 120.0     | 47.3    | 3.3      | 170.7      | 1.5     | 47.3             | 3.61x              |
-| `ds-r1-down-b64`    | 64×7168×18432   | 119.3     | 53.2    | 4.0      | 177.2      | 95.5    | 53.2             | 3.33x              |
-| `ds-r1-down-4k`     | 4096×7168×18432 | 119.3     | 1292.8  | 74.3     | 1491.0     | 725.9   | 1292.8           | 1.15x              |
-| `ds-r1-up-4k`       | 4096×18432×7168 | 130.6     | 1381.7  | 229.2    | 1749.7     | 618.6   | 1381.7           | 1.27x              |
-| `llama-70b-down-4k` | 4096×8192×28672 | 206.2     | 2363.0  | 86.3     | 2659.1     | 723.6   | 2363.0           | 1.13x              |
+| Case                | M×N×K           | Unpack µs | GEMM µs | Scale µs | Σ stages µs | TFLOP/s | FP8 GEMM only µs | Σ stages / FP8 GEMM |
+| ------------------- | --------------- | --------- | ------- | -------- | ----------- | ------- | ---------------- | ------------------- |
+| `ds-r1-down-b1`     | 1×7168×18432    | 120.0     | 47.3    | 3.3      | 170.7       | 1.5     | 47.3             | 3.61x               |
+| `ds-r1-down-b64`    | 64×7168×18432   | 119.3     | 53.2    | 4.0      | 177.2       | 95.5    | 53.2             | 3.33x               |
+| `ds-r1-down-4k`     | 4096×7168×18432 | 119.3     | 1292.8  | 74.3     | 1491.0      | 725.9   | 1292.8           | 1.15x               |
+| `ds-r1-up-4k`       | 4096×18432×7168 | 130.6     | 1381.7  | 229.2    | 1749.7      | 618.6   | 1381.7           | 1.27x               |
+| `llama-70b-down-4k` | 4096×8192×28672 | 206.2     | 2363.0  | 86.3     | 2659.1      | 723.6   | 2363.0           | 1.13x               |
 
 Prefill rows land at 619-726 TFLOP/s end to end (72-84% of the FP8 peak), and
 the GEMM alone at 837 TFLOP/s (97% of peak) on the DeepSeek-R1 down shape. The
