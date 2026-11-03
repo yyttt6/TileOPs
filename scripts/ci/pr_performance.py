@@ -19,7 +19,9 @@ def select(root, base):
     kernels = root / "src/tileops/kernels/ascend"
     files = list(kernels.rglob("*.py"))
     selected = set()
-    direct = set()
+    direct = {}
+    families = {}
+    shared_families = set()
     reasons = {}
     for path in changed:
         p = root / path
@@ -28,7 +30,8 @@ def select(root, base):
         if path.startswith("src/tileops/kernels/ascend/"):
             # Include the kernel family for helper/template changes: dependencies may be dynamic.
             tree = ast.parse(p.read_text())
-            direct.update(
+            family = path.split("/")[4]
+            direct.setdefault(family, set()).update(
                 n.value
                 for n in ast.walk(tree)
                 if isinstance(n, ast.Constant)
@@ -55,9 +58,32 @@ def select(root, base):
                 and n.value.endswith("Op")
                 and n.value.isidentifier()
             )
-        selected.update(ops)
+        if path.startswith("src/tileops/kernels/ascend/"):
+            families.setdefault(family, set()).update(ops)
+            has_registration = any(
+                isinstance(n, ast.Constant)
+                and isinstance(n.value, str)
+                and n.value.endswith("Op")
+                and n.value.isidentifier()
+                for n in ast.walk(ast.parse(p.read_text()))
+            )
+            exists_in_base = (
+                subprocess.run(
+                    ["git", "cat-file", "-e", f"{base}:{path}"],
+                    cwd=root,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                ).returncode
+                == 0
+            )
+            if not has_registration and exists_in_base:
+                shared_families.add(family)
+        else:
+            selected.update(ops)
         reasons[path] = sorted(ops)
-    return dict(changed=changed, operators=sorted(direct or selected), reasons=reasons)
+    for family, ops in families.items():
+        selected.update(ops if family in shared_families else (direct.get(family) or ops))
+    return dict(changed=changed, operators=sorted(selected), reasons=reasons)
 
 
 def main():
