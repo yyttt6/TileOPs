@@ -24,9 +24,16 @@
       "tilelang": "0.1.15",
       "torch": "2.7.1+cpu",
       "torch_npu": "2.7.1.post11",
-      "CANN": "9.2"
+      "compiler_and_headers": "CANN 9.2.0 release",
+      "runtime_opp": "CANN 9.2.0 (this site's container at measurement time)",
+      "canonical_profile_note": "The maintained profile pins the runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. The benchmark arm ran before that split was published and used the site container's 9.2.0 runtime; the acceptance replay below ran under the maintained profile."
     },
     "float16_baseline": "DeepGEMM BF16 arm on the same shape and round; DeepGEMM has no float16 entry point and the matrix unit runs both 16-bit dtypes at the same rate."
+  },
+  "validation_record": {
+    "head": "0c3f646705e62cc5ccd0e71f12a526bb6debe5f4",
+    "result": "20 of 20 manifest cases verified on physical Ascend950DT_9582 (32 Cube / 64 Vector), 0 failed, source fingerprints unchanged, replayed by the maintainer under the maintained release profile",
+    "note": "The earlier beta-SDK compilation failure is resolved and is not an active kernel blocker."
   },
   "replay": {
     "entry_point": "scripts/benchmark_ascend.py --op GemmFwdOp --verify-only",
