@@ -14,7 +14,17 @@ lane in its low half and the four odd ones in its high half.
 
 ## Schedule
 
-Three passes, one kernel each:
+Two shapes of the same work, chosen by how many row tiles the call has:
+
+- **One row tile** (batch-1 to 128 rows): a *fused* kernel. The vector unit unpacks
+  each weight tile into unified memory and copies it into L1 while the cube consumes
+  the previous stage, so the weight never reaches GM — the call reads `N*K/2` bytes
+  and writes only its output. Unpacking per row tile is free here because there is
+  exactly one.
+- **More row tiles**: the two-pass form below, because the fused kernel would unpack
+  the same weight tile once per row tile.
+
+The two-pass form is three passes, one kernel each:
 
 - **Unpack.** `wb[n, k] = fp16((q - zero) * scale)` in the packed order, one vector
   step per 128-value group: the 64 packed bytes give 128 nibbles through the same
@@ -45,22 +55,29 @@ acceptance remains pending.
 Latency is microseconds; the stages are measured separately, so `forward` is their
 sum.
 
-| Case                   | M×N×K         | Unpack µs | Permute µs | GEMM µs | Forward µs | TFLOP/s |
-| ---------------------- | ------------- | --------- | ---------- | ------- | ---------- | ------- |
-| `decode-l2-resident`   | 1×8192×8192   | 93.9      | 2.0        | 41.2    | 137.4      | 1.0     |
-| `decode-hbm-streaming` | 1×8192×16384  | 185.1     | 2.3        | 82.3    | 272.4      | 1.0     |
-| `decode-non-pow2`      | 1×7168×20480  | 201.9     | 2.2        | 96.3    | 301.1      | 1.0     |
-| `decode-long-k`        | 1×8192×81920  | 908.7     | 2.1        | 416.9   | 1325.0     | 1.0     |
-| `decode-b32`           | 32×8192×8192  | 94.1      | 2.6        | 41.8    | 139.8      | 30.7    |
-| `prefill-mlp-up`       | 512×8192×8192 | 93.8      | 9.4        | 164.9   | 268.4      | 256.0   |
+| Case                   | M×N×K         | Path     | Forward µs | Vendor A16W4 µs | Ours / vendor |
+| ---------------------- | ------------- | -------- | ---------- | --------------- | ------------- |
+| `decode-l2-resident`   | 1×8192×8192   | fused    | 113.4      | 43.4            | 2.61x         |
+| `decode-hbm-streaming` | 1×8192×16384  | fused    | 190.0      | 74.9            | 2.54x         |
+| `decode-non-pow2`      | 1×7168×20480  | fused    | 207.3      | 107.5           | 1.93x         |
+| `decode-long-k`        | 1×8192×81920  | fused    | 921.5      | 593.8           | 1.55x         |
+| `decode-b32`           | 32×8192×8192  | fused    | 115.9      | 52.7            | 2.20x         |
+| `prefill-mlp-up`       | 512×8192×8192 | two-pass | 268.3      | 168.0           | 1.60x         |
 
-The decode rows are bandwidth-bound on the weight, and the two-pass design is what
-costs: the GEMM alone reads the FP16 weight at 3.3 TB/s, but the unpack has already
-written those 134 MB once. A kernel that dequantized each weight tile into L1 and
-consumed it in the same pass — the shape a fused A16W4 kernel takes — would remove
-the round trip; this backend can copy 16-bit unified-memory tiles into L1, so the
-fused schedule is a mixed Cube/AIV restructure rather than a hardware limit, and it
-is the next step for this op.
+The vendor column is `torch_npu`'s `npu_weight_quant_batchmatmul` (A16W4 with
+per-group scales) on the same shapes in the same round: the like-for-like baseline
+for this function, and the strongest one available here. Fusion took the decode
+rows from 137.4 to 113.4 µs (1.2x) and from 301.1 to 207.3 µs (1.45x) against the
+two-pass form.
+
+What is left is the unpack itself: it is compute-bound at ten vector operations per
+128 values, while the vendor's is roughly twice as cheap per element. That gap is
+not reachable from this SIMD surface — the four-bit trick it needs works on 32-bit
+lanes, and `vand`/`vor` here are 8- and 16-bit only. Closing it needs a compiler
+op (a packed int4-to-FP16 widening) or an overlap the schedule cannot currently
+express: the fused kernel serializes its vector stage against the cube, because a
+unified-memory-to-L1 copy lowers to a scatter plus a copy on two pipes and `T.Task`
+accepts one pipe per task.
 
 **Baseline.** `torch_npu`'s `npu_weight_quant_batchmatmul` serves the same function
 (A16W4 with per-group scales) and is the like-for-like baseline on this device; it

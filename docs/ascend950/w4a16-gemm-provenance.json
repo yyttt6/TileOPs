@@ -3,7 +3,7 @@
   "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
   "repository_commit": "<filled at commit time>",
   "repository_commit_note": "The commit that adds this kernel; this provenance record sits on top of it, so the branch head that ships it has a later hash.",
-  "scope": "Ascend 950DT GemmW4A16FwdOp: all 15 manifest workload cases (decode batch 1 at three hidden sizes, a long-K streaming case, batched decode, one prefill tile, and the single-/multi-tile compile checks) with the manifest's marlin-layout INT4 packing. Not a public performance receipt.",
+  "scope": "Ascend 950DT GemmW4A16FwdOp: all 15 manifest workload cases (decode batch 1 at three hidden sizes, a long-K streaming case, batched decode, one prefill tile, and the single-/multi-tile compile checks) with the manifest's marlin-layout INT4 packing. Not a public performance receipt. The op runs a fused vector-to-L1 path when the call has one row tile and the two-pass form above it.",
   "device": {
     "model": "Ascend950DT_9582",
     "cube_cores": 32,
@@ -26,11 +26,19 @@
       "torch_npu": "2.13.0rc1",
       "cann": "9.2.0 (V100R001C12SPC001B237)"
     },
-    "stage_protocol": "Each pass is timed with the same window; `forward` is the sum of the three passes, so the stages account for the end-to-end cost."
+    "stage_protocol": "The fused path is timed end to end; the two-pass path also reports its stages under the same window, and they sum to its forward time."
   },
   "baseline": {
-    "vendor_ops": "torch_npu's npu_weight_quant_batchmatmul serves the same function (A16W4 with per-group scales) and is the like-for-like baseline on this device; it was not measured in this round.",
-    "reference": "This backend's FP16 product on the same shape, same round."
+    "vendor_ops": "torch_npu npu_weight_quant_batchmatmul (A16W4 with per-group scales), measured in the same round on the same shapes: the like-for-like baseline for this function.",
+    "vendor_us": {
+      "decode-l2-resident": 43.4,
+      "decode-hbm-streaming": 74.9,
+      "decode-non-pow2": 107.5,
+      "decode-long-k": 593.8,
+      "decode-b32": 52.7,
+      "prefill-mlp-up": 168.0
+    },
+    "deepgemm": "DeepGEMM ships no INT4 x FP16 kernel."
   },
   "replay": {
     "entry_point": "scripts/benchmark_ascend.py --op GemmW4A16FwdOp --verify-only",
@@ -49,55 +57,50 @@
       "m": 1,
       "n": 8192,
       "k": 8192,
-      "unpack_us": 93.9,
-      "permute_us": 2.0,
-      "gemm_us": 41.2,
-      "forward_us": 137.4,
-      "tflops": 1.0
+      "forward_us": 113.4,
+      "path": "fused",
+      "vendor_a16w4_us": 43.4,
+      "ours_over_vendor": 2.61
     },
     {
       "case": "decode-hbm-streaming",
       "m": 1,
       "n": 8192,
       "k": 16384,
-      "unpack_us": 185.1,
-      "permute_us": 2.3,
-      "gemm_us": 82.3,
-      "forward_us": 272.4,
-      "tflops": 1.0
+      "forward_us": 190.0,
+      "path": "fused",
+      "vendor_a16w4_us": 74.9,
+      "ours_over_vendor": 2.54
     },
     {
       "case": "decode-non-pow2",
       "m": 1,
       "n": 7168,
       "k": 20480,
-      "unpack_us": 201.9,
-      "permute_us": 2.2,
-      "gemm_us": 96.3,
-      "forward_us": 301.1,
-      "tflops": 1.0
+      "forward_us": 207.3,
+      "path": "fused",
+      "vendor_a16w4_us": 107.5,
+      "ours_over_vendor": 1.93
     },
     {
       "case": "decode-long-k",
       "m": 1,
       "n": 8192,
       "k": 81920,
-      "unpack_us": 908.7,
-      "permute_us": 2.1,
-      "gemm_us": 416.9,
-      "forward_us": 1325.0,
-      "tflops": 1.0
+      "forward_us": 921.5,
+      "path": "fused",
+      "vendor_a16w4_us": 593.8,
+      "ours_over_vendor": 1.55
     },
     {
       "case": "decode-b32",
       "m": 32,
       "n": 8192,
       "k": 8192,
-      "unpack_us": 94.1,
-      "permute_us": 2.6,
-      "gemm_us": 41.8,
-      "forward_us": 139.8,
-      "tflops": 30.7
+      "forward_us": 115.9,
+      "path": "fused",
+      "vendor_a16w4_us": 52.7,
+      "ours_over_vendor": 2.2
     },
     {
       "case": "prefill-mlp-up",
@@ -107,8 +110,11 @@
       "unpack_us": 93.8,
       "permute_us": 9.4,
       "gemm_us": 164.9,
-      "forward_us": 268.4,
-      "tflops": 256.0
+      "forward_us": 268.3,
+      "tflops": 256.0,
+      "path": "two-pass",
+      "vendor_a16w4_us": 168.0,
+      "ours_over_vendor": 1.6
     }
   ]
 }
