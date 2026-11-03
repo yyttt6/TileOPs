@@ -24,7 +24,11 @@
       "tilelang": "0.1.15",
       "torch": "2.13.0+cpu",
       "torch_npu": "2.13.0rc1",
-      "cann": "9.2.0 (V100R001C12SPC001B237)"
+      "python": "3.12.11",
+      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+      "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
+      "driver": "25.6.rc1",
+      "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
     },
     "stage_protocol": "Each pass is timed with the same window; `forward` is the sum of the two passes, so the stages account for the end-to-end cost."
   },

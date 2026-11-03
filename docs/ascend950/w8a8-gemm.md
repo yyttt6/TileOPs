@@ -38,16 +38,16 @@ was changed. **This is a task-protocol result, not a public formal receipt**:
 the maintained clock policy and baseline package are still unpublished, so
 performance acceptance remains pending.
 
-Latency is microseconds; the stages are measured separately, so `forward` is
-their sum.
+Latency is microseconds. The two passes are timed in separate windows, so the
+`Σ stages` column is their sum, not a single measured call of the complete op.
 
-| Case                      | M×N×K           | Product µs | Epilogue µs | Forward µs | TFLOP/s |
-| ------------------------- | --------------- | ---------- | ----------- | ---------- | ------- |
-| `llama3-8b-qkv-b1`        | 1×6144×4096     | 11.5       | 2.6         | 14.0       | 3.6     |
-| `llama3-8b-qkv-b64`       | 64×6144×4096    | 13.6       | 3.2         | 16.7       | 192.9   |
-| `llama3-8b-prefill-qkv`   | 4096×6144×4096  | 275.0      | 67.5        | 351.7      | 586.2   |
-| `qwen2.5-7b-prefill-down` | 4096×3584×18944 | 665.1      | 50.1        | 717.3      | 775.4   |
-| `llama3-70b-prefill-down` | 4096×8192×28672 | 2365.1     | 82.3        | 2448.5     | 785.9   |
+| Case                      | M×N×K           | Product µs | Epilogue µs | Σ stages µs | TFLOP/s |
+| ------------------------- | --------------- | ---------- | ----------- | ----------- | ------- |
+| `llama3-8b-qkv-b1`        | 1×6144×4096     | 11.5       | 2.6         | 14.0        | 3.6     |
+| `llama3-8b-qkv-b64`       | 64×6144×4096    | 13.6       | 3.2         | 16.7        | 192.9   |
+| `llama3-8b-prefill-qkv`   | 4096×6144×4096  | 275.0      | 67.5        | 351.7       | 586.2   |
+| `qwen2.5-7b-prefill-down` | 4096×3584×18944 | 665.1      | 50.1        | 717.3       | 775.4   |
+| `llama3-70b-prefill-down` | 4096×8192×28672 | 2365.1     | 82.3        | 2448.5      | 785.9   |
 
 Prefill rows reach 586-786 TFLOP/s end to end; the product alone runs at
 750-836 TFLOP/s. The epilogue is bandwidth-bound on the INT32 accumulator it
