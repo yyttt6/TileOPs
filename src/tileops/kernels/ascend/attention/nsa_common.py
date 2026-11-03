@@ -10,6 +10,7 @@ __all__ = [
     "VECTOR_LANES",
     "calibrated_cube_blocks",
     "check_inputs",
+    "normalize_cast_rows",
     "reduce_max_rows",
     "reduce_sum_rows",
 ]
@@ -124,5 +125,43 @@ def reduce_sum_rows(rows: int, width: int):
                         mask,
                     )
                 T.simd.vsts(dst[row], acc, one, dist="ONEPT_B32", extent=1)
+
+    return macro
+
+
+def normalize_cast_rows(rows: int, width: int, dtype: str):
+    """Normalize dense FP32 rows and pack each result into its storage dtype.
+
+    Each denominator is a single FP32 value. Broadcast loads read that value
+    alone, and packed stores write exactly 64 half-sized elements per chunk.
+    Nonpositive denominators produce zeros without evaluating an invalid divide.
+    """
+    if rows <= 0 or width not in (VECTOR_LANES, 2 * VECTOR_LANES):
+        raise ValueError("normalization requires positive rows and a width of 64 or 128")
+    if dtype not in ("float16", "bfloat16"):
+        raise ValueError("normalization output must be float16 or bfloat16")
+
+    @T.macro
+    def macro(src, denominator, dst):
+        with T.SimdVF():
+            mask = T.simd.pset(32, "PAT_ALL")
+            zero = T.simd.vdup(T.float32(0.0), "float32", mask)
+            one = T.simd.vdup(T.float32(1.0), "float32", mask)
+            for row in T.serial(rows):
+                divisor = T.simd.vld(denominator[row], dist="BRC_B32")
+                positive = T.simd.vcmps(divisor, T.float32(0.0), mask, op="gt")
+                safe_divisor = T.simd.vsel(divisor, one, positive)
+                for chunk in T.serial(width // VECTOR_LANES):
+                    values = T.simd.vld(src[row, chunk * VECTOR_LANES])
+                    normalized = T.simd.vdiv(values, safe_divisor, mask, precision="exact")
+                    normalized = T.simd.vsel(normalized, zero, positive)
+                    converted = T.simd.vcvt(normalized, dtype, mask, round="ROUND_R", sat=False)
+                    T.simd.vsts(
+                        dst[row, chunk * VECTOR_LANES],
+                        converted,
+                        mask,
+                        dist="PK_B32",
+                        extent=VECTOR_LANES,
+                    )
 
     return macro

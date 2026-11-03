@@ -44,7 +44,7 @@ def _make_nsa_topk_varlen_kernel(
     dtype: str,
     num_blocks: int,
 ):
-    """Cache one FP32 QK matrix and rank its complete GQA importance rows."""
+    """Pair queries within a request; each AIV ranks one complete importance row."""
     assert (
         batch,
         tokens,
@@ -59,15 +59,179 @@ def _make_nsa_topk_varlen_kernel(
     assert dtype in ("float16", "bfloat16")
     assert num_blocks > 0
     group = heads // heads_kv
-    # All requests fit this bound without reading metadata on the host. Padding
-    # to a power of two also gives the SIMD reductions whole 64-float vectors.
-    chunk_pad = 1 << (chunk_num - 1).bit_length()
-    tasks = tokens * heads_kv
+    chunk_pad = max(64, 1 << (chunk_num - 1).bit_length())
+    # Compact request-local pairs keep both vectors busy without assigning one
+    # permanently inactive parity of token tasks to half of the physical grid.
+    # The bound adds at most batch // 2 empty tasks when all lengths are even.
+    pair_bound = (tokens + batch) // 2
+    tasks = pair_bound * heads_kv
     grid = min(num_blocks, tasks)
     steps = (tasks + grid - 1) // grid
-    max_rows = reduce_max_rows(group, chunk_pad)
-    sum_rows = reduce_sum_rows(group, chunk_pad)
-    max_best = reduce_max_rows(1, chunk_pad)
+
+    def make_compute(width):
+        max_rows = reduce_max_rows(group, width)
+        sum_rows = reduce_sum_rows(group, width)
+
+        @T.macro
+        def compute(
+            q,
+            k_cmp,
+            block_indices,
+            sid,
+            token,
+            end,
+            position,
+            kv_head,
+            chunk_begin,
+            request_chunks,
+            reload_keys,
+            q_l1,
+            k_l1,
+            q_l0,
+            k_l0,
+            scores_l0c,
+            queries,
+            scores,
+            exponentials,
+            row_maximum,
+            row_sum,
+            importance,
+            best_id,
+            selected,
+        ):
+            # Both rows have the same candidate window: block_size is even,
+            # and each pair starts at an even request-local position.
+            current = position // block_size
+            candidates = T.min(current + 1, request_chunks)
+            closed = T.min((position + sid + 1) // block_size, request_chunks)
+            with T.SimtVF(threads=128):
+                for g, d in T.Parallel(group, dim):
+                    queries[g, d] = T.if_then_else(
+                        token + sid < end,
+                        T.cast(
+                            T.cast(
+                                q[T.min(token + sid, tokens - 1), kv_head * group + g, d], "float32"
+                            )
+                            * T.cast(scale, "float32"),
+                            dtype,
+                        ),
+                        T.cast(0, dtype),
+                    )
+                for rank in T.Parallel(selected_blocks):
+                    selected[rank] = -1
+            T.dual_copy(queries[:group, :], q_l1)
+            key_tile = T.alloc_shared((width // 2 + 1, dim), dtype)
+            T.annotate_layout({key_tile: make_ascend_compact_nz_layout(key_tile)})
+            T.annotate_buffer_versions({key_tile: 1})
+            if reload_keys:
+                with T.SimtVF(threads=128):
+                    for c, d in T.Parallel(width // 2, dim):
+                        column = c + sid * (width // 2)
+                        key_tile[c, d] = T.if_then_else(
+                            column < request_chunks,
+                            k_cmp[T.min(chunk_begin + column, chunk_num - 1), kv_head, d],
+                            T.cast(0, dtype),
+                        )
+                T.dual_copy(key_tile[: width // 2, :], k_l1[:width, :])
+            T.copy(q_l1, q_l0)
+            T.copy(k_l1[:width, :], k_l0[:width, :])
+            T.gemm(
+                q_l0,
+                k_l0[:width, :],
+                scores_l0c[:, :width],
+                transpose_B=True,
+                clear_accum=True,
+            )
+            T.dual_copy(scores_l0c[:, :width], scores[:, :width])
+            with T.SimtVF(threads=128):
+                for g, c in T.Parallel(group, width):
+                    exponentials[g, c] = T.if_then_else(
+                        c < closed, scores[g, c], -T.infinity("float32")
+                    )
+            max_rows(exponentials, row_maximum)
+            with T.SimtVF(threads=128):
+                for g, c in T.Parallel(group, width):
+                    exponentials[g, c] = T.if_then_else(
+                        c < closed, T.exp(exponentials[g, c] - row_maximum[g]), 0.0
+                    )
+            sum_rows(exponentials, row_sum)
+            with T.SimtVF(threads=128):
+                for g in T.Parallel(group):
+                    row_maximum[g] = row_maximum[g] + T.log(row_sum[g])
+                for c in T.Parallel(width):
+                    value = T.alloc_var("float32", init=0.0)
+                    for g in T.serial(group):
+                        value += T.if_then_else(
+                            c < current and c < candidates,
+                            T.exp(scores[g, c] - row_maximum[g]),
+                            0.0,
+                        )
+                    priority = c == 0 or c == current - 1 or c == current
+                    importance[0, c] = T.if_then_else(
+                        c < candidates,
+                        T.if_then_else(priority, T.cast(group, "float32"), value),
+                        -T.infinity("float32"),
+                    )
+
+            for rank in T.serial(T.min(selected_blocks, candidates)):
+                # Keep the maximum and its smallest tied ID in vector registers.
+                # One SIMD call replaces two reductions and an intervening SIMT
+                # call materializing a whole candidate-ID tensor in UB.
+                with T.SimdVF():
+                    mask = T.simd.pset(32, "PAT_ALL")
+                    one = T.simd.pset(32, "PAT_VL1")
+                    top = T.simd.vcmax(T.simd.vld(importance[0, 0]), mask)
+                    if width >= 128:
+                        top = T.simd.vmax(
+                            top, T.simd.vcmax(T.simd.vld(importance[0, 64]), mask), mask
+                        )
+                    if width >= 256:
+                        top = T.simd.vmax(
+                            top, T.simd.vcmax(T.simd.vld(importance[0, 128]), mask), mask
+                        )
+                        top = T.simd.vmax(
+                            top, T.simd.vcmax(T.simd.vld(importance[0, 192]), mask), mask
+                        )
+                    top = T.simd.vdupv(top, mask)
+                    sentinel = T.simd.vdup(T.int32(width), "int32", mask)
+                    ids = T.simd.vci(T.int32(0), "int32")
+                    tied = T.simd.vcmp(T.simd.vld(importance[0, 0]), top, mask, op="eq")
+                    lowest = T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask)
+                    if width >= 128:
+                        ids = T.simd.vci(T.int32(64), "int32")
+                        tied = T.simd.vcmp(T.simd.vld(importance[0, 64]), top, mask, op="eq")
+                        lowest = T.simd.vmin(
+                            lowest, T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask), mask
+                        )
+                    if width >= 256:
+                        ids = T.simd.vci(T.int32(128), "int32")
+                        tied = T.simd.vcmp(T.simd.vld(importance[0, 128]), top, mask, op="eq")
+                        lowest = T.simd.vmin(
+                            lowest, T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask), mask
+                        )
+                        ids = T.simd.vci(T.int32(192), "int32")
+                        tied = T.simd.vcmp(T.simd.vld(importance[0, 192]), top, mask, op="eq")
+                        lowest = T.simd.vmin(
+                            lowest, T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask), mask
+                        )
+                    T.simd.vsts(best_id[0], lowest, one, dist="ONEPT_B32", extent=1)
+                with T.SimtVF(threads=128):
+                    for c in T.Parallel(width):
+                        importance[0, c] = T.if_then_else(
+                            c == best_id[0], -T.infinity("float32"), importance[0, c]
+                        )
+                    for _ in T.Parallel(1):
+                        selected[rank] = best_id[0]
+            with T.SimtVF(threads=128):
+                for rank in T.Parallel(selected_blocks):
+                    if token + sid < end:
+                        block_indices[token + sid, kv_head, rank] = selected[rank]
+
+        return compute
+
+    compute64 = make_compute(64)
+    compute128 = make_compute(128)
+    compute256 = make_compute(256)
 
     @T.prim_func
     def main(
@@ -78,33 +242,25 @@ def _make_nsa_topk_varlen_kernel(
         token_indices: T.Tensor((tokens, 2), "int32"),
         block_indices: T.Tensor((tokens, heads_kv, selected_blocks), "int32"),
     ):
-        # A single AIV owns the entire GQA group, its reductions and every
-        # output slot; no importance accumulator is shared between AIVs.
-        with T.MixedKernel(grid, sids=1) as (bx, _sid):
-            q_l1 = T.alloc_l1((group, dim), dtype)
+        with T.MixedKernel(grid, sids=2) as (bx, sid):
+            q_l1 = T.alloc_l1((2 * group, dim), dtype)
             k_l1 = T.alloc_l1((chunk_pad, dim), dtype)
-            q_l0 = T.alloc_l0a((group, dim), dtype)
+            q_l0 = T.alloc_l0a((2 * group, dim), dtype)
             k_l0 = T.alloc_l0b((chunk_pad, dim), dtype)
-            scores_l0c = T.alloc_l0c((group, chunk_pad), "float32")
-            # One ghost row separates compact-NZ column tiles in UB. It is
-            # physical padding, excluded from every logical copy and GEMM.
+            scores_l0c = T.alloc_l0c((2 * group, chunk_pad), "float32")
+            # Each AIV stages one query; the shared K tile is split by columns.
+            # Ghost rows separate compact-NZ column tiles in UB.
             queries = T.alloc_shared((group + 1, dim), dtype)
-            keys = T.alloc_shared((chunk_pad + 1, dim), dtype)
             scores = T.alloc_shared((group, chunk_pad), "float32")
             exponentials = T.alloc_shared((group, chunk_pad), "float32")
             row_maximum = T.alloc_shared((group,), "float32")
             row_sum = T.alloc_shared((group,), "float32")
             importance = T.alloc_shared((1, chunk_pad), "float32")
-            # Negated IDs and the padding sentinel are exactly representable
-            # in FP32. Max on negative IDs selects the smallest tied block id.
-            candidate_ids = T.alloc_shared((1, chunk_pad), "float32")
-            best_score = T.alloc_shared((1,), "float32")
-            best_id = T.alloc_shared((1,), "float32")
+            best_id = T.alloc_shared((1,), "int32")
             selected = T.alloc_shared((selected_blocks,), "int32")
             T.annotate_layout(
                 {
                     queries: make_ascend_compact_nz_layout(queries),
-                    keys: make_ascend_compact_nz_layout(keys),
                 }
             )
             T.annotate_buffer_versions(
@@ -115,119 +271,158 @@ def _make_nsa_topk_varlen_kernel(
                     k_l0: 1,
                     scores_l0c: 1,
                     queries: 1,
-                    keys: 1,
                     scores: 1,
                     exponentials: 1,
                     row_maximum: 1,
                     row_sum: 1,
                     importance: 1,
-                    candidate_ids: 1,
-                    best_score: 1,
                     best_id: 1,
                     selected: 1,
                 }
             )
+            cached_request = T.alloc_var("int32", init=-1)
+            cached_head = T.alloc_var("int32", init=-1)
+            cached_width = T.alloc_var("int32", init=0)
             for step in T.serial(steps):
                 task = step * grid + bx
                 if task < tasks:
-                    token = task // heads_kv
+                    pair = task // heads_kv
                     kv_head = task % heads_kv
-                    request = token_indices[token, 0]
-                    position = token_indices[token, 1]
-                    current = position // block_size
-                    chunk_begin = chunk_offsets[request]
-                    request_length = offsets[request + 1] - offsets[request]
-                    request_chunks = T.min(
-                        chunk_offsets[request + 1] - chunk_begin,
-                        T.ceildiv(request_length, block_size),
-                    )
-                    candidates = T.min(current + 1, request_chunks)
-                    closed = T.min((position + 1) // block_size, request_chunks)
-                    with T.SimtVF(threads=128):
-                        for g, d in T.Parallel(group, dim):
-                            # The dtype store is intentional: FLA rounds scaled
-                            # Q before its FP32 dot, rather than scaling QK.
-                            queries[g, d] = T.cast(
-                                T.cast(q[token, kv_head * group + g, d], "float32")
-                                * T.cast(scale, "float32"),
-                                dtype,
+                    request = T.alloc_var("int32", init=0)
+                    position = T.alloc_var("int32", init=0)
+                    begin = T.alloc_var("int32", init=0)
+                    end = T.alloc_var("int32", init=0)
+                    prefix = T.alloc_var("int32", init=0)
+                    active = T.alloc_var("bool", init=False)
+                    # The number of odd request lengths is runtime metadata.
+                    # Locate its compact pair prefix on device rather than
+                    # assuming global even tokens begin request-local pairs.
+                    for r in T.serial(batch):
+                        length = offsets[r + 1] - offsets[r]
+                        pair_end = prefix + T.ceildiv(length, 2)
+                        if pair >= prefix and pair < pair_end:
+                            request = r
+                            position = 2 * (pair - prefix)
+                            begin = offsets[r]
+                            end = offsets[r + 1]
+                            active = True
+                        prefix = pair_end
+                    if active:
+                        token = begin + position
+                        # Retain the public metadata ABI and use its canonical
+                        # query identity after locating the compact pair.
+                        request = token_indices[token, 0]
+                        position = token_indices[token, 1]
+                        chunk_begin = chunk_offsets[request]
+                        request_chunks = T.min(
+                            chunk_offsets[request + 1] - chunk_begin,
+                            T.ceildiv(end - begin, block_size),
+                        )
+                        candidates = T.min(position // block_size + 1, request_chunks)
+                        if candidates <= 3:
+                            # All visible blocks are mandatory priority blocks.
+                            # Their importance is exactly group, independent of QK.
+                            with T.SimtVF(threads=128):
+                                for rank in T.Parallel(selected_blocks):
+                                    if token + sid < end:
+                                        block_indices[token + sid, kv_head, rank] = T.if_then_else(
+                                            rank < candidates, rank, -1
+                                        )
+                        else:
+                            width = T.if_then_else(
+                                candidates <= 64, 64, T.if_then_else(candidates <= 128, 128, 256)
                             )
-                        for c, d in T.Parallel(chunk_pad, dim):
-                            if c < candidates:
-                                keys[c, d] = k_cmp[chunk_begin + c, kv_head, d]
+                            reload_keys = (
+                                cached_request != request
+                                or cached_head != kv_head
+                                or cached_width != width
+                            )
+                            if candidates <= 64:
+                                compute64(
+                                    q,
+                                    k_cmp,
+                                    block_indices,
+                                    sid,
+                                    token,
+                                    end,
+                                    position,
+                                    kv_head,
+                                    chunk_begin,
+                                    request_chunks,
+                                    reload_keys,
+                                    q_l1,
+                                    k_l1,
+                                    q_l0,
+                                    k_l0,
+                                    scores_l0c,
+                                    queries,
+                                    scores,
+                                    exponentials,
+                                    row_maximum,
+                                    row_sum,
+                                    importance,
+                                    best_id,
+                                    selected,
+                                )
+                            elif candidates <= 128:
+                                if chunk_pad >= 128:
+                                    compute128(
+                                        q,
+                                        k_cmp,
+                                        block_indices,
+                                        sid,
+                                        token,
+                                        end,
+                                        position,
+                                        kv_head,
+                                        chunk_begin,
+                                        request_chunks,
+                                        reload_keys,
+                                        q_l1,
+                                        k_l1,
+                                        q_l0,
+                                        k_l0,
+                                        scores_l0c,
+                                        queries,
+                                        scores,
+                                        exponentials,
+                                        row_maximum,
+                                        row_sum,
+                                        importance,
+                                        best_id,
+                                        selected,
+                                    )
                             else:
-                                keys[c, d] = T.cast(0, dtype)
-                    T.copy(queries[:group, :], q_l1)
-                    T.copy(keys[:chunk_pad, :], k_l1)
-                    T.copy(q_l1, q_l0)
-                    T.copy(k_l1, k_l0)
-                    T.gemm(q_l0, k_l0, scores_l0c, transpose_B=True, clear_accum=True)
-                    T.copy(scores_l0c, scores)
-
-                    with T.SimtVF(threads=128):
-                        for g, c in T.Parallel(group, chunk_pad):
-                            exponentials[g, c] = T.if_then_else(
-                                c < closed, scores[g, c], -T.infinity("float32")
-                            )
-                    max_rows(exponentials, row_maximum)
-                    with T.SimtVF(threads=128):
-                        for g, c in T.Parallel(group, chunk_pad):
-                            exponentials[g, c] = T.if_then_else(
-                                c < closed,
-                                T.exp(exponentials[g, c] - row_maximum[g]),
-                                0.0,
-                            )
-                    sum_rows(exponentials, row_sum)
-                    with T.SimtVF(threads=128):
-                        for g in T.Parallel(group):
-                            row_maximum[g] = T.if_then_else(
-                                closed > 0, row_maximum[g] + T.log(row_sum[g]), 0.0
-                            )
-                        for c in T.Parallel(chunk_pad):
-                            importance[0, c] = 0.0
-                        # Every column has one thread owner throughout the
-                        # serial GQA reduction, including the 32-head group.
-                        for g in T.serial(group):
-                            for c in T.Parallel(chunk_pad):
-                                importance[0, c] += T.if_then_else(
-                                    c < current and c < candidates,
-                                    T.exp(scores[g, c] - row_maximum[g]),
-                                    0.0,
-                                )
-                        for c in T.Parallel(chunk_pad):
-                            priority = c == 0 or c == current - 1 or c == current
-                            importance[0, c] = T.if_then_else(
-                                c < candidates,
-                                T.if_then_else(
-                                    priority, T.cast(group, "float32"), importance[0, c]
-                                ),
-                                -T.infinity("float32"),
-                            )
-
-                    # Rank unquantized FP32 scores. Min-id resolves equal scores
-                    # deterministically; the public contract permits any tie.
-                    for rank in T.serial(selected_blocks):
-                        max_best(importance, best_score)
-                        with T.SimtVF(threads=128):
-                            for c in T.Parallel(chunk_pad):
-                                candidate_ids[0, c] = T.if_then_else(
-                                    c < candidates and importance[0, c] == best_score[0],
-                                    -T.cast(c, "float32"),
-                                    -T.cast(chunk_pad, "float32"),
-                                )
-                        max_best(candidate_ids, best_id)
-                        with T.SimtVF(threads=128):
-                            for _ in T.Parallel(1):
-                                if rank < candidates:
-                                    picked = -T.cast(best_id[0], "int32")
-                                    if picked >= 0 and picked < candidates and picked < chunk_pad:
-                                        importance[0, picked] = -T.infinity("float32")
-                                        selected[rank] = picked
-                                    else:
-                                        selected[rank] = -1
-                                else:
-                                    selected[rank] = -1
-                    T.copy(selected, block_indices[token, kv_head, :])
+                                if chunk_pad >= 256:
+                                    compute256(
+                                        q,
+                                        k_cmp,
+                                        block_indices,
+                                        sid,
+                                        token,
+                                        end,
+                                        position,
+                                        kv_head,
+                                        chunk_begin,
+                                        request_chunks,
+                                        reload_keys,
+                                        q_l1,
+                                        k_l1,
+                                        q_l0,
+                                        k_l0,
+                                        scores_l0c,
+                                        queries,
+                                        scores,
+                                        exponentials,
+                                        row_maximum,
+                                        row_sum,
+                                        importance,
+                                        best_id,
+                                        selected,
+                                    )
+                            cached_request = request
+                            cached_head = kv_head
+                            cached_width = width
 
     return main
 
