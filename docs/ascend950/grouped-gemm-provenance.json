@@ -24,7 +24,11 @@
       "tilelang": "0.1.15",
       "torch": "2.13.0+cpu",
       "torch_npu": "2.13.0.rc1",
-      "CANN": "9.2.0"
+      "python": "3.12.11",
+      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+      "runtime_opp": "CANN 9.2.0 (this site's container)",
+      "driver": "25.6.rc1",
+      "canonical_profile_note": "The maintained profile pins the runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
     },
     "baseline_environment": {
       "note": "DeepGEMM's extension is ABI-locked to the PyTorch 2.7 stack, so the DeepGEMM arm runs in a second process on the same device in the same round.",
@@ -33,6 +37,11 @@
     },
     "float16_baseline": "DeepGEMM BF16 arm on the same shape and round; DeepGEMM has no float16 grouped entry point and the matrix unit runs both 16-bit dtypes at the same rate.",
     "deepgemm_scope": "DeepGEMM's m-grouped kernels require group starts on a 256-row boundary and its k-grouped entry point takes the group sizes on the host, so only the three moe-* cases have a DeepGEMM baseline."
+  },
+  "validation_record": {
+    "head": "22952a051430ebdf96d19d934caa760422b166fa",
+    "result": "7 of 7 dtype cases verified on physical Ascend950DT_9582 (32 Cube / 64 Vector) under the shared device reservation, 0 failed, source fingerprint unchanged, input preservation on every case",
+    "cases": "the three moe-* layouts (NT bfloat16 and float16, NN float16, TN float16) and the three qwen3-30b-ep8 routes (NT bfloat16: empty, routed-1k, ragged)"
   },
   "replay": {
     "entry_point": "scripts/benchmark_ascend.py --op GroupedGemmFwdOp --verify-only",
