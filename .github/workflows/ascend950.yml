@@ -46,7 +46,7 @@ jobs:
       - name: Baseline contract matching regression (CPU only)
         run: python scripts/ci/test_pr_baseline_contract.py
       - name: Measured-output correctness regression (CPU only)
-        run: python -m pytest scripts/ci/tests -q
+        run: PYTHONPATH=.:src python -m pytest scripts/ci/tests -q
       - name: CPU contracts (NPU autoload disabled)
         run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/cpu-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
