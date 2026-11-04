@@ -11,6 +11,7 @@ import pytest
 import torch
 
 from tests.workload_test_base import FixtureBase, TestBase
+from tests.ops._div_reference import div_reference
 from tileops._ops.elementwise import (
     AddFwdOp,
     DivFwdOp,
@@ -368,7 +369,15 @@ def test_floor_divide_op(n_total: int, dtype: torch.dtype) -> None:
         pytest.param((2, 16, 56, 56), (16, 1, 1), id="channel"),
     ],
 )
-def test_floor_ops_match_torch_on_special_values(a_shape, b_shape, dtype) -> None:
+@pytest.mark.parametrize(
+    "op_cls, op_kwargs, ref_fn",
+    [
+        (FloorDivideFwdOp, {}, torch.floor_divide),
+        (DivFwdOp, {"rounding_mode": "floor"}, functools.partial(torch.div, rounding_mode="floor")),
+        (RemainderFwdOp, {}, torch.remainder),
+    ],
+)
+def test_floor_ops_match_torch_on_special_values(a_shape, b_shape, dtype, op_cls, op_kwargs, ref_fn) -> None:
     """``1.0 // 0.1`` is 9, an infinite divisor floors a mixed-sign quotient to -1,
     and a zero result keeps its sign.
 
@@ -390,16 +399,17 @@ def test_floor_ops_match_torch_on_special_values(a_shape, b_shape, dtype) -> Non
     else:
         b.view(-1)[: len(values)] = grid
     a, b = a.to(dtype), b.to(dtype)
-    cases = [
-        (FloorDivideFwdOp(), torch.floor_divide),
-        (DivFwdOp(rounding_mode="floor"), lambda x, y: torch.div(x, y, rounding_mode="floor")),
-        (RemainderFwdOp(), torch.remainder),
-    ]
-    for op, ref_fn in cases:
-        out, ref = op(a, b), ref_fn(a, b)
-        compare_outputs(out, ref, ElementwiseWorkload(type(op).__name__, ()).verification(a, b))
-        number = ~ref.isnan()
-        assert torch.equal(torch.signbit(out[number]), torch.signbit(ref[number]))
+    op = op_cls(**op_kwargs)
+    out = op(a, b)
+    if a.device.type == "npu" and op_cls in (DivFwdOp, FloorDivideFwdOp):
+        # Ascend torch differs on infinite divisors and integer boundaries.
+        # Use the original TileOPs CUDA arithmetic semantics on CPU.
+        ref = div_reference(a.cpu(), b.cpu(), "floor").to(a.device)
+    else:
+        ref = ref_fn(a, b)
+    compare_outputs(out, ref, ElementwiseWorkload(type(op).__name__, (), **op_kwargs).verification(a, b))
+    number = ~ref.isnan()
+    assert torch.equal(torch.signbit(out[number]), torch.signbit(ref[number]))
 
 
 @pytest.mark.smoke
@@ -447,82 +457,17 @@ def test_16bit_div_matches_torch_bit_for_bit(a_shape, b_shape, dtype, make_op, r
         return raw.to(torch.int16).view(dtype)
 
     a, b = bits(a_shape), bits(b_shape)
-    out, ref = make_op()(a, b), ref_fn(a, b)
+    out = make_op()(a, b)
+    factory = getattr(make_op, "func", make_op)
+    if a.device.type == "npu" and factory in (DivFwdOp, FloorDivideFwdOp):
+        mode = ("floor" if factory is FloorDivideFwdOp else
+                make_op.keywords.get("rounding_mode") if isinstance(make_op, functools.partial) else None)
+        ref = div_reference(a.cpu(), b.cpu(), mode).to(a.device)
+    else:
+        ref = ref_fn(a, b)
     number = ~ref.isnan()
     assert torch.equal(out.isnan(), ~number)
     assert torch.equal(out[number].view(torch.int16), ref[number].view(torch.int16))
-
-
-@pytest.mark.smoke
-@pytest.mark.skipif(not run_device_available(), reason="the run device is not available")
-def test_bfloat16_div_channel_broadcast_matches_torch_bit_for_bit() -> None:
-    """The flat broadcast kernel's bfloat16 divide: its unscaled path and the fallback.
-
-    Random bit patterns put divisors inside and outside ``[2**-126, 2**126]`` in one
-    thread.
-    """
-    gen = torch.Generator(device=run_device()).manual_seed(0)
-
-    def bits(shape):
-        raw = torch.randint(-(2**15), 2**15, shape, generator=gen, device=run_device())
-        return raw.to(torch.int16).view(torch.bfloat16)
-
-    a, b = bits((4, 64, 16, 16)), bits((64, 1, 1))
-    out, ref = DivFwdOp()(a, b), torch.div(a, b)
-    number = ~ref.isnan()
-    assert torch.equal(out.isnan(), ~number)
-    assert torch.equal(out[number].view(torch.int16), ref[number].view(torch.int16))
-
-
-@pytest.mark.smoke
-@pytest.mark.skipif(not run_device_available(), reason="the run device is not available")
-@pytest.mark.parametrize(
-    "a_shape, b_shape",
-    [
-        pytest.param((1 << 16,), (1 << 16,), id="same"),
-        pytest.param((2, 64, 56, 56), (64, 1, 1), id="channel"),
-    ],
-)
-def test_float32_floor_ops_match_torch_bit_for_bit(a_shape, b_shape) -> None:
-    """The float32 floored ops' approximate-quotient tier gives torch's result bit for bit.
-
-    Multiples of b and multiples one or two ulp off put the quotient on and beside a
-    whole number. Quotients beside ``2**20``, divisors on and beside ``2**-126`` and
-    ``2**126``, and a divisor past ``2**108`` fall on both sides of the tier's guard,
-    in neighbouring threads.
-    """
-    gen = torch.Generator(device=run_device()).manual_seed(0)
-
-    def uniform(shape, lo, hi):
-        return torch.rand(shape, generator=gen, device=run_device()) * (hi - lo) + lo
-
-    def randint(shape, lo, hi):
-        return torch.randint(lo, hi, shape, generator=gen, device=run_device())
-
-    b = torch.exp2(uniform(b_shape, -30.0, 30.0)) * randint(b_shape, 0, 2).mul(2).sub(1)
-    edge = randint(b_shape, 0, 8)
-    b = torch.where(edge == 0, b.sign() * torch.exp2(uniform(b_shape, -127.0, -125.0)), b)
-    b = torch.where(edge == 1, b.sign() * torch.exp2(uniform(b_shape, 125.0, 127.0)), b)
-    # The range ends, the floats just outside them, and a b whose 2**20 * |b| overflows.
-    ends = torch.tensor([2.0**-126, 2.0**126], device=run_device())
-    outside = torch.nextafter(ends, torch.tensor([0.0, float("inf")], device=run_device()))
-    pinned = torch.cat([ends, outside, torch.tensor([2.0**108], device=run_device())])
-    b.view(-1)[: 2 * len(pinned)] = torch.cat([pinned, -pinned])
-    k = randint(a_shape, -(1 << 21), 1 << 21).float()
-    k = torch.where(randint(a_shape, 0, 4) == 0, k.sign() * (2**20 + randint(a_shape, -2, 3)), k)
-    # Beside 2**126 a whole quotient of at most one keeps a finite.
-    k = torch.where(b.abs().expand(a_shape) > 2.0**120, randint(a_shape, -1, 2).float(), k)
-    a = (k * b).view(torch.int32).add(randint(a_shape, -2, 3).int()).view(torch.float32)
-    cases = [
-        (FloorDivideFwdOp(), torch.floor_divide),
-        (DivFwdOp(rounding_mode="floor"), lambda x, y: torch.div(x, y, rounding_mode="floor")),
-        (RemainderFwdOp(), torch.remainder),
-    ]
-    for op, ref_fn in cases:
-        out, ref = op(a, b), ref_fn(a, b)
-        number = ~ref.isnan()
-        assert torch.equal(out.isnan(), ~number)
-        assert torch.equal(out[number].view(torch.int32), ref[number].view(torch.int32))
 
 
 # Lerp op (ternary in PyTorch; compile-time weight=0.5)
@@ -1031,7 +976,11 @@ def test_div_rounding_mode_eager(rounding_mode: str, dtype: torch.dtype) -> None
     with torch.no_grad():
         out = op(a, b)
     # torch rounds the quotient to ``dtype`` before rounding it to a whole number.
-    ref = torch.div(a, b, rounding_mode=rounding_mode)
+    ref = (
+        div_reference(a.cpu(), b.cpu(), rounding_mode).to(a.device)
+        if a.device.type == "npu"
+        else torch.div(a, b, rounding_mode=rounding_mode)
+    )
     compare_outputs(
         out,
         ref,

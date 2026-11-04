@@ -1,8 +1,21 @@
 # PR performance
 
-PR CPU preflight is followed by changed-operator NPU correctness and then performance.
-Performance starts only after every selected operator passes correctness. All device
-imports and tests use the host npu-guard and canonical server2 toolchain.
+PR CPU preflight is followed by one combined measurement/verification pass over changed
+operators. Each case completes the normal cold call, three warmups and fifteen profiler
+samples, then compares the final timed output against its reference outside the timing
+window. There is no separate correctness execution or all-operator correctness pass.
+A failed case stops the remaining cases and operators, retains diagnostic/raw evidence,
+and invalidates that case's performance. Previously completed evidence remains on disk;
+this does not add automatic PR checkpoint/resume support.
+
+Shared inputs are snapshotted before timing and checked afterwards. Existing full-output
+coverage, numerical tolerances and negative controls still apply. Custom distribution
+probes still run explicitly outside timing: those contracts need multiple executions,
+so they cannot be replaced by checking a single saved output. Private arguments/reset
+semantics are preserved. The final output is retained without a device copy inside the
+profile; snapshots, reference execution and comparisons stay outside the windows.
+All device imports and tests use the host npu-guard and canonical server2 toolchain.
+Standalone correctness jobs and nightly's default verification path are unchanged.
 
 The selector records changed paths and operator names. Kernel-bearing changes select
 explicit operator names. Helper-only changes expand to their kernel family. Shared

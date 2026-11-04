@@ -359,7 +359,16 @@ def test_masked_fill_tensor_value(input_shape, mask_shape, dtype):
     op = MaskedFillTensorFwdOp()
 
     workload = ElementwiseWorkload(type(op).__name__, (inp, mask, value))
-    TestBase.check(workload, op, *workload.gen_inputs())
+    if inp.device.type == "npu" and dtype in (torch.uint8, torch.int16):
+        # aclnnInplaceMaskedFillTensor does not implement these reference dtypes.
+        # Keep the public workload's exact contract and execute the op on the NPU.
+        from workloads.numerics import compare_outputs
+
+        actual = op(inp, mask, value)
+        expected = inp.cpu().masked_fill(mask.cpu(), value.cpu())
+        compare_outputs(actual.cpu(), expected, workload.verification(inp, mask, value))
+    else:
+        TestBase.check(workload, op, *workload.gen_inputs())
 
 
 @pytest.mark.smoke
