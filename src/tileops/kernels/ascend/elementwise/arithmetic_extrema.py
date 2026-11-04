@@ -169,18 +169,19 @@ if T is not None:
     def _bias_body(a, b, c, rows: int, period: int, dtype: str, maximum: bool):
         with T.SimdVF():
             mask = T.simd.pset(32)
-            for row in range(rows):
-                for i in range(period // 64):
+            # Reuse each converted bias vector across the rows in this tile.
+            for i in range(period // 64):
+                bv = (
+                    T.simd.vld(b[i * 64])
+                    if dtype == "float32"
+                    else T.simd.vcvt(T.simd.vld(b[i * 64], dist="UNPK_B16"), "float32", part=0)
+                )
+                for row in range(rows):
                     index = row * period + i * 64
                     av = (
                         T.simd.vld(a[index])
                         if dtype == "float32"
                         else T.simd.vcvt(T.simd.vld(a[index], dist="UNPK_B16"), "float32", part=0)
-                    )
-                    bv = (
-                        T.simd.vld(b[i * 64])
-                        if dtype == "float32"
-                        else T.simd.vcvt(T.simd.vld(b[i * 64], dist="UNPK_B16"), "float32", part=0)
                     )
                     cv = _extreme(av, bv, mask, maximum)
                     if dtype == "float32":
@@ -227,6 +228,13 @@ class AscendExtremaKernel(ArithmeticKernelBase, BinaryElementwiseFwdInterface):
             tile, stages = 4096, 3
         if not self.period and self.n == self.padded:
             tile, stages = _TUNED_FLAT.get((self.maximum, dtype_name, self.n), (tile, stages))
+        if (
+            self.period == 4096
+            and self.repeat == 1
+            and self.dtype.itemsize == 2
+            and self.n % (4 * self.period) == 0
+        ):
+            return build_bias(self.n, dtype_name, self.period, self.maximum, 4, 64, 2)
         if self.period and self.repeat == 1 and self.period & (self.period - 1):
             rows = 2 if self.dtype.itemsize == 2 and self.n % (2 * self.period) == 0 else 1
             pipeline = 2
