@@ -1,5 +1,7 @@
 """Workload definitions for the normalization op family."""
 
+import math
+
 import torch
 import torch.nn.functional as F
 
