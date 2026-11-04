@@ -80,8 +80,9 @@ else:
                             else:
                                 accum[1] = T.if_then_else(accum[1]==0,T.float32(zero_inverse),T.rsqrt(accum[1] / n + eps))
                         with T.SimtVF(threads=32):
-                            accum[0]=T.cast(T.cast(accum[0],dtype),'float32')
-                            accum[1]=T.cast(T.cast(accum[1],dtype),'float32')
+                            if dtype != 'float16':
+                                accum[0]=T.cast(T.cast(accum[0],dtype),'float32')
+                                accum[1]=T.cast(T.cast(accum[1],dtype),'float32')
                         for channel in T.serial(cpg):
                             for chunk in T.serial((spatial + width - 1) // width):
                                 begin = channel * spatial + chunk * width
