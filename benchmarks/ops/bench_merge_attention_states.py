@@ -7,6 +7,7 @@ import torch
 
 from benchmarks import api as bench
 from benchmarks.baselines import FLASHINFER_TAG, VLLM_TAG, flashinfer_op, vllm_op
+from benchmarks.merge_attention_baselines import ascend_implementations
 from tileops.attention import MergeAttentionStatesFwdOp
 
 
@@ -81,6 +82,11 @@ def _vllm_native(inputs):
 
 @pytest.mark.parametrize("case", bench.cases(MergeAttentionStatesFwdOp), ids=lambda case: case.id)
 def test_merge_attention_states_bench(case):
+    if case.inputs[0].device.type == "npu":
+        bench.Runner(MergeAttentionStatesFwdOp(**case.arguments), case).compare(
+            ascend_implementations("MergeAttentionStatesFwdOp", case)
+        )
+        return
     bench.Runner(MergeAttentionStatesFwdOp(**case.arguments), case).compare(
         {
             FLASHINFER_TAG: _flashinfer_merge(),
