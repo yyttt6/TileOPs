@@ -112,8 +112,11 @@ if T is not None:
                                     if r < valid_rows and col < valid_cols:
                                         acc[0] = acc[0] * T.cast(x[r, col], "float32")
                                 for shift in T.unroll(5):
-                                    acc[0] = acc[0] * T.call_extern(
-                                        "float32", "asc_shfl_xor", acc[0], T.int32(1) << shift
+                                    acc[0] = (
+                                        acc[0]
+                                        * T.call_extern(  # lint: extern-target allow: CANN shuffle has no wrapper in the pinned Ascend API.
+                                            "float32", "asc_shfl_xor", acc[0], T.int32(1) << shift
+                                        )
                                     )
                                 if lane % 32 == 0:
                                     partial[r, lane // 32] = acc[0]
