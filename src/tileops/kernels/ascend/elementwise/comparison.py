@@ -484,6 +484,9 @@ class AscendLeKernel(_AscendComparison):
     kind = "le"
 
 
-
-for _name in ("Eq", "Ne", "Gt", "Ge", "Lt", "Le"):
-    register_kernel_type(f"{_name}FwdOp", "ascend", globals()[f"Ascend{_name}Kernel"])
+register_kernel_type("EqFwdOp", "ascend", AscendEqKernel)
+register_kernel_type("NeFwdOp", "ascend", AscendNeKernel)
+register_kernel_type("GtFwdOp", "ascend", AscendGtKernel)
+register_kernel_type("GeFwdOp", "ascend", AscendGeKernel)
+register_kernel_type("LtFwdOp", "ascend", AscendLtKernel)
+register_kernel_type("LeFwdOp", "ascend", AscendLeKernel)
