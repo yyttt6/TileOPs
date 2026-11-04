@@ -15,6 +15,7 @@ from tileops.quantization import (
     SmoothQuantFwdOp,
 )
 from workloads.device import run_device
+from workloads.numerics import compare_outputs
 from workloads.quantization.quantize import (
     FP8QuantPerBlockWorkload,
     INT4QuantPerGroupWorkload,
@@ -89,6 +90,22 @@ def test_quantize_matches_reference(op_cls, rows, cols, dtype) -> None:
 
 @pytest.mark.smoke
 @pytest.mark.parametrize(
+    "op_cls",
+    [INT8QuantPerTensorFwdOp, INT8QuantPerChannelFwdOp, INT8QuantPerBlockFwdOp],
+)
+def test_int8_scale_division_rounding_boundary(op_cls) -> None:
+    """Multiplying amax by rounded 1/127 changes -63 to -64 for this FP16 pair."""
+    test = type("QuantizeTest", (_WORKLOADS[op_cls], TestBase), {})(3, 128, torch.float16)
+    x = torch.full((3, 128), -1.7373046875, dtype=torch.float16, device=run_device())
+    x[:, 0] = 3.474609375
+    test.check(op_cls(), x)
+    q, _ = op_cls()(x)
+    assert (q[:, 0] == 127).all()
+    assert (q[:, 1:] == -63).all()
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
     "rows, cols, dtype, make",
     [
         # The manifest's convention for an all-zero row: scale 1.0, q all zero.
@@ -131,7 +148,13 @@ def test_quantize_matches_reference(op_cls, rows, cols, dtype) -> None:
 def test_int8_quant_per_channel_edge_inputs(rows, cols, dtype, make) -> None:
     test = type("QuantizeTest", (INT8QuantPerChannelWorkload, TestBase), {})(rows, cols, dtype)
     (w,) = test.gen_inputs()
-    test.check(INT8QuantPerChannelFwdOp(), make(w))
+    value = make(w)
+    if make is _subnormal:
+        # Device division may flush a nonzero subnormal scale to zero.
+        expected = tuple(t.to(value.device) for t in test.ref_program(value.cpu()))
+        compare_outputs(INT8QuantPerChannelFwdOp()(value), expected, test.verification(value))
+    else:
+        test.check(INT8QuantPerChannelFwdOp(), value)
 
 
 @pytest.mark.smoke
@@ -181,7 +204,13 @@ def test_int8_per_channel_round_trip(dtype: torch.dtype) -> None:
 def test_int8_quant_per_tensor_edge_inputs(dtype, make) -> None:
     test = type("QuantizeTest", (INT8QuantPerTensorWorkload, TestBase), {})(64, 1024, dtype)
     (x,) = test.gen_inputs()
-    test.check(INT8QuantPerTensorFwdOp(), make(x))
+    value = make(x)
+    if make is _subnormal:
+        # Device division may flush a nonzero subnormal scale to zero.
+        expected = tuple(t.to(value.device) for t in test.ref_program(value.cpu()))
+        compare_outputs(INT8QuantPerTensorFwdOp()(value), expected, test.verification(value))
+    else:
+        test.check(INT8QuantPerTensorFwdOp(), value)
 
 
 @pytest.mark.smoke
@@ -255,7 +284,13 @@ def _misaligned(x: torch.Tensor) -> torch.Tensor:
 def test_int8_quant_per_block_edge_inputs(rows, cols, dtype, make) -> None:
     test = type("QuantizeTest", (INT8QuantPerBlockWorkload, TestBase), {})(rows, cols, dtype)
     (x,) = test.gen_inputs()
-    test.check(INT8QuantPerBlockFwdOp(), make(x))
+    value = make(x)
+    if make is _subnormal:
+        # Device division may flush a nonzero subnormal scale to zero.
+        expected = tuple(t.to(value.device) for t in test.ref_program(value.cpu()))
+        compare_outputs(INT8QuantPerBlockFwdOp()(value), expected, test.verification(value))
+    else:
+        test.check(INT8QuantPerBlockFwdOp(), value)
 
 
 @pytest.mark.smoke
@@ -385,6 +420,10 @@ def _int4_special_groups(w: torch.Tensor) -> torch.Tensor:
             marks=pytest.mark.smoke,
         ),
         pytest.param(64, 1024, 128, _misaligned, id="misaligned-start", marks=pytest.mark.smoke),
+        pytest.param(3, 65536, 65536, lambda w: w, id="large-group", marks=pytest.mark.smoke),
+        pytest.param(
+            3, 32896, 32896, lambda w: w, id="large-group-partial-tile", marks=pytest.mark.smoke
+        ),
         # Manifest workload shapes. The nightly runs `full or nightly` and the benchmark's
         # DeepSpeed baseline is noncomparable, so these are the op's only reference check there.
         pytest.param(14336, 4096, 128, lambda w: w, id="llama-8b-mlp-up", marks=pytest.mark.full),
@@ -415,12 +454,27 @@ def test_int4_per_group_round_trip(group_size: int) -> None:
     ]
     w = w.view(rows, cols).half()
     packed, params = INT4QuantPerGroupFwdOp(group_size)(w)
-    codes = torch.stack((packed >> 4, (packed << 4) >> 4), dim=-1).view(groups, group_size)
+    high = torch.bitwise_right_shift(packed, 4)
+    low = torch.bitwise_right_shift(torch.bitwise_left_shift(packed, 4), 4)
+    codes = torch.stack((high, low), dim=-1).view(groups, group_size)
     restored = codes.float() * params[:, :1] + params[:, 1:]
     error = (restored - w.float().view(groups, group_size)).abs()
     step = params[:, :1]
     bound = torch.where(codes == 7, step, step / 2)
     assert (error <= bound + step * 1e-5).all()
+
+
+@pytest.mark.smoke
+def test_smooth_quant_tail_scale_after_staging() -> None:
+    """Reduction must observe all smoothed values, including the final vector."""
+    generator = torch.Generator().manual_seed(950)
+    x = torch.randn((37, 999), dtype=torch.float16, generator=generator)
+    smooth = torch.rand(999, generator=generator) + 0.5
+    test = type("QuantizeTest", (SmoothQuantWorkload, TestBase), {})(37, 999, torch.float16)
+    expected = tuple(t.to(run_device()) for t in test.ref_program(x, smooth))
+    x, smooth = x.to(run_device()), smooth.to(run_device())
+    actual = SmoothQuantFwdOp()(x, smooth)
+    compare_outputs(actual, expected, test.verification(x, smooth))
 
 
 def _zero_odd_tiles(w: torch.Tensor) -> torch.Tensor:
@@ -497,4 +551,8 @@ def _tiny(w: torch.Tensor) -> torch.Tensor:
 def test_fp8_quant_per_block_edge_inputs(rows, cols, dtype, make) -> None:
     test = type("QuantizeTest", (FP8QuantPerBlockWorkload, TestBase), {})(rows, cols, dtype)
     (w,) = test.gen_inputs()
-    test.check(FP8QuantPerBlockFwdOp(), make(w))
+    x = make(w)
+    # Device reference division can flush a nonzero subnormal scale to zero.
+    expected = tuple(t.to(x.device) for t in test.ref_program(x.cpu()))
+    actual = FP8QuantPerBlockFwdOp()(x)
+    compare_outputs(actual, expected, test.verification(x))
