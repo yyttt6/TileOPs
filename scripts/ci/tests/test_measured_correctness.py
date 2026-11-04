@@ -246,3 +246,16 @@ def test_device_failure_keeps_receipt_and_does_not_run_next_case(tmp_path, monke
     assert len(rows) == 1 and rows[0]["status"] == "failed"
     assert "measurement" not in rows[0]
     assert (out / "profiles/0000/raw-evidence").exists()
+
+
+def test_optional_outputs_count_as_validated_after_structural_checks():
+    check, _ = execute(lambda x: (x * 2, None, None), reference=lambda x: (x * 2, None, None))
+    assert check["checked_outputs"] == check["total_outputs"] == 3
+
+
+@pytest.mark.parametrize(
+    "bad", [lambda x: (x * 2, x, None), lambda x: (None, None, None), lambda x: (x * 9, None, None)]
+)
+def test_optional_outputs_do_not_hide_wrong_tensor_or_structure(bad):
+    with pytest.raises(AssertionError):
+        execute(bad, reference=lambda x: (x * 2, None, None))
