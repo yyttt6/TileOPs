@@ -1,0 +1,281 @@
+{
+  "status": "accepted_NPU_operator_domain",
+  "all_pass": true,
+  "manifest_cases": 12,
+  "min_ratio": 0.9520356783196662,
+  "public_passed": 43,
+  "public_skipped": [],
+  "public_collection": [
+    "collecting ... collected 47 items / 2 deselected / 45 selected"
+  ],
+  "public_deselected": [
+    {
+      "test": "test_instance_norm_lazy_cache_reuse_and_respecialization",
+      "original_marker": "in_tree_kernels",
+      "reason": "original collection restriction under NPU/Ascend target"
+    },
+    {
+      "test": "test_instance_norm_rejects_affine_device_mismatch",
+      "original_marker": "cuda_only",
+      "reason": "original collection restriction under NPU/Ascend target"
+    }
+  ],
+  "public_reference_exceptions": {
+    "cases": [
+      {
+        "batch": 1,
+        "shape": [
+          1,
+          3,
+          192,
+          192
+        ],
+        "input_sha256": "4c3c5e05122e24808c4498a0c080365dd88bb2f43401cc6e49414d9a6bb99d97",
+        "verification": {
+          "checked_outputs": 3,
+          "total_outputs": 3,
+          "max_abs_err": 0.03125,
+          "unchecked_reason": null
+        },
+        "stats_bitwise_equal_cpu_torch": true,
+        "independent_double_statistics_and_staged_bf16_update_equal": true,
+        "npu_reference_difference": [
+          0.00390625,
+          0.015625
+        ],
+        "scope": "Only the two retained public BF16 192x192 training inputs; do not change other tests or tolerance."
+      },
+      {
+        "batch": 3,
+        "shape": [
+          3,
+          3,
+          192,
+          192
+        ],
+        "input_sha256": "9a04b0316e5631874b1ade87eb07a9429d2971feddc893f855788b02f3c37da2",
+        "verification": {
+          "checked_outputs": 3,
+          "total_outputs": 3,
+          "max_abs_err": 0.03125,
+          "unchecked_reason": null
+        },
+        "stats_bitwise_equal_cpu_torch": true,
+        "independent_double_statistics_and_staged_bf16_update_equal": true,
+        "npu_reference_difference": [
+          0.00390625,
+          0.015625
+        ],
+        "scope": "Only the two retained public BF16 192x192 training inputs; do not change other tests or tolerance."
+      }
+    ],
+    "torch": "2.13.0+cpu",
+    "cpu_capability": "SVE256",
+    "policy": "VR02 exact-case exception; original unmodified public NPU-reference failures retained, CPU manifest oracle and independent double statistics agree with actual NPU operator outputs/statistics.",
+    "script_sha256": "ec3684e81ca1a7a1ebae3afd26b3774ec105495162c1baf34ccb15a69a9c1dbc"
+  },
+  "original_public_failures_retained": [
+    "test_instance_norm_updates_running_statistics_across_blocks[1-spatial6-dtype6]",
+    "test_instance_norm_updates_running_statistics_across_blocks[3-spatial7-dtype7]"
+  ],
+  "boundary_checks": 137,
+  "boundary_new_untracked": 89,
+  "boundary_final_fp32": 31,
+  "boundary_unchanged_lowprecision_v11": 58,
+  "boundary_reused_train_infer": 48,
+  "boundary_reuse_function_proof": [
+    {
+      "prior": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/instance_train_batched_candidate_v6.py",
+      "prior_sha256": "d08e01b7d9a06761631a4136cc5cb28c5650a0a91b4813059ce13fc671b2eea3",
+      "current": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-v12/_instance_train_batched.py",
+      "current_sha256": "ea1bc911d864615c9abcd814fe8252f67c79044cbcb7356378267039a0dd63d0",
+      "function": "build_batched"
+    },
+    {
+      "prior": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/instance_train_batched_candidate_v6.py",
+      "prior_sha256": "d08e01b7d9a06761631a4136cc5cb28c5650a0a91b4813059ce13fc671b2eea3",
+      "current": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-v12/_instance_train_batched.py",
+      "current_sha256": "ea1bc911d864615c9abcd814fe8252f67c79044cbcb7356378267039a0dd63d0",
+      "function": "build_train"
+    },
+    {
+      "prior": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/instance_train_resident_candidate_v3.py",
+      "prior_sha256": "ecd79c2b550009572120abf8804f7b0899247ed3fc8720c9b979af59cc094864",
+      "current": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-v12/_instance_train_resident.py",
+      "current_sha256": "cd351dbe8c32e1856508ee6cb27ac39af3deed9475834ff79a94974172644d76",
+      "function": "build_train"
+    },
+    {
+      "prior": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/instance_train_resident_candidate_v4.py",
+      "prior_sha256": "3e8ffc9143eb738beca2691d74f2545046e16fa58a080a0048446e86fc20d8e3",
+      "current": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-v12/_instance_train_resident.py",
+      "current_sha256": "cd351dbe8c32e1856508ee6cb27ac39af3deed9475834ff79a94974172644d76",
+      "function": "build_update"
+    },
+    {
+      "prior": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/kernels/ascend/norm/instance_norm.py",
+      "prior_sha256": "e1191c2f6e68f24164a72d669743e93e4e0a044f3657114f35cc208d28441cd4",
+      "current": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-v12/instance_norm.py",
+      "current_sha256": "79ad51ac35074b1e4f42764c62d269cf2a8bdc4cbac4046fa633dad5b38092a4",
+      "function": "build_infer"
+    }
+  ],
+  "new_candidate_windows": 30,
+  "reused_candidate_windows": 150,
+  "prior_independently_audited_windows": 300,
+  "guard_sha256": {
+    "performance-overlap-v12/performance": "87ab549cac824223e9d64d6175cba3581ddc14cb623391c61a53f20518cb896e",
+    "performance-overlap-v10/performance": "19c39e6655942959e61639d1b54f2fa6a6d6d2ba3876f4e3f4d09fa31c6111fb",
+    "final-overlap-v12/boundary-c": "dfde1eb8702efccc0ecdfc8842e094cb8369789d5aefe960c5826245f2302e44",
+    "final-overlap-v12/public": "4f517da86834710f3c101f8aa054c4c3dce56fdc897f92378059f376f283014a",
+    "final-overlap-v11/boundary-a": "2233dac0a551ff45f1f332f01c80287abe59bec6c6a828d2f76f47894a5a516c",
+    "final-overlap-v11/boundary-b": "505536ad5665f866b8bb9734d305f60387abb22cfb452cffa9d3adb6a359f02b"
+  },
+  "shared_dependencies": {
+    "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+    "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+    "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+    "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+    "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+    "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+    "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+    "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+    "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+    "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+    "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+    "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+    "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+    "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+    "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303",
+    "tileops/ops/norm/group_norm.py": "8ad73ce2ae6a1c768a3f2e7b44c4238bcc6537f617e86e3272ea1f76b2860e46",
+    "tileops/ops/norm/instance_norm.py": "443ce9d6423f15ae373824ff8d906902bffbd48aaecb2daaea3234b12afad1a5",
+    "tileops/kernels/ascend/norm/_instance_train.py": "a8422582229f3c864da65fe991f72a4784dd863a31225455bf033df71c70182a"
+  },
+  "production_sources": {
+    "_instance_untracked_batched.py": "07a4a58416ef38c0868354c6f9b01c01cd06aa2c376d2f4ac39dbdb71b455f2a",
+    "_instance_untracked.py": "18099932d6618cfd3e718e12b46f16e7606bcb9c3998af207d642d0a2af28cd7",
+    "_instance_train_resident.py": "cd351dbe8c32e1856508ee6cb27ac39af3deed9475834ff79a94974172644d76",
+    "instance_norm.py": "79ad51ac35074b1e4f42764c62d269cf2a8bdc4cbac4046fa633dad5b38092a4",
+    "_instance_train_batched.py": "ea1bc911d864615c9abcd814fe8252f67c79044cbcb7356378267039a0dd63d0"
+  },
+  "cases": [
+    {
+      "case": "wider-channel-affine-float32",
+      "us": 8.494466666666668,
+      "ratio": 0.9582080884026462,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/wider-channel-affine-float32/result.json",
+      "result_sha256": "2bca38c968a2cf809236b8faad3bd93d04b57cfbf4988907c67261ff95ad2c43",
+      "source_reused": false
+    },
+    {
+      "case": "wider-channel-float16",
+      "us": 6.114133333333333,
+      "ratio": 1.8743130669923238,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/wider-channel-float16/result.json",
+      "result_sha256": "e59921408a9f109e06b938373e801b57a1c0f126e8decb4d6611ba832978e137",
+      "source_reused": true
+    },
+    {
+      "case": "image-affine-float16",
+      "us": 7.5334666666666665,
+      "ratio": 1.112626325197784,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/image-affine-float16/result.json",
+      "result_sha256": "05558c77191dd457d8c1279971891195ad72cd86f47305e928ee94501dc72545",
+      "source_reused": true
+    },
+    {
+      "case": "tail-spatial-affine-float16",
+      "us": 4.380199999999999,
+      "ratio": 1.4181392021673291,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/tail-spatial-affine-float16/result.json",
+      "result_sha256": "b8c154c8e22227bc91069d349fb365ca166ef83193c1f7d77abd6411702d4431",
+      "source_reused": true
+    },
+    {
+      "case": "wider-channel-affine-float16",
+      "us": 6.249,
+      "ratio": 2.4669653811276473,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/wider-channel-affine-float16/result.json",
+      "result_sha256": "f3bc6cf7ef4be786e50280baa34da80e09282bea56dea26c8f9a4bd1b0d9acf1",
+      "source_reused": true
+    },
+    {
+      "case": "tail-spatial-float16",
+      "us": 4.462533333333334,
+      "ratio": 2.141309868833846,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/tail-spatial-float16/result.json",
+      "result_sha256": "f27596aabbad0e532b3b4d9e1ca5e658e61b5a8bfa5fde7c7cf1b310923495e1",
+      "source_reused": true
+    },
+    {
+      "case": "image-float16",
+      "us": 7.3082666666666665,
+      "ratio": 1.5836495657885137,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/image-float16/result.json",
+      "result_sha256": "5ba776aeee03cad77d46ce991ae13016dcf4cf0e266ebe699c6a8be8d378047c",
+      "source_reused": true
+    },
+    {
+      "case": "image-affine-bfloat16",
+      "us": 7.890066666666667,
+      "ratio": 1.0536539615212377,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/image-affine-bfloat16/result.json",
+      "result_sha256": "5acd667dbb7b2287888f2681de1faae6293a7337f86d25c2dca985da9ef4c58e",
+      "source_reused": true
+    },
+    {
+      "case": "wider-channel-float32",
+      "us": 11.585,
+      "ratio": 0.9520356783196662,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/wider-channel-float32/result.json",
+      "result_sha256": "3c85d48106c575dbe5f00c2f5cbc3dbfa8de3e3b8a677b5a15faa0a7339ad542",
+      "source_reused": false
+    },
+    {
+      "case": "image-bfloat16",
+      "us": 7.203733333333334,
+      "ratio": 1.6126638039535055,
+      "path": "untracked",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/production-performance-v12/image-bfloat16/result.json",
+      "result_sha256": "e08d158db0e130ddacfb2cc104cfac91bfe0b56d5f7fb7de07e9318b4edb77bb",
+      "source_reused": true
+    },
+    {
+      "case": "image-track-stats-float16",
+      "us": 21.142666666666667,
+      "ratio": 1.3510973071829475,
+      "path": "train",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/pilot-v1/image-track-stats-float16/result.json",
+      "result_sha256": "25c3af894681ebbdb0dff435af95d4d3ed530fab678c7728a7a1cee52c47fde5",
+      "source_reused": true
+    },
+    {
+      "case": "image-eval-float16",
+      "us": 11.985933333333332,
+      "ratio": 1.7158947432824032,
+      "path": "infer",
+      "evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/pilot-v1/image-eval-float16/result.json",
+      "result_sha256": "3bc7b4538f318a2cb03060c4ec1ad511a03e016685bb3d6fd953055091383322",
+      "source_reused": true
+    }
+  ],
+  "auditor_sha256": "722ce0ed24bd4c45cfd30586a0562bda82c00953f3f7b21aceafdaa17d47bcdb",
+  "notes": [
+    "No baseline remeasurement. Frozen strongest eligible native/old eager/new Torch denominator retained per case.",
+    "Historical eval eager baseline 20.5666us has retained qualified audit but its raw archive is unavailable on server1; no new raw audit claimed for that denominator.",
+    "Untracked paths changed: row-warp batching, bounded resident dispatch, dtype-specific statistical rounding, compensated FP32 sums and division, separated output multiply/add. Streaming fallback constant/output rounding fixed. Low-precision scalar tails (spatial modulo 16) retain FMA, matching the CPU reference; FP32 remains separate multiply/add throughout.",
+    "Train/update/infer numerical function bodies unchanged. Two manifest timings reused after actual final generated C and fresh correctness check; 48 train/infer boundaries reused under function/source proof.",
+    "All prior numeric/compilation/harness/performance failures retained. No shared compiler/template changes; task-private per-kernel flag only.",
+    "FP32 mean uses an exact-split sum, division residual and explicit nearest-even midpoint handling; lowprecision function AST and generated C remain equal to valid v10. Eight lowprecision timings reuse clean v10 guard records; only two changed FP32 cases were remeasured.",
+    "Final v12 splits dtype generators to remove unused reductions, buffers temporary values in private fragments to avoid per-column barriers, and uses 16-row single-buffer FP32 affine batching only when the physical UB budget and full core occupancy permit. Final v12 evaluates each mean once per lane before the element loop, avoiding repeated branches. 31 changed FP32 boundaries and 20 affected original public tests freshly passed; 58 lowprecision boundaries reuse identical v11 functions and generated-code proof. Other 23 public tests and 48 train/infer boundaries reuse unchanged function bodies."
+  ]
+}

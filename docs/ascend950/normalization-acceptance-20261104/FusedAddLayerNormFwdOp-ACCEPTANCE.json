@@ -1,0 +1,83 @@
+{
+  "operator": "FusedAddLayerNormFwdOp",
+  "status": "accepted_NPU_operator_domain",
+  "server": "server1",
+  "audit": {
+    "status": "FusedAddLayerNorm7_manifest19_public63_boundary_passed",
+    "min_ratio": 1.0012232988953362,
+    "manifest_cases": 7,
+    "public_passed": 19,
+    "boundary_checks": 63,
+    "selected_tileops_windows": 105,
+    "new_tileops_windows": 0,
+    "reused_tileops_windows": 105,
+    "historical_candidate_and_eager_windows_audited": 210,
+    "cpu_prepare_public_device_overlap_seconds": 118.2771655600518,
+    "note": "Overlap includes device-stage startup/validation, not pure NPU time; no serial speedup claim.",
+    "sources": {
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fused_layer_manifest_resume_v1.py": "a7d2a064c2cceeea89f17b0d7d8ed9352acdf367399172e08f9f280517248c4b",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-layer-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_add_layer_norm.py": "e2c17a553f631a793e8a49dda626d7240fead17a0ab61621f47f135aa161d282",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-layer-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_layer_simd.py": "04db5ccb26956a1a73628c4439a9bf228b676535d48ce8b68596ac498698fd25",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fused_layer_fp32_simd_candidate_v3.py": "04db5ccb26956a1a73628c4439a9bf228b676535d48ce8b68596ac498698fd25",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-layer-20261104/frozen-baselines-full32.json": "53ce851faa9b0ccf7ab75c7673d4814727f802584ce9f756b4fc698f5ec0806a",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/norm.py": "541f2165f258196c49bca9639cb644c8b7a87f053504b8c03241e6aed72e4268",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+    },
+    "auditor_sha256": "0a9f2669b0d8b1f9492f644c3f1e9381deb71ce13e994c8e5a27cd053c7920ce",
+    "cases": [
+      {
+        "case": "llama-8b-prefill-float16",
+        "ratio": 1.2213250059087246,
+        "us": 71.64546666666666
+      },
+      {
+        "case": "llama-8b-prefill-bfloat16",
+        "ratio": 1.1366952194432256,
+        "us": 71.85913333333333
+      },
+      {
+        "case": "llama-8b-decode-bfloat16",
+        "ratio": 1.5399814827360385,
+        "us": 2.9522
+      },
+      {
+        "case": "llama-70b-prefill-float16",
+        "ratio": 1.14892937270035,
+        "us": 111.43
+      },
+      {
+        "case": "llama-70b-prefill-bfloat16",
+        "ratio": 1.1577141899935985,
+        "us": 111.43533333333333
+      },
+      {
+        "case": "llama-70b-decode-bfloat16",
+        "ratio": 1.2458729911062567,
+        "us": 4.272666666666667
+      },
+      {
+        "case": "llama-13b-prefill-float32",
+        "ratio": 1.0012232988953362,
+        "us": 50.51913333333333
+      }
+    ]
+  },
+  "change": "Integrate existing aligned FP32 SIMD candidate; retain original SIMT resident and chunked fallbacks. No candidate algorithm change.",
+  "baseline_snapshot_sha256": "cd35c585cc97fadb890eb2b4ff2b257e774ed9243ad1050f9b32067d78760881",
+  "baseline": "26 eligible cached records plus newly published Torch and eligible historical eager; strongest denominator per case; no baseline remeasurement.",
+  "reuse": "All seven generated device sources match the audited old candidate; reuse105 TileOPs timing windows. Historical candidate/eager210 windows independently parsed. Current full public/manifest/boundary correctness ran on server1.",
+  "evidence": {
+    "production-audit-v1.json": "73a09e8d2300caa3269a3ee4dee5fd49d0dca0c346fc0929f48ebeacc5e1ae02",
+    "frozen-baselines-full32.json": "53ce851faa9b0ccf7ab75c7673d4814727f802584ce9f756b4fc698f5ec0806a",
+    "existing-candidate-audit-v1.json": "c7610bc3b57fbb5ffd8e6639a045c916b273071649ef569b240ccccfd39fd8d7",
+    "fused-layer-public-v1.xml": "a86716709999d24cc39a0c2cdd463adce75d2d8502a4971fac3eb0ad6ee8690c",
+    "fused-layer-boundary-v1.json": "944c3b816ed59b2fdb93b27db11538134eea23a1425a1701fab889d2ebafe863",
+    "local-source-transfer-v1.json": "ad1d29f3c83ea1fde8e20559863772c7c131c0da43464621bcaaa0ef2ee18e4b",
+    "remote-source-transfer-v1.json": "57ababf6ea5265c75cace99cfa4869873ef5d03bb64e574dadf09af0bbab0b4f"
+  },
+  "limitations": [
+    "Historical candidate lacks template header fingerprint; current pinned toolchain and generated source identity verified.",
+    "Old baseline raw paths unavailable; retained admission receipts reused; new Torch archives hash-verified.",
+    "CPU preparation audited at Python/device-handle boundary and reviewed official lazy compiler, not native syscall trace."
+  ]
+}

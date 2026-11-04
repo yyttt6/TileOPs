@@ -1,7 +1,5 @@
 """Workload definitions for the normalization op family."""
 
-import math
-
 import torch
 import torch.nn.functional as F
 
@@ -440,6 +438,12 @@ def norm_verification(dtype):
 def batch_norm_forward_result(subject, *inputs):
     """Expose the returned tensors and the two declared running-stat side effects."""
     return (*subject(*inputs), inputs[1], inputs[2])
+
+
+def instance_norm_forward_result(subject, *inputs):
+    """Expose running statistics when the call passes them, including unchanged eval stats."""
+    output = subject(*inputs)
+    return output if inputs[1] is None else (output, inputs[1], inputs[2])
 
 
 def batch_norm_forward_verification(dtype):

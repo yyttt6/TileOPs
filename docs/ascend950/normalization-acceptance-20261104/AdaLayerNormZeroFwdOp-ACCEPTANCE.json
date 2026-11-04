@@ -1,0 +1,96 @@
+{
+  "operator": "AdaLayerNormZeroFwdOp",
+  "status": "accepted_NPU_operator_domain",
+  "server": "server1",
+  "audit": {
+    "baseline_update": "20261104 torch1135; all eligible stronger previous baselines retained",
+    "large_offset_seeds": 8,
+    "status": "AdaZero6_manifest17_public72_boundary_passed",
+    "min_ratio": 1.513240455910147,
+    "manifest_cases": 6,
+    "public_passed": 17,
+    "boundary_checks": 72,
+    "selected_tileops_windows": 90,
+    "new_tileops_windows": 15,
+    "reused_tileops_windows": 75,
+    "historical_candidate_and_eager_windows_audited": 180,
+    "current_windows_independently_audited": 15,
+    "cpu_prepare_public_device_overlap_seconds": 110.38863944029436,
+    "note": "Overlap interval includes device-stage startup and validation, not pure NPU kernel time; no serial speedup claim.",
+    "sources": {
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/adazero_manifest_resume_v2.py": "21556f7cad5ecf8a1d825e86b3d4fc9972a6b4d5fbdaa0f73fb5b0188329797a",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-adazero-20261103/production-src-v1/tileops/kernels/ascend/norm/ada_layer_norm.py": "4ef5e70fb490c48e13590f54a436f14809f2cce109950b82b8abf847c9ee2aa1",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-adazero-20261103/production-src-v1/tileops/kernels/ascend/norm/_ada_dispatch.py": "703c0baca6b2c77274131f2df7881f474912fa4c5cf799b576a12103fafb3180",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-adazero-20261103/production-src-v1/tileops/kernels/ascend/norm/_ada_resident.py": "c16ecc733ceea040a503e9e0c88d00e91fe48e2f140d51cb100d04bfdc4253ef",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-adazero-20261103/production-src-v1/tileops/kernels/ascend/norm/_ada_fp32_simd.py": "c3d3673f32ced7845e097659db6c8d84de0558513197e235eedf1bc2b0183d53",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/ada_dispatch_candidate_v4.py": "07378a4789e231c3c234005a2685b191fb7afb884cc62ebb55cfeebd3b32f91d",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/ada_resident_candidate_v1.py": "c16ecc733ceea040a503e9e0c88d00e91fe48e2f140d51cb100d04bfdc4253ef",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/ada_fp32_simd_candidate_v3.py": "20dca5f85c291af1052c78694a8218ac876db5cc4a2a81dd4971d298f5929e5d",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/norm.py": "541f2165f258196c49bca9639cb644c8b7a87f053504b8c03241e6aed72e4268",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc"
+    },
+    "auditor_sha256": "fce56f18e03e7da0cf8e4f9b1078fc348dbc20b7429a7cf00d78d65b1f770e23",
+    "cases": [
+      {
+        "case": "dit-xl-2-float16",
+        "ratio": 1.513240455910147,
+        "us": 28.888733333333334,
+        "measurement": "unchanged_lowp_reused15"
+      },
+      {
+        "case": "dit-xl-2-bfloat16",
+        "ratio": 1.5134223214409774,
+        "us": 28.787866666666666,
+        "measurement": "unchanged_lowp_reused15"
+      },
+      {
+        "case": "dit-xl-2-float32",
+        "ratio": 1.8940262439001607,
+        "us": 11.421066666666668,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-8b-prefill-float16",
+        "ratio": 1.752503200134805,
+        "us": 67.65339999999999,
+        "measurement": "unchanged_lowp_reused15"
+      },
+      {
+        "case": "llama-8b-prefill-bfloat16",
+        "ratio": 1.7376718689387916,
+        "us": 68.05573333333334,
+        "measurement": "unchanged_lowp_reused15"
+      },
+      {
+        "case": "llama-8b-decode-bfloat16",
+        "ratio": 5.833056796426293,
+        "us": 2.6116666666666664,
+        "measurement": "unchanged_lowp_reused15"
+      }
+    ]
+  },
+  "change": "Enable existing resident/SIMD dispatcher for gated=True; reuse accepted shifted-mean FP32 helper. Ada gated=False path unchanged by AST proof.",
+  "baseline_snapshot_sha256": "cd35c585cc97fadb890eb2b4ff2b257e774ed9243ad1050f9b32067d78760881",
+  "baseline": "12 existing cached pairs + eligible historical eager + updated torch1135 records; strongest same-metric denominator, three updated cases; no baseline remeasurement.",
+  "generated_code_review": "Read complete FP32 performance generated C: origin broadcast, shifted mean, centered variance, gate multiply, double-buffer step&1, correct producer/consumer waits, output cache4 retained.",
+  "evidence": {
+    "production-audit-20261104-v1.json": "b67a349c1f7c30234da0281d9b31355346888605d02fe9a2892f2db41a992d87",
+    "frozen-baselines-20261104.json": "5bf058cfe074cac87335bf8c5dc0aff2ff4f1e09a73f6bc211303d8e446fe0cf",
+    "AdaFalse-dependency-reuse-proof-v1.json": "3ac5d0d75be4cf337a6e4cc3ce1ff778c25909a63c0f58d74ffee7404e9aa434",
+    "existing-candidate-audit-v1.json": "aa03cc6952d5b01f11a570066bdbb8472e9ad012bab9c0d0c3dc035faaefb820",
+    "adazero-public-v1.xml": "6ada4810c4d7811152a427dbd41bb5e115688205113658def97bf12beae1e7a0",
+    "adazero-large-offset-v1.json": "10e7112b3b293dbe8359a2714563618766714c3faa7be83588fb127a203a8cc9",
+    "adazero-production-boundary-v1.json": "11acdb91b5973d3a8a255cd58e75ba998eaa9d82e664b043f99bb2b7a289b4a2",
+    "local-source-transfer-v1.json": "27a76971c58130a79d243eccb3f83e6c97e23ebd8e053e11b5721185c26a372b",
+    "remote-source-transfer-v1.json": "8e8c371720c1f917fb05126ec68e296692edb1e97520c015e75bc3d17c292817"
+  },
+  "reuse": "Five unchanged lowp cases reuse75 timing windows with generated-code identity; affected FP32 case newly timed15; historical candidate+eager180 and new15 raw windows audited.",
+  "limitations": [
+    "Original old cached baseline raw paths unavailable; retained receipts reused. New torch1135 raw archives hash-verified.",
+    "Historical candidate lacks template header fingerprint; current toolchain fingerprints and source equivalence verified.",
+    "Added large-offset boundaries use original LayerNormLargeOffsetWorkload checker; manifest/public tolerances unchanged."
+  ]
+}

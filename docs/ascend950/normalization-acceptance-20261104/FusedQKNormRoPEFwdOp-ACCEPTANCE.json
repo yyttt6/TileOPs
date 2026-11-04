@@ -1,0 +1,1388 @@
+{
+  "all_pass": true,
+  "op": "FusedQKNormRoPEFwdOp",
+  "manifest_cases": 5,
+  "min_ratio": 1.5977656359045003,
+  "boundary_checks": 24,
+  "public_meta_checks": 2,
+  "public_npu_suite": "No dedicated ops test file exists for this extended op; numerical coverage is 5 manifest +24 original boundary checks.",
+  "reused_candidate_windows": 75,
+  "raw_windows_independently_reverified": 75,
+  "cases": [
+    {
+      "case": "qwen3-8b-t64-bfloat16-bfloat16",
+      "us": 4.962666666666667,
+      "baseline": {
+        "us": 26.326466666666665,
+        "source": "previous_admitted_physical32_cache",
+        "row": {
+          "key": [
+            "sgl-kernel-npu",
+            "FusedQKNormRoPEFwdOp",
+            "qwen3-8b-t64-bfloat16-bfloat16"
+          ],
+          "task_id": "f870810db49458b2d101",
+          "campaign": "baseline-retest32-20261030",
+          "host": "server1",
+          "cache_key": "915b1509fb5e6c6266a1a9b84492e2b8128960a58cb4fa1b8b3a7f4ddddd5388",
+          "case": {
+            "op": "FusedQKNormRoPEFwdOp",
+            "case_id": "qwen3-8b-t64-bfloat16-bfloat16",
+            "family": "norm",
+            "tensors": {
+              "qkv": [
+                [
+                  64,
+                  6144
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "bfloat16"
+              ],
+              "positions": [
+                [
+                  64
+                ],
+                "int64"
+              ]
+            },
+            "params": {
+              "qkv": [
+                [
+                  64,
+                  6144
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "bfloat16"
+              ],
+              "positions": [
+                [
+                  64
+                ],
+                "int64"
+              ],
+              "num_heads": 32,
+              "num_kv_heads": 8,
+              "eps": 1e-06,
+              "rope_layout": "neox"
+            }
+          },
+          "timing": {
+            "latency_ms": 0.026326466666666666,
+            "profile_kernel_us": 26.32646666666667,
+            "profile_kernel_count": 5.0,
+            "profile_aic_cycles": 0.0,
+            "profile_aiv_cycles": 1464946.8666666667,
+            "profile_excluded_kernel_count": 0.0,
+            "profile_excluded_kernel_us": 0.0,
+            "cold_latency_ms": 1.8652197904884815,
+            "latency_samples_ms": [
+              0.026111,
+              0.025869,
+              0.026347,
+              0.026149,
+              0.026749,
+              0.02676,
+              0.026731,
+              0.02602,
+              0.027254,
+              0.025814,
+              0.026747,
+              0.025409,
+              0.026771,
+              0.025539,
+              0.026627
+            ],
+            "latency_median_ms": 0.026347,
+            "latency_stdev_ms": 0.0005319264002078626,
+            "latency_min_ms": 0.025409,
+            "latency_max_ms": 0.027254,
+            "measurement_protocol": "ascend950-isolated-ffts-v2"
+          },
+          "timing_mode": "device_async",
+          "comparison_metric": "device_latency_ms",
+          "end_to_end_samples_ms": [
+            1.229969784617424,
+            1.418790314346552,
+            1.457009930163622,
+            1.0830899700522423,
+            1.4304998330771923,
+            1.0952199809253216,
+            0.9194598533213139,
+            1.3651400804519653,
+            1.5694503672420979,
+            1.4673699624836445,
+            1.675720326602459,
+            1.2746700085699558,
+            1.3940897770226002,
+            1.4156298711895943,
+            1.5248502604663372
+          ],
+          "end_to_end_mean_ms": 1.3547306880354881,
+          "protocol": {
+            "id": "ascend950-isolated-ffts-v2",
+            "warmup": 3,
+            "repeats": 15,
+            "cache_flush_mib": 1024,
+            "reset": "before flush and synchronize, outside profiling",
+            "window": "one NPU profiler session per repeat",
+            "metric": "mean of summed device kernel durations; excludes host launch gaps",
+            "samples": "all 15 samples retained; no outlier removal",
+            "core_sha256": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc"
+          },
+          "environment": {
+            "hostname": "a5d0b50dc68f",
+            "python": "3.12.15 (main, Oct 14 2026, 01:04:59) [Clang 23.1.3 ]",
+            "platform": "Linux-6.6.0-159.4.8.161.oe2403sp4.aarch64-aarch64-with-glibc2.35",
+            "torch": "2.10.0+cpu",
+            "torch_npu": "2.10.0.post4",
+            "device": "npu:0",
+            "device_name": "Ascend950DT_9582",
+            "device_count": 1,
+            "ascend_npu_arch": null,
+            "soc_version": null,
+            "cann_home": "/usr/local/Ascend/cann-9.1.0",
+            "tileops_head": null,
+            "tilelang_head": null,
+            "baseline_heads": {
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepGEMM-Ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepSelect": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/flash-linear-attention-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/sgl-kernel-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/tilelang-ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/vllm-ascend": null
+            },
+            "measurement_protocol": {
+              "id": "ascend950-isolated-ffts-v2",
+              "warmup": 3,
+              "repeats": 15,
+              "cache_flush_mib": 1024,
+              "reset": "before flush and synchronize, outside profiling",
+              "window": "one NPU profiler session per repeat",
+              "metric": "mean of summed device kernel durations; excludes host launch gaps",
+              "samples": "all 15 samples retained; no outlier removal"
+            },
+            "timing": {
+              "clock": "torch_npu.profiler.profile raw ffts_profile records",
+              "latency": "sum of profiled AIC/AIV kernel durations divided by repetitions",
+              "includes": "the candidate callable and its device-side kernel work",
+              "excludes": "Python launch gaps and input generation; first-call host wall time is separately recorded as cold_latency_ms"
+            },
+            "aicore_count": 32,
+            "vectorcore_count": 64
+          },
+          "correctness_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-retest32-20261030/server1/pairs/f870810db49458b2d101/1793425389500312360/correctness.json",
+          "correctness_sha256": "5fdc57905b0c1ad0aa8fac8c016c0e656a9ebdfb82c7244a11a89fed5699cb40",
+          "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-retest32-20261030/server1/batches/1793425389499089310/f870810db49458b2d101/guard.json",
+          "guard_binding": {
+            "schema": 1,
+            "cache_key": "915b1509fb5e6c6266a1a9b84492e2b8128960a58cb4fa1b8b3a7f4ddddd5388",
+            "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-retest32-20261030/server1/batches/1793425389499089310/f870810db49458b2d101/guard.json",
+            "receipt_sha256": "cbbceaea7c3f59c5ba1c9be0cf80e0cf799416783f504663a626cde482af3519",
+            "implementation": {
+              "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+              "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+            },
+            "before": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793425521.4694495
+            },
+            "after": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793425760.302125
+            },
+            "evidence": "captured_before_and_after_measurement",
+            "bound_cache_key": "655d4875375031090b5af83c759474fad31b18e789f71b206557f1227eeeb89f"
+          },
+          "errors": [],
+          "admitted_latency_ms": 0.026326466666666666,
+          "admission_metric": "sum_profiled_single_core_role_kernel_durations_mean15"
+        }
+      },
+      "ratio": 5.30490327780763
+    },
+    {
+      "case": "qwen3-8b-t64-float16-float32",
+      "us": 5.0208,
+      "baseline": {
+        "us": 26.87,
+        "source": "previous_admitted_physical32_cache",
+        "row": {
+          "key": [
+            "sgl-kernel-npu",
+            "FusedQKNormRoPEFwdOp",
+            "qwen3-8b-t64-float16-float32"
+          ],
+          "task_id": "cae950795bdb270748d5",
+          "campaign": "baseline-retest32-20261030",
+          "host": "server1",
+          "cache_key": "19cbffd8c122d64a9fd62f5c4bc525dd9e71f82c3d870131d97bb4ad75dcfb65",
+          "case": {
+            "op": "FusedQKNormRoPEFwdOp",
+            "case_id": "qwen3-8b-t64-float16-float32",
+            "family": "norm",
+            "tensors": {
+              "qkv": [
+                [
+                  64,
+                  6144
+                ],
+                "float16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "float16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "float16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "float32"
+              ],
+              "positions": [
+                [
+                  64
+                ],
+                "int64"
+              ]
+            },
+            "params": {
+              "qkv": [
+                [
+                  64,
+                  6144
+                ],
+                "float16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "float16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "float16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "float32"
+              ],
+              "positions": [
+                [
+                  64
+                ],
+                "int64"
+              ],
+              "num_heads": 32,
+              "num_kv_heads": 8,
+              "eps": 1e-06,
+              "rope_layout": "neox"
+            }
+          },
+          "timing": {
+            "latency_ms": 0.02687,
+            "profile_kernel_us": 26.87,
+            "profile_kernel_count": 5.0,
+            "profile_aic_cycles": 0.0,
+            "profile_aiv_cycles": 1504496.3333333333,
+            "profile_excluded_kernel_count": 0.0,
+            "profile_excluded_kernel_us": 0.0,
+            "cold_latency_ms": 2.348310314118862,
+            "latency_samples_ms": [
+              0.026447,
+              0.027268,
+              0.026489,
+              0.027128,
+              0.026245,
+              0.028133,
+              0.026586,
+              0.027142,
+              0.028272,
+              0.026349,
+              0.027127,
+              0.026192,
+              0.026276,
+              0.026564,
+              0.026832
+            ],
+            "latency_median_ms": 0.026586,
+            "latency_stdev_ms": 0.0006491855336826726,
+            "latency_min_ms": 0.026192,
+            "latency_max_ms": 0.028272,
+            "measurement_protocol": "ascend950-isolated-ffts-v2"
+          },
+          "timing_mode": "device_async",
+          "comparison_metric": "device_latency_ms",
+          "end_to_end_samples_ms": [
+            1.3896198943257332,
+            1.4841803349554539,
+            0.8824602700769901,
+            1.0237600654363632,
+            1.4325897209346294,
+            1.4987299218773842,
+            1.4883303083479404,
+            1.4136601239442825,
+            1.025910023599863,
+            1.4107003808021545,
+            1.4122296124696732,
+            1.4370400458574295,
+            0.9657600894570351,
+            0.8381200022995472,
+            1.047119963914156
+          ],
+          "end_to_end_mean_ms": 1.2500140505532424,
+          "protocol": {
+            "id": "ascend950-isolated-ffts-v2",
+            "warmup": 3,
+            "repeats": 15,
+            "cache_flush_mib": 1024,
+            "reset": "before flush and synchronize, outside profiling",
+            "window": "one NPU profiler session per repeat",
+            "metric": "mean of summed device kernel durations; excludes host launch gaps",
+            "samples": "all 15 samples retained; no outlier removal",
+            "core_sha256": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc"
+          },
+          "environment": {
+            "hostname": "a5d0b50dc68f",
+            "python": "3.12.15 (main, Oct 14 2026, 01:04:59) [Clang 23.1.3 ]",
+            "platform": "Linux-6.6.0-159.4.8.161.oe2403sp4.aarch64-aarch64-with-glibc2.35",
+            "torch": "2.10.0+cpu",
+            "torch_npu": "2.10.0.post4",
+            "device": "npu:0",
+            "device_name": "Ascend950DT_9582",
+            "device_count": 1,
+            "ascend_npu_arch": null,
+            "soc_version": null,
+            "cann_home": "/usr/local/Ascend/cann-9.1.0",
+            "tileops_head": null,
+            "tilelang_head": null,
+            "baseline_heads": {
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepGEMM-Ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepSelect": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/flash-linear-attention-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/sgl-kernel-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/tilelang-ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/vllm-ascend": null
+            },
+            "measurement_protocol": {
+              "id": "ascend950-isolated-ffts-v2",
+              "warmup": 3,
+              "repeats": 15,
+              "cache_flush_mib": 1024,
+              "reset": "before flush and synchronize, outside profiling",
+              "window": "one NPU profiler session per repeat",
+              "metric": "mean of summed device kernel durations; excludes host launch gaps",
+              "samples": "all 15 samples retained; no outlier removal"
+            },
+            "timing": {
+              "clock": "torch_npu.profiler.profile raw ffts_profile records",
+              "latency": "sum of profiled AIC/AIV kernel durations divided by repetitions",
+              "includes": "the candidate callable and its device-side kernel work",
+              "excludes": "Python launch gaps and input generation; first-call host wall time is separately recorded as cold_latency_ms"
+            },
+            "aicore_count": 32,
+            "vectorcore_count": 64
+          },
+          "correctness_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-retest32-20261030/server1/pairs/cae950795bdb270748d5/1793424982185262790/correctness.json",
+          "correctness_sha256": "20facf56caa7dcd0be439e6c7d21e38c6f0958867ad23074625d111baf4fa5ca",
+          "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-retest32-20261030/server1/batches/1793424982183761970/cae950795bdb270748d5/guard.json",
+          "guard_binding": {
+            "schema": 1,
+            "cache_key": "19cbffd8c122d64a9fd62f5c4bc525dd9e71f82c3d870131d97bb4ad75dcfb65",
+            "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-retest32-20261030/server1/batches/1793424982183761970/cae950795bdb270748d5/guard.json",
+            "receipt_sha256": "1333c5328d32d0f18044ea64dc1a9d35acefa3ff91ba442198f613834a805a33",
+            "implementation": {
+              "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+              "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+            },
+            "before": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793425097.9379132
+            },
+            "after": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793425189.8714728
+            },
+            "evidence": "captured_before_and_after_measurement",
+            "bound_cache_key": "a0d6dec6f675359bebd2792edc81a6d66b26d5b1e02e9096ecc734ab17f24d67"
+          },
+          "errors": [],
+          "admitted_latency_ms": 0.02687,
+          "admission_metric": "sum_profiled_single_core_role_kernel_durations_mean15"
+        }
+      },
+      "ratio": 5.351736775015934
+    },
+    {
+      "case": "qwen3-8b-t8192-bfloat16-bfloat16",
+      "us": 304.00606666666664,
+      "baseline": {
+        "us": 1231.3923333333332,
+        "source": "previous_admitted_physical32_cache",
+        "row": {
+          "key": [
+            "sgl-kernel-npu",
+            "FusedQKNormRoPEFwdOp",
+            "qwen3-8b-t8192-bfloat16-bfloat16"
+          ],
+          "task_id": "820cf59e175dd9f9df57",
+          "campaign": "baseline-cache-20261027",
+          "host": "server1",
+          "cache_key": "da09c7954a3986f5bce352799e47bcbdea063cc350a34e43a33a3dd276b150c6",
+          "case": {
+            "op": "FusedQKNormRoPEFwdOp",
+            "case_id": "qwen3-8b-t8192-bfloat16-bfloat16",
+            "family": "norm",
+            "tensors": {
+              "qkv": [
+                [
+                  8192,
+                  6144
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "bfloat16"
+              ],
+              "positions": [
+                [
+                  8192
+                ],
+                "int64"
+              ]
+            },
+            "params": {
+              "qkv": [
+                [
+                  8192,
+                  6144
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "bfloat16"
+              ],
+              "positions": [
+                [
+                  8192
+                ],
+                "int64"
+              ],
+              "num_heads": 32,
+              "num_kv_heads": 8,
+              "eps": 1e-06,
+              "rope_layout": "neox"
+            }
+          },
+          "timing": {
+            "latency_ms": 1.2313923333333332,
+            "profile_kernel_us": 1231.3923333333332,
+            "profile_kernel_count": 5.0,
+            "profile_aic_cycles": 0.0,
+            "profile_aiv_cycles": 128324779.4,
+            "profile_excluded_kernel_count": 0.0,
+            "profile_excluded_kernel_us": 0.0,
+            "cold_latency_ms": 2.7955900877714157,
+            "latency_samples_ms": [
+              1.22786,
+              1.232365,
+              1.230986,
+              1.231608,
+              1.230835,
+              1.233819,
+              1.230844,
+              1.233887,
+              1.229831,
+              1.232326,
+              1.232931,
+              1.232806,
+              1.229321,
+              1.231205,
+              1.230261
+            ],
+            "latency_median_ms": 1.231205,
+            "latency_stdev_ms": 0.0016826703975130347,
+            "latency_min_ms": 1.22786,
+            "latency_max_ms": 1.233887,
+            "measurement_protocol": "ascend950-isolated-ffts-v2"
+          },
+          "timing_mode": "device_async",
+          "comparison_metric": "device_latency_ms",
+          "end_to_end_samples_ms": [
+            2.150940243154764,
+            2.3820502683520317,
+            2.2515100426971912,
+            2.2765500470995903,
+            2.270219847559929,
+            2.246210351586342,
+            2.385459840297699,
+            2.3064399138092995,
+            2.381690312176943,
+            2.377260010689497,
+            2.3020398803055286,
+            2.4460600689053535,
+            2.3335199803113937,
+            2.1932502277195454,
+            2.319709863513708
+          ],
+          "end_to_end_mean_ms": 2.3081940598785877,
+          "protocol": {
+            "id": "ascend950-isolated-ffts-v2",
+            "warmup": 3,
+            "repeats": 15,
+            "cache_flush_mib": 1024,
+            "reset": "before flush and synchronize, outside profiling",
+            "window": "one NPU profiler session per repeat",
+            "metric": "mean of summed device kernel durations; excludes host launch gaps",
+            "samples": "all 15 samples retained; no outlier removal",
+            "core_sha256": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc"
+          },
+          "environment": {
+            "hostname": "a5d0b50dc68f",
+            "python": "3.12.15 (main, Oct 14 2026, 01:04:59) [Clang 23.1.3 ]",
+            "platform": "Linux-6.6.0-159.4.8.161.oe2403sp4.aarch64-aarch64-with-glibc2.35",
+            "torch": "2.10.0+cpu",
+            "torch_npu": "2.10.0.post4",
+            "device": "npu:0",
+            "device_name": "Ascend950DT_9582",
+            "device_count": 1,
+            "ascend_npu_arch": null,
+            "soc_version": null,
+            "cann_home": "/usr/local/Ascend/cann-9.1.0",
+            "tileops_head": null,
+            "tilelang_head": null,
+            "baseline_heads": {
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepGEMM-Ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepSelect": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/sgl-kernel-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/vllm-ascend": null
+            },
+            "measurement_protocol": {
+              "id": "ascend950-isolated-ffts-v2",
+              "warmup": 3,
+              "repeats": 15,
+              "cache_flush_mib": 1024,
+              "reset": "before flush and synchronize, outside profiling",
+              "window": "one NPU profiler session per repeat",
+              "metric": "mean of summed device kernel durations; excludes host launch gaps",
+              "samples": "all 15 samples retained; no outlier removal"
+            },
+            "timing": {
+              "clock": "torch_npu.profiler.profile raw ffts_profile records",
+              "latency": "sum of profiled AIC/AIV kernel durations divided by repetitions",
+              "includes": "the candidate callable and its device-side kernel work",
+              "excludes": "Python launch gaps and input generation; first-call host wall time is separately recorded as cold_latency_ms"
+            }
+          },
+          "correctness_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/820cf59e175dd9f9df57/correctness.json",
+          "correctness_sha256": "0755f3bce2cda2b131bc253ab3ab4baf517806727c64ef938bcb23b042edd3df",
+          "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/820cf59e175dd9f9df57/guard.json",
+          "guard_binding": {
+            "schema": 1,
+            "cache_key": "da09c7954a3986f5bce352799e47bcbdea063cc350a34e43a33a3dd276b150c6",
+            "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/820cf59e175dd9f9df57/guard.json",
+            "receipt_sha256": "c779d89c84f05366807d13a7bb3dbdb8e69eb5be0aef867bd848f0c05cdef54b",
+            "implementation": {
+              "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+              "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+            },
+            "before": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793214470.5592113
+            },
+            "after": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793214515.6139085
+            },
+            "evidence": "captured_before_and_after_measurement",
+            "bound_cache_key": "662cc70d1cc147a6088e02f452be47703a01aa7135e7ca5495a475a4cc4ddae9"
+          },
+          "errors": [],
+          "admitted_latency_ms": 1.2313923333333332,
+          "admission_metric": "sum_profiled_single_core_role_kernel_durations_mean15"
+        }
+      },
+      "ratio": 4.050551842057538
+    },
+    {
+      "case": "qwen3-235b-t4096-bfloat16-bfloat16",
+      "us": 237.57393333333331,
+      "baseline": {
+        "us": 379.58746666666667,
+        "source": "previous_admitted_physical32_cache",
+        "row": {
+          "key": [
+            "sgl-kernel-npu",
+            "FusedQKNormRoPEFwdOp",
+            "qwen3-235b-t4096-bfloat16-bfloat16"
+          ],
+          "task_id": "3306e112598a039cae59",
+          "campaign": "baseline-cache-20261027",
+          "host": "server1",
+          "cache_key": "e0a2cf219b2382fe4185455b39719e20dd7fbaf8716b25fcc76d6a75cd4cca6f",
+          "case": {
+            "op": "FusedQKNormRoPEFwdOp",
+            "case_id": "qwen3-235b-t4096-bfloat16-bfloat16",
+            "family": "norm",
+            "tensors": {
+              "qkv": [
+                [
+                  4096,
+                  9216
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "bfloat16"
+              ],
+              "positions": [
+                [
+                  4096
+                ],
+                "int64"
+              ]
+            },
+            "params": {
+              "qkv": [
+                [
+                  4096,
+                  9216
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  40960,
+                  128
+                ],
+                "bfloat16"
+              ],
+              "positions": [
+                [
+                  4096
+                ],
+                "int64"
+              ],
+              "num_heads": 64,
+              "num_kv_heads": 4,
+              "eps": 1e-06,
+              "rope_layout": "neox"
+            }
+          },
+          "timing": {
+            "latency_ms": 0.37958746666666665,
+            "profile_kernel_us": 379.58746666666667,
+            "profile_kernel_count": 5.0,
+            "profile_aic_cycles": 0.0,
+            "profile_aiv_cycles": 38321285.46666667,
+            "profile_excluded_kernel_count": 0.0,
+            "profile_excluded_kernel_us": 0.0,
+            "cold_latency_ms": 1.9083903171122074,
+            "latency_samples_ms": [
+              0.380596,
+              0.380385,
+              0.378238,
+              0.37936,
+              0.379809,
+              0.379788,
+              0.379194,
+              0.379414,
+              0.37966,
+              0.380359,
+              0.378812,
+              0.380616,
+              0.378398,
+              0.380311,
+              0.378872
+            ],
+            "latency_median_ms": 0.37966,
+            "latency_stdev_ms": 0.0007796599869418045,
+            "latency_min_ms": 0.378238,
+            "latency_max_ms": 0.380616,
+            "measurement_protocol": "ascend950-isolated-ffts-v2"
+          },
+          "timing_mode": "device_async",
+          "comparison_metric": "device_latency_ms",
+          "end_to_end_samples_ms": [
+            1.302490010857582,
+            1.4382703229784966,
+            1.3111196458339691,
+            1.270979642868042,
+            1.5342896804213524,
+            1.2551299296319485,
+            1.3539600186049938,
+            1.4848499558866024,
+            1.2539997696876526,
+            1.2809899635612965,
+            1.4029298909008503,
+            1.553489826619625,
+            1.2939097359776497,
+            1.3081599026918411,
+            1.4596697874367237
+          ],
+          "end_to_end_mean_ms": 1.3669492055972416,
+          "protocol": {
+            "id": "ascend950-isolated-ffts-v2",
+            "warmup": 3,
+            "repeats": 15,
+            "cache_flush_mib": 1024,
+            "reset": "before flush and synchronize, outside profiling",
+            "window": "one NPU profiler session per repeat",
+            "metric": "mean of summed device kernel durations; excludes host launch gaps",
+            "samples": "all 15 samples retained; no outlier removal",
+            "core_sha256": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc"
+          },
+          "environment": {
+            "hostname": "a5d0b50dc68f",
+            "python": "3.12.15 (main, Oct 14 2026, 01:04:59) [Clang 23.1.3 ]",
+            "platform": "Linux-6.6.0-159.4.8.161.oe2403sp4.aarch64-aarch64-with-glibc2.35",
+            "torch": "2.10.0+cpu",
+            "torch_npu": "2.10.0.post4",
+            "device": "npu:0",
+            "device_name": "Ascend950DT_9582",
+            "device_count": 1,
+            "ascend_npu_arch": null,
+            "soc_version": null,
+            "cann_home": "/usr/local/Ascend/cann-9.1.0",
+            "tileops_head": null,
+            "tilelang_head": null,
+            "baseline_heads": {
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepGEMM-Ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepSelect": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/sgl-kernel-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/vllm-ascend": null
+            },
+            "measurement_protocol": {
+              "id": "ascend950-isolated-ffts-v2",
+              "warmup": 3,
+              "repeats": 15,
+              "cache_flush_mib": 1024,
+              "reset": "before flush and synchronize, outside profiling",
+              "window": "one NPU profiler session per repeat",
+              "metric": "mean of summed device kernel durations; excludes host launch gaps",
+              "samples": "all 15 samples retained; no outlier removal"
+            },
+            "timing": {
+              "clock": "torch_npu.profiler.profile raw ffts_profile records",
+              "latency": "sum of profiled AIC/AIV kernel durations divided by repetitions",
+              "includes": "the candidate callable and its device-side kernel work",
+              "excludes": "Python launch gaps and input generation; first-call host wall time is separately recorded as cold_latency_ms"
+            }
+          },
+          "correctness_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/3306e112598a039cae59/correctness.json",
+          "correctness_sha256": "f79db826476074c025eff8a3119c8b9920d7d6e6c9e3a70899fbe25d5883fbda",
+          "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/3306e112598a039cae59/guard.json",
+          "guard_binding": {
+            "schema": 1,
+            "cache_key": "e0a2cf219b2382fe4185455b39719e20dd7fbaf8716b25fcc76d6a75cd4cca6f",
+            "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/3306e112598a039cae59/guard.json",
+            "receipt_sha256": "863b7deb68db5372345ba202e5678c15385f49da58de7ca706a194f48a4126ff",
+            "implementation": {
+              "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+              "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+            },
+            "before": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793211670.068005
+            },
+            "after": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793211720.1236331
+            },
+            "evidence": "captured_before_and_after_measurement",
+            "bound_cache_key": "61e8149f5ccda9b643b64797362ae2e6a03a6f4cf99499f7b48e868ec3a7bb11"
+          },
+          "errors": [],
+          "admitted_latency_ms": 0.37958746666666665,
+          "admission_metric": "sum_profiled_single_core_role_kernel_durations_mean15"
+        }
+      },
+      "ratio": 1.5977656359045003
+    },
+    {
+      "case": "glm-4.5-partial-rope-bfloat16-float32",
+      "us": 361.4516,
+      "baseline": {
+        "us": 777.8271333333333,
+        "source": "previous_admitted_physical32_cache",
+        "row": {
+          "key": [
+            "sgl-kernel-npu",
+            "FusedQKNormRoPEFwdOp",
+            "glm-4.5-partial-rope-bfloat16-float32"
+          ],
+          "task_id": "36fbc366306ddaa9477f",
+          "campaign": "baseline-cache-20261027",
+          "host": "server1",
+          "cache_key": "c7577d768a22e9fe6a45a64bf7e1aa370aa366b026ec7fd86931251950e8ec66",
+          "case": {
+            "op": "FusedQKNormRoPEFwdOp",
+            "case_id": "glm-4.5-partial-rope-bfloat16-float32",
+            "family": "norm",
+            "tensors": {
+              "qkv": [
+                [
+                  4096,
+                  14336
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  131072,
+                  64
+                ],
+                "float32"
+              ],
+              "positions": [
+                [
+                  4096
+                ],
+                "int64"
+              ]
+            },
+            "params": {
+              "qkv": [
+                [
+                  4096,
+                  14336
+                ],
+                "bfloat16"
+              ],
+              "q_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "k_weight": [
+                [
+                  128
+                ],
+                "bfloat16"
+              ],
+              "cos_sin_cache": [
+                [
+                  131072,
+                  64
+                ],
+                "float32"
+              ],
+              "positions": [
+                [
+                  4096
+                ],
+                "int64"
+              ],
+              "num_heads": 96,
+              "num_kv_heads": 8,
+              "eps": 1e-06,
+              "rope_layout": "neox"
+            }
+          },
+          "timing": {
+            "latency_ms": 0.7778271333333333,
+            "profile_kernel_us": 777.8271333333333,
+            "profile_kernel_count": 5.0,
+            "profile_aic_cycles": 0.0,
+            "profile_aiv_cycles": 80668577.13333334,
+            "profile_excluded_kernel_count": 0.0,
+            "profile_excluded_kernel_us": 0.0,
+            "cold_latency_ms": 2.5239400565624237,
+            "latency_samples_ms": [
+              0.778109,
+              0.778534,
+              0.77751,
+              0.777346,
+              0.777478,
+              0.77769,
+              0.776506,
+              0.777221,
+              0.777009,
+              0.777391,
+              0.77838,
+              0.780089,
+              0.777743,
+              0.77797,
+              0.778431
+            ],
+            "latency_median_ms": 0.77769,
+            "latency_stdev_ms": 0.0008382832684094528,
+            "latency_min_ms": 0.776506,
+            "latency_max_ms": 0.780089,
+            "measurement_protocol": "ascend950-isolated-ffts-v2"
+          },
+          "timing_mode": "device_async",
+          "comparison_metric": "device_latency_ms",
+          "end_to_end_samples_ms": [
+            1.6262601129710674,
+            2.002219669520855,
+            1.918969675898552,
+            1.854150090366602,
+            2.121219877153635,
+            2.042589709162712,
+            1.916129607707262,
+            1.9499300979077816,
+            1.708370167762041,
+            1.8673799932003021,
+            1.9497997127473354,
+            1.8298202194273472,
+            1.9443598575890064,
+            1.6504302620887756,
+            2.117360010743141
+          ],
+          "end_to_end_mean_ms": 1.8999326042830944,
+          "protocol": {
+            "id": "ascend950-isolated-ffts-v2",
+            "warmup": 3,
+            "repeats": 15,
+            "cache_flush_mib": 1024,
+            "reset": "before flush and synchronize, outside profiling",
+            "window": "one NPU profiler session per repeat",
+            "metric": "mean of summed device kernel durations; excludes host launch gaps",
+            "samples": "all 15 samples retained; no outlier removal",
+            "core_sha256": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc"
+          },
+          "environment": {
+            "hostname": "a5d0b50dc68f",
+            "python": "3.12.15 (main, Oct 14 2026, 01:04:59) [Clang 23.1.3 ]",
+            "platform": "Linux-6.6.0-159.4.8.161.oe2403sp4.aarch64-aarch64-with-glibc2.35",
+            "torch": "2.10.0+cpu",
+            "torch_npu": "2.10.0.post4",
+            "device": "npu:0",
+            "device_name": "Ascend950DT_9582",
+            "device_count": 1,
+            "ascend_npu_arch": null,
+            "soc_version": null,
+            "cann_home": "/usr/local/Ascend/cann-9.1.0",
+            "tileops_head": null,
+            "tilelang_head": null,
+            "baseline_heads": {
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepGEMM-Ascend": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/DeepSelect": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/sgl-kernel-npu": null,
+              "/opt/tileops-baseline-cache/workspace/ascend_baselines/vllm-ascend": null
+            },
+            "measurement_protocol": {
+              "id": "ascend950-isolated-ffts-v2",
+              "warmup": 3,
+              "repeats": 15,
+              "cache_flush_mib": 1024,
+              "reset": "before flush and synchronize, outside profiling",
+              "window": "one NPU profiler session per repeat",
+              "metric": "mean of summed device kernel durations; excludes host launch gaps",
+              "samples": "all 15 samples retained; no outlier removal"
+            },
+            "timing": {
+              "clock": "torch_npu.profiler.profile raw ffts_profile records",
+              "latency": "sum of profiled AIC/AIV kernel durations divided by repetitions",
+              "includes": "the candidate callable and its device-side kernel work",
+              "excludes": "Python launch gaps and input generation; first-call host wall time is separately recorded as cold_latency_ms"
+            }
+          },
+          "correctness_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/36fbc366306ddaa9477f/correctness.json",
+          "correctness_sha256": "e508b7523455903066c8b10dc956b851c0628874e00b6b244872f8f982b5f7ad",
+          "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/36fbc366306ddaa9477f/guard.json",
+          "guard_binding": {
+            "schema": 1,
+            "cache_key": "c7577d768a22e9fe6a45a64bf7e1aa370aa366b026ec7fd86931251950e8ec66",
+            "guard_receipt": "/opt/tileops-baseline-cache/workspace/reports/baseline-cache-20261027/server1/pairs/36fbc366306ddaa9477f/guard.json",
+            "receipt_sha256": "7e85231d56c1a1ef54437d37dc460b21074c4d0ffc3c559a4c1131a8d62985bd",
+            "implementation": {
+              "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+              "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+            },
+            "before": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793215217.8325028
+            },
+            "after": {
+              "files": {
+                "/usr/local/bin/npu-guard": "7cc12ef0b16200ad853633286daffdfc1e1efd253f5ab88e5ed32f79a6fe3245",
+                "/usr/local/libexec/ascend-npu/npu_guard.py": "1a76d4cf66c6ddb08aed53c33d3cda6eedc475ebd3cf8c44645590e6758b66a2"
+              },
+              "stamps": {
+                "/usr/local/bin/npu-guard": [
+                  61,
+                  32270305386,
+                  309,
+                  1793073464569336010,
+                  1793073464577336010
+                ],
+                "/usr/local/libexec/ascend-npu/npu_guard.py": [
+                  61,
+                  48069189390,
+                  51588,
+                  1793073464521336010,
+                  1793073464529336010
+                ]
+              },
+              "observed_at": 1793215267.8883
+            },
+            "evidence": "captured_before_and_after_measurement",
+            "bound_cache_key": "09ae8aeb81a8cc0c4355c11beb8f5763c5289f184794f3225bdcfc171a47f56a"
+          },
+          "errors": [],
+          "admitted_latency_ms": 0.7778271333333333,
+          "admission_metric": "sum_profiled_single_core_role_kernel_durations_mean15"
+        }
+      },
+      "ratio": 2.151953770112882
+    }
+  ],
+  "guard_sha256": {
+    "FusedQKNormRoPEFwdOp": "ee64edb52b68f33b5a7d374dae55da42dc191856fc49fdca86285dd6edfc60f0",
+    "QK-SIMD-boundary": "0a844eb8af2dbf355724fe31f7ac8b470f517a335e7061846dcbb29e41f5e0ab"
+  },
+  "production_sources": {
+    "qk_norm_rope.py": "3cc13d23981f20f0cff3b410c72a01a37060aefa9f8bced34fe5f0279fbff004",
+    "_qk_fused_simd.py": "1383b1176a383bb15d6b66c2f4b1cd6634ea8536b8001ae2f6833f38935bb8e0",
+    "_qk_token_simd.py": "4a80e07f3f157dcb2888f4911f62782377e0b258c34f2638621dca2bc1ad1621"
+  },
+  "shared_dependencies": {
+    "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+    "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+    "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+    "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+    "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+    "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+    "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+    "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+    "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+    "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+    "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+    "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+    "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+    "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+    "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303",
+    "tileops/ops/norm/group_norm.py": "8ad73ce2ae6a1c768a3f2e7b44c4238bcc6537f617e86e3272ea1f76b2860e46",
+    "tileops/ops/norm/fused_qk_norm_rope.py": "a4b17d9375c27448c3eb99fd9209c6e07580dbf67dc0ff9d0cb30faec60eb208",
+    "tileops/kernels/norm/fused_extended_call_spec.py": "ebe2c3711181d8ac9436e5cdfdaddd7c3070247e548926d5505978cd1e43a2e8"
+  },
+  "measurement_sources": {
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/ascend/norm/_qk_fused_simd.py": "1383b1176a383bb15d6b66c2f4b1cd6634ea8536b8001ae2f6833f38935bb8e0",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/ascend/norm/_qk_token_simd.py": "4a80e07f3f157dcb2888f4911f62782377e0b258c34f2638621dca2bc1ad1621",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/measure_qk_production_simd_v1.py": "876422eb63b7f137466b1d8ee928efbf4d67fd253115705894ecb1f852d13580",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/ascend/norm/qk_norm_rope.py": "3cc13d23981f20f0cff3b410c72a01a37060aefa9f8bced34fe5f0279fbff004",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/ops/norm/fused_qk_norm_rope.py": "a4b17d9375c27448c3eb99fd9209c6e07580dbf67dc0ff9d0cb30faec60eb208",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/kernels/norm/fused_extended_call_spec.py": "ebe2c3711181d8ac9436e5cdfdaddd7c3070247e548926d5505978cd1e43a2e8"
+  },
+  "boundary_sources": {
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/ascend/norm/_qk_fused_simd.py": "1383b1176a383bb15d6b66c2f4b1cd6634ea8536b8001ae2f6833f38935bb8e0",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/ascend/norm/_qk_token_simd.py": "4a80e07f3f157dcb2888f4911f62782377e0b258c34f2638621dca2bc1ad1621",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/ascend/norm/qk_norm_rope.py": "3cc13d23981f20f0cff3b410c72a01a37060aefa9f8bced34fe5f0279fbff004",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/ops/norm/fused_qk_norm_rope.py": "a4b17d9375c27448c3eb99fd9209c6e07580dbf67dc0ff9d0cb30faec60eb208",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/production-source-v2/tileops/kernels/norm/fused_extended_call_spec.py": "ebe2c3711181d8ac9436e5cdfdaddd7c3070247e548926d5505978cd1e43a2e8",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/qk_production_simd_boundary_v1.py": "3665112482124426fa275da801295ab86917f5fe17d6b9f72294c30dc82dd616"
+  },
+  "measurement_jsonl_sha256": "909dd96dccddf0a92fadc24eecf370327aae75abe513c4b994bde9417c4d2f62",
+  "boundary_sha256": "4f784f8ceddf5e8826f234601466ff3ca2ada9ffa5687868592133d5c8086c97",
+  "frozen_baselines_sha256": "c3859a850741b1798b361e5ce04b2b8bd5c9478a1d7f7ca2f019905678d3b498",
+  "auditor_sha256": "2f276d096642f77c38a3c0bc4ea4a1df0a09fac26ccea1f9d004975e5c7e96ed",
+  "notes": [
+    "No baseline or candidate remeasurement: exact-source original records retained.",
+    "Four host_roundtrip rows excluded only for metric mismatch; strongest ten eligible device_async candidates retained across five cases.",
+    "No new Torch baseline exists for this op; CPU oracle copy time is not a valid NPU eager baseline.",
+    "In-place timing resets QKV outside profiling; V/read-only inputs and strided copyback canaries verified.",
+    "Private production source-v2 is exactly local source; remote canonical delivery pending, original bytes must be backed up."
+  ]
+}

@@ -4,6 +4,7 @@ from tileops.kernels.ascend import (
     elementwise,
     gemm,
     moe,
+    norm,
     pool,
     quantization,
     reduction,

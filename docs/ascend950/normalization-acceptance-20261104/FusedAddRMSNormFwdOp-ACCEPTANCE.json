@@ -1,0 +1,130 @@
+{
+  "operator": "FusedAddRMSNormFwdOp",
+  "status": "accepted_NPU_operator_domain",
+  "server": "server1",
+  "audit": {
+    "status": "production_correctness_passed_performance_evaluated",
+    "all_pass": true,
+    "min_ratio": 0.8798020549714808,
+    "manifest_cases": 10,
+    "public_passed": 18,
+    "boundary_checks": 42,
+    "selected_windows": 150,
+    "new_windows": 105,
+    "reused_windows": 45,
+    "independently_parsed_new_and_pilot_windows": 120,
+    "previously_audited_original_windows": 150,
+    "sources": {
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fused_rms_manifest_resume_v4.py": "bad76caaa32f0ee0052089ce7413341143a4b27508ce61e473bb2604c3ab7ea7",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-rms-20261104/production-src-v4/tileops/kernels/ascend/norm/fused_add_rms_norm.py": "492b4c7897f8f2c653a110149f937f9efe64d48fae6e70c7408238e42b2887d5",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-rms-20261104/production-src-v4/tileops/kernels/ascend/norm/_fused_rms_simd.py": "1dfa4746a809834e9c10911adc6462757ad32678fba7c2e7e95b8002b8538682",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-rms-20261104/frozen-baselines-full32.json": "4103b3c39cfb87fe36adf6519f4c09e7747c1f83603bb166d91d8ab8b739f8bc",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/norm.py": "541f2165f258196c49bca9639cb644c8b7a87f053504b8c03241e6aed72e4268",
+      "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+    },
+    "auditor_sha256": "d5503dfe183f71ce13c729e874e5a89d5293e38094797849a270d2b08acb5873",
+    "cases": [
+      {
+        "case": "llama-8b-prefill-float16",
+        "ratio": 1.7488717743200153,
+        "us": 22.956400000000002,
+        "passed": true,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-8b-prefill-bfloat16",
+        "ratio": 0.9186664078766277,
+        "us": 22.6696,
+        "passed": true,
+        "measurement": "same_simd_pilot_reused15"
+      },
+      {
+        "case": "llama-8b-decode-bfloat16",
+        "ratio": 1.0142308239647075,
+        "us": 2.3423333333333334,
+        "passed": true,
+        "measurement": "unchanged_decode_reused15"
+      },
+      {
+        "case": "llama-70b-prefill-float16",
+        "ratio": 1.2028760743265952,
+        "us": 41.654,
+        "passed": true,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-70b-prefill-bfloat16",
+        "ratio": 0.9340006108139252,
+        "us": 42.34786666666667,
+        "passed": true,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-70b-decode-bfloat16",
+        "ratio": 0.8798020549714808,
+        "us": 3.3544666666666667,
+        "passed": true,
+        "measurement": "unchanged_decode_reused15"
+      },
+      {
+        "case": "llama-405b-prefill-float16",
+        "ratio": 1.3780441852170449,
+        "us": 79.43833333333333,
+        "passed": true,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-405b-prefill-bfloat16",
+        "ratio": 0.9661276715994898,
+        "us": 80.211,
+        "passed": true,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-405b-decode-bfloat16",
+        "ratio": 1.2457719760787087,
+        "us": 3.1102,
+        "passed": true,
+        "measurement": "current_production15"
+      },
+      {
+        "case": "llama-13b-prefill-bfloat16",
+        "ratio": 0.9453344859050089,
+        "us": 27.764,
+        "passed": true,
+        "measurement": "current_production15"
+      }
+    ]
+  },
+  "baseline_snapshot_sha256": "cd35c585cc97fadb890eb2b4ff2b257e774ed9243ad1050f9b32067d78760881",
+  "baseline": "40 admitted legacy records +10 updated Torch rows; strongest device metric denominator; no baseline run",
+  "change": "Fuse rounded residual addition and RMS reduction in SIMD; batch4/2 short rows, double buffer; retain original small decode and unaligned/chunk fallback. Public dtype remains float16/bfloat16.",
+  "source_files": {
+    "TileOPs/src/tileops/kernels/ascend/norm/fused_add_rms_norm.py": "492b4c7897f8f2c653a110149f937f9efe64d48fae6e70c7408238e42b2887d5",
+    "TileOPs/src/tileops/kernels/ascend/norm/_fused_rms_simd.py": "1dfa4746a809834e9c10911adc6462757ad32678fba7c2e7e95b8002b8538682"
+  },
+  "reuse": "Two unchanged decode timings30 windows from original run and same-generated-source SIMD pilot15 retained; seven changed cases105 newly timed. Original150 and current/pilot120 raw windows independently parsed.",
+  "cpu_prepare_device_overlap_seconds": 17.468690420035273,
+  "overlap_note": "Device interval includes startup/validation; not pure NPU time or serial speedup.",
+  "generated_code_review": "Complete BF16 grouped4 generated C reviewed: FP32 add then RN lowp rounding before squares, buffer step&1, matched waits and both output cache4.",
+  "evidence": {
+    "production-audit-v4.json": "33e6f3c1634b3d1fdbb9cca8914bf7afa22cc5ec8500ab59e430d315bd293dbe",
+    "production-audit-v3.json": "84ae20bc5ca50dbbd35fa7522c8e5b870adcec8fc12962cae8ebe7a5129ca1ea",
+    "frozen-baselines-full32.json": "4103b3c39cfb87fe36adf6519f4c09e7747c1f83603bb166d91d8ab8b739f8bc",
+    "fused-rms-public-v4.xml": "f74fd81f1628e2b46949d75cdbae8c1e74c6fb9be74515da80e5e266343687f2",
+    "fused-rms-boundary-v4.json": "2ed89e9392327e4b750151cad48e6edf45cc216a8d5efbdb84457a31f7836cca",
+    "local-source-transfer-v1.json": "714e9266f3bf35f3c1e6d974370f40a56abe7065215a21e0d71c65c85a40a960",
+    "remote-source-transfer-v1.json": "a7fced8e90a3983cbf4e3337a10d6a614b5ec7438e04bf8835c624260496f73f"
+  },
+  "retained_failures": [
+    "Original source passed18 public/42 legal boundaries but performance8/10 failed.",
+    "Boundary script incorrectly included unsupported FP32; its capacity fix stays private and was not delivered. Original supported dtype contract restored before acceptance."
+  ],
+  "limitations": [
+    "Old baseline raw paths unavailable; admitted cached rows retained, new Torch archives verified.",
+    "CPU-only compile audit is Python/device-handle plus static compiler-path review, not native syscall tracing."
+  ]
+}
