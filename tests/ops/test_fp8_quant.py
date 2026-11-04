@@ -21,6 +21,10 @@ class FP8QuantFixture(FixtureBase):
                 pytest.param(1, 4096, 1, 128, torch.float32, False, marks=pytest.mark.full),
                 pytest.param(1, 16384, 1, 32, torch.float32, False, marks=pytest.mark.full),
                 pytest.param(1, 1024, 4, 64, torch.float16, False, marks=pytest.mark.full),
+                pytest.param(1, 3, 1, 64, torch.float16, False, marks=pytest.mark.full),
+                pytest.param(1, 129, 1, 64, torch.bfloat16, False, marks=pytest.mark.full),
+                pytest.param(1, 3, 1, 128, torch.float32, False, marks=pytest.mark.full),
+                pytest.param(1, 3, 1, 32, torch.float32, False, marks=pytest.mark.full),
             ],
         ),
     ]
