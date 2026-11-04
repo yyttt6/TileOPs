@@ -6,27 +6,19 @@ The public family imports, op signatures, workloads and numerical contracts are 
 For example, `from tileops.gemm import BmmFwdOp` serves NPU tensors through the Ascend
 implementation and CUDA tensors through the existing CUDA implementation.
 
-The backend currently implements 41 ops across elementwise, Bmm and Cumsum. Registration
+The backend currently implements 43 ops across elementwise, Bmm, Cumsum, MoE
+pre-permute and Engram decode. Registration
 does not compile a kernel or query device properties. On an installation without
 `torch_npu`, the Ascend entry point performs no registration. Backend import errors in
 an NPU installation remain visible through `tileops.load_failures()`.
 
 ## Runtime
 
-Use **the official TileLang 0.1.15 release**, including its Ascend 950 backend. The
-validated machine uses Python 3.12, PyTorch 2.13, torch-npu 2.13.0rc1 and CANN 9.2.
-Configure CANN and Bisheng through the site's environment script before running any
-command. Keep the NPU environment separate from CUDA dependency installations.
-
-```bash
-python -m pip install --no-deps 'tilelang===0.1.15'
-python -m pip install --no-deps -e .
-```
-
-`--no-deps` assumes a compatible PyTorch/torch-npu/CANN environment already exists.
-Do not install the GPU development constraints over another project's NPU environment.
-The official release wheel is available on PyPI; custom local versions do not satisfy
-this benchmark's version check.
+Use the canonical [Ascend 950 toolchain contract](toolchain.md) and its
+`config/ascend950-toolchain.json` lock. It distinguishes CANN releases from beta
+builds and pins native binary/header fingerprints in addition to package versions.
+A generic "CANN 9.2" or "TileLang 0.1.15" installation is not an environment match.
+Do not install GPU dependency bundles into the isolated NPU environment.
 
 The core/dev dependency set uses 0.1.15 on every target. The upstream GPU benchmark
 bundle has a separate constraint: vLLM 0.27.1
@@ -35,6 +27,29 @@ Consequently the full GPU `[bench]` extra and image need a baseline dependency
 migration before they can use this branch. The unchanged `constraints-runner-lock.txt`
 records that upstream image, not a validated 950 environment. Do not override these
 dependencies with `--no-deps` to claim a compatible GPU benchmark stack.
+
+## Engram decode
+
+`EngramDecodeFwdOp` runs in two launches. The Cube projection tiles the batch
+in groups of 16 and the output dimension in groups of 64, sharing each K/V weight
+tile across the batch rows while distributing output columns across cores. It
+writes FP32 K/V intermediates. A Vector launch then processes one batch row per
+core, keeping the full-row RMSNorm reductions, gate, dilated convolution, SiLU
+and history update together. The public inputs, outputs and rounding points are
+the same as the shared decode workload.
+
+The manifest includes these serving cases:
+
+| Case         | Batch | Memory width | Hidden width | History | Convolution width | Dilation | Dtype |
+| ------------ | ----: | -----------: | -----------: | ------: | ----------------: | -------: | ----- |
+| `serving-b1` |     1 |          512 |          256 |      12 |                 4 |        3 | FP16  |
+| `serving-b4` |     4 |         1024 |          512 |      20 |                 4 |        5 | FP16  |
+| `serving-b8` |     8 |          512 |          256 |      18 |                 4 |        3 | BF16  |
+
+Select `--op EngramDecodeFwdOp` with the shared benchmark below. Correctness
+checks both the output and the complete updated history. Performance measurement
+covers the complete operator invocation and retains the device records of both
+launches; separately measured stages are only diagnostics.
 
 ## Shared benchmark
 
