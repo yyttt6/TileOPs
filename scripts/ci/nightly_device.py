@@ -46,7 +46,9 @@ def main():
     registry.ensure_loaded()
     assert not registry.LOAD_FAILURES, registry.LOAD_FAILURES
     selected = sorted(
-        op for op, types in registry.REGISTERED_KERNEL_TYPES.items() if "ascend" in types
+        op
+        for op, types in registry.REGISTERED_KERNEL_TYPES.items()
+        if any(name == "ascend" or name.startswith("ascend_") for name in types)
     )
     if a.op == "__list__":
         a.output.write_text(
