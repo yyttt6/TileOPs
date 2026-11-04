@@ -407,3 +407,22 @@ def test_rope_noncontiguous_1d_works() -> None:
     out_nc = op(x_nc)
     out_c = op(x_c)
     assert torch.equal(out_nc, out_c)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("invalid_position", [-1, 8])
+def test_rope_position_ids_multihead_range_recovery(invalid_position: int) -> None:
+    """Multi-head rotation rejects either range boundary and accepts the next valid call."""
+    from tileops.ops.rope import RoPENeoxPositionIdsFwdOp
+
+    max_position = 8
+    x = torch.randn(2, 32, 128, device=run_device(), dtype=torch.bfloat16)
+    positions = torch.tensor([0, invalid_position], device=run_device(), dtype=torch.int64)
+    op = RoPENeoxPositionIdsFwdOp(max_position=max_position)
+    with pytest.raises(ValueError, match="position_ids"):
+        op(x, positions)
+
+    positions[-1] = max_position - 1
+    cos, sin = rope_frequency_tables(128, max_position, dtype=x.dtype, device=run_device())
+    ref = ref_rope_neox_position_ids(x, cos, sin, positions)
+    compare_outputs(op(x, positions), ref, rope_verification())
