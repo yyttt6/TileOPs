@@ -102,6 +102,18 @@ class _AscendRoPEKernel(Kernel):
 
     def __init__(self, call):
         super().__init__(device_index=call.device.index)
+        self._optimized = None
+        # Keep the existing multi-head interleaved path; contiguous half-split
+        # and single-head layouts use the independently validated batched kernels.
+        if not self.interleaved or call.num_heads == 1:
+            from tileops.kernels.ascend.rope.rope import (
+                AscendRoPEInterleavedKernel as BatchedInterleaved,
+            )
+            from tileops.kernels.ascend.rope.rope import AscendRoPENeoxKernel as BatchedNeox
+
+            implementation = BatchedInterleaved if self.interleaved else BatchedNeox
+            self._optimized = implementation(call)
+            return
         self._run = _rotation_kernel(
             call.batch * call.seq_len,
             call.num_heads,
@@ -116,6 +128,8 @@ class _AscendRoPEKernel(Kernel):
 
     def forward(self, x, cos, sin):
         self._require_devices(x=x, cos=cos, sin=sin)
+        if self._optimized is not None:
+            return self._optimized(x, cos, sin)
         result, _ = self._run(x.view(-1), cos.view(-1), sin.view(-1), self._positions)
         return result.view_as(x)
 
@@ -137,6 +151,18 @@ class AscendRoPEPositionsKernel(Kernel, RoPENeoxPositionIdsFwdInterface):
 
     def __init__(self, call):
         super().__init__(device_index=call.device.index)
+        self._optimized = None
+        # Table gathering pays off for full-rotation half-precision prefill.
+        # Retain the fused path for decode, FP32 and partial rotations.
+        if (
+            call.dtype in (torch.float16, torch.bfloat16)
+            and call.num_tokens >= 128
+            and call.rotary_dim == call.head_dim
+        ):
+            from tileops.kernels.ascend.rope.position_ids import AscendRoPEPositionIdsKernel
+
+            self._optimized = AscendRoPEPositionIdsKernel(call)
+            return
         self._run = _rotation_kernel(
             call.num_tokens,
             call.num_heads,
@@ -151,10 +177,14 @@ class AscendRoPEPositionsKernel(Kernel, RoPENeoxPositionIdsFwdInterface):
 
     def forward(self, x, cos, sin, position_ids):
         self._require_devices(x=x, cos=cos, sin=sin, position_ids=position_ids)
+        if self._optimized is not None:
+            return self._optimized(x, cos, sin, position_ids)
         result, self._invalid = self._run(x.view(-1), cos.view(-1), sin.view(-1), position_ids)
         return result.view_as(x)
 
     def take_out_of_range(self):
+        if self._optimized is not None:
+            return self._optimized.take_out_of_range()
         if self._invalid is None:
             return False
         invalid, self._invalid = self._invalid, None
