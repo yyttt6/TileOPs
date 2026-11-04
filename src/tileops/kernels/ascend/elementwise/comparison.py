@@ -1,6 +1,5 @@
 """Ascend comparison kernels with packed bool output and broadcast reuse.
 
-from tileops.backend import register_kernel_type
 
 Import this module to register the six implementations. The public BinaryOp
 normalizes input contiguity; this backend preserves broadcasting and returns a
@@ -14,6 +13,7 @@ from typing import ClassVar
 
 import torch
 
+from tileops.backend import register_kernel_type
 from tileops.kernels.elementwise.call_spec import BinaryPredicateFwdInterface, BroadcastCall
 from tileops.kernels.kernel_base import Kernel
 
