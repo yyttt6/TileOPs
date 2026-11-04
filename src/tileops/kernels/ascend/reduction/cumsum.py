@@ -1,4 +1,4 @@
-"""Ascend 950 implementations for CumsumFwdOp."""
+"""Bounded SIMD prefix-scan candidate; FP32 prefixes, narrowing only at output."""
 
 import functools
 from typing import ClassVar
@@ -8,192 +8,117 @@ import tilelang.ascend.language as T
 import torch
 
 from tileops.backend import register_kernel_type
-from tileops.kernels.kernel_base import Entry, Kernel, vector_aligned
-from tileops.kernels.reduction._primitives import (
-    restore_same_shape,
-    rows_for_axes,
-    torch_dtype_nbytes,
-)
-from tileops.kernels.reduction.call_spec import CumsumFwdInterface, CumulativeCall
-
-__all__ = ["AscendCumsumKernel"]
-_UB_BUDGET_BYTES = 216 * 1024
-_UB_SCRATCH_RESERVE_BYTES = 64 * 1024
-_MAX_THREADS = 2048
-_MAX_ROWS_TIMES_P = 512
-_P_CANDIDATES = (512, 256, 128)
-_FALLBACK_VECTOR_CORES = 72
+from tileops.kernels.kernel_base import Kernel
+from tileops.kernels.reduction.call_spec import CumsumFwdInterface
 
 
-def _num_vector_cores() -> int:
-    """Real AIV (vector) core count of the current NPU device, re-queried each call."""
-    try:
-        from tilelang.carver.arch.driver import get_num_vector_cores
+@T.macro
+def _scan(x, y, state, rows, count, dtype: str):
+    with T.SimdVF():
+        mask = T.simd.pset(32)
+        one = T.simd.pset(32, "PAT_VL1")
+        lanes = T.simd.vci(T.int32(0), "int32")
+        last = T.simd.vdup(T.uint32(63), "uint32")
+        zero = T.simd.vdup(T.float32(0), "float32")
+        indices = T.simd.alloc_local(6, "int32")
+        for k in T.unroll(6, explicit=True):
+            indices[k] = T.simd.vmaxs(
+                T.simd.vadds(lanes, T.int32(-(1 << k)), mask), T.int32(0), mask
+            )
+        for r in T.serial(rows):
+            carry = T.simd.alloc_local(1, "float32")
+            carry[0] = T.simd.vld(state[r, 0], dist="BRC_B32")
+            for i in T.serial((count + 63) // 64):
+                if dtype == "float32":
+                    value = T.simd.vld(x[r, i * 64])
+                else:
+                    value = T.simd.vcvt(
+                        T.simd.vld(x[r, i * 64], dist="UNPK_B16"), "float32", part=0
+                    )
+                valid = T.simd.vcmps(lanes, count - i * 64, mask, op="lt")
+                value = T.simd.vsel(value, zero, valid)
+                prefix = T.simd.alloc_local(1, "float32")
+                prefix[0] = value
+                for k in T.unroll(6, explicit=True):
+                    shifted = T.simd.vselr(prefix[0], indices[k])
+                    active = T.simd.vcmps(lanes, T.int32(1 << k), mask, op="ge")
+                    prefix[0] = T.simd.vadd(prefix[0], T.simd.vsel(shifted, zero, active), mask)
+                value = T.simd.vadd(prefix[0], carry[0], mask)
+                carry[0] = T.simd.vselr(value, last)
+                if dtype == "float32":
+                    T.simd.vsts(y[r, i * 64], value, mask, extent=64)
+                else:
+                    T.simd.vsts(
+                        y[r, i * 64],
+                        T.simd.vcvt(value, dtype, sat=False),
+                        mask,
+                        dist="PK_B32",
+                        extent=64,
+                    )
+            T.simd.vsts(state[r, 0], carry[0], one, extent=1)
+        T.simd.mem_bar("VST_VLD")
 
-        cores = get_num_vector_cores(device_id=0)
-        if cores:
-            return int(cores)
-    except Exception:
-        pass
-    return _FALLBACK_VECTOR_CORES
 
-
-def _largest_divisor_leq(n: int, cap: int) -> int:
-    """The largest divisor of *n* that does not exceed *cap*; always >= 1 for n >= 1."""
-    cap = max(1, min(n, cap))
-    for candidate in range(cap, 0, -1):
-        if n % candidate == 0:
-            return candidate
-    return 1
-
-
-def _pick_tiling(M: int, N: int, itemsize: int, num_cores: int) -> tuple[int, int, int]:
-    """Return ``(num_blocks, rows_per_iter, P)`` for one ``AscendCumsumKernel`` build."""
-    num_blocks = _largest_divisor_leq(M, num_cores)
-    rows_per_group = M // num_blocks
-    budget = _UB_BUDGET_BYTES - _UB_SCRATCH_RESERVE_BYTES
-    rows_cap = max(1, min(rows_per_group, _MAX_ROWS_TIMES_P // min(_P_CANDIDATES)))
-    rows_per_iter = 1
-    for candidate in range(rows_cap, 0, -1):
-        if rows_per_group % candidate:
-            continue
-        iterations = rows_per_group // candidate
-        stages = 2 if iterations > 1 else 1
-        if candidate * N * itemsize * stages <= budget:
-            rows_per_iter = candidate
-            break
-    P = 0
-    for candidate in _P_CANDIDATES:
-        if N % candidate == 0 and rows_per_iter * candidate <= _MAX_ROWS_TIMES_P:
-            P = candidate
-            break
-    if P == 0:
-        cap = max(1, min(N, _MAX_ROWS_TIMES_P // rows_per_iter, _MAX_THREADS // rows_per_iter))
-        P = _largest_divisor_leq(N, cap)
-    return (num_blocks, rows_per_iter, P)
-
-
-@functools.lru_cache(maxsize=None)
-def _build_cumsum_kernel(
-    N: int, dtype_str: str, num_blocks: int, rows_per_iter: int, iterations: int, P: int
-):
-    """Build the three-phase block-scan program for one ``(N, dtype, tiling)`` instance."""
-    chunk = N // P
-    threads = rows_per_iter * P
-    assert threads <= _MAX_THREADS, f"threads={threads} exceeds the {_MAX_THREADS} SIMT cap"
-    assert chunk * P == N, f"P={P} must divide N={N} exactly"
+@functools.lru_cache(maxsize=256)
+def build(m, n, dtype):
+    width = min(8192, max(64, tilelang.next_power_of_2(n)))
+    rows = 1
+    groups = (m + rows - 1) // rows
+    blocks = min(64, groups)
+    parts = (n + width - 1) // width
 
     @T.prim_func
-    def main(
-        X: T.Tensor((num_blocks * iterations * rows_per_iter, N), dtype_str),
-        Y: T.Tensor((num_blocks * iterations * rows_per_iter, N), dtype_str),
-    ):
-        with T.Kernel(num_blocks) as bx:
-            x_ub = T.alloc_shared((rows_per_iter, N), dtype_str)
-            totals_ub = T.alloc_shared((rows_per_iter, P), "float32")
-            offsets_ub = T.alloc_shared((rows_per_iter, P), "float32")
-            if iterations > 1:
-                T.annotate_buffer_versions({x_ub: 2, totals_ub: 2, offsets_ub: 2})
-                for it in T.Pipelined(iterations, num_stages=2):
-                    row0 = (it * num_blocks + bx) * rows_per_iter
-                    T.copy(X[row0 : row0 + rows_per_iter, :], x_ub)
-                    with T.SimtVF(threads=threads):
-                        acc = T.alloc_fragment((rows_per_iter, P), "float32")
-                        for r, p in T.Parallel(rows_per_iter, P):
-                            acc[r, p] = T.float32(0)
-                        for c in range(chunk):
-                            for r, p in T.Parallel(rows_per_iter, P):
-                                v = T.cast(x_ub[r, p * chunk + c], "float32")
-                                acc[r, p] = acc[r, p] + v
-                                x_ub[r, p * chunk + c] = T.cast(acc[r, p], dtype_str)
-                        T.copy(acc, totals_ub)
-                    for r in range(rows_per_iter):
-                        running = T.alloc_var("float32", init=0.0)
-                        for p in range(P):
-                            offsets_ub[r, p] = running
-                            running = running + totals_ub[r, p]
-                    with T.SimtVF(threads=threads):
-                        for c in range(chunk):
-                            for r, p in T.Parallel(rows_per_iter, P):
-                                v = T.cast(x_ub[r, p * chunk + c], "float32") + offsets_ub[r, p]
-                                x_ub[r, p * chunk + c] = T.cast(v, dtype_str)
-                    T.copy(x_ub, Y[row0 : row0 + rows_per_iter, :])
-            else:
-                row0 = bx * rows_per_iter
-                T.copy(X[row0 : row0 + rows_per_iter, :], x_ub)
-                with T.SimtVF(threads=threads):
-                    acc = T.alloc_fragment((rows_per_iter, P), "float32")
-                    for r, p in T.Parallel(rows_per_iter, P):
-                        acc[r, p] = T.float32(0)
-                    for c in range(chunk):
-                        for r, p in T.Parallel(rows_per_iter, P):
-                            v = T.cast(x_ub[r, p * chunk + c], "float32")
-                            acc[r, p] = acc[r, p] + v
-                            x_ub[r, p * chunk + c] = T.cast(acc[r, p], dtype_str)
-                    T.copy(acc, totals_ub)
-                for r in range(rows_per_iter):
-                    running = T.alloc_var("float32", init=0.0)
-                    for p in range(P):
-                        offsets_ub[r, p] = running
-                        running = running + totals_ub[r, p]
-                with T.SimtVF(threads=threads):
-                    for c in range(chunk):
-                        for r, p in T.Parallel(rows_per_iter, P):
-                            v = T.cast(x_ub[r, p * chunk + c], "float32") + offsets_ub[r, p]
-                            x_ub[r, p * chunk + c] = T.cast(v, dtype_str)
-                T.copy(x_ub, Y[row0 : row0 + rows_per_iter, :])
+    def main(X: T.Tensor((m, n), dtype), Y: T.Tensor((m, n), dtype)):
+        with T.Kernel(blocks) as bx:
+            x = T.alloc_shared((rows, width), dtype)
+            state = T.alloc_shared((rows, 8), "float32")
+            for group in T.serial((groups + blocks - 1) // blocks):
+                row = (group * blocks + bx) * rows
+                if row < m:
+                    T.fill(state, 0)
+                    for part in T.serial(parts):
+                        begin = part * width
+                        count = T.min(width, n - begin)
+                        T.copy(X[row : row + 1, begin : begin + count], x[:, :count])
+                        _scan(x, x, state, rows, count, dtype)
+                        T.copy(x[:, :count], Y[row : row + 1, begin : begin + count])
 
-    return tilelang.compile(main, target="ascend", out_idx=-1)
+    return tilelang.compile(main, target="ascend", out_idx=[1])
 
 
 class AscendCumsumKernel(Kernel, CumsumFwdInterface):
-    """Ascend NPU inclusive prefix sum (cumsum) along a contiguous trailing axis."""
-
     devices: ClassVar[frozenset[str]] = frozenset({"npu"})
-    supported_archs = None
 
     @classmethod
-    def entry_for(cls, call: CumulativeCall) -> Entry:
-        return (call, lambda: cls(call))
+    def entry_for(cls, call):
+        return call, lambda: cls(call)
 
-    def __init__(self, call: CumulativeCall) -> None:
-        if call.op_kind != "sum":
-            raise ValueError(f"AscendCumsumKernel only serves op_kind='sum', got {call.op_kind!r}")
-        super().__init__(device_index=call.device.index if call.device is not None else None)
+    def __init__(self, call):
+        super().__init__()
+        self.call = call
         self.M = call.m
         self.N = call.n
         self.dtype = call.dtype
         self.scan_axis = call.axis
-        itemsize = torch_dtype_nbytes(self.dtype)
-        num_cores = _num_vector_cores()
-        num_blocks, rows_per_iter, P = _pick_tiling(self.M, self.N, itemsize, num_cores)
-        iterations = self.M // num_blocks // rows_per_iter
-        self.tiling = {
-            "num_blocks": num_blocks,
-            "rows_per_iter": rows_per_iter,
-            "iterations": iterations,
-            "P": P,
-        }
-        self.kernel = _build_cumsum_kernel(
-            self.N, self.dtype_str, num_blocks, rows_per_iter, iterations, P
-        )
+        if call.op_kind != "sum":
+            raise ValueError("Expected sum scan")
+        if call.dtype not in (torch.float16, torch.bfloat16, torch.float32):
+            raise TypeError("Unsupported cumsum dtype")
+        self.empty = self.M == 0 or self.N == 0
+        if not self.empty:
+            self.kernel = build(self.M, self.N, str(call.dtype).split(".")[-1])
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Scan ``self.scan_axis`` of *x*; nothing is written in place."""
-        if x.device.type != "npu":
-            raise ValueError(
-                f"{type(self).__name__} is an Ascend NPU kernel; got {x.device}. Another target's backend serves other devices."
-            )
-        x = vector_aligned(x)
-        in_shape = tuple(x.shape)
-        axes = (self.scan_axis,)
-        rows = rows_for_axes(x, axes)
-        if tuple(rows.shape) != (self.M, self.N):
-            raise ValueError(
-                f"{type(self).__name__} was built for an ({self.M}, {self.N}) row layout, got {tuple(rows.shape)}"
-            )
-        y = self.kernel(rows)
-        return restore_same_shape(y, in_shape, axes)
+    def forward(self, x):
+        if tuple(x.shape) != self.call.shape or x.dtype != self.dtype:
+            raise ValueError("Input signature changed")
+        if self.empty:
+            return torch.empty_like(x)
+        if x.is_neg():
+            x = x.resolve_neg()
+        arg = x.movedim(self.scan_axis, -1).contiguous().reshape(self.M, self.N)
+        y = self.kernel(arg)
+        kept = self.call.shape[: self.scan_axis] + self.call.shape[self.scan_axis + 1 :]
+        return y.reshape(*kept, self.N).movedim(-1, self.scan_axis)
 
 
 register_kernel_type("CumsumFwdOp", "ascend", AscendCumsumKernel)
