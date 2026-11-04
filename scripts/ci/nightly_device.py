@@ -11,6 +11,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "nightly_support"))
 
 
+def registered_ascend_ops(registered):
+    """Include all named Ascend implementations, including train/infer variants."""
+    return sorted(
+        op
+        for op, types in registered.items()
+        if any(name == "ascend" or name.startswith("ascend_") for name in types)
+    )
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--source", type=Path, required=True)
@@ -46,11 +55,7 @@ def main():
     assert "Ascend950" in hardware["device"] and (hardware["cube"], hardware["vector"]) == (32, 64)
     registry.ensure_loaded()
     assert not registry.LOAD_FAILURES, registry.LOAD_FAILURES
-    selected = sorted(
-        op
-        for op, types in registry.REGISTERED_KERNEL_TYPES.items()
-        if any(name == "ascend" or name.startswith("ascend_") for name in types)
-    )
+    selected = registered_ascend_ops(registry.REGISTERED_KERNEL_TYPES)
     if a.op == "__list__":
         a.output.write_text(
             json.dumps(
