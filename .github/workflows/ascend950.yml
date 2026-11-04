@@ -1,60 +1,136 @@
 name: Ascend 950
-
 on:
   push:
     branches: [ascend950]
   pull_request:
     branches: [ascend950]
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
-
+    inputs:
+      mode:
+        description: CPU, selected operator correctness, or full registered-operator regression
+        type: choice
+        options: [cpu, correctness, regression, performance]
+        default: cpu
+      revision:
+        description: Commit SHA or PR head ref to verify (blank uses this branch)
+        default: ''
+      operators:
+        description: Comma-separated manifest op names for correctness
+        default: ''
 permissions:
   contents: read
-
 concurrency:
-  group: ascend950-${{ github.ref }}
-  cancel-in-progress: false
-
+  group: ascend950-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.revision || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   preflight:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, tileops-cpu-server2]
+    timeout-minutes: 30
+    env:
+      TORCH_DEVICE_BACKEND_AUTOLOAD: "0"
+      CXX: /opt/tileops-ci/server2-20261030/compiler/usr/bin/g++-12
+      TORCHINDUCTOR_CACHE_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-inductor
+      TORCH_EXTENSIONS_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-extensions
+      TRITON_CACHE_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-triton
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - uses: pre-commit/action@v3.0.1
-        with:
-          extra_args: --all-files --show-diff-on-failure
-      - name: Install contract dependencies
-        run: pip install -e '.[dev]' -c constraints.txt
-      - name: CPU contracts
-        run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/ascend950-cpu"
+          ref: ${{ inputs.revision || github.sha }}
+          persist-credentials: false
+      - name: Check canonical compiler profile without device initialization
+        run: |
+          source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
+          python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/toolchain-cpu.json"
+      - name: Baseline contract matching regression (CPU only)
+        run: python scripts/ci/test_pr_baseline_contract.py
+      - name: CPU contracts (NPU autoload disabled)
+        run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/cpu-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ascend950-cpu
-          path: ${{ runner.temp }}/ascend950-cpu
-          if-no-files-found: warn
-
-  npu-correctness:
+          path: ${{ runner.temp }}/cpu-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ascend950-toolchain-cpu
+          path: ${{ runner.temp }}/toolchain-cpu.json
+  pr-performance:
     needs: preflight
-    if: github.repository == 'yyttt6/TileOPs' && github.event_name != 'pull_request'
-    runs-on: [self-hosted, linux, ascend-950]
-    timeout-minutes: 110
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'performance')
+    runs-on: [self-hosted, tileops-npu-server2, ascend950-32core]
+    timeout-minutes: 720
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.revision || github.sha }}
+          fetch-depth: 0
           persist-credentials: false
-      - name: Verify the actual checkout on Ascend 950
-        shell: bash
+      - uses: actions/checkout@v4
+        with:
+          ref: ascend950
+          path: ci-harness
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: yyttt6/TileOPs.github.io
+          ref: f2c73016c424f84d1d44e4419c9caa0d24f8133c
+          path: baseline-cache
+          persist-credentials: false
+      - name: Verify published baseline snapshot
+        run: |
+          echo "cd35c585cc97fadb890eb2b4ff2b257e774ed9243ad1050f9b32067d78760881  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
+      - name: Changed operator correctness then performance
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950' }}
         run: |
           set -eo pipefail
-          test -n "$ASCEND_ENV_SCRIPT"
-          source "$ASCEND_ENV_SCRIPT"
-          python scripts/ci/ascend950.py --phase device --output "$RUNNER_TEMP/ascend950-device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
+          source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
+          export TILELANG_CACHE_DIR="$RUNNER_TEMP/pr-perf-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
+          TORCH_DEVICE_BACKEND_AUTOLOAD=0 python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/pr-toolchain.json"
+          python ci-harness/scripts/ci/pr_performance.py --base "$PR_BASE" --baseline baseline-cache/data/baseline-cache/snapshot.json --output "/opt/tileops-ci/server2-20261030/pr-evidence/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ascend950-pr-performance
+          path: |
+            /opt/tileops-ci/server2-20261030/pr-evidence/${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ runner.temp }}/pr-toolchain.json
+          retention-days: 90
+  device:
+    needs: preflight
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'cpu' && inputs.mode != 'performance')
+    runs-on: [self-hosted, tileops-npu-server2, ascend950-32core]
+    timeout-minutes: 180
+    concurrency:
+      group: ascend950-device
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+          persist-credentials: false
+      - name: Correctness under the host NPU reservation
+        env:
+          CI_MODE: ${{ inputs.mode || 'regression' }}
+          CI_OPERATORS: ${{ inputs.operators }}
+        run: |
+          set -eo pipefail
+          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
+          source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
+          TORCH_DEVICE_BACKEND_AUTOLOAD=0 python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/toolchain-npu.json"
+          python /opt/tileops-ci/server2-20261030/config/device-job.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ascend950-device
-          path: ${{ runner.temp }}/ascend950-device-${{ github.run_id }}-${{ github.run_attempt }}
-          if-no-files-found: error
+          path: ${{ runner.temp }}/device-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ascend950-toolchain-npu
+          path: ${{ runner.temp }}/toolchain-npu.json

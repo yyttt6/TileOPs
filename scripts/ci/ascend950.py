@@ -50,7 +50,9 @@ def main():
                         "tests/test_validate_manifest.py",
                         "tests/test_check_bench_coverage.py",
                         "tests/test_target_conformance.py",
+                        "tests/test_ascend_toolchain.py",
                         "tests/test_kernel_dispatch.py",
+                        "tests/test_pool_workload.py",
                         f"--junitxml={output / 'contracts.xml'}",
                     ],
                 ),
@@ -91,6 +93,7 @@ def main():
     for name, command in steps:
         if (
             name != "manifest-device"
+            and env.get("TORCH_DEVICE_BACKEND_AUTOLOAD") != "0"
             and Path("/usr/local/Ascend/driver/lib64/driver/libdrvdsmi_host.so").exists()
         ):
             # Imports on an NPU host also belong to the host reservation.

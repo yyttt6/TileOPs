@@ -111,7 +111,7 @@ def main(argv=None):
     reservation = require_reservation()
     if not args.verify_only and args.clock_config is None:
         parser.error("formal benchmark requires --clock-config; no unlocked fallback")
-    if version("tilelang") != "0.1.15":
+    if version("tilelang").split("+", 1)[0] != "0.1.15":
         raise RuntimeError("This protocol requires the official TileLang 0.1.15 release")
     before = source_fingerprint()
     _write(args.run_dir / "sources.json", before)
@@ -135,6 +135,10 @@ def main(argv=None):
     manifest = load_manifest()
     supported = {op for op, kinds in registry.REGISTERED_KERNEL_TYPES.items() if "ascend" in kinds}
     selected = sorted(supported) if args.op == ["all"] else args.op
+    if not selected:
+        raise RuntimeError(
+            "No Ascend operators registered; check the installed backend entry point"
+        )
     missing = set(selected) - supported
     if missing:
         raise ValueError(f"No Ascend implementation registered: {sorted(missing)}")
