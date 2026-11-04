@@ -46,6 +46,12 @@ class _LogicalReduceOpBase(_ReduceOpBase):
         """One element: whether it is nonzero."""
         return (x != 0).to(self._output)
 
+    def _noop_forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Keep imaginary truth when Ascend's complex-to-bool cast drops it."""
+        if x.device.type == "npu" and x.is_complex():
+            return self._scalar_forward(x)
+        return super()._noop_forward(x)
+
     def _call(self, x: torch.Tensor, axes: "tuple[int, ...]", n: int) -> LogicalReduceCall:
         """The facts that pick a logical reduction implementation and build it."""
         return LogicalReduceCall(

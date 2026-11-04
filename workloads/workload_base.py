@@ -102,7 +102,9 @@ class CallWorkload(WorkloadBase):
         return tuple(tensors[t] for t in self.call.signature.inputs)
 
     def arguments(self) -> dict[str, Any]:
-        return self.call.arguments(self.call.materialize(self.device))
+        # Most constructors use metadata only; avoid generating unused input tensors.
+        tensors = self.call.materialize(self.device) if self.call.signature.ctor_tensors else {}
+        return self.call.arguments(tensors)
 
 
 class RandnWorkload(WorkloadBase):
