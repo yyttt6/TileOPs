@@ -1,4 +1,4 @@
-"""Changed-operator correctness and audited performance against a frozen baseline."""
+"""Changed-operator timing with output verification against a frozen baseline."""
 
 import argparse
 import ast
@@ -140,6 +140,7 @@ def main():
             str(target),
             "--op",
             op,
+            "--verify-measured-output",
         ]
         with (out / f"{op}.log").open("w") as log:
             return subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
@@ -156,29 +157,11 @@ def main():
         dict(
             commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
             base=a.base,
+            correctness_protocol="final-profile-output-v1",
             baseline_sha256=hashlib.sha256(a.baseline.read_bytes()).hexdigest(),
         ),
     )
-    # Complete correctness first. No performance is measured if this gate fails.
-    for op in ops:
-        cmd = [
-            sys.executable,
-            "scripts/benchmark_ascend.py",
-            "--guard",
-            "/usr/local/libexec/ascend-npu/npu_guard.py",
-            "--owner",
-            f"pr/correctness/{op}",
-            "--wait",
-            "1800",
-            "--timeout",
-            "7200",
-            "--run-dir",
-            str(out / f"correctness-{op}"),
-            "--verify-only",
-            "--op",
-            op,
-        ]
-        subprocess.run(cmd, check=True)
+    # Each case checks its final timed output; the device helper stops on failure.
     sys.path.insert(0, str(HERE / "nightly_support"))
     import math
 
