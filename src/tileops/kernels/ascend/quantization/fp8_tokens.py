@@ -9,6 +9,7 @@ import tilelang.ascend.language as T
 @functools.lru_cache(maxsize=64)
 def build_fp8_tokens(rows: int, width: int, dtype: str):
     tile = 8192
+    lanes = 1 if width == 128 else 4
     n = rows * width
     blocks = min(64, (n + tile - 1) // tile)
 
@@ -33,53 +34,70 @@ def build_fp8_tokens(rows: int, width: int, dtype: str):
                         one = T.simd.pset(32, "PAT_VL1")
                         limit = T.simd.vdup(T.float32(448), "float32")
                         negative = T.simd.vdup(T.float32(-448), "float32")
-                        for group in T.serial(tile // width):
-                            peak = T.simd.alloc_local((1,), "float32")
-                            peak[0] = T.simd.vdup(T.float32(1e-4), "float32")
-                            for part in T.serial(T.ceildiv(width, 64)):
-                                if dtype == "float32":
-                                    value = T.simd.vld(raw[group * width + part * 64])
-                                else:
-                                    value = T.simd.vcvt(
-                                        T.simd.vld(raw[group * width + part * 64], dist="UNPK_B16"),
-                                        "float32",
-                                        part=0,
+                        for batch in T.serial(T.ceildiv(count // width, lanes)):
+                            values = T.simd.alloc_local((lanes, T.ceildiv(width, 64)), "float32")
+                            peaks = T.simd.alloc_local((lanes,), "float32")
+                            factors = T.simd.alloc_local((lanes,), "float32")
+                            for lane in T.unroll(lanes):
+                                group = batch * lanes + lane
+                                peaks[lane] = T.simd.vdup(T.float32(1e-4), "float32")
+                                if group < count // width:
+                                    for part in T.unroll(T.ceildiv(width, 64)):
+                                        if dtype == "float32":
+                                            value = T.simd.vld(raw[group * width + part * 64])
+                                        else:
+                                            value = T.simd.vcvt(
+                                                T.simd.vld(
+                                                    raw[group * width + part * 64], dist="UNPK_B16"
+                                                ),
+                                                "float32",
+                                                part=0,
+                                            )
+                                        values[lane, part] = value
+                                        peaks[lane] = T.simd.vmax(
+                                            peaks[lane],
+                                            T.simd.vabs(value, row_mask),
+                                            full,
+                                        )
+                            for lane in T.unroll(lanes):
+                                group = batch * lanes + lane
+                                if group < count // width:
+                                    maximum = T.simd.vdupv(
+                                        T.simd.vcmax(peaks[lane], row_mask), full
                                     )
-                                peak[0] = T.simd.vmax(
-                                    peak[0],
-                                    T.simd.vcmax(T.simd.vabs(value, row_mask), row_mask),
-                                    full,
-                                )
-                            maximum = T.simd.vdupv(peak[0], full)
-                            scale = T.simd.vdiv(maximum, limit, full, precision="exact")
-                            T.simd.vsts(scales[group], scale, one, "ONEPT_B32")
-                            for part in T.serial(T.ceildiv(width, 64)):
-                                if dtype == "float32":
-                                    value = T.simd.vld(raw[group * width + part * 64])
-                                else:
-                                    value = T.simd.vcvt(
-                                        T.simd.vld(raw[group * width + part * 64], dist="UNPK_B16"),
-                                        "float32",
-                                        part=0,
+                                    factors[lane] = T.simd.vdiv(
+                                        maximum, limit, full, precision="exact"
                                     )
-                                quotient = T.simd.vdiv(value, scale, row_mask, precision="exact")
-                                clipped = T.simd.vmin(
-                                    T.simd.vmax(quotient, negative, row_mask), limit, row_mask
-                                )
-                                encoded = T.simd.vcvt(
-                                    clipped,
-                                    "float8_e4m3fn",
-                                    row_mask,
-                                    round="ROUND_R",
-                                    sat=True,
-                                    part=0,
-                                )
-                                T.simd.vsts(
-                                    codes[group * width + part * 64],
-                                    T.reinterpret(encoded, "uint8x256"),
-                                    row_mask,
-                                    "PK4_B32",
-                                )
+                                    T.simd.vsts(scales[group], factors[lane], one, "ONEPT_B32")
+                            for lane in T.unroll(lanes):
+                                group = batch * lanes + lane
+                                if group < count // width:
+                                    for part in T.unroll(T.ceildiv(width, 64)):
+                                        quotient = T.simd.vdiv(
+                                            values[lane, part],
+                                            factors[lane],
+                                            row_mask,
+                                            precision="exact",
+                                        )
+                                        clipped = T.simd.vmin(
+                                            T.simd.vmax(quotient, negative, row_mask),
+                                            limit,
+                                            row_mask,
+                                        )
+                                        encoded = T.simd.vcvt(
+                                            clipped,
+                                            "float8_e4m3fn",
+                                            row_mask,
+                                            round="ROUND_R",
+                                            sat=True,
+                                            part=0,
+                                        )
+                                        T.simd.vsts(
+                                            codes[group * width + part * 64],
+                                            T.reinterpret(encoded, "uint8x256"),
+                                            row_mask,
+                                            "PK4_B32",
+                                        )
                     T.copy(codes[:count], Q[begin : begin + count])
                     T.copy(
                         scales[: count // width], Scale[begin // width : (begin + count) // width]
