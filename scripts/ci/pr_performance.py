@@ -158,6 +158,15 @@ def main():
             commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
             base=a.base,
             correctness_protocol="final-profile-output-v1",
+            harness_sources={
+                name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
+                for name in (
+                    "pr_performance.py",
+                    "nightly_device.py",
+                    "measured_correctness.py",
+                    "nightly_support/complete_profile.py",
+                )
+            },
             baseline_sha256=hashlib.sha256(a.baseline.read_bytes()).hexdigest(),
         ),
     )
@@ -184,6 +193,7 @@ def main():
         for line in (target / "results.jsonl").read_text().splitlines():
             row = json.loads(line)
             assert row["status"] == "passed"
+            assert row["correctness_source"] == "final-profile-repeat"
             coverage = json.loads(Path(row["measurement"]["profile_coverage_evidence"]).read_text())
             assert len(coverage) >= 15
             for c in coverage[-15:]:
