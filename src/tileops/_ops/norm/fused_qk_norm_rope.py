@@ -5,6 +5,8 @@ Provides:
     in place
 """
 
+from tileops._kernels.norm.fused_extended_call_spec import QKNormRoPECall, QKNormRoPEInterface
+
 from typing import ClassVar, Mapping
 
 import torch
@@ -43,6 +45,7 @@ class FusedQKNormRoPEFwdOp(Op):
         "fused_qk_norm_rope": FusedQKNormRoPEKernel
     }
     interfaces: ClassVar[Mapping[str, type[KernelInterface]]] = {
+        "ascend_qk_norm_rope": QKNormRoPEInterface,
         "fused_qk_norm_rope": FusedQKNormRoPEFwdInterface
     }
 
@@ -96,6 +99,31 @@ class FusedQKNormRoPEFwdOp(Op):
         Returns:
             None; ``qkv`` is mutated and no other tensor is touched.
         """
+        if qkv.device.type == "npu":
+            ascend_call = QKNormRoPECall(
+                device=qkv.device,
+                tokens=qkv.shape[0],
+                heads=self.num_heads,
+                kv_heads=self.num_kv_heads,
+                dim=q_weight.numel(),
+                cache_rows=cos_sin_cache.shape[0],
+                rotary_dim=cos_sin_cache.shape[1],
+                dtype=qkv.dtype,
+                cache_dtype=cos_sin_cache.dtype,
+                eps=self.eps,
+                layout=self.rope_layout,
+            )
+            contiguous = qkv.contiguous()
+            self.kernel_for("ascend_qk_norm_rope", ascend_call)(
+                contiguous,
+                q_weight.contiguous(),
+                k_weight.contiguous(),
+                cos_sin_cache.contiguous(),
+                positions.contiguous(),
+            )
+            if contiguous is not qkv:
+                qkv.copy_(contiguous)
+            return None
         # qkv is declared contiguous and mutated, so it is handed over as it arrived: a copy
         # would take the write with it.
         self.kernel_for(

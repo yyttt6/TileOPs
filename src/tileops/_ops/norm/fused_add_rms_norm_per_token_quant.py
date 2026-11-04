@@ -1,3 +1,4 @@
+from tileops._kernels.norm.fused_extended_call_spec import FusedRMSQuantCall, FusedRMSQuantInterface
 from typing import ClassVar, Mapping, Optional, Tuple
 
 import torch
@@ -59,6 +60,7 @@ class FusedAddRMSNormPerTokenQuantFwdOp(Op):
         "fused_add_rms_norm_per_token_quant_stream": FusedAddRMSNormPerTokenQuantStreamKernel,
     }
     interfaces: ClassVar[Mapping[str, type[KernelInterface]]] = {
+        "ascend_fused_rms_quant": FusedRMSQuantInterface,
         "fused_add_rms_norm_per_token_quant": FusedAddRMSNormPerTokenQuantFwdInterface
     }
 
@@ -108,6 +110,20 @@ class FusedAddRMSNormPerTokenQuantFwdOp(Op):
         n = input.shape[-1]
         leading = input.shape[:-1]
         rows = input.reshape(-1, n).contiguous()
+        if input.device.type == "npu":
+            ascend_call = FusedRMSQuantCall(
+                device=input.device,
+                rows=rows.shape[0],
+                cols=n,
+                dtype=input.dtype,
+                quant_dtype=str(self.quant_dtype).removeprefix("torch."),
+                eps=self.eps,
+                scale_ub=self.scale_ub,
+            )
+            q, scale, residual_out = self.kernel_for("ascend_fused_rms_quant", ascend_call)(
+                rows, residual.reshape(-1, n).contiguous(), weight.contiguous()
+            )
+            return q.reshape_as(input), scale.reshape(*leading, 1), residual_out.reshape_as(input)
         kernel = self.kernel_for(
             "fused_add_rms_norm_per_token_quant",
             lambda: RMSNormQuantCall(
