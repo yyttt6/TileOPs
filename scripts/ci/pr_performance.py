@@ -4,12 +4,28 @@ import argparse
 import ast
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+
+
+def canonical_contract(value):
+    """Normalize JSON representations of non-finite workload parameters only."""
+    if isinstance(value, float) and not math.isfinite(value):
+        if math.isnan(value):
+            return "NaN"
+        return "Infinity" if value > 0 else "-Infinity"
+    if isinstance(value, str) and value in ("inf", "-inf"):
+        return "Infinity" if value == "inf" else "-Infinity"
+    if isinstance(value, dict):
+        return {key: canonical_contract(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [canonical_contract(item) for item in value]
+    return value
 
 
 def select(root, base):
@@ -206,7 +222,8 @@ def main():
                 for b in baseline["rows"]
                 if b["op"] == op
                 and b["case"] == row["case_id"]
-                and b["workload"]["params"] == row["params"]
+                and canonical_contract(b["workload"]["params"])
+                == canonical_contract(row["params"])
             ]
             us = row["measurement"]["latency_ms"] * 1000
             rows.append(
