@@ -105,10 +105,11 @@ else:
                                 result=T.alloc_fragment((1,),'float32');T.finalize_reducer(peak,result)
                                 stats[1]=T.max(stats[1],result[0])
                         with T.SimtVF(threads=32):
+                            if cap is not None:stats[1]=T.min(stats[1],T.float32(cap))
                             estimate=stats[1]/maximum
                             remainder=T.call_extern('float32','fmaf',-estimate,T.float32(maximum),stats[1])
                             stats[2]=estimate+remainder*T.float32(1.0/maximum)
-                            if cap is not None:stats[2]=T.min(stats[2],T.float32(cap))
+                            stats[2]=T.max(stats[2],T.float32(1.0/(448.0*512.0) if quant_dtype=='float8_e4m3fn' else 1.1920928955078125e-7))
                             scale_out[0]=stats[2]
                         T.copy(scale_out[:1],S[row,:1])
                         for chunk in T.serial((n+width-1)//width):
