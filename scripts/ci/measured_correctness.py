@@ -10,8 +10,6 @@ def measure_and_verify(case, impl, measure, *, expected_calls):
     warmup calls). Capture is just a Python reference assignment, never device work.
     The timer must synchronize before returning. Custom probes remain real executions.
     """
-    import torch
-
     from workloads.numerics import (
         Custom,
         Request,
@@ -45,8 +43,7 @@ def measure_and_verify(case, impl, measure, *, expected_calls):
         return produced
 
     try:
-        with torch.no_grad():
-            measurement = measure(capture)
+        measurement = measure(capture)
         if calls != expected_calls or len(final) != 1:
             raise AssertionError(f"timer call count changed: {calls} != {expected_calls}")
         _require_unchanged(shared, pristine)
@@ -71,8 +68,7 @@ def measure_and_verify(case, impl, measure, *, expected_calls):
             _restore(own, own_pristine)
             if impl.reset is not None:
                 impl.reset()
-            with torch.no_grad():
-                evidence.probe(impl.run, args)
+            evidence.probe(impl.run, args)
             _require_unchanged(shared, pristine)
         return asdict(checked), measurement
     finally:
