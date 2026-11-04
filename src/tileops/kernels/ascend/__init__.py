@@ -2,6 +2,7 @@
 
 from tileops.kernels.ascend import (
     elementwise,
+    fft,
     gemm,
     moe,
     pool,
@@ -10,4 +11,13 @@ from tileops.kernels.ascend import (
     sequence_modeling,
 )
 
-__all__ = ["elementwise", "gemm", "moe", "pool", "quantization", "reduction", "sequence_modeling"]
+__all__ = [
+    "elementwise",
+    "fft",
+    "gemm",
+    "moe",
+    "pool",
+    "quantization",
+    "reduction",
+    "sequence_modeling",
+]
