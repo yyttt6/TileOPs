@@ -284,8 +284,19 @@ def test_unary_int_torch_fallback(op_cls, torch_fn, int_dtype) -> None:
         x = torch.randint(-50, 50, (n_total,), device=run_device(), dtype=int_dtype)
     y = op(x)
     assert y.dtype == int_dtype
+    # Device Neg/Sign omit these integer widths. Use CPU arithmetic on the
+    # actual input for those references, retaining the exact integer contract.
+    cpu_reference = (
+        op_cls is NegFwdOp and int_dtype in (torch.int16, torch.uint8)
+    ) or (
+        op_cls is SignFwdOp and int_dtype in (torch.int8, torch.int16, torch.uint8)
+    )
+    if x.device.type == "npu" and cpu_reference:
+        expected = torch_fn(x.cpu()).to(x.device)
+    else:
+        expected = torch_fn(x)
     compare_outputs(
-        y, torch_fn(x), ElementwiseWorkload(type(op).__name__, (x,)).verification(*(x,))
+        y, expected, ElementwiseWorkload(type(op).__name__, (x,)).verification(*(x,))
     )
 
 
@@ -331,22 +342,37 @@ def test_sqrt_edge(n_total: int, dtype: torch.dtype) -> None:
 
 @MathEdgeFixture
 def test_rsqrt_edge(n_total: int, dtype: torch.dtype) -> None:
-    _make_math_test(
+    class RsqrtEdgeTest(UnaryMathTest):
+        def ref_program(self, input):
+            # Device rsqrt flushes FP32 subnormals to zero on this backend.
+            # Use the actual stored input and an independent FP64 reference.
+            return torch.rsqrt(input.cpu().double()).to(device=input.device, dtype=input.dtype)
+
+    test = RsqrtEdgeTest(
         n_total,
         dtype,
-        lambda n, d: _repeat_values([-1.0, 0.0, 1e-38, 1.0], n, d),
-        RsqrtFwdOp,
+        "RsqrtFwdOp",
+        gen_fn=lambda n, d: _repeat_values([-1.0, 0.0, 1e-38, 1.0], n, d),
     )
+    test.check(RsqrtFwdOp(), *test.gen_inputs())
 
 
 @MathEdgeFixture
 def test_log_edge(n_total: int, dtype: torch.dtype) -> None:
-    _make_math_test(
+    class LogEdgeTest(UnaryMathTest):
+        def ref_program(self, input):
+            # Device log can flush FP32 subnormals to zero. Evaluate the
+            # actual stored input on CPU in FP64 so this test checks log's
+            # domain semantics independently of the device reference kernel.
+            return torch.log(input.cpu().double()).to(device=input.device, dtype=input.dtype)
+
+    test = LogEdgeTest(
         n_total,
         dtype,
-        lambda n, d: _repeat_values([-1.0, 0.0, 1e-38, 1.0], n, d),
-        LogFwdOp,
+        "LogFwdOp",
+        gen_fn=lambda n, d: _repeat_values([-1.0, 0.0, 1e-38, 1.0], n, d),
     )
+    test.check(LogFwdOp(), *test.gen_inputs())
 
 
 @MathEdgeFixture
