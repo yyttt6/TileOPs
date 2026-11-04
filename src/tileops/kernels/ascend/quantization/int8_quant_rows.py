@@ -9,6 +9,7 @@ import torch
 from tileops.backend import register_kernel_type
 from tileops.kernels.ascend.quantization.int8_group_tiles import build_group_tiles
 from tileops.kernels.ascend.quantization.int8_groups import build_fp16_groups
+from tileops.kernels.ascend.quantization.int8_row_stream import build_int8_row_stream
 from tileops.kernels.ascend.quantization.int8_scale import int8_divide, int8_scale
 from tileops.kernels.kernel_base import Kernel
 from tileops.kernels.quantization.call_spec import (
@@ -156,8 +157,19 @@ class _RowsKernel(Kernel):
         self._batched = (
             self.grouped and call.dtype == torch.float16 and call.cols % 128 == 0 and call.rows > 0
         )
+        # Leave room for scalar buffers and compiler alignment in the 216 KiB UB.
+        # The existing one-pass path stays in use whenever its buffers fit.
+        padded = (call.cols + 63) // 64 * 64
+        bytes_per_column = 4 + (4 if call.dtype == torch.float32 else 2) + 1
+        if self.smoothed:
+            bytes_per_column += 4
+        streamed = not self.grouped and padded * bytes_per_column > 216 * 1024 - 1024
         self._run = (
-            build_fp16_groups(call.rows * call.cols)
+            build_int8_row_stream(
+                call.rows, call.cols, str(call.dtype).split(".")[-1], self.smoothed
+            )
+            if streamed and call.rows
+            else build_fp16_groups(call.rows * call.cols)
             if self._batched
             else build_group_tiles(call.rows, call.cols, str(call.dtype).split(".")[-1])
             if self.grouped and call.rows

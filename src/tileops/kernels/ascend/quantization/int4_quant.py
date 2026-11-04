@@ -130,6 +130,13 @@ class AscendINT4QuantPerGroupKernel(Kernel, INT4QuantPerGroupFwdInterface):
     devices = frozenset({"npu"})
     supported_archs = None
 
+    @classmethod
+    def refusal(cls, call: QuantizeCall) -> str | None:
+        reason = super().refusal(call)
+        if reason is None and call.group_size % 2:
+            return "Ascend INT4 packing requires an even group_size"
+        return reason
+
     def __init__(self, call: QuantizeCall):
         super().__init__(device_index=call.device.index if call.device is not None else None)
         self.call = call

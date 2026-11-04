@@ -40,9 +40,17 @@ def build_int4_stream(n: int, group_size: int):
                             high = T.simd.alloc_local((1,), "float32")
                             low[0] = T.simd.vdup(parameters[0], "float32")
                             high[0] = T.simd.vdup(parameters[1], "float32")
-                            for v in T.serial(count // 64):
+                            for v in T.serial(T.ceildiv(count, 64)):
                                 values = T.simd.vcvt(
                                     T.simd.vld(raw[v * 64], dist="UNPK_B16"), "float32", part=0
+                                )
+                                valid = T.simd.vcmps(
+                                    T.simd.vci(v * 64, "int32"), count, full, op="lt"
+                                )
+                                # The last vector may contain stale tile data. A value
+                                # already included in the extrema is a neutral fill.
+                                values = T.simd.vsel(
+                                    values, T.simd.vdup(parameters[0], "float32"), valid
                                 )
                                 low[0] = T.simd.vmin(low[0], T.simd.vcmin(values, full), full)
                                 high[0] = T.simd.vmax(high[0], T.simd.vcmax(values, full), full)
@@ -84,7 +92,7 @@ def build_int4_stream(n: int, group_size: int):
                             )
                             even = T.simd.vshls(indices, T.int32(1), full)
                             odd = T.simd.vadds(even, T.int32(1), full)
-                            for v in T.serial(count // 64):
+                            for v in T.serial(T.ceildiv(count, 64)):
                                 values = T.simd.vcvt(
                                     T.simd.vld(raw[v * 64], dist="UNPK_B16"), "float32", part=0
                                 )

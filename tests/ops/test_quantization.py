@@ -556,3 +556,83 @@ def test_fp8_quant_per_block_edge_inputs(rows, cols, dtype, make) -> None:
     expected = tuple(t.to(x.device) for t in test.ref_program(x.cpu()))
     actual = FP8QuantPerBlockFwdOp()(x)
     compare_outputs(actual, expected, test.verification(x))
+
+
+@pytest.mark.parametrize(
+    "op_cls,dtype,cols",
+    [
+        pytest.param(op_cls, dtype, cols, marks=mark)
+        for cols, mark in [(65536, pytest.mark.smoke), (65539, pytest.mark.full)]
+        for op_cls, dtype in [
+            (INT8QuantPerChannelFwdOp, torch.float16),
+            (INT8QuantPerChannelFwdOp, torch.bfloat16),
+            (INT8QuantPerChannelFwdOp, torch.float32),
+            (SmoothQuantFwdOp, torch.float16),
+            (SmoothQuantFwdOp, torch.bfloat16),
+        ]
+    ],
+)
+def test_wide_row_quantize(op_cls, dtype, cols) -> None:
+    """A row may exceed shared memory; every chunk must use the whole row's scale."""
+    rows = 65 if cols % 64 else 3
+    test = _WORKLOADS[op_cls](rows, cols, dtype)
+    generator = torch.Generator().manual_seed(950)
+    x = torch.randn((rows, cols), generator=generator).to(dtype)
+    x[0] = 0
+    x[1, 0] = -12
+    x[2, -1] = 12
+    if rows > 3:
+        # The first block revisits a much smaller row; its previous peak must be reset.
+        x[0, 0] = 100
+        x[3] = 0
+        x[-1] *= 0.01
+    if dtype == torch.float32:
+        x[1] *= 2.0**-140
+    inputs = (x,)
+    if op_cls is SmoothQuantFwdOp:
+        smooth = torch.rand(cols, generator=generator) + 0.5
+        smooth[1::2] *= -1
+        inputs += (smooth,)
+    expected = tuple(t.to(run_device()) for t in test.ref_program(*inputs))
+    inputs = tuple(t.to(run_device()) for t in inputs)
+    compare_outputs(op_cls()(*inputs), expected, test.verification(*inputs))
+
+
+@pytest.mark.parametrize(
+    "group_size",
+    [
+        pytest.param(8194, marks=pytest.mark.smoke),
+        pytest.param(8254, marks=pytest.mark.full),
+        pytest.param(16386, marks=pytest.mark.full),
+    ],
+)
+def test_int4_ascend_partial_vector(group_size) -> None:
+    """Extrema in the final partial vector must affect both parameters and packed codes."""
+    if torch.device(run_device()).type != "npu":
+        pytest.skip("Ascend supports even groups beyond the CUDA group-size domain")
+    test = INT4QuantPerGroupWorkload(3, group_size, torch.float16, group_size)
+    x = torch.zeros((3, group_size), dtype=torch.float16)
+    x[0, -2:] = torch.tensor([-10.0, 10.0])
+    x[1] = 0.75
+    x[2] = torch.linspace(-3, 7, group_size)
+    expected = tuple(t.to(run_device()) for t in test.ref_program(x))
+    x = x.to(run_device())
+    compare_outputs(INT4QuantPerGroupFwdOp(group_size)(x), expected, test.verification(x))
+
+
+@pytest.mark.in_tree_kernels
+@pytest.mark.parametrize(
+    "group_size",
+    [
+        pytest.param(3, marks=pytest.mark.smoke),
+        pytest.param(1, marks=pytest.mark.full),
+        pytest.param(8193, marks=pytest.mark.full),
+    ],
+)
+def test_int4_ascend_declines_odd_groups(group_size) -> None:
+    """Packing across group boundaries is refused before a compiler is invoked."""
+    if torch.device(run_device()).type != "npu":
+        pytest.skip("Ascend built-in packing domain")
+    x = torch.zeros((1, group_size * 2), dtype=torch.float16, device=run_device())
+    with pytest.raises(ValueError, match="even group_size"):
+        INT4QuantPerGroupFwdOp(group_size)(x)
