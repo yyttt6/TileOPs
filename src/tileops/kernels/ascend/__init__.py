@@ -7,7 +7,17 @@ from tileops.kernels.ascend import (
     pool,
     quantization,
     reduction,
+    rope,
     sequence_modeling,
 )
 
-__all__ = ["elementwise", "gemm", "moe", "pool", "quantization", "reduction", "sequence_modeling"]
+__all__ = [
+    "elementwise",
+    "gemm",
+    "moe",
+    "pool",
+    "quantization",
+    "reduction",
+    "rope",
+    "sequence_modeling",
+]
