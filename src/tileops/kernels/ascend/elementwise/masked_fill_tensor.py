@@ -54,7 +54,8 @@ if T is not None:
         n = math.prod(out_shape)
         nx = math.prod(xs)
         nm = math.prod(ms)
-        tile = 16384 // itemsize
+        # Wider full tiles amortize DMA overhead. Keep room for separate tail buffers.
+        tile = (32768 if itemsize == 4 and n % 8192 == 0 else 16384) // itemsize
         stages = 3
         same = xs == out_shape and ms == out_shape
         full, tail = divmod(n, tile)
