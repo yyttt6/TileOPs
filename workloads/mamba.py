@@ -615,8 +615,17 @@ def ssd_chunk_state_fwd_ref(
         weight = weight * same.permute(0, 1, 3, 2)
 
     w = weight.permute(0, 1, 3, 2).unsqueeze(-1).unsqueeze(-1)
-    contrib = w * B_heads.unsqueeze(-1) * x_chunked.unsqueeze(-2)
-    out = contrib.sum(dim=2)
+    # Each chunk is independent. Bound the FP32 contribution temporary so the
+    # largest manifest case fits when the public verifier evaluates the reference.
+    elements_per_chunk = max(1, b * Q * h * n * p)
+    chunks_per_step = max(1, (1 << 27) // elements_per_chunk)
+    states = []
+    for start in range(0, c, chunks_per_step):
+        sl = slice(start, start + chunks_per_step)
+        states.append(
+            (w[:, sl] * B_heads[:, sl].unsqueeze(-1) * x_chunked[:, sl].unsqueeze(-2)).sum(dim=2)
+        )
+    out = torch.cat(states, dim=1)
     return out.permute(0, 1, 2, 4, 3)
 
 
