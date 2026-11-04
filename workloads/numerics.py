@@ -443,6 +443,12 @@ def _restore(tensors: list, snapshot: list) -> None:
 def _unchanged(tensors: list, snapshot: list) -> bool:
     try:
         for tensor, source in zip(tensors, snapshot, strict=True):
+            if tensor.device.type == "npu" and tensor.dtype.is_complex:
+                # Ascend IsClose lacks complex support. Preserve dtype and exact
+                # comparison semantics on CPU, including the imaginary component.
+                if tensor.device != source.device:
+                    return False
+                tensor, source = tensor.cpu(), source.cpu()
             torch.testing.assert_close(tensor, source, rtol=0, atol=0, equal_nan=True)
     except AssertionError:
         return False

@@ -222,8 +222,7 @@ def main():
                 for b in baseline["rows"]
                 if b["op"] == op
                 and b["case"] == row["case_id"]
-                and canonical_contract(b["workload"]["params"])
-                == canonical_contract(row["params"])
+                and canonical_contract(b["workload"]["params"]) == canonical_contract(row["params"])
             ]
             us = row["measurement"]["latency_ms"] * 1000
             rows.append(
