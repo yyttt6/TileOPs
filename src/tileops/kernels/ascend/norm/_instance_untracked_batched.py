@@ -136,8 +136,8 @@ def build_fp32(batch, channels, spatial, groups, dtype, eps, weighted, biased):
                                 err = T.call_extern('float32', 'fmaf', -argument, sq, T.float32(1)) - argument * sq_error - low * sq
                                 corrected = T.call_extern('float32', 'fmaf', T.float32(0.5) * estimate, err, estimate)
                                 inverse = T.if_then_else(v == 0, T.float32(zero_inverse), corrected)
-                                rounded_mean = T.cast(T.cast(means[r], dtype), 'float32')
-                                rounded_inverse = T.cast(T.cast(inverse, dtype), 'float32')
+                                rounded_mean = means[r] if dtype == 'float16' else T.cast(T.cast(means[r], dtype), 'float32')
+                                rounded_inverse = inverse if dtype == 'float16' else T.cast(T.cast(inverse, dtype), 'float32')
                                 weight = T.cast(w[(first + r) % channels], 'float32') if weighted else T.float32(1)
                                 bias = T.cast(b[(first + r) % channels], 'float32') if biased else T.float32(0)
                                 alpha = rounded_inverse * weight
@@ -247,8 +247,8 @@ def build_lowprecision(batch, channels, spatial, groups, dtype, eps, weighted, b
                                     inverse = T.if_then_else(var == 0, T.float32(zero_inverse), T.rsqrt(var + eps))
                                 else:
                                     inverse = T.if_then_else(vars[r] == 0, T.float32(zero_inverse), T.rsqrt(vars[r] / n + eps))
-                                rounded_mean = T.cast(T.cast(means[r], dtype), 'float32')
-                                rounded_inverse = T.cast(T.cast(inverse, dtype), 'float32')
+                                rounded_mean = means[r] if dtype == 'float16' else T.cast(T.cast(means[r], dtype), 'float32')
+                                rounded_inverse = inverse if dtype == 'float16' else T.cast(T.cast(inverse, dtype), 'float32')
                                 weight = T.cast(w[(first + r) % channels], 'float32') if weighted else T.float32(1)
                                 bias = T.cast(b[(first + r) % channels], 'float32') if biased else T.float32(0)
                                 alpha = rounded_inverse * weight
