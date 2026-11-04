@@ -365,11 +365,10 @@ def compare_outputs(produced: Any, expected: Any, evidence: Evidence) -> CheckRe
                     assert_normalized_error(got, target, evidence.normalized)
     # Metrics are diagnostics computed only after all comparisons succeed.
     maximum = 0.0
-    checked = 0
+    # Count structurally checked optional outputs alongside numerical outputs.
+    # An entirely non-numerical result still establishes no numerical verification.
+    checked = len(pairs) if any(pairs) else 0
     for output_pairs in pairs:
-        if not output_pairs:
-            continue
-        checked += 1
         for got, target in output_pairs:
             if not got.numel():
                 continue
