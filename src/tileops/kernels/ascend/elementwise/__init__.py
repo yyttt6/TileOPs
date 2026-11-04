@@ -31,16 +31,23 @@ from tileops.kernels.ascend.elementwise.comparison import (
     AscendLtKernel,
     AscendNeKernel,
 )
+from tileops.kernels.ascend.elementwise.cos import AscendCosKernel
 from tileops.kernels.ascend.elementwise.dropout import AscendDropoutKernel
 from tileops.kernels.ascend.elementwise.elu import AscendEluKernel
+from tileops.kernels.ascend.elementwise.erf import AscendErfKernel
 from tileops.kernels.ascend.elementwise.exp import AscendExpKernel
 from tileops.kernels.ascend.elementwise.expm1 import AscendExpm1Kernel
 from tileops.kernels.ascend.elementwise.floor import AscendFloorKernel
+from tileops.kernels.ascend.elementwise.gelu import AscendGeluKernel
+from tileops.kernels.ascend.elementwise.gelu_and_mul import AscendGeluAndMulKernel
+from tileops.kernels.ascend.elementwise.gelu_tanh_and_mul import AscendGeluTanhAndMulKernel
+from tileops.kernels.ascend.elementwise.hardsigmoid import AscendHardsigmoidKernel
 from tileops.kernels.ascend.elementwise.hardswish import AscendHardswishKernel
 from tileops.kernels.ascend.elementwise.hardtanh import AscendHardtanhKernel
 from tileops.kernels.ascend.elementwise.isfinite import AscendIsfiniteKernel
 from tileops.kernels.ascend.elementwise.isinf import AscendIsinfKernel
 from tileops.kernels.ascend.elementwise.isnan import AscendIsnanKernel
+from tileops.kernels.ascend.elementwise.leaky_relu import AscendLeakyReluKernel
 from tileops.kernels.ascend.elementwise.lerp import AscendLerpScalarKernel, AscendLerpTensorKernel
 from tileops.kernels.ascend.elementwise.log import AscendLogKernel
 from tileops.kernels.ascend.elementwise.log1p import AscendLog1pKernel
@@ -49,6 +56,7 @@ from tileops.kernels.ascend.elementwise.logical_not import AscendLogicalNotKerne
 from tileops.kernels.ascend.elementwise.logical_or import AscendLogicalOrKernel
 from tileops.kernels.ascend.elementwise.masked_fill_scalar import AscendMaskedFillScalarKernel
 from tileops.kernels.ascend.elementwise.masked_fill_tensor import AscendMaskedFillTensorKernel
+from tileops.kernels.ascend.elementwise.mish import AscendMishKernel
 from tileops.kernels.ascend.elementwise.nan_to_num import AscendNanToNumKernel
 from tileops.kernels.ascend.elementwise.neg import AscendNegKernel
 from tileops.kernels.ascend.elementwise.prelu import AscendPreluKernel
@@ -60,6 +68,8 @@ from tileops.kernels.ascend.elementwise.selu import AscendSeluKernel
 from tileops.kernels.ascend.elementwise.sigmoid import AscendSigmoidKernel
 from tileops.kernels.ascend.elementwise.sign import AscendSignKernel
 from tileops.kernels.ascend.elementwise.silu import AscendSiluKernel
+from tileops.kernels.ascend.elementwise.silu_and_mul import AscendSiluAndMulKernel
+from tileops.kernels.ascend.elementwise.sin import AscendSinKernel
 from tileops.kernels.ascend.elementwise.sinusoidal import AscendSinusoidalKernel
 from tileops.kernels.ascend.elementwise.softplus import AscendSoftplusKernel
 from tileops.kernels.ascend.elementwise.sqrt import AscendSqrtKernel
@@ -78,23 +88,30 @@ __all__ = [
     "AscendCeilKernel",
     "AscendClampScalarKernel",
     "AscendClampTensorKernel",
+    "AscendCosKernel",
     "AscendDivKernel",
     "AscendDropoutKernel",
     "AscendEluKernel",
     "AscendEqKernel",
+    "AscendErfKernel",
     "AscendExpKernel",
     "AscendExpm1Kernel",
     "AscendExtremaKernel",
     "AscendFloorDivideKernel",
     "AscendFloorKernel",
     "AscendGeKernel",
+    "AscendGeluAndMulKernel",
+    "AscendGeluKernel",
+    "AscendGeluTanhAndMulKernel",
     "AscendGtKernel",
+    "AscendHardsigmoidKernel",
     "AscendHardswishKernel",
     "AscendHardtanhKernel",
     "AscendIsfiniteKernel",
     "AscendIsinfKernel",
     "AscendIsnanKernel",
     "AscendLeKernel",
+    "AscendLeakyReluKernel",
     "AscendLerpScalarKernel",
     "AscendLerpTensorKernel",
     "AscendLog1pKernel",
@@ -107,6 +124,7 @@ __all__ = [
     "AscendMaskedFillTensorKernel",
     "AscendMaximumKernel",
     "AscendMinimumKernel",
+    "AscendMishKernel",
     "AscendMulKernel",
     "AscendNanToNumKernel",
     "AscendNeKernel",
@@ -121,7 +139,9 @@ __all__ = [
     "AscendSeluKernel",
     "AscendSigmoidKernel",
     "AscendSignKernel",
+    "AscendSiluAndMulKernel",
     "AscendSiluKernel",
+    "AscendSinKernel",
     "AscendSinusoidalKernel",
     "AscendSoftplusKernel",
     "AscendSqrtKernel",
