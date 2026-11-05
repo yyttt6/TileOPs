@@ -1,4 +1,4 @@
-"""NSA varlen benchmarks against eager PyTorch and FLA, using precompressed K/V.
+"""NSA varlen benchmarks against FLA forward kernels, using the same precompressed K/V.
 
 Top-k uses ``lse=None`` to include LSE computation on both sides. FLA's other two
 passes also write LSE; its cached sequence metadata helpers run warm during timing.
@@ -7,7 +7,7 @@ passes also write LSE; its cached sequence metadata helpers run warm during timi
 import pytest
 
 from benchmarks import api as bench
-from benchmarks.baselines import FLA_TAG, optional_baseline
+from benchmarks.baselines import FLA_TAG, fla_op
 from tileops.attention import NSACompressedVarlenFwdOp, NSATopKVarlenFwdOp, NSAVarlenFwdOp
 from workloads.attention.nsa import NSACompressedFwdCall, NSAFwdCall, NSATopKCall
 
@@ -18,9 +18,7 @@ def _fla_nsa_fwd(workload: NSAFwdCall):
     # non-causal form.
     if not workload.is_causal:
         return None
-    fwd = optional_baseline("fla.ops.nsa.parallel", "fla", "parallel_nsa_fwd")
-    if fwd is None:
-        return None
+    fwd = fla_op("ops.nsa.parallel.parallel_nsa_fwd")
 
     def fn(q, k, v, block_indices, block_counts, offsets, token_indices):
         o, _ = fwd(
@@ -42,9 +40,7 @@ def _fla_nsa_fwd(workload: NSAFwdCall):
 
 def _fla_nsa_compressed_fwd(workload: NSACompressedFwdCall):
     """Compression attention over the same compressed k/v. Adapts LSE to the workload's output dtype."""
-    fwd = optional_baseline("fla.ops.nsa.compression", "fla", "parallel_nsa_compression_fwd")
-    if fwd is None:
-        return None
+    fwd = fla_op("ops.nsa.compression.parallel_nsa_compression_fwd")
 
     def fn(q, k_cmp, v_cmp, offsets, _chunk_offsets, token_indices):
         o, lse = fwd(
@@ -65,9 +61,7 @@ def _fla_nsa_compressed_fwd(workload: NSACompressedFwdCall):
 
 def _fla_nsa_topk(workload: NSATopKCall):
     """Unmodified FLA selection, including LSE computation from the same Q/K."""
-    topk = optional_baseline("fla.ops.nsa.parallel", "fla", "parallel_nsa_topk")
-    if topk is None:
-        return None
+    topk = fla_op("ops.nsa.parallel.parallel_nsa_topk")
 
     def fn(q, k_cmp, offsets, _chunk_offsets, _token_indices):
         return topk(
@@ -88,10 +82,7 @@ def _fla_nsa_topk(workload: NSATopKCall):
 def test_nsa_compressed_fwd_varlen_bench(case) -> None:
     op = NSACompressedVarlenFwdOp(**case.arguments)
     fla_fn = _fla_nsa_compressed_fwd(case.workload)
-    implementations = {"torch-eager": case.reference}
-    if fla_fn is not None:
-        implementations[FLA_TAG] = fla_fn
-    bench.Runner(op, case).compare(implementations)
+    bench.Runner(op, case).compare({FLA_TAG: fla_fn})
 
 
 @pytest.mark.parametrize("case", bench.cases(NSATopKVarlenFwdOp), ids=lambda case: case.id)
@@ -99,17 +90,14 @@ def test_nsa_topk_varlen_bench(case) -> None:
     op = NSATopKVarlenFwdOp(**case.arguments)
     fla_fn = _fla_nsa_topk(case.workload)
 
-    implementations = {"torch-eager": case.reference}
-    if fla_fn is not None:
-        implementations[FLA_TAG] = fla_fn
-    bench.Runner(op, case).compare(implementations)
+    bench.Runner(op, case).compare({FLA_TAG: fla_fn})
 
 
 @pytest.mark.parametrize("case", bench.cases(NSAVarlenFwdOp), ids=lambda case: case.id)
 def test_nsa_fwd_varlen_bench(case) -> None:
     op = NSAVarlenFwdOp(**case.arguments)
     fla_fn = _fla_nsa_fwd(case.workload)
-    implementations = {"torch-eager": case.reference}
-    if fla_fn is not None:
-        implementations[FLA_TAG] = fla_fn
-    bench.Runner(op, case).compare(implementations)
+    if fla_fn is None:
+        bench.Runner(op, case).compare({"torch-ref": case.reference})
+        return
+    bench.Runner(op, case).compare({FLA_TAG: fla_fn})
