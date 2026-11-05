@@ -145,10 +145,13 @@ def _make_nsa_compressed_varlen_kernel(
             value_tile = T.alloc_shared((vector_rows, dim_v), "float32")
             result = T.alloc_shared((vector_rows, dim_v), dtype)
             block_sum = T.alloc_shared((vector_rows,), "float32")
-            maximum = T.alloc_shared((vector_rows,), "float32")
-            denominator = T.alloc_shared((vector_rows,), "float32")
+            # LSE consumes the eight row scalars in one vector load. Pad its
+            # sources to a full register so that load stays within each buffer.
+            maximum = T.alloc_shared((softmax_tile,), "float32")
+            denominator = T.alloc_shared((softmax_tile,), "float32")
             numerator = T.alloc_shared((vector_rows, dim_v), "float32")
             alpha = T.alloc_shared((vector_rows,), "float32")
+            lse_values = T.alloc_shared((vector_rows,), dtype)
             T.annotate_layout(
                 {
                     probabilities: make_ascend_compact_nz_layout(probabilities),
@@ -179,6 +182,7 @@ def _make_nsa_compressed_varlen_kernel(
                     denominator: 1,
                     numerator: 1,
                     alpha: 2,
+                    lse_values: 1,
                 }
             )
 
@@ -354,24 +358,38 @@ def _make_nsa_compressed_varlen_kernel(
                                                 )
 
                         normalize_rows(numerator, denominator, result)
-                        # Each SID owns eight half/bfloat16 LSE elements (16 B).
-                        # Exact SIMT GM stores avoid a rounded-up 32 B DMA write.
-                        with T.SimtVF(threads=128):
-                            for h in T.Parallel(vector_rows):
-                                lse[token, head_start + sid * vector_rows + h] = T.cast(
-                                    T.if_then_else(
-                                        denominator[h] > 0,
-                                        maximum[h] + T.log(denominator[h]),
-                                        0,
-                                    ),
-                                    dtype,
-                                )
+                        with T.SimdVF():
+                            rows = T.simd.pset(32, "PAT_VL8")
+                            zero = T.simd.vdup(T.float32(0.0), "float32", rows)
+                            one = T.simd.vdup(T.float32(1.0), "float32", rows)
+                            total = T.simd.vld(denominator[0])
+                            row_maximum = T.simd.vld(maximum[0])
+                            positive = T.simd.vcmps(total, T.float32(0.0), rows, op="gt")
+                            safe_total = T.simd.vsel(total, one, positive)
+                            logarithm = T.simd.vln(safe_total, rows)
+                            logsumexp = T.simd.vadd(row_maximum, logarithm, rows)
+                            logsumexp = T.simd.vsel(logsumexp, zero, positive)
+                            converted = T.simd.vcvt(
+                                logsumexp, dtype, rows, round="ROUND_R", sat=False
+                            )
+                            T.simd.vsts(
+                                lse_values[0], converted, rows, dist="PK_B32", extent=vector_rows
+                            )
                     else:
-                        with T.SimtVF(threads=128):
-                            for h, d in T.Parallel(vector_rows, dim_v):
-                                result[h, d] = T.cast(0, dtype)
-                            for h in T.Parallel(vector_rows):
-                                lse[token, head_start + sid * vector_rows + h] = T.cast(0, dtype)
+                        with T.SimdVF():
+                            full = T.simd.pset(16, "PAT_ALL" if dim_v == 128 else "PAT_VL64")
+                            rows = T.simd.pset(16, "PAT_VL8")
+                            zero_bits = T.simd.vdup(T.uint32(0), "uint32")
+                            zero = T.reinterpret(zero_bits, dtype + "x128")
+                            for h in T.serial(vector_rows):
+                                T.simd.vsts(result[h, 0], zero, full, dist="NORM_B16", extent=dim_v)
+                            T.simd.vsts(
+                                lse_values[0], zero, rows, dist="NORM_B16", extent=vector_rows
+                            )
+                    # The align_v2 UB-to-GM copy keeps this 16-byte store exact;
+                    # each SID writes only its own eight adjacent LSE elements.
+                    lse_start = head_start + sid * vector_rows
+                    T.copy(lse_values, lse[token, lse_start : lse_start + vector_rows])
                     T.dual_copy(result, output[token, head_start : head_start + head_tile, :])
 
     return main

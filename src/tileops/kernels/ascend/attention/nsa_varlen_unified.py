@@ -145,8 +145,8 @@ def _make_nsa_varlen_kernel(
             v_l0 = T.alloc_l0b((key_tile, dim), dtype)
             scores_l0c = T.alloc_l0c((head_tile, key_tile), "float32")
             value_l0c = T.alloc_l0c((head_tile, dim), "float32")
-            keys = T.alloc_shared((key_tile // 2 + 1, dim), dtype)
-            values = T.alloc_shared((key_tile // 2 + 1, dim), dtype)
+            keys = T.alloc_shared((key_tile // 2, dim), dtype)
+            values = T.alloc_shared((key_tile // 2, dim), dtype)
             scores = T.alloc_shared((vector_rows, softmax_tile), "float32")
             probabilities = T.alloc_shared((vector_rows + 1, key_tile), dtype)
             value_tile = T.alloc_shared((vector_rows, dim), "float32")
@@ -155,8 +155,6 @@ def _make_nsa_varlen_kernel(
             block_sum = T.alloc_shared((vector_rows,), "float32")
             T.annotate_layout(
                 {
-                    keys: make_ascend_compact_nz_layout(keys),
-                    values: make_ascend_compact_nz_layout(values),
                     probabilities: make_ascend_compact_nz_layout(probabilities),
                 }
             )
@@ -221,13 +219,10 @@ def _make_nsa_varlen_kernel(
                             start = T.cast(block, "int64") * block_size
                             if block >= 0 and start < limit:
                                 valid = T.min(key_tile, limit - start)
-                                # Mask inactive K rows and zero inactive V rows before
-                                # QK/PV. Physical K loads may precede the semantic mask.
                                 with T.Stage(0) if selected_blocks > 1 else nullcontext():
                                     if valid == key_tile:
                                         load_start = begin + T.cast(start, "int32")
-                                        # DMA complete rows directly; use the guarded
-                                        # vector path only for causal/sequence tails.
+                                        # Complete blocks bypass UB staging.
                                         T.copy(
                                             k[load_start : load_start + key_tile, kv_head, :],
                                             k_l1,
@@ -237,26 +232,54 @@ def _make_nsa_varlen_kernel(
                                             v_l1,
                                         )
                                     else:
-                                        with T.SimtVF(threads=128):
-                                            for s, d in T.Parallel(key_tile // 2, dim):
-                                                key_position = s + sid * (key_tile // 2)
-                                                keys[s, d] = T.if_then_else(
-                                                    key_position < valid,
-                                                    k[begin + start + key_position, kv_head, d],
-                                                    T.cast(0, dtype),
+                                        local_start = sid * (key_tile // 2)
+                                        local_valid = T.max(
+                                            0, T.min(key_tile // 2, valid - local_start)
+                                        )
+                                        load_start = begin + T.cast(start, "int32") + local_start
+                                        # Zero only missing rows; DMA reads exactly the
+                                        # valid prefix, including the last request's tail.
+                                        if local_valid < key_tile // 2:
+                                            with T.SimdVF():
+                                                zero_bits = T.simd.vdup(T.uint32(0), "uint32")
+                                                zero = T.reinterpret(zero_bits, dtype + "x128")
+                                                mask = T.simd.pset(
+                                                    16, "PAT_ALL" if dim == 128 else "PAT_VL64"
                                                 )
-                                            # Match the source's contiguous dimension. The
-                                            # L1-to-L0B copy converts this row-major V tile
-                                            # to the layout consumed by the PV GEMM.
-                                            for s, d in T.Parallel(key_tile // 2, dim):
-                                                value_position = s + sid * (key_tile // 2)
-                                                values[s, d] = T.if_then_else(
-                                                    value_position < valid,
-                                                    v[begin + start + value_position, kv_head, d],
-                                                    T.cast(0, dtype),
-                                                )
-                                        T.dual_copy(keys[: key_tile // 2, :], k_l1)
-                                        T.dual_copy(values[: key_tile // 2, :], v_l1)
+                                                for row in T.serial(local_valid, key_tile // 2):
+                                                    T.simd.vsts(
+                                                        keys[row, 0],
+                                                        zero,
+                                                        mask,
+                                                        dist="NORM_B16",
+                                                        extent=dim,
+                                                    )
+                                                    T.simd.vsts(
+                                                        values[row, 0],
+                                                        zero,
+                                                        mask,
+                                                        dist="NORM_B16",
+                                                        extent=dim,
+                                                    )
+                                        if local_valid > 0:
+                                            T.copy(
+                                                k[
+                                                    load_start : load_start + local_valid,
+                                                    kv_head,
+                                                    :,
+                                                ],
+                                                keys[:local_valid, :],
+                                            )
+                                            T.copy(
+                                                v[
+                                                    load_start : load_start + local_valid,
+                                                    kv_head,
+                                                    :,
+                                                ],
+                                                values[:local_valid, :],
+                                            )
+                                        T.dual_copy(keys, k_l1)
+                                        T.dual_copy(values, v_l1)
                                 with T.Stage(1) if selected_blocks > 1 else nullcontext():
                                     T.copy(k_l1, k_l0)
                                     T.copy(v_l1, v_l0)
@@ -374,9 +397,12 @@ def _make_nsa_varlen_kernel(
                                     seen_epoch = 1
 
                     if seen_epoch == 0:
-                        with T.SimtVF(threads=128):
-                            for h, d in T.Parallel(vector_rows, dim):
-                                result[h, d] = T.cast(0, dtype)
+                        with T.SimdVF():
+                            zero_bits = T.simd.vdup(T.uint32(0), "uint32")
+                            zero = T.reinterpret(zero_bits, dtype + "x128")
+                            mask = T.simd.pset(16, "PAT_ALL" if dim == 128 else "PAT_VL64")
+                            for row in T.serial(vector_rows):
+                                T.simd.vsts(result[row, 0], zero, mask, dist="NORM_B16", extent=dim)
                     elif selected_blocks == 1:
                         normalize(value_tile, block_sum, result)
                     else:

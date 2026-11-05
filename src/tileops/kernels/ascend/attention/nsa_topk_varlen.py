@@ -6,14 +6,11 @@ from typing import ClassVar
 import tilelang
 import tilelang.ascend.language as T
 import torch
-from tilelang.layout import make_ascend_compact_nz_layout
 
 from tileops.backend import register_kernel_type
 from tileops.kernels.ascend.attention.nsa_common import (
     calibrated_cube_blocks,
     check_inputs,
-    reduce_max_rows,
-    reduce_sum_rows,
 )
 from tileops.kernels.attention.call_spec import NSACall, NSATopKFwdInterface
 from tileops.kernels.kernel_base import Kernel, vector_aligned
@@ -69,9 +66,6 @@ def _make_nsa_topk_varlen_kernel(
     steps = (tasks + grid - 1) // grid
 
     def make_compute(width):
-        max_rows = reduce_max_rows(group, width)
-        sum_rows = reduce_sum_rows(group, width)
-
         @T.macro
         def compute(
             q,
@@ -79,6 +73,7 @@ def _make_nsa_topk_varlen_kernel(
             block_indices,
             sid,
             token,
+            pair,
             end,
             position,
             kv_head,
@@ -92,11 +87,8 @@ def _make_nsa_topk_varlen_kernel(
             scores_l0c,
             queries,
             scores,
-            exponentials,
             row_maximum,
-            row_sum,
             importance,
-            best_id,
             selected,
         ):
             # Both rows have the same candidate window: block_size is even,
@@ -104,34 +96,66 @@ def _make_nsa_topk_varlen_kernel(
             current = position // block_size
             candidates = T.min(current + 1, request_chunks)
             closed = T.min((position + sid + 1) // block_size, request_chunks)
-            with T.SimtVF(threads=128):
-                for g, d in T.Parallel(group, dim):
-                    queries[g, d] = T.if_then_else(
-                        token + sid < end,
-                        T.cast(
-                            T.cast(
-                                q[T.min(token + sid, tokens - 1), kv_head * group + g, d], "float32"
-                            )
-                            * T.cast(scale, "float32"),
-                            dtype,
-                        ),
-                        T.cast(0, dtype),
-                    )
-                for rank in T.Parallel(selected_blocks):
-                    selected[rank] = -1
+            # Read exactly one request-local query through DMA. Each AIV owns
+            # one ND query tile, including the zeroed odd-request tail.
+            if token + sid < end:
+                T.copy(
+                    q[token + sid, kv_head * group : (kv_head + 1) * group, :],
+                    queries,
+                )
+                if scale != 1.0:
+                    with T.SimdVF():
+                        full = T.simd.pset(32, "PAT_ALL")
+                        for g in T.serial(group):
+                            for part in T.serial(dim // 64):
+                                raw = T.simd.vld(queries[g, part * 64], dist="UNPK_B16")
+                                wide = T.simd.vcvt(raw, "float32", full, part=0)
+                                scaled = T.simd.vmuls(wide, T.cast(scale, "float32"), full)
+                                converted = T.simd.vcvt(
+                                    scaled, dtype, full, round="ROUND_R", sat=False, part=0
+                                )
+                                T.simd.vsts(
+                                    queries[g, part * 64],
+                                    converted,
+                                    full,
+                                    dist="PK_B32",
+                                    extent=64,
+                                )
+            else:
+                with T.SimdVF():
+                    zero = T.reinterpret(T.simd.vdup(T.uint32(0), "uint32"), dtype + "x128")
+                    mask = T.simd.pset(16, "PAT_ALL" if dim == 128 else "PAT_VL64")
+                    for g in T.serial(group):
+                        T.simd.vsts(queries[g, 0], zero, mask, dist="NORM_B16", extent=dim)
+            with T.SimdVF():
+                full = T.simd.pset(32, "PAT_ALL")
+                lanes = T.simd.vci(0, "int32")
+                selected_mask = T.simd.vcmps(lanes, selected_blocks, full, op="lt")
+                missing = T.simd.vdup(T.int32(-1), "int32", full)
+                T.simd.vsts(selected[0], missing, selected_mask, extent=selected_blocks)
             T.dual_copy(queries[:group, :], q_l1)
-            key_tile = T.alloc_shared((width // 2 + 1, dim), dtype)
-            T.annotate_layout({key_tile: make_ascend_compact_nz_layout(key_tile)})
+            key_tile = T.alloc_shared((width // 2, dim), dtype)
             T.annotate_buffer_versions({key_tile: 1})
             if reload_keys:
-                with T.SimtVF(threads=128):
-                    for c, d in T.Parallel(width // 2, dim):
-                        column = c + sid * (width // 2)
-                        key_tile[c, d] = T.if_then_else(
-                            column < request_chunks,
-                            k_cmp[T.min(chunk_begin + column, chunk_num - 1), kv_head, d],
-                            T.cast(0, dtype),
-                        )
+                load_start = T.cast(chunk_begin + sid * (width // 2), "int32")
+                local_valid = T.max(
+                    0,
+                    T.min(
+                        T.min(width // 2, request_chunks - sid * (width // 2)),
+                        chunk_num - load_start,
+                    ),
+                )
+                if local_valid < width // 2:
+                    with T.SimdVF():
+                        zero = T.reinterpret(T.simd.vdup(T.uint32(0), "uint32"), dtype + "x128")
+                        mask = T.simd.pset(16, "PAT_ALL" if dim == 128 else "PAT_VL64")
+                        for row in T.serial(local_valid, width // 2):
+                            T.simd.vsts(key_tile[row, 0], zero, mask, dist="NORM_B16", extent=dim)
+                if local_valid > 0:
+                    T.copy(
+                        k_cmp[load_start : load_start + local_valid, kv_head, :],
+                        key_tile[:local_valid, :],
+                    )
                 T.dual_copy(key_tile[: width // 2, :], k_l1[:width, :])
             T.copy(q_l1, q_l0)
             T.copy(k_l1[:width, :], k_l0[:width, :])
@@ -143,89 +167,150 @@ def _make_nsa_topk_varlen_kernel(
                 clear_accum=True,
             )
             T.dual_copy(scores_l0c[:, :width], scores[:, :width])
-            with T.SimtVF(threads=128):
-                for g, c in T.Parallel(group, width):
-                    exponentials[g, c] = T.if_then_else(
-                        c < closed, scores[g, c], -T.infinity("float32")
-                    )
-            max_rows(exponentials, row_maximum)
-            with T.SimtVF(threads=128):
-                for g, c in T.Parallel(group, width):
-                    exponentials[g, c] = T.if_then_else(
-                        c < closed, T.exp(exponentials[g, c] - row_maximum[g]), 0.0
-                    )
-            sum_rows(exponentials, row_sum)
-            with T.SimtVF(threads=128):
-                for g in T.Parallel(group):
-                    row_maximum[g] = row_maximum[g] + T.log(row_sum[g])
-                for c in T.Parallel(width):
-                    value = T.alloc_var("float32", init=0.0)
-                    for g in T.serial(group):
-                        value += T.if_then_else(
-                            c < current and c < candidates,
-                            T.exp(scores[g, c] - row_maximum[g]),
-                            0.0,
-                        )
-                    priority = c == 0 or c == current - 1 or c == current
-                    importance[0, c] = T.if_then_else(
-                        c < candidates,
-                        T.if_then_else(priority, T.cast(group, "float32"), value),
-                        -T.infinity("float32"),
-                    )
-
-            for rank in T.serial(T.min(selected_blocks, candidates)):
-                # Keep the maximum and its smallest tied ID in vector registers.
-                # One SIMD call replaces two reductions and an intervening SIMT
-                # call materializing a whole candidate-ID tensor in UB.
-                with T.SimdVF():
-                    mask = T.simd.pset(32, "PAT_ALL")
-                    one = T.simd.pset(32, "PAT_VL1")
-                    top = T.simd.vcmax(T.simd.vld(importance[0, 0]), mask)
+            # Keep the masked scores and softmax reductions in vector registers.
+            # Only the per-head LSE crosses UB between the two SIMD phases.
+            with T.SimdVF():
+                full = T.simd.pset(32, "PAT_ALL")
+                one = T.simd.pset(32, "PAT_VL1")
+                negative_infinity = T.simd.vdup(-T.infinity("float32"), "float32", full)
+                ids0 = T.simd.vci(0, "int32")
+                closed0 = T.simd.vcmps(ids0, T.cast(closed, "int32"), full, op="lt")
+                if width >= 128:
+                    ids1 = T.simd.vci(64, "int32")
+                    closed1 = T.simd.vcmps(ids1, T.cast(closed, "int32"), full, op="lt")
+                if width >= 256:
+                    ids2 = T.simd.vci(128, "int32")
+                    ids3 = T.simd.vci(192, "int32")
+                    closed2 = T.simd.vcmps(ids2, T.cast(closed, "int32"), full, op="lt")
+                    closed3 = T.simd.vcmps(ids3, T.cast(closed, "int32"), full, op="lt")
+                for g in T.serial(group):
+                    score0 = T.simd.vsel(T.simd.vld(scores[g, 0]), negative_infinity, closed0)
+                    maximum = T.simd.alloc_var("float32")
+                    maximum = T.simd.vcmax(score0, full)
                     if width >= 128:
-                        top = T.simd.vmax(
-                            top, T.simd.vcmax(T.simd.vld(importance[0, 64]), mask), mask
+                        score1 = T.simd.vsel(T.simd.vld(scores[g, 64]), negative_infinity, closed1)
+                        maximum = T.simd.vmax(maximum, T.simd.vcmax(score1, full), full)
+                    if width >= 256:
+                        score2 = T.simd.vsel(T.simd.vld(scores[g, 128]), negative_infinity, closed2)
+                        score3 = T.simd.vsel(T.simd.vld(scores[g, 192]), negative_infinity, closed3)
+                        maximum = T.simd.vmax(maximum, T.simd.vcmax(score2, full), full)
+                        maximum = T.simd.vmax(maximum, T.simd.vcmax(score3, full), full)
+                    row_max = T.simd.vdupv(maximum, full)
+                    total = T.simd.alloc_var("float32")
+                    total = T.simd.vcadd(T.simd.vexpdif(score0, row_max, full), full)
+                    if width >= 128:
+                        total = T.simd.vadd(
+                            total, T.simd.vcadd(T.simd.vexpdif(score1, row_max, full), full), full
                         )
                     if width >= 256:
-                        top = T.simd.vmax(
-                            top, T.simd.vcmax(T.simd.vld(importance[0, 128]), mask), mask
+                        total = T.simd.vadd(
+                            total, T.simd.vcadd(T.simd.vexpdif(score2, row_max, full), full), full
                         )
-                        top = T.simd.vmax(
-                            top, T.simd.vcmax(T.simd.vld(importance[0, 192]), mask), mask
+                        total = T.simd.vadd(
+                            total, T.simd.vcadd(T.simd.vexpdif(score3, row_max, full), full), full
                         )
+                    lse = T.simd.vadd(row_max, T.simd.vln(T.simd.vdupv(total, full), full), full)
+                    T.simd.vsts(row_maximum[g], lse, one, dist="ONEPT_B32", extent=1)
+            with T.SimdVF():
+                full = T.simd.pset(32, "PAT_ALL")
+                negative_infinity = T.simd.vdup(-T.infinity("float32"), "float32", full)
+                priority_score = T.simd.vdup(T.cast(group, "float32"), "float32", full)
+                zero = T.simd.vdup(T.float32(0.0), "float32", full)
+                for part in T.serial(width // 64):
+                    ids = T.simd.vci(part * 64, "int32")
+                    visible = T.simd.vcmps(ids, T.cast(candidates, "int32"), full, op="lt")
+                    previous = T.simd.vcmps(ids, T.cast(current, "int32"), visible, op="lt")
+                    value = T.simd.alloc_var("float32")
+                    value = T.simd.vdup(T.float32(0.0), "float32", full)
+                    for g in T.serial(group):
+                        lse = T.simd.vld(row_maximum[g], dist="BRC_B32")
+                        score = T.simd.vld(scores[g, part * 64])
+                        probability = T.simd.vexpdif(score, lse, full)
+                        value = T.simd.vadd(value, T.simd.vsel(probability, zero, previous), full)
+                    first = T.simd.vcmps(ids, T.int32(0), full, op="eq")
+                    preceding = T.simd.vcmps(ids, T.cast(current - 1, "int32"), full, op="eq")
+                    present = T.simd.vcmps(ids, T.cast(current, "int32"), full, op="eq")
+                    value = T.simd.vsel(priority_score, value, first)
+                    value = T.simd.vsel(priority_score, value, preceding)
+                    value = T.simd.vsel(priority_score, value, present)
+                    T.simd.vsts(
+                        importance[0, part * 64],
+                        T.simd.vsel(value, negative_infinity, visible),
+                        full,
+                    )
+
+            # Rank the whole candidate window in one VF. Its scores stay in
+            # registers across all selections, including stable tied-ID removal.
+            with T.SimdVF():
+                mask = T.simd.pset(32, "PAT_ALL")
+                one = T.simd.pset(32, "PAT_VL1")
+                importance0 = T.simd.alloc_var("float32")
+                importance0 = T.simd.vld(importance[0, 0])
+                if width >= 128:
+                    importance1 = T.simd.alloc_var("float32")
+                    importance1 = T.simd.vld(importance[0, 64])
+                if width >= 256:
+                    importance2 = T.simd.alloc_var("float32")
+                    importance3 = T.simd.alloc_var("float32")
+                    importance2 = T.simd.vld(importance[0, 128])
+                    importance3 = T.simd.vld(importance[0, 192])
+                sentinel = T.simd.vdup(T.int32(width), "int32", mask)
+                negative_infinity = T.simd.vdup(-T.infinity("float32"), "float32", mask)
+                for rank in T.serial(T.min(selected_blocks, candidates)):
+                    top = T.simd.vcmax(importance0, mask)
+                    if width >= 128:
+                        top = T.simd.vmax(top, T.simd.vcmax(importance1, mask), mask)
+                    if width >= 256:
+                        top = T.simd.vmax(top, T.simd.vcmax(importance2, mask), mask)
+                        top = T.simd.vmax(top, T.simd.vcmax(importance3, mask), mask)
                     top = T.simd.vdupv(top, mask)
-                    sentinel = T.simd.vdup(T.int32(width), "int32", mask)
                     ids = T.simd.vci(T.int32(0), "int32")
-                    tied = T.simd.vcmp(T.simd.vld(importance[0, 0]), top, mask, op="eq")
+                    tied = T.simd.vcmp(importance0, top, mask, op="eq")
                     lowest = T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask)
                     if width >= 128:
                         ids = T.simd.vci(T.int32(64), "int32")
-                        tied = T.simd.vcmp(T.simd.vld(importance[0, 64]), top, mask, op="eq")
+                        tied = T.simd.vcmp(importance1, top, mask, op="eq")
                         lowest = T.simd.vmin(
                             lowest, T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask), mask
                         )
                     if width >= 256:
                         ids = T.simd.vci(T.int32(128), "int32")
-                        tied = T.simd.vcmp(T.simd.vld(importance[0, 128]), top, mask, op="eq")
+                        tied = T.simd.vcmp(importance2, top, mask, op="eq")
                         lowest = T.simd.vmin(
                             lowest, T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask), mask
                         )
                         ids = T.simd.vci(T.int32(192), "int32")
-                        tied = T.simd.vcmp(T.simd.vld(importance[0, 192]), top, mask, op="eq")
+                        tied = T.simd.vcmp(importance3, top, mask, op="eq")
                         lowest = T.simd.vmin(
                             lowest, T.simd.vcmin(T.simd.vsel(ids, sentinel, tied), mask), mask
                         )
-                    T.simd.vsts(best_id[0], lowest, one, dist="ONEPT_B32", extent=1)
-                with T.SimtVF(threads=128):
-                    for c in T.Parallel(width):
-                        importance[0, c] = T.if_then_else(
-                            c == best_id[0], -T.infinity("float32"), importance[0, c]
-                        )
-                    for _ in T.Parallel(1):
-                        selected[rank] = best_id[0]
+                    T.simd.vsts(selected[rank], lowest, one, dist="ONEPT_B32", extent=1)
+                    lowest = T.simd.vdupv(lowest, mask)
+                    ids = T.simd.vci(0, "int32")
+                    removed = T.simd.vcmp(ids, lowest, mask, op="eq")
+                    importance0 = T.simd.vsel(negative_infinity, importance0, removed)
+                    if width >= 128:
+                        ids = T.simd.vci(64, "int32")
+                        removed = T.simd.vcmp(ids, lowest, mask, op="eq")
+                        importance1 = T.simd.vsel(negative_infinity, importance1, removed)
+                    if width >= 256:
+                        ids = T.simd.vci(128, "int32")
+                        removed = T.simd.vcmp(ids, lowest, mask, op="eq")
+                        importance2 = T.simd.vsel(negative_infinity, importance2, removed)
+                        ids = T.simd.vci(192, "int32")
+                        removed = T.simd.vcmp(ids, lowest, mask, op="eq")
+                        importance3 = T.simd.vsel(negative_infinity, importance3, removed)
+            # Pair compaction gives token = 2 * pair - odd_prefix, with
+            # 0 <= odd_prefix <= batch - 1. Keep that explicit bound at the
+            # GM access so scheduling can prove successive tasks disjoint.
             with T.SimtVF(threads=128):
                 for rank in T.Parallel(selected_blocks):
                     if token + sid < end:
-                        block_indices[token + sid, kv_head, rank] = selected[rank]
+                        block_indices[
+                            2 * pair - T.min(batch - 1, T.max(2 * pair - token, 0)) + sid,
+                            kv_head,
+                            rank,
+                        ] = selected[rank]
 
         return compute
 
@@ -248,21 +333,13 @@ def _make_nsa_topk_varlen_kernel(
             q_l0 = T.alloc_l0a((2 * group, dim), dtype)
             k_l0 = T.alloc_l0b((chunk_pad, dim), dtype)
             scores_l0c = T.alloc_l0c((2 * group, chunk_pad), "float32")
-            # Each AIV stages one query; the shared K tile is split by columns.
-            # Ghost rows separate compact-NZ column tiles in UB.
-            queries = T.alloc_shared((group + 1, dim), dtype)
+            # Each AIV stages one query in ND; dual_copy packs it into NZ.
+            # The shared K tile is split by columns across the two AIVs.
+            queries = T.alloc_shared((group, dim), dtype)
             scores = T.alloc_shared((group, chunk_pad), "float32")
-            exponentials = T.alloc_shared((group, chunk_pad), "float32")
             row_maximum = T.alloc_shared((group,), "float32")
-            row_sum = T.alloc_shared((group,), "float32")
             importance = T.alloc_shared((1, chunk_pad), "float32")
-            best_id = T.alloc_shared((1,), "int32")
             selected = T.alloc_shared((selected_blocks,), "int32")
-            T.annotate_layout(
-                {
-                    queries: make_ascend_compact_nz_layout(queries),
-                }
-            )
             T.annotate_buffer_versions(
                 {
                     q_l1: 1,
@@ -272,11 +349,8 @@ def _make_nsa_topk_varlen_kernel(
                     scores_l0c: 1,
                     queries: 1,
                     scores: 1,
-                    exponentials: 1,
                     row_maximum: 1,
-                    row_sum: 1,
                     importance: 1,
-                    best_id: 1,
                     selected: 1,
                 }
             )
@@ -325,9 +399,13 @@ def _make_nsa_topk_varlen_kernel(
                             with T.SimtVF(threads=128):
                                 for rank in T.Parallel(selected_blocks):
                                     if token + sid < end:
-                                        block_indices[token + sid, kv_head, rank] = T.if_then_else(
-                                            rank < candidates, rank, -1
-                                        )
+                                        block_indices[
+                                            2 * pair
+                                            - T.min(batch - 1, T.max(2 * pair - token, 0))
+                                            + sid,
+                                            kv_head,
+                                            rank,
+                                        ] = T.if_then_else(rank < candidates, rank, -1)
                         else:
                             width = T.if_then_else(
                                 candidates <= 64, 64, T.if_then_else(candidates <= 128, 128, 256)
@@ -344,6 +422,7 @@ def _make_nsa_topk_varlen_kernel(
                                     block_indices,
                                     sid,
                                     token,
+                                    pair,
                                     end,
                                     position,
                                     kv_head,
@@ -357,11 +436,8 @@ def _make_nsa_topk_varlen_kernel(
                                     scores_l0c,
                                     queries,
                                     scores,
-                                    exponentials,
                                     row_maximum,
-                                    row_sum,
                                     importance,
-                                    best_id,
                                     selected,
                                 )
                             elif candidates <= 128:
@@ -372,6 +448,7 @@ def _make_nsa_topk_varlen_kernel(
                                         block_indices,
                                         sid,
                                         token,
+                                        pair,
                                         end,
                                         position,
                                         kv_head,
@@ -385,11 +462,8 @@ def _make_nsa_topk_varlen_kernel(
                                         scores_l0c,
                                         queries,
                                         scores,
-                                        exponentials,
                                         row_maximum,
-                                        row_sum,
                                         importance,
-                                        best_id,
                                         selected,
                                     )
                             else:
@@ -400,6 +474,7 @@ def _make_nsa_topk_varlen_kernel(
                                         block_indices,
                                         sid,
                                         token,
+                                        pair,
                                         end,
                                         position,
                                         kv_head,
@@ -413,11 +488,8 @@ def _make_nsa_topk_varlen_kernel(
                                         scores_l0c,
                                         queries,
                                         scores,
-                                        exponentials,
                                         row_maximum,
-                                        row_sum,
                                         importance,
-                                        best_id,
                                         selected,
                                     )
                             cached_request = request
