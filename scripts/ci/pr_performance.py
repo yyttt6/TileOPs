@@ -1,4 +1,4 @@
-"""Changed-operator correctness and audited performance against a frozen baseline."""
+"""Changed-operator timing with output verification against a frozen baseline."""
 
 import argparse
 import ast
@@ -140,6 +140,7 @@ def main():
             str(target),
             "--op",
             op,
+            "--verify-measured-output",
         ]
         with (out / f"{op}.log").open("w") as log:
             return subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
@@ -156,29 +157,20 @@ def main():
         dict(
             commit=subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
             base=a.base,
+            correctness_protocol="final-profile-output-v1",
+            harness_sources={
+                name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
+                for name in (
+                    "pr_performance.py",
+                    "nightly_device.py",
+                    "measured_correctness.py",
+                    "nightly_support/complete_profile.py",
+                )
+            },
             baseline_sha256=hashlib.sha256(a.baseline.read_bytes()).hexdigest(),
         ),
     )
-    # Complete correctness first. No performance is measured if this gate fails.
-    for op in ops:
-        cmd = [
-            sys.executable,
-            "scripts/benchmark_ascend.py",
-            "--guard",
-            "/usr/local/libexec/ascend-npu/npu_guard.py",
-            "--owner",
-            f"pr/correctness/{op}",
-            "--wait",
-            "1800",
-            "--timeout",
-            "7200",
-            "--run-dir",
-            str(out / f"correctness-{op}"),
-            "--verify-only",
-            "--op",
-            op,
-        ]
-        subprocess.run(cmd, check=True)
+    # Each case checks its final timed output; the device helper stops on failure.
     sys.path.insert(0, str(HERE / "nightly_support"))
     import math
 
@@ -201,6 +193,7 @@ def main():
         for line in (target / "results.jsonl").read_text().splitlines():
             row = json.loads(line)
             assert row["status"] == "passed"
+            assert row["correctness_source"] == "final-profile-repeat"
             coverage = json.loads(Path(row["measurement"]["profile_coverage_evidence"]).read_text())
             assert len(coverage) >= 15
             for c in coverage[-15:]:
@@ -222,8 +215,7 @@ def main():
                 for b in baseline["rows"]
                 if b["op"] == op
                 and b["case"] == row["case_id"]
-                and canonical_contract(b["workload"]["params"])
-                == canonical_contract(row["params"])
+                and canonical_contract(b["workload"]["params"]) == canonical_contract(row["params"])
             ]
             us = row["measurement"]["latency_ms"] * 1000
             rows.append(

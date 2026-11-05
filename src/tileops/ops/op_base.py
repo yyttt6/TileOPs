@@ -299,10 +299,10 @@ class Op(ABC):
         # one no longer selects, so installing again drops every in-tree entry.
         self._entries_by_call = {}
         self._built_entries = {}
-        if not self.kernel_types:
-            return
         name = type(self).__name__
         added = REGISTERED_KERNEL_TYPES.get(name, {})
+        if not self.kernel_types and not added:
+            return
         taken = sorted(set(added) & set(self.kernel_types))
         if taken:
             raise ValueError(f"implementations registered for {name} reuse keys it has: {taken}")
