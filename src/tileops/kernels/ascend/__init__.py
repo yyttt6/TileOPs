@@ -9,6 +9,7 @@ from tileops.kernels.ascend import (
     reduction,
     rope,
     sequence_modeling,
+    transform,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "reduction",
     "rope",
     "sequence_modeling",
+    "transform",
 ]
