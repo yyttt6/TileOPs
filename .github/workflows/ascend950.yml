@@ -78,12 +78,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: yyttt6/TileOPs.github.io
-          ref: f2c73016c424f84d1d44e4419c9caa0d24f8133c
+          ref: bc6edc8eda953f9d78daea2290ea6d49eec6890b
           path: baseline-cache
           persist-credentials: false
       - name: Verify published baseline snapshot
         run: |
-          echo "cd35c585cc97fadb890eb2b4ff2b257e774ed9243ad1050f9b32067d78760881  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
+          echo "ff7b35fa6cc7b196d87dbd363c1f784ed872c222d26d92146bf82fa2f69bc88d  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
       - name: Changed operator performance with final-output correctness
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950' }}
