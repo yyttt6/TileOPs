@@ -83,11 +83,15 @@ accepts one pipe per task.
 **Baseline.** `torch_npu`'s `npu_weight_quant_batchmatmul` serves the same function
 (A16W4 with per-group scales) and is the like-for-like baseline on this device; the
 vendor column above is that measurement, taken in the same round on the same shapes.
-It is the only vendor figure used here: the site snapshot's `ops-transformer` and
-`ops-nn` rows for these cases sit on a flat ~12.4 ms plateau across batch 2/8/32 and
-both prefill cases, 285x off the in-round vendor number for the same shape, so they
-are not a shape-dependent measurement and are not usable as a baseline until they
-are re-collected.
+
+The site snapshot's rows for this op are not usable as they stand. Its `torch-eager`
+column records 426 335 µs for `decode-l2-resident` — 0.04 GB/s on a 16.8 MB weight,
+which is a fallback path rather than a measurement, and 12 of its 15 rows exceed
+100 ms. The `ops-transformer` and `ops-nn` rows are plausible in magnitude but sit on
+a flat 12 408-12 420 µs plateau across batch 2/8/32 and `decode-l2-resident`, a 0.1%
+spread across four different token counts on one N×K, which is dispatch overhead
+rather than a shape-dependent kernel time. Both are raised for re-collection
+separately; until then the in-round vendor number is the only baseline used here.
 
 ## Correctness
 
