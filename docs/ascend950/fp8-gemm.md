@@ -51,7 +51,15 @@ and it does not build in this container: its Ascend JIT needs `ascendc_assert`,
 which the installed CANN 9.2.0 no longer ships, and pre-deprecation L0C-to-GM
 setters. The same package produced the baselines in the grouped-GEMM contribution,
 so this is a toolchain pairing, not a kernel problem. `torch_npu` exposes no FP8
-matmul entry point. The table therefore reports absolute numbers only.
+matmul entry point.
+
+That is a limit of this container, not of the baseline package. The site snapshot
+carries `DeepGEMM-Ascend` rows measured on this same hardware, and they are the
+fastest baseline for 6 of the 39 cases; `catlass` is fastest for 15 and
+`torch-eager` for 16. Against those rows the per-tensor path is 2.54x
+(`ds-v3-decode-qkv-a`, 66.0 µs) and 3.11x (`ds-v3-prefill-qkv-a`, 634.0 µs) faster.
+The table above is the absolute measurement; the ratios are in the PR body, which
+takes the fastest valid library per case as issue #46 specifies.
 
 ## Correctness
 
