@@ -16,8 +16,8 @@ from tilelang.carver.arch.driver import get_num_cube_cores
 
 import tileops.backend._registry
 from tileops._kernels.gemm.grouped.call_spec import (
-    GroupedGemmCall,
-    GroupedGemmFwdInterface,
+    GroupedGEMMCall,
+    GroupedGEMMFwdInterface,
 )
 from tileops._kernels.kernel_base import Kernel
 
@@ -309,7 +309,7 @@ def _make_grouped_kernel(
     )
 
 
-class AscendGroupedGemmKernel(Kernel, GroupedGemmFwdInterface):
+class AscendGroupedGemmKernel(Kernel, GroupedGEMMFwdInterface):
     """One GEMM per group on the Ascend 950 matrix unit, rows packed without padding.
 
     Each group's rows are the contiguous slice ``[batch_offsets[g],
@@ -320,7 +320,7 @@ class AscendGroupedGemmKernel(Kernel, GroupedGemmFwdInterface):
     devices = frozenset({"npu"})
 
     @classmethod
-    def refusal(cls, call: GroupedGemmCall) -> Optional[str]:
+    def refusal(cls, call: GroupedGEMMCall) -> Optional[str]:
         if call.dtype not in _DTYPE_NAMES:
             return "requires float16 or bfloat16 operands"
         if call.transpose_a and call.transpose_b:
@@ -334,7 +334,7 @@ class AscendGroupedGemmKernel(Kernel, GroupedGemmFwdInterface):
             )
         return super().refusal(call)
 
-    def __init__(self, call: GroupedGemmCall):
+    def __init__(self, call: GroupedGEMMCall):
         device_index = call.device.index
         super().__init__(device_index=device_index)
         name = torch.npu.get_device_name(device_index)

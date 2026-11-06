@@ -10,7 +10,7 @@ from typing import ClassVar, Optional
 
 import torch
 
-from tileops._kernels.elementwise.call_spec import EluCall, EluFwdInterface
+from tileops._kernels.elementwise.call_spec import ELUCall, ELUFwdInterface
 from tileops._kernels.kernel_base import Entry, Kernel
 
 try:
@@ -393,7 +393,7 @@ if T is not None:
         return _EluRunner(main_kernel, tail_kernel, main_n)
 
 
-class AscendEluKernel(Kernel, EluFwdInterface):
+class AscendEluKernel(Kernel, ELUFwdInterface):
     """ELU on Ascend NPUs: ``y = x if x > 0 else alpha * (exp(x) - 1)``.
 
     See ``docs/ascend950/dev/EluFwdOp/opus48_round2_schedule.md`` for the current tiling design
@@ -403,7 +403,7 @@ class AscendEluKernel(Kernel, EluFwdInterface):
     Ascend SoC-version gate here to replace the CUDA SM-version one (``Kernel._check_arch`` skips
     the check entirely when ``supported_archs is None``).
 
-    Implements ``EluFwdInterface`` (``EluCall`` carries ``alpha``, which the generic
+    Implements ``ELUFwdInterface`` (``ELUCall`` carries ``alpha``, which the generic
     ``UnaryElementwiseFwdInterface``'s request type does not -- confirmed against
     ``EluFwdOp.interfaces`` directly, dev_process.md §7.5's ``ReciprocalFwdInterface`` pitfall).
 
@@ -417,7 +417,7 @@ class AscendEluKernel(Kernel, EluFwdInterface):
     supported_archs = None
 
     @classmethod
-    def entry_for(cls, call: EluCall) -> Entry:
+    def entry_for(cls, call: ELUCall) -> Entry:
         return call, lambda: cls(call.n_total, call.dtype, call.alpha)
 
     def __init__(self, n_total: int, dtype: torch.dtype, alpha: float = 1.0) -> None:

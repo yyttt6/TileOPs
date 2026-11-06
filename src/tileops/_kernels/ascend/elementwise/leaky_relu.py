@@ -4,7 +4,7 @@
 Round 1 of ``docs/ascend950/dev_process.md``'s Ascend development loop for ``LeakyReluFwdOp``;
 see ``docs/ascend950/dev/LeakyReluFwdOp/round_1_schedule.md`` for the full design this file
 implements. Registers an additional implementation of ``LeakyReluFwdOp``'s own
-``LeakyReluFwdInterface`` (``tileops._kernels.elementwise.call_spec.LeakyReluFwdInterface`` --
+``LeakyReLUFwdInterface`` (``tileops._kernels.elementwise.call_spec.LeakyReLUFwdInterface`` --
 **not** the generic ``UnaryElementwiseFwdInterface`` most batch-1/2 unary ops use; schedule doc
 §2.1 flags this as the ``ReciprocalFwdOp`` trap class: the two interfaces' ``forward(self,
 input)`` signatures look identical, so getting this wrong raises ``"keys implement none of its
@@ -122,7 +122,7 @@ try:
     from tilelang.carver.arch.driver import get_num_vector_cores
 
     import tileops.backend._registry
-    from tileops._kernels.elementwise.call_spec import LeakyReluCall, LeakyReluFwdInterface
+    from tileops._kernels.elementwise.call_spec import LeakyReLUCall, LeakyReLUFwdInterface
     from tileops._kernels.kernel_base import Entry, Kernel
 
     def _floor_pow2(n: int) -> int:
@@ -565,7 +565,7 @@ try:
             n_total, dtype, _TILE_SMALL_FALLBACK, negative_slope, slope_key, zero_sign_bits, variant
         )
 
-    class AscendLeakyReluKernel(Kernel, LeakyReluFwdInterface):
+    class AscendLeakyReluKernel(Kernel, LeakyReLUFwdInterface):
         """Leaky ReLU on Ascend NPUs: ``y = x if x > 0 else negative_slope * x``.
 
         One compare, one trivial-cost multiply, one load, one store per element; whether the
@@ -578,7 +578,7 @@ try:
         CUDA-locked ``ScalarParamUnaryKernel``/``UnaryKernel`` family, which imports
         ``tilelang.language`` (the CUDA dialect facade).
 
-        Subclasses ``LeakyReluFwdInterface`` (``tileops._kernels.elementwise.call_spec``), **not**
+        Subclasses ``LeakyReLUFwdInterface`` (``tileops._kernels.elementwise.call_spec``), **not**
         the generic ``UnaryElementwiseFwdInterface`` -- ``LeakyReluFwdOp`` declares the former as
         its own ``interfaces`` mapping (schedule doc §2.1); subclassing the generic interface
         here would make every ``LeakyReluFwdOp()`` construction raise ``"keys implement none of
@@ -588,7 +588,7 @@ try:
         devices = frozenset({"npu"})
 
         @classmethod
-        def entry_for(cls, call: LeakyReluCall) -> Entry:
+        def entry_for(cls, call: LeakyReLUCall) -> Entry:
             return call, lambda: cls(call.n_total, call.dtype, call.negative_slope)
 
         def __init__(self, n_total: int, dtype: torch.dtype, negative_slope: float = 0.01):

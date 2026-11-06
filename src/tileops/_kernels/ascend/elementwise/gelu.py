@@ -6,7 +6,7 @@ import torch
 
 from tileops.backend._registry import register_kernel_type
 from tileops._kernels.elementwise._erf import gelu as _exact_gelu
-from tileops._kernels.elementwise.call_spec import GeluCall, UnaryElementwiseFwdInterface
+from tileops._kernels.elementwise.call_spec import GELUCall, UnaryElementwiseFwdInterface
 from tileops._kernels.kernel_base import Kernel
 
 __all__ = ["AscendGeluKernel"]
@@ -202,7 +202,7 @@ else:
 
         devices = frozenset({"npu"})
 
-        def __init__(self, call: GeluCall, *, device_index: "int | None" = None) -> None:
+        def __init__(self, call: GELUCall, *, device_index: "int | None" = None) -> None:
             super().__init__(device_index=device_index)
             self.n_total = call.n_total
             self.dtype = call.dtype
@@ -226,7 +226,7 @@ else:
                 self.kernel = _build_with_tail(call.n_total, dtype_str, call.approximate)
 
         @classmethod
-        def refusal(cls, call: GeluCall) -> "str | None":
+        def refusal(cls, call: GELUCall) -> "str | None":
             if call.approximate not in ("none", "tanh"):
                 return "unsupported approximation"
             return super().refusal(call)
