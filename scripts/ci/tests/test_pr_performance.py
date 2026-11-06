@@ -34,3 +34,12 @@ def test_changed_kernel_and_helper(tmp_path):
     git("add", ".")
     git("commit", "-m", "shared helper")
     assert MODULE.select(tmp_path, base)["operators"] == ["BmmFwdOp", "GemmFwdOp"]
+
+
+def test_changed_delegate_retests_supported_composites():
+    registered = {
+        "operators": ["LeafOp", "InnerOp", "OuterOp", "UnrelatedOp"],
+        "delegates": {"InnerOp": ["LeafOp"], "OuterOp": ["InnerOp"]},
+    }
+    assert MODULE.affected_composites(["LeafOp"], registered) == ["InnerOp", "LeafOp", "OuterOp"]
+    assert MODULE.affected_composites(["UnrelatedOp"], registered) == ["UnrelatedOp"]
