@@ -49,16 +49,24 @@ def _permute_index() -> list[int]:
 def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
     """The tile ``(tile_m, tile_n, tile_k, stages, blocks)`` one call runs with.
 
-    The column tile prefers 224, which splits 7168 into exactly 32 tiles — one per Cube
-    core — and the row tile grows with the call up to the 256 rows the L0C budget
-    allows. Sixteen-bit operands double the L1 footprint, so the K stage is 128 deep
-    rather than the 256 the one-byte GEMMs use.
+    The row tile grows with the call up to the 256 rows the L0C budget allows.
+    The column tile is the widest one that still cuts at least one tile per Cube
+    core: a narrower tile costs a little reuse but leaves no core idle, and an
+    idle core is the larger loss. Shapes that already reach 32 tiles keep the
+    widest tile. Sixteen-bit operands double the L1 footprint, so the K stage is
+    128 deep rather than the 256 the one-byte GEMMs use.
     """
+    blocks = 32
     tile_m = 16 if m <= 16 else 64 if m <= 64 else 128 if m <= 256 else 256
-    tile_n = 224 if n % 224 == 0 else 256 if n % 256 == 0 else 128 if n % 128 == 0 else n
+    row_tiles = -(-m // tile_m)
+    tile_n = n
+    for candidate in range(min(256, n), 0, -16):
+        if n % candidate == 0 and row_tiles * (n // candidate) >= blocks:
+            tile_n = candidate
+            break
     while tile_m > 16 and 2 * (tile_m + tile_n) * 128 * 2 * 2 > 512 * 1024:
         tile_m -= 64
-    return tile_m, tile_n, 128, 2, 32
+    return tile_m, tile_n, 128, 2, blocks
 
 
 def _dequant_program(n: int, k: int, group_size: int):
