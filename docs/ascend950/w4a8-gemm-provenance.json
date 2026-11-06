@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
+  "repository_commit": "e606fe1e",
+  "scope": "Ascend 950DT GemmW4A8FwdOp: all 98 manifest workload cases (DeepSeek-R1 and Llama-3 70B up/down projections, batch 1 to 4096 rows, and their eight-way tensor-parallel shards). FP8 activations times a signed INT4 weight with a 128-value group scale; the weight is unpacked to the exact FP8 operand the reference contracts. Not a public performance receipt.",
+  "device": {
+    "model": "Ascend950DT_9582",
+    "cube_cores": 32,
+    "vector_cores": 64,
+    "dense_fp8_peak_tflops": 864,
+    "physical_node": "/dev/davinci1"
+  },
+  "campaign": {
+    "protocol": "issue1-default-clock-task-adapter-v1, one window per arm",
+    "warmup": 3,
+    "calls_per_window": 25,
+    "eviction_bytes": 1073741824,
+    "metric": "arithmetic mean of raw ffts device execution interval unions",
+    "clock_policy": "unchanged platform default",
+    "formal_pending": true,
+    "reason": "Task-private protocol adapter: one profiler window carries all 25 calls instead of one window per call. The eviction and the parsed statistic are unchanged; the public default-clock receipt and the host-wide reservation are still unavailable.",
+    "workspace": "Task acceptance workspace, kept outside the repository.",
+    "environment": {
+      "tilelang": "0.1.15",
+      "torch": "2.13.0+cpu",
+      "torch_npu": "2.13.0rc1",
+      "python": "3.12.11",
+      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+      "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
+      "driver": "25.6.rc1",
+      "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
+    },
+    "stage_protocol": "Each pass is timed with the same window; `forward` is the sum of the three passes, so the stages account for the end-to-end cost."
+  },
+  "baseline": {
+    "reference": "This backend's FP8 GEMM on the same shape, same round, same process: identical Cube work, so the ratio isolates the unpack and the scale pass.",
+    "deepgemm": "Not measurable in this container. DeepGEMM's Ascend FP8 NT kernel fails to JIT against the installed CANN 9.2.0 inside its own copy.hpp (asc_set_l0c2gm_nz2nd has no matching overload); the same package produced the grouped-GEMM baselines on 2026-10-27, so the failure is in the toolchain pairing rather than in this op.",
+    "vendor_ops": "No ACLNN or torch_npu entry point takes FP8 activations. npu_weight_quant_batchmatmul serves A16W4/A16W8 (BF16/FP16 activations), which runs at the BF16 tensor-core rate and is not a like-for-like baseline."
+  },
+  "replay": {
+    "entry_point": "scripts/benchmark_ascend.py --op GemmW4A8FwdOp --verify-only",
+    "result": "98 of 98 manifest cases verified, source fingerprint unchanged",
+    "guard": "scripts/npu_guard.py with /dev/davinci0 remapped to /dev/davinci1 for this site",
+    "harness_note": "The shared input-preservation check compares every input with torch.isclose, which this torch_npu build does not implement for float8_e4m3fn; the replay compares FP8 inputs bitwise through a uint8 view, the same statement for those tensors.",
+    "receipt": "Task acceptance workspace, kept outside the repository."
+  },
+  "verification": {
+    "manifest_cases": 98,
+    "manifest_cases_passed": 98,
+    "tolerances": "The shared workload numeric policy through the public runner."
+  },
+  "cases": [
+    {
+      "case": "ds-r1-down-b1",
+      "m": 1,
+      "n": 7168,
+      "k": 18432,
+      "unpack_us": 120.0,
+      "gemm_us": 47.3,
+      "scale_us": 3.3,
+      "forward_us": 170.7,
+      "tflops": 1.5,
+      "fp8_gemm_only_us": 47.3,
+      "forward_over_fp8_gemm": 3.61
+    },
+    {
+      "case": "ds-r1-down-b64",
+      "m": 64,
+      "n": 7168,
+      "k": 18432,
+      "unpack_us": 119.3,
+      "gemm_us": 53.2,
+      "scale_us": 4.0,
+      "forward_us": 177.2,
+      "tflops": 95.5,
+      "fp8_gemm_only_us": 53.2,
+      "forward_over_fp8_gemm": 3.33
+    },
+    {
+      "case": "ds-r1-down-4k",
+      "m": 4096,
+      "n": 7168,
+      "k": 18432,
+      "unpack_us": 119.3,
+      "gemm_us": 1292.8,
+      "scale_us": 74.3,
+      "forward_us": 1491.0,
+      "tflops": 725.9,
+      "fp8_gemm_only_us": 1292.8,
+      "forward_over_fp8_gemm": 1.15
+    },
+    {
+      "case": "ds-r1-up-4k",
+      "m": 4096,
+      "n": 18432,
+      "k": 7168,
+      "unpack_us": 130.6,
+      "gemm_us": 1381.7,
+      "scale_us": 229.2,
+      "forward_us": 1749.7,
+      "tflops": 618.6,
+      "fp8_gemm_only_us": 1381.7,
+      "forward_over_fp8_gemm": 1.27
+    },
+    {
+      "case": "llama-70b-down-4k",
+      "m": 4096,
+      "n": 8192,
+      "k": 28672,
+      "unpack_us": 206.2,
+      "gemm_us": 2363.0,
+      "scale_us": 86.3,
+      "forward_us": 2659.1,
+      "tflops": 723.6,
+      "fp8_gemm_only_us": 2363.0,
+      "forward_over_fp8_gemm": 1.13
+    }
+  ],
+  "repository_commit_note": "e606fe1e is the commit that adds the kernel and the one the numbers were measured from; this provenance record sits on top of it, so the branch head that ships it has a later hash."
+}
