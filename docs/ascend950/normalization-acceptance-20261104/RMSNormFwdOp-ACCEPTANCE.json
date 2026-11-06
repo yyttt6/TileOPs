@@ -1,0 +1,79 @@
+{
+  "op": "RMSNormFwdOp",
+  "status": "accepted_npu_operator_with_explicit_public_environment_limits",
+  "host": "server1/openlibing-DevEnv-661495",
+  "device": "physical Ascend950DT_9582,32AIC/64AIV",
+  "toolchain": "ascend950-arm64-v1; toolchain-check.json",
+  "manifest_cases": 34,
+  "performance_min_ratio": 0.8581344600241434,
+  "threshold": 0.8,
+  "raw_windows_audited": 510,
+  "performance_evidence": "production-full-audit-v2.json",
+  "baseline": "frozen-baselines-full32.json; all163 admitted physical32 cache rows plus previously eligible eager; no baseline remeasurement",
+  "boundary_checks": [
+    {
+      "path": "rms-production-boundary-v1.json",
+      "checks": 78,
+      "sha256": "27dc8dfdd299670a7cb319aecd01f29221ede4c3c24106350996e7db2f34b4bc",
+      "guard": "production-boundary-v1/guard.json"
+    },
+    {
+      "path": "rms-production-tail-boundary-v2.json",
+      "checks": 36,
+      "sha256": "6434fe361e5dcf00f0c83b22dfbed190c08ca76cd22937225980be7152acc24d",
+      "guard": "production-tail-boundary-v2/guard.json"
+    },
+    {
+      "path": "rms-production-neighbor-boundary-v2.json",
+      "checks": 18,
+      "sha256": "4448e31fb934f9603ec360270a102f07fff4dbd7211dfc92ba3a95562a3a8126",
+      "guard": "production-neighbor-boundary-v2/guard.json"
+    }
+  ],
+  "boundary_total": 132,
+  "public_applicable_passed": 42,
+  "public_original_failures_retained": "rms-public-v2.xml",
+  "public_environment_limits": [
+    {
+      "nodeid": "tests/ops/test_rms_norm.py::test_a_cold_op_traces_fullgraph_and_matches_eager",
+      "reason": "default Inductor has no NPU wrapper in pinned runtime; original failure retained in rms-public-v2.xml"
+    },
+    {
+      "nodeid": "tests/ops/test_rms_norm.py::test_a_non_contiguous_input_compiles_to_the_shape_the_fake_promised",
+      "reason": "same default Inductor limitation; explicit FX fullgraph checks below are separate evidence"
+    },
+    {
+      "nodeid": "tests/ops/test_rms_norm.py::test_rms_norm_widest_row_past_the_sm_count",
+      "reason": "CUDA SM/shared-memory query before op; physical64-vector large-row NPU coverage in boundary receipt"
+    }
+  ],
+  "separate_fx_fullgraph_checks": [
+    {
+      "noncontiguous": false,
+      "backend": "eager",
+      "fullgraph": true,
+      "exact_match": true
+    },
+    {
+      "noncontiguous": true,
+      "backend": "eager",
+      "fullgraph": true,
+      "exact_match": true
+    }
+  ],
+  "does_not_claim": [
+    "default NPU Inductor support",
+    "CUDA hardware test passed",
+    "device graph capture support"
+  ],
+  "source_version": "production-v2",
+  "performance_reuse_proof": "production-v2-reuse-proof.json",
+  "reuse_boundary": "Only new lowp n256,m%32!=0 branch; false for all34 manifest and original78 boundary inputs; original hashes/results unchanged, all kernel bodies unchanged. New36tail and18neighbor checks executed onv2.",
+  "source_transfer": [
+    "local-source-transfer-v2.json",
+    "remote-source-transfer-v2.json"
+  ],
+  "generated_source_review": "generated-code-review-v1.json",
+  "raw_location": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-rms-20261103/*-production-full-v1/manifest/raw-profiles",
+  "archive_limit": "Original raw paths of admitted historical baseline export are no longer locally present; retained admitted exported receipt hashes/provenance. Current TileOPs510 windows freshly audited and retained onserver1."
+}

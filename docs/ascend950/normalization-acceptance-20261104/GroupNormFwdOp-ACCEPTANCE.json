@@ -1,0 +1,127 @@
+{
+  "status": "accepted_NPU_operator_domain",
+  "all_pass": true,
+  "manifest_cases": 10,
+  "min_ratio": 0.8310258793601097,
+  "public_passed": 40,
+  "public_skipped": [],
+  "public_deselected": [
+    {
+      "test": "test_group_norm_rejects_affine_device_mismatch",
+      "reason": "original cuda_only marker on NPU"
+    },
+    {
+      "test": "test_group_norm_lazy_cache_reuse_and_respecialization",
+      "reason": "original in_tree_kernels marker under Ascend target"
+    }
+  ],
+  "boundary_checks": 96,
+  "boundary_new_fp32": 48,
+  "boundary_reused_lowprecision": 48,
+  "new_timing_windows": 30,
+  "reused_lowprecision_timing_windows": 120,
+  "independently_parsed_old_windows": 240,
+  "independently_parsed_fp32_pilot_windows": 90,
+  "shared_dependencies": {
+    "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+    "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+    "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+    "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+    "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+    "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+    "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+    "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+    "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+    "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+    "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+    "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+    "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+    "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+    "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303",
+    "tileops/ops/norm/group_norm.py": "8ad73ce2ae6a1c768a3f2e7b44c4238bcc6537f617e86e3272ea1f76b2860e46"
+  },
+  "production_sources": {
+    "_group_lowprecision_resident.py": "f82bec34783255f358ab896dd426fd01a34ec8e001390fbb1fd2b38e322ede85",
+    "_group_lowprecision_simd.py": "803a3582f9336f766c5e1817c7382c3325949858c3e38e1c99aa9ea7f7f8333f",
+    "_group_fp32_resident.py": "d96e91a7c1419170dc794e2b8b7f398a93348af5cbc01a0a5dcf4b4e31cb3eff",
+    "group_norm.py": "764520628f7beb05fcf60361a5bd951b50a5f4a6e6765bc1571efc28997b71e4"
+  },
+  "original_remote_kernel_sha256": "ce203defd4ffa65fb5b9f53912c8fe5537d4c3a5dd2dc9027ed3cd23336afedc",
+  "sources": {
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/group_manifest_final_v1.py": "4cbe53268a608fa96ea050e34f4163e56f57fe7111aad623e41e44ae9f42ddd0",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-group-20261104/production-src-v1/tileops/kernels/ascend/norm/group_norm.py": "764520628f7beb05fcf60361a5bd951b50a5f4a6e6765bc1571efc28997b71e4",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-group-20261104/production-src-v1/tileops/kernels/ascend/norm/_group_fp32_resident.py": "d96e91a7c1419170dc794e2b8b7f398a93348af5cbc01a0a5dcf4b4e31cb3eff",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-group-20261104/production-src-v1/tileops/kernels/ascend/norm/_group_lowprecision_simd.py": "803a3582f9336f766c5e1817c7382c3325949858c3e38e1c99aa9ea7f7f8333f",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-group-20261104/production-src-v1/tileops/kernels/ascend/norm/_group_lowprecision_resident.py": "f82bec34783255f358ab896dd426fd01a34ec8e001390fbb1fd2b38e322ede85"
+  },
+  "auditor_sha256": "665be29b43bb1740cc335c8cfcea6e16cb98bcf27d86b120faf65235466e7a7c",
+  "cases": [
+    {
+      "case": "image-float16",
+      "us": 4.276133333333333,
+      "ratio": 2.3975710143119957,
+      "route": "lowp_simd"
+    },
+    {
+      "case": "image-bfloat16",
+      "us": 4.2510666666666665,
+      "ratio": 2.4987767775930747,
+      "route": "lowp_simd"
+    },
+    {
+      "case": "wider-channel-float16",
+      "us": 3.8728000000000002,
+      "ratio": 2.812418233147421,
+      "route": "lowp_simd"
+    },
+    {
+      "case": "wider-channel-float32",
+      "us": 7.9988,
+      "ratio": 1.125318797819673,
+      "route": "fp32_resident"
+    },
+    {
+      "case": "tail-spatial-float16",
+      "us": 6.197266666666667,
+      "ratio": 1.538506223173657,
+      "route": "lowp_resident"
+    },
+    {
+      "case": "image-affine-float16",
+      "us": 4.418066666666666,
+      "ratio": 1.5864556140695025,
+      "route": "lowp_simd"
+    },
+    {
+      "case": "image-affine-bfloat16",
+      "us": 4.507266666666666,
+      "ratio": 1.5774527060006807,
+      "route": "lowp_simd"
+    },
+    {
+      "case": "wider-channel-affine-float16",
+      "us": 4.1315333333333335,
+      "ratio": 1.9276136381972795,
+      "route": "lowp_simd"
+    },
+    {
+      "case": "wider-channel-affine-float32",
+      "us": 8.1764,
+      "ratio": 0.8310258793601097,
+      "route": "fp32_resident"
+    },
+    {
+      "case": "tail-spatial-affine-float16",
+      "us": 10.946666666666665,
+      "ratio": 0.8665286236297199,
+      "route": "lowp_resident"
+    }
+  ],
+  "notes": [
+    "No baseline measured. 40 legacy native, 10 new torch and eligible older eager denominators retained; fastest eligible denominator per case.",
+    "FP32 private Welford merge removes shared accumulation barriers while retaining original numerical order. Bounded resident route, original fallback AST unchanged.",
+    "Eight lowprecision timings and 48 boundaries reused with unchanged helper function ASTs and final generated C checked on all eight manifest cases.",
+    "All original failures retained: CPU compilation restrictions, v14/v15 performance failures and explicit-output boundary harness correction (no kernel change).",
+    "Historical template header hashes were not separately captured; exact device C, protocol toolchain and shared sources checked."
+  ]
+}
