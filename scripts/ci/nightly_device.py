@@ -37,6 +37,7 @@ def main():
 
     from benchmarks._cases import entry
     from benchmarks.api import cases
+    from benchmarks.ascend.coverage import registered_coverage
     from benchmarks.ascend.runner import benchmark_case, source_fingerprint
     from tileops.backend import registry
     from tileops.manifest import load_manifest
@@ -55,12 +56,13 @@ def main():
     assert "Ascend950" in hardware["device"] and (hardware["cube"], hardware["vector"]) == (32, 64)
     registry.ensure_loaded()
     assert not registry.LOAD_FAILURES, registry.LOAD_FAILURES
-    selected = registered_ascend_ops(registry.REGISTERED_KERNEL_TYPES)
+    coverage = registered_coverage()
+    selected = coverage["operators"]
     if a.op == "__list__":
         a.output.write_text(
             json.dumps(
                 {
-                    "operators": selected,
+                    **coverage,
                     "hardware": hardware,
                     "cases": {op: [c.id for c in cases(op)] for op in selected},
                 }

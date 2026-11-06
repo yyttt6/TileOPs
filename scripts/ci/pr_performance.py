@@ -102,6 +102,20 @@ def select(root, base):
     return dict(changed=changed, operators=sorted(selected), reasons=reasons)
 
 
+def affected_composites(selected, registered):
+    """Retest supported composites when any of their transitive delegates changes."""
+    affected = set(selected)
+    while True:
+        added = {
+            name
+            for name, children in registered.get("delegates", {}).items()
+            if set(children) & affected
+        }
+        if added <= affected:
+            return sorted(affected & set(registered["operators"]))
+        affected.update(added)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--base", required=True)
@@ -147,7 +161,7 @@ def main():
 
     assert guarded("__list__", out / "registered.json") == 0
     registered = json.loads((out / "registered.json").read_text())
-    ops = sorted(set(plan["operators"]) & set(registered["operators"]))
+    ops = affected_composites(plan["operators"], registered)
     assert ops, "Changed operators have no registered Ascend implementation"
     plan["operators"] = ops
     save("selection.json", plan)
