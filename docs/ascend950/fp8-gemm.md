@@ -34,17 +34,24 @@ stack: 3 warm-up calls, a 1 GiB eviction before every measured call, and the mea
 of the raw `ffts_profile` device execution-interval unions over 25 calls in one
 profiler window. **This is a task-protocol result, not a public formal receipt.**
 
-| Case            | M×N×K          | Scales     | µs    | TFLOP/s |
-| --------------- | -------------- | ---------- | ----- | ------- |
-| `decode-qkv-a`  | 128×2112×7168  | per-tensor | 26.0  | 149.2   |
-| `prefill-qkv-a` | 4096×2112×7168 | per-tensor | 203.8 | 608.7   |
-| `decode-down`   | 128×7168×2048  | per-128    | 65.4  | 57.4    |
-| `prefill-down`  | 4096×7168×2048 | per-128    | 455.0 | 264.3   |
-| `kv-b`          | 128×32768×512  | per-128    | 174.4 | 24.6    |
+| Case              | M×N×K          | Scales     | µs    | TFLOP/s |
+| ----------------- | -------------- | ---------- | ----- | ------- |
+| `decode-qkv-a`    | 128×2112×7168  | per-tensor | 26.0  | 149.2   |
+| `prefill-qkv-a`   | 4096×2112×7168 | per-tensor | 203.8 | 608.7   |
+| `decode-down`     | 128×7168×2048  | per-tensor | 15.5  | 243.1   |
+| `decode-down-blk` | 128×7168×2048  | per-128    | 65.4  | 57.4    |
+| `prefill-down`    | 4096×7168×2048 | per-tensor | 247.1 | 486.6   |
+| `prefill-down-blk` | 4096×7168×2048 | per-128    | 455.0 | 264.3   |
+| `kv-b`            | 128×32768×512  | per-128    | 174.4 | 24.6    |
 
-The per-tensor path reaches 609 TFLOP/s on prefill (70% of the 864 TFLOP/s peak).
-The block path pays the fold and the 16-bit rate: 2.4x the per-tensor cost at the
-same shape.
+`decode-down` / `decode-down-blk` and `prefill-down` / `prefill-down-blk` are pairs
+of manifest cases at the same M×N×K that differ only in the scale grid, so each pair
+isolates what the block path costs: 4.2x at 128 rows and 1.84x at 4096. The per-tensor
+row of each pair is the like-for-like comparison against a vendor baseline; the block
+row is not, because no vendor library serves a float32 per-128 grid here (see below).
+
+The per-tensor path reaches 609 TFLOP/s on `prefill-qkv-a` (70% of the 864 TFLOP/s
+peak) and 487 on `prefill-down`.
 
 **Baseline.** DeepGEMM's `fp8_gemm_nt` is the like-for-like reference for this op,
 and it does not build in this container: its Ascend JIT needs `ascendc_assert`,
