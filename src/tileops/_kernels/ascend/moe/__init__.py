@@ -24,6 +24,7 @@ from tileops._kernels.ascend.moe.indexed_expert_packed import (
 )
 from tileops._kernels.ascend.moe.indexed_expert_preload import AscendIndexedExpertGateUpPreloadKernel
 from tileops._kernels.ascend.moe.moe_grouped_gemm_fp8 import AscendMoEGroupedGEMMFP8Kernel
+from tileops._kernels.ascend.moe.permute_align import AscendMoEPermuteAlignKernel
 from tileops._kernels.ascend.moe.pre_permute import AscendMoEPrePermuteKernel
 
 __all__ = [
@@ -43,5 +44,6 @@ __all__ = [
     "AscendIndexedRouteStatsParallelKernel",
     "AscendIndexedWeightedReduceKernel",
     "AscendMoEGroupedGEMMFP8Kernel",
+    "AscendMoEPermuteAlignKernel",
     "AscendMoEPrePermuteKernel",
 ]
