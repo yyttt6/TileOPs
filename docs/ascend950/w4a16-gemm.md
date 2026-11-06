@@ -17,10 +17,11 @@ lane in its low half and the four odd ones in its high half.
 Two shapes of the same work, chosen by how many row tiles the call has:
 
 - **One row tile** (batch-1 to 128 rows): a *fused* kernel. The vector unit unpacks
-  each weight tile into unified memory and copies it into L1 while the cube consumes
-  the previous stage, so the weight never reaches GM — the call reads `N*K/2` bytes
-  and writes only its output. Unpacking per row tile is free here because there is
-  exactly one.
+  each weight tile into unified memory and copies it into L1 for the cube, so the
+  weight never reaches GM — the call reads `N*K/2` bytes and writes only its output.
+  The unpack is not duplicated across row tiles here, which is what makes the fusion
+  pay; it still serializes against the cube (see below), so it is cheaper than the
+  two-pass form rather than free.
 - **More row tiles**: the two-pass form below, because the fused kernel would unpack
   the same weight tile once per row tile.
 
@@ -80,8 +81,13 @@ unified-memory-to-L1 copy lowers to a scatter plus a copy on two pipes and `T.Ta
 accepts one pipe per task.
 
 **Baseline.** `torch_npu`'s `npu_weight_quant_batchmatmul` serves the same function
-(A16W4 with per-group scales) and is the like-for-like baseline on this device; it
-was not measured in this round, so the table reports absolute numbers only.
+(A16W4 with per-group scales) and is the like-for-like baseline on this device; the
+vendor column above is that measurement, taken in the same round on the same shapes.
+It is the only vendor figure used here: the site snapshot's `ops-transformer` and
+`ops-nn` rows for these cases sit on a flat ~12.4 ms plateau across batch 2/8/32 and
+both prefill cases, 285x off the in-round vendor number for the same shape, so they
+are not a shape-dependent measurement and are not usable as a baseline until they
+are re-collected.
 
 ## Correctness
 
