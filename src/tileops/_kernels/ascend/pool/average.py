@@ -11,7 +11,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool import (
     average_ceil_divisor,
     average_ceil_rotate,

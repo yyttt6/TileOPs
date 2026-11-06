@@ -469,7 +469,7 @@ class AscendEluKernel(Kernel, EluFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("EluFwdOp", "ascend", AscendEluKernel)
 except ImportError:

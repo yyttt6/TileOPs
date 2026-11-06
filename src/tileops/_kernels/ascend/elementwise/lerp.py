@@ -315,7 +315,7 @@ class AscendLerpTensorKernel(Kernel, LerpTensorFwdInterface):
 
 
 if T is not None:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("LerpScalarFwdOp", "ascend", AscendLerpScalarKernel)
     register_kernel_type("LerpTensorFwdOp", "ascend", AscendLerpTensorKernel)

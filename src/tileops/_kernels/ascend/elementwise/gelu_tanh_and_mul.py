@@ -223,6 +223,6 @@ if _ASCEND_AVAILABLE:
                 return torch.empty((self.m, self.n), dtype=self.dtype, device=x.device)
             return self.kernel(x.contiguous())
 
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("GeluTanhAndMulFwdOp", "ascend", AscendGeluTanhAndMulKernel)

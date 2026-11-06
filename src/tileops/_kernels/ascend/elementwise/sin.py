@@ -3,7 +3,7 @@
 Registers an additional implementation of ``SinFwdOp``'s ``UnaryElementwiseFwdInterface``
 under the ``"ascend"`` dispatch key, beside the in-tree CUDA ``SinFwdKernel``
 (``tileops._kernels.elementwise.math_unary.SinFwdKernel``). No existing file is edited to do
-this: ``tileops.backend.register_kernel_type`` joins this class to every ``SinFwdOp`` instance
+this: ``tileops.backend._registry.register_kernel_type`` joins this class to every ``SinFwdOp`` instance
 constructed after this module is imported (``docs/ascend950/dev_process.md`` §1).
 
 Design: ``docs/ascend950/dev/SinFwdOp/round_1_schedule.md``, ``round_1_result.md``. This op has
@@ -67,7 +67,7 @@ try:
     import tilelang.ascend.language as T
     from tilelang.carver.arch.driver import get_num_vector_cores
 
-    import tileops.backend
+    import tileops.backend._registry
     from tileops._kernels.elementwise.call_spec import (
         ElementwiseCall,
         UnaryElementwiseFwdInterface,
@@ -432,7 +432,7 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend.register_kernel_type("SinFwdOp", "ascend", AscendSinKernel)
+    tileops.backend._registry.register_kernel_type("SinFwdOp", "ascend", AscendSinKernel)
 
 except ImportError:
     pass

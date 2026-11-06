@@ -12,7 +12,7 @@ from typing import ClassVar, Optional
 
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.elementwise.dropout import DropoutCall, DropoutFwdInterface
 from tileops._kernels.kernel_base import Entry, Kernel
 

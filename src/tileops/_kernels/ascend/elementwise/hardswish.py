@@ -368,7 +368,7 @@ class AscendHardswishKernel(Kernel, UnaryElementwiseFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("HardswishFwdOp", "ascend", AscendHardswishKernel)
 except ImportError:

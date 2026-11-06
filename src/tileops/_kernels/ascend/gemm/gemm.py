@@ -6,7 +6,7 @@ from typing import Optional
 import torch
 from tilelang.carver.arch.driver import get_num_cube_cores
 
-import tileops.backend
+import tileops.backend._registry
 from tileops._kernels.ascend.gemm.persistent import SCHEDULES, compile_schedule
 from tileops._kernels.gemm import GemmCall, GemmFwdInterface
 from tileops._kernels.kernel_base import Kernel
@@ -72,4 +72,4 @@ class AscendGemmKernel(Kernel, GemmFwdInterface):
         return self._compiled_fn(a, b)
 
 
-tileops.backend.register_kernel_type("GemmFwdOp", "ascend", AscendGemmKernel)
+tileops.backend._registry.register_kernel_type("GemmFwdOp", "ascend", AscendGemmKernel)

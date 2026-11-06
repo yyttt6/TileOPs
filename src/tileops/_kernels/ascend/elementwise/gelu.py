@@ -4,7 +4,7 @@ import functools
 
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.elementwise._erf import gelu as _exact_gelu
 from tileops._kernels.elementwise.call_spec import GeluCall, UnaryElementwiseFwdInterface
 from tileops._kernels.kernel_base import Kernel

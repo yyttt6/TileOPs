@@ -11,7 +11,7 @@ validated it and re-bound M3/M4 to this source
 (``docs/ascend950/dev/SeluFwdOp/dsh_round1_result.md``). Registers an additional implementation of
 ``SeluFwdOp``'s ``UnaryElementwiseFwdInterface`` under the ``"ascend"`` dispatch key, beside the
 in-tree CUDA ``SeluFwdKernel`` (``tileops._kernels.elementwise.activations.SeluFwdKernel``). No
-existing file is edited: ``tileops.backend.register_kernel_type`` joins this class to every
+existing file is edited: ``tileops.backend._registry.register_kernel_type`` joins this class to every
 ``SeluFwdOp`` constructed after this module is imported (``dev_process.md`` §1).
 
 Math: mirrors ``SeluFwdKernel.op_func`` (``kernels/elementwise/activations.py``) except for one
@@ -398,7 +398,7 @@ class AscendSeluKernel(Kernel, UnaryElementwiseFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("SeluFwdOp", "ascend", AscendSeluKernel)
 except ImportError:

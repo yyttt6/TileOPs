@@ -9,7 +9,7 @@ else:
     import functools
     from typing import ClassVar
     import tilelang
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
     from tileops._kernels.kernel_base import Kernel
     from tileops._kernels.norm.fused_extended_call_spec import QKNormRoPEInterface
 

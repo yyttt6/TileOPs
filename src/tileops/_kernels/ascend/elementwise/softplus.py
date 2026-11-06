@@ -391,7 +391,7 @@ class AscendSoftplusKernel(Kernel, SoftplusFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("SoftplusFwdOp", "ascend", AscendSoftplusKernel)
 except ImportError:

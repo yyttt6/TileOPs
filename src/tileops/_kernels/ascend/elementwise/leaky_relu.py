@@ -11,7 +11,7 @@ input)`` signatures look identical, so getting this wrong raises ``"keys impleme
 kernel interfaces"`` on *every* device/test with no signature-level hint) under the ``"ascend"``
 dispatch key, beside the in-tree CUDA ``LeakyReluFwdKernel``
 (``tileops._kernels.elementwise.activations.LeakyReluFwdKernel``). No existing file is edited to do
-this: ``tileops.backend.register_kernel_type`` joins this class to every ``LeakyReluFwdOp``
+this: ``tileops.backend._registry.register_kernel_type`` joins this class to every ``LeakyReluFwdOp``
 instance constructed after this module is imported (``dev_process.md`` §1).
 
 Round 2 (``opus48_round2_schedule.md`` §3 VF-A): the large-n persistent path replaces the
@@ -121,7 +121,7 @@ try:
     import tilelang.ascend.language as T
     from tilelang.carver.arch.driver import get_num_vector_cores
 
-    import tileops.backend
+    import tileops.backend._registry
     from tileops._kernels.elementwise.call_spec import LeakyReluCall, LeakyReluFwdInterface
     from tileops._kernels.kernel_base import Entry, Kernel
 
@@ -605,7 +605,7 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend.register_kernel_type("LeakyReluFwdOp", "ascend", AscendLeakyReluKernel)
+    tileops.backend._registry.register_kernel_type("LeakyReluFwdOp", "ascend", AscendLeakyReluKernel)
 
 except ImportError:
     pass

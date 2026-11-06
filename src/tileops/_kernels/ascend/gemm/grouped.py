@@ -14,7 +14,7 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.carver.arch.driver import get_num_cube_cores
 
-import tileops.backend
+import tileops.backend._registry
 from tileops._kernels.gemm.grouped.call_spec import (
     GroupedGemmCall,
     GroupedGemmFwdInterface,
@@ -375,4 +375,4 @@ class AscendGroupedGemmKernel(Kernel, GroupedGemmFwdInterface):
         return self._compiled_fn(a, b, batch_sizes, batch_offsets, *self._zero_tiles)
 
 
-tileops.backend.register_kernel_type("GroupedGemmFwdOp", "ascend", AscendGroupedGemmKernel)
+tileops.backend._registry.register_kernel_type("GroupedGemmFwdOp", "ascend", AscendGroupedGemmKernel)

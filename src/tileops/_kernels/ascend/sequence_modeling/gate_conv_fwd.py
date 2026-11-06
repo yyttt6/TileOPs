@@ -7,7 +7,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops._kernels.sequence_modeling.engram.call_spec import (
     CONV_KERNEL_SIZE,

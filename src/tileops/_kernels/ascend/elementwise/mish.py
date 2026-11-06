@@ -3,7 +3,7 @@
 Registers an additional implementation of ``MishFwdOp``'s ``UnaryElementwiseFwdInterface``
 under the ``"ascend"`` dispatch key, beside the in-tree CUDA ``MishFwdKernel``
 (``tileops._kernels.elementwise.activations.MishFwdKernel``). No existing file is edited to do
-this: ``tileops.backend.register_kernel_type`` joins this class to every ``MishFwdOp`` instance
+this: ``tileops.backend._registry.register_kernel_type`` joins this class to every ``MishFwdOp`` instance
 constructed after this module is imported (``docs/ascend950/dev_process.md`` §1).
 
 Design: ``docs/ascend950/dev/MishFwdOp/`` (round-1/round-2 schedules, reviews and results). The
@@ -89,7 +89,7 @@ try:
     import tilelang.ascend.language as T
     from tilelang.carver.arch.driver import get_num_vector_cores
 
-    import tileops.backend
+    import tileops.backend._registry
     from tileops._kernels.elementwise.call_spec import (
         ElementwiseCall,
         UnaryElementwiseFwdInterface,
@@ -415,7 +415,7 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend.register_kernel_type("MishFwdOp", "ascend", AscendMishKernel)
+    tileops.backend._registry.register_kernel_type("MishFwdOp", "ascend", AscendMishKernel)
 
 except ImportError:
     pass

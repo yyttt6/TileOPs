@@ -1,7 +1,7 @@
 """TileLang-Ascend kernel for ``GeluAndMulFwdOp``: y = gelu(gate) * value, exact erf GELU.
 
 New, additive file: it does not edit any existing kernel/op module. It self-registers
-with ``tileops.backend.register_kernel_type`` at import time (see
+with ``tileops.backend._registry.register_kernel_type`` at import time (see
 ``docs/ascend950/dev_process.md`` section 1), so importing this module is what makes
 ``AscendGeluAndMulKernel`` participate in ``GeluAndMulFwdOp`` dispatch for npu tensors;
 nothing else needs to change.
@@ -29,7 +29,7 @@ try:
     import tilelang
     import tilelang.ascend.language as T
 
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
     from tileops._kernels.elementwise.call_spec import FusedGatedCall, FusedGatedFwdInterface
     from tileops._kernels.kernel_base import Entry, Kernel
 

@@ -114,7 +114,7 @@ class FusedQKNormRoPEFwdOp(Op):
                 layout=self.rope_layout,
             )
             contiguous = qkv.contiguous()
-            self.kernel_for("ascend_qk_norm_rope", ascend_call)(
+            self.kernel_for("ascend_qk_norm_rope", lambda: ascend_call)(
                 contiguous,
                 q_weight.contiguous(),
                 k_weight.contiguous(),

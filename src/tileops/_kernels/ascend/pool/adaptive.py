@@ -11,7 +11,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool.adaptive_helpers import adaptive_tiling
 from tileops._kernels.ascend.pool.adaptive_spatial import configuration as spatial_configuration
 from tileops._kernels.ascend.pool.adaptive_spatial import spatial_program

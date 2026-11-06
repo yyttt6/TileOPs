@@ -8,7 +8,7 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.carver.arch.driver import get_num_cube_cores
 
-import tileops.backend
+import tileops.backend._registry
 from tileops._kernels.gemm import BmmCall, BmmFwdInterface
 from tileops._kernels.kernel_base import Entry, Kernel
 
@@ -229,4 +229,4 @@ class AscendBmmKernel(Kernel, BmmFwdInterface):
         return self._compiled_fn(a, b)
 
 
-tileops.backend.register_kernel_type("BmmFwdOp", "ascend", AscendBmmKernel)
+tileops.backend._registry.register_kernel_type("BmmFwdOp", "ascend", AscendBmmKernel)

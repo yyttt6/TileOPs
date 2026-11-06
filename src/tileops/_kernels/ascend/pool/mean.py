@@ -13,7 +13,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool import mean_fullwidth6, mean_fullwidth_stream, mean_uniform_wide
 from tileops._kernels.ascend.pool import mean_ragged_tail_aligned as _ragged_tail_aligned
 from tileops._kernels.ascend.pool.adaptive_helpers import mean_tiling

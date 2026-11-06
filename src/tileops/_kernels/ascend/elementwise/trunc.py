@@ -5,7 +5,7 @@ from typing import ClassVar
 
 import torch
 
-import tileops.backend
+import tileops.backend._registry
 from tileops._kernels.elementwise.call_spec import UnaryElementwiseFwdInterface
 from tileops._kernels.kernel_base import Kernel
 
@@ -138,4 +138,4 @@ class AscendTruncKernel(Kernel, UnaryElementwiseFwdInterface):
         return self.compiled(flat).view(self.dtype).reshape(input.shape)
 
 
-tileops.backend.register_kernel_type("TruncFwdOp", "ascend", AscendTruncKernel)
+tileops.backend._registry.register_kernel_type("TruncFwdOp", "ascend", AscendTruncKernel)

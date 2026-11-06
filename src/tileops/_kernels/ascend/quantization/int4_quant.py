@@ -6,7 +6,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.quantization.int4_groups import build_int4_groups
 from tileops._kernels.ascend.quantization.int4_stream import build_int4_stream
 from tileops._kernels.kernel_base import Kernel

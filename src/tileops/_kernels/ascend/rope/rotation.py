@@ -6,7 +6,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.rope.staged import build_staged_rotation
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.rope import (

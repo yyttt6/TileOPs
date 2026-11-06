@@ -4,7 +4,7 @@ dialect.
 Registers an additional implementation of ``HardsigmoidFwdOp``'s
 ``UnaryElementwiseFwdInterface`` under the ``"ascend"`` dispatch key, beside the in-tree CUDA
 ``HardsigmoidFwdKernel`` (``tileops._kernels.elementwise.activations.HardsigmoidFwdKernel``). No
-existing file is edited: ``tileops.backend.register_kernel_type`` joins this class to every
+existing file is edited: ``tileops.backend._registry.register_kernel_type`` joins this class to every
 ``HardsigmoidFwdOp`` instance constructed after this module is imported
 (``docs/ascend950/dev_process.md`` §1). ``inplace`` is handled entirely by the op layer
 (``_UnaryActivationMixin.forward``, which copies the kernel's fresh buffer back into ``input``
@@ -114,7 +114,7 @@ try:
     import tilelang.ascend.language as T
     from tilelang.carver.arch.driver import get_num_vector_cores
 
-    import tileops.backend
+    import tileops.backend._registry
     from tileops._kernels.elementwise.call_spec import (
         ElementwiseCall,
         UnaryElementwiseFwdInterface,
@@ -379,7 +379,7 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend.register_kernel_type("HardsigmoidFwdOp", "ascend", AscendHardsigmoidKernel)
+    tileops.backend._registry.register_kernel_type("HardsigmoidFwdOp", "ascend", AscendHardsigmoidKernel)
 
 except ImportError:
     pass

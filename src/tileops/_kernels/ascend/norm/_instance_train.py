@@ -10,7 +10,7 @@ else:
     import functools
     from typing import ClassVar
     import torch
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
     from tileops._kernels.kernel_base import Kernel
     import tilelang
 

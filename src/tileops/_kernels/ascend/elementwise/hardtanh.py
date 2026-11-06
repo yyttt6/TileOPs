@@ -625,7 +625,7 @@ class AscendHardtanhKernel(Kernel, BoundedUnaryFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("HardtanhFwdOp", "ascend", AscendHardtanhKernel)
 except ImportError:

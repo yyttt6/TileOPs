@@ -3,7 +3,7 @@
 Round 1 of ``docs/ascend950/dev_process.md``'s Ascend development loop for ``SiluFwdOp``; see
 ``docs/ascend950/dev/SiluFwdOp/round_1_schedule.md`` for the tiling/schedule design this file
 implements. Registers itself under the ``"ascend"`` dispatch key
-(``tileops.backend.register_kernel_type``), so importing this module is enough to make
+(``tileops.backend._registry.register_kernel_type``), so importing this module is enough to make
 ``SiluFwdOp`` route NPU tensors here -- no change to the existing CUDA ``SiluFwdKernel`` or
 ``SiluFwdOp``.
 
@@ -470,7 +470,7 @@ class AscendSiluKernel(Kernel, UnaryElementwiseFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("SiluFwdOp", "ascend", AscendSiluKernel)
 except ImportError:

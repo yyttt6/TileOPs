@@ -4,7 +4,7 @@ Round 1 of ``docs/ascend950/dev_process.md``'s Ascend development loop for ``Rec
 see ``docs/ascend950/dev/ReciprocalFwdOp/round_1_schedule.md`` for the full design this file
 implements. Registers an additional implementation of ``ReciprocalFwdOp``'s own
 ``ReciprocalFwdInterface`` under the ``"ascend"`` dispatch key
-(``tileops.backend.register_kernel_type``), beside the in-tree CUDA ``ReciprocalFwdKernel``
+(``tileops.backend._registry.register_kernel_type``), beside the in-tree CUDA ``ReciprocalFwdKernel``
 (``tileops._kernels.elementwise.math_unary.ReciprocalFwdKernel``). No existing file is edited.
 
 **Interface choice is load-bearing, not cosmetic**: ``ReciprocalFwdOp`` overrides ``interfaces``
@@ -409,7 +409,7 @@ class AscendReciprocalKernel(Kernel, ReciprocalFwdInterface):
 
 
 try:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("ReciprocalFwdOp", "ascend", AscendReciprocalKernel)
 except ImportError:

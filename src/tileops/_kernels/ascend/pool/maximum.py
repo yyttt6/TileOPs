@@ -13,7 +13,7 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.ascend.language import simd as S
 
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool import (
     max_alexnet_pairs,
     max_c3d_native4,

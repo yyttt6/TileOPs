@@ -10,7 +10,7 @@ else:
     from typing import ClassVar
     import torch
     import tilelang
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
     from tileops._kernels.kernel_base import Kernel
     from tileops._kernels.norm.call_spec import BatchNormTrainFwdInterface,BatchNormInferFwdInterface
 

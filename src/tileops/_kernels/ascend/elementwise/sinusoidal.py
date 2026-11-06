@@ -117,6 +117,6 @@ class AscendSinusoidalKernel(Kernel, SinusoidalFwdInterface):
 
 
 if T is not None:
-    from tileops.backend import register_kernel_type
+    from tileops.backend._registry import register_kernel_type
 
     register_kernel_type("SinusoidalFwdOp", "ascend", AscendSinusoidalKernel)

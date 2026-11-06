@@ -5,7 +5,7 @@ from typing import ClassVar
 
 import torch
 
-import tileops.backend
+import tileops.backend._registry
 from tileops._kernels.elementwise.call_spec import RoundFwdInterface
 from tileops._kernels.kernel_base import Kernel
 
@@ -159,4 +159,4 @@ class AscendRoundKernel(Kernel, RoundFwdInterface):
         return self.compiled(flat).view(self.dtype).reshape(input.shape)
 
 
-tileops.backend.register_kernel_type("RoundFwdOp", "ascend", AscendRoundKernel)
+tileops.backend._registry.register_kernel_type("RoundFwdOp", "ascend", AscendRoundKernel)

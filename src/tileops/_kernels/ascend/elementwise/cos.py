@@ -3,7 +3,7 @@
 Registers an additional implementation of ``CosFwdOp``'s ``UnaryElementwiseFwdInterface``
 under the ``"ascend"`` dispatch key, beside the in-tree CUDA ``CosFwdKernel``
 (``tileops._kernels.elementwise.math_unary.CosFwdKernel``). No existing file is edited to do
-this: ``tileops.backend.register_kernel_type`` joins this class to every ``CosFwdOp`` instance
+this: ``tileops.backend._registry.register_kernel_type`` joins this class to every ``CosFwdOp`` instance
 constructed after this module is imported (``docs/ascend950/dev_process.md`` §1).
 
 Design: ``docs/ascend950/dev/CosFwdOp/round_1_schedule.md``. This op has the identical cost
@@ -60,7 +60,7 @@ try:
     import tilelang.ascend.language as T
     from tilelang.carver.arch.driver import get_num_vector_cores
 
-    import tileops.backend
+    import tileops.backend._registry
     from tileops._kernels.elementwise.call_spec import (
         ElementwiseCall,
         UnaryElementwiseFwdInterface,
@@ -441,7 +441,7 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend.register_kernel_type("CosFwdOp", "ascend", AscendCosKernel)
+    tileops.backend._registry.register_kernel_type("CosFwdOp", "ascend", AscendCosKernel)
 
 except ImportError:
     pass
