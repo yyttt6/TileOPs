@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
+  "repository_commit": "<filled at commit time>",
+  "repository_commit_note": "The commit that adds this kernel; this provenance record sits on top of it, so the branch head that ships it has a later hash.",
+  "scope": "Ascend 950DT GemmW4A16FwdOp: all 15 manifest workload cases (decode batch 1 at three hidden sizes, a long-K streaming case, batched decode, one prefill tile, and the single-/multi-tile compile checks) with the manifest's marlin-layout INT4 packing. Not a public performance receipt. The op runs a fused vector-to-L1 path when the call has one row tile and the two-pass form above it.",
+  "device": {
+    "model": "Ascend950DT_9582",
+    "cube_cores": 32,
+    "vector_cores": 64,
+    "physical_node": "/dev/davinci1"
+  },
+  "campaign": {
+    "protocol": "issue1-default-clock-task-adapter-v1, one window per arm",
+    "warmup": 3,
+    "calls_per_window": 25,
+    "eviction_bytes": 1073741824,
+    "metric": "arithmetic mean of raw ffts device execution interval unions",
+    "clock_policy": "unchanged platform default",
+    "formal_pending": true,
+    "reason": "Task-private protocol adapter: one profiler window carries all 25 calls instead of one window per call. The eviction and the parsed statistic are unchanged; the public default-clock receipt and the host-wide reservation are still unavailable.",
+    "workspace": "Task acceptance workspace, kept outside the repository.",
+    "environment": {
+      "tilelang": "0.1.15",
+      "torch": "2.13.0+cpu",
+      "torch_npu": "2.13.0rc1",
+      "python": "3.12.11",
+      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+      "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
+      "driver": "25.6.rc1",
+      "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
+    },
+    "stage_protocol": "The fused path is timed end to end; the two-pass path also reports its stages under the same window, and they sum to its forward time."
+  },
+  "baseline": {
+    "vendor_ops": "torch_npu npu_weight_quant_batchmatmul (A16W4 with per-group scales), measured in the same round on the same shapes: the like-for-like baseline for this function.",
+    "vendor_us": {
+      "decode-l2-resident": 43.4,
+      "decode-hbm-streaming": 74.9,
+      "decode-non-pow2": 107.5,
+      "decode-long-k": 593.8,
+      "decode-b32": 52.7,
+      "prefill-mlp-up": 168.0
+    },
+    "deepgemm": "DeepGEMM ships no INT4 x FP16 kernel."
+  },
+  "replay": {
+    "entry_point": "scripts/benchmark_ascend.py --op GemmW4A16FwdOp --verify-only",
+    "result": "15 of 15 manifest cases verified, status passed, source fingerprint unchanged",
+    "guard": "scripts/npu_guard.py with /dev/davinci0 remapped to /dev/davinci1 for this site",
+    "receipt": "Task acceptance workspace, kept outside the repository."
+  },
+  "verification": {
+    "manifest_cases": 15,
+    "manifest_cases_passed": 15,
+    "tolerances": "The shared workload numeric policy through the public runner: Exact(atol=7e-2, rtol=5e-2) against the FP32 dequantized reference."
+  },
+  "cases": [
+    {
+      "case": "decode-l2-resident",
+      "m": 1,
+      "n": 8192,
+      "k": 8192,
+      "forward_us": 113.4,
+      "path": "fused",
+      "vendor_a16w4_us": 43.4,
+      "ours_over_vendor": 2.61
+    },
+    {
+      "case": "decode-hbm-streaming",
+      "m": 1,
+      "n": 8192,
+      "k": 16384,
+      "forward_us": 190.0,
+      "path": "fused",
+      "vendor_a16w4_us": 74.9,
+      "ours_over_vendor": 2.54
+    },
+    {
+      "case": "decode-non-pow2",
+      "m": 1,
+      "n": 7168,
+      "k": 20480,
+      "forward_us": 207.3,
+      "path": "fused",
+      "vendor_a16w4_us": 107.5,
+      "ours_over_vendor": 1.93
+    },
+    {
+      "case": "decode-long-k",
+      "m": 1,
+      "n": 8192,
+      "k": 81920,
+      "forward_us": 921.5,
+      "path": "fused",
+      "vendor_a16w4_us": 593.8,
+      "ours_over_vendor": 1.55
+    },
+    {
+      "case": "decode-b32",
+      "m": 32,
+      "n": 8192,
+      "k": 8192,
+      "forward_us": 115.9,
+      "path": "fused",
+      "vendor_a16w4_us": 52.7,
+      "ours_over_vendor": 2.2
+    },
+    {
+      "case": "prefill-mlp-up",
+      "m": 512,
+      "n": 8192,
+      "k": 8192,
+      "unpack_us": 93.8,
+      "permute_us": 9.4,
+      "gemm_us": 164.9,
+      "forward_us": 268.3,
+      "tflops": 256.0,
+      "path": "two-pass",
+      "vendor_a16w4_us": 168.0,
+      "ours_over_vendor": 1.6
+    }
+  ]
+}
