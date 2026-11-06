@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
+  "repository_commit": "<filled at commit time>",
+  "repository_commit_note": "The commit that adds this kernel; this provenance record sits on top of it, so the branch head that ships it has a later hash.",
+  "scope": "Ascend 950DT GemmFP8FwdOp: all 39 manifest workload cases (DeepSeek-V3 decode and prefill projections, per-tensor and per-128-block scale grids, bias, float16 output, and the KV-cache shapes). Not a public performance receipt.",
+  "device": {
+    "model": "Ascend950DT_9582",
+    "cube_cores": 32,
+    "vector_cores": 64,
+    "physical_node": "/dev/davinci1"
+  },
+  "campaign": {
+    "protocol": "issue1-default-clock-task-adapter-v1, one window per arm",
+    "warmup": 3,
+    "calls_per_window": 25,
+    "eviction_bytes": 1073741824,
+    "metric": "arithmetic mean of raw ffts device execution interval unions",
+    "clock_policy": "unchanged platform default",
+    "formal_pending": true,
+    "reason": "Task-private protocol adapter: one profiler window carries all 25 calls instead of one window per call. The eviction and the parsed statistic are unchanged; the public default-clock receipt and the host-wide reservation are still unavailable.",
+    "workspace": "Task acceptance workspace, kept outside the repository.",
+    "environment": {
+      "tilelang": "0.1.15",
+      "torch": "2.13.0+cpu",
+      "torch_npu": "2.13.0rc1",
+      "python": "3.12.11",
+      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+      "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
+      "driver": "25.6.rc1",
+      "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
+    }
+  },
+  "baseline": {
+    "deepgemm": "Not measurable in this container. DeepGEMM's Ascend FP8 NT kernel JIT-compiles against the installed CANN 9.2.0 and fails on APIs that toolkit no longer ships (ascendc_assert, pre-deprecation L0C-to-GM setters); the same package produced the grouped-GEMM baselines on 2026-10-27, so the failure is in the toolchain pairing.",
+    "vendor_ops": "No torch_npu or ACLNN entry point takes FP8 activations."
+  },
+  "replay": {
+    "entry_point": "task replay script over benchmarks.api cases, fp8-safe input preservation (bitwise uint8 view)",
+    "result": "39 of 39 manifest cases verified, source fingerprint unchanged",
+    "guard": "scripts/npu_guard.py with /dev/davinci0 remapped to /dev/davinci1 for this site",
+    "harness_note": "The shared preservation check compares every input with torch.isclose, which this torch_npu build does not implement for float8_e4m3fn; the replay compares FP8 inputs bitwise.",
+    "receipt": "Task acceptance workspace, kept outside the repository."
+  },
+  "verification": {
+    "manifest_cases": 39,
+    "manifest_cases_passed": 39,
+    "tolerances": "The shared workload numeric policy: atol 2e-2 * sqrt(max(1, K/1024)), rtol 2e-2."
+  },
+  "cases": [
+    {
+      "case": "decode-qkv-a",
+      "m": 128,
+      "n": 2112,
+      "k": 7168,
+      "scale_mode": "per_tensor",
+      "us": 26.0,
+      "tflops": 149.2
+    },
+    {
+      "case": "prefill-qkv-a",
+      "m": 4096,
+      "n": 2112,
+      "k": 7168,
+      "scale_mode": "per_tensor",
+      "us": 203.8,
+      "tflops": 608.7
+    },
+    {
+      "case": "decode-down",
+      "m": 128,
+      "n": 7168,
+      "k": 2048,
+      "scale_mode": "per_tensor",
+      "us": 15.5,
+      "tflops": 243.1
+    },
+    {
+      "case": "decode-down-blk",
+      "m": 128,
+      "n": 7168,
+      "k": 2048,
+      "scale_mode": "block128",
+      "us": 65.4,
+      "tflops": 57.4
+    },
+    {
+      "case": "prefill-down",
+      "m": 4096,
+      "n": 7168,
+      "k": 2048,
+      "scale_mode": "per_tensor",
+      "us": 247.1,
+      "tflops": 486.6
+    },
+    {
+      "case": "prefill-down-blk",
+      "m": 4096,
+      "n": 7168,
+      "k": 2048,
+      "scale_mode": "block128",
+      "us": 455.0,
+      "tflops": 264.3
+    },
+    {
+      "case": "kv-b",
+      "m": 128,
+      "n": 32768,
+      "k": 512,
+      "scale_mode": "block128",
+      "us": 174.4,
+      "tflops": 24.6
+    }
+  ]
+}
