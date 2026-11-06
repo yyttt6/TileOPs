@@ -54,11 +54,25 @@ Prefill rows reach 586-786 TFLOP/s end to end; the product alone runs at
 reads back and the output it writes — 6 bytes per element — which is 24% of the
 forward time on the shortest prefill case and 3% on the longest.
 
-There is no like-for-like baseline in this container: `torch_npu`'s
+**Baseline.** No baseline can be built in this container: `torch_npu`'s
 `npu_weight_quant_batchmatmul` serves A16W4/A16W8 (BF16 or FP16 activations), and
 no ACLNN entry point takes INT8 activations with these scale granularities. The
-product pass alone is therefore the same-op reference, and the ratio isolates
-the epilogue.
+site baseline snapshot does carry vendor rows for this op, measured by the
+maintainers on the same hardware, and 6 of the 29 manifest cases have one:
+
+| Case                      | M×N×K           | Ours µs | Fastest baseline µs | Library | Speedup |
+| ------------------------- | --------------- | ------- | ------------------- | ------- | ------- |
+| `llama3-8b-decode-qkv`    | 128×6144×4096   | 20.15   | 33.5                | ops-nn  | 1.66x   |
+| `llama3-8b-decode-down`   | 128×4096×14336  | 52.45   | 67.1                | ops-nn  | 1.28x   |
+| `llama3-8b-prefill-qkv`   | 4096×6144×4096  | 351.7   | 502.5               | ops-nn  | 1.43x   |
+| `llama3-8b-prefill-down`  | 4096×4096×14336 | 654.7   | 1133.8              | ops-nn  | 1.73x   |
+| `llama3-70b-dec-qkv-tsr`  | 128×10240×8192  | 60.70   | 190.1               | catlass | 3.13x   |
+| `llama3-70b-prefill-down` | 4096×8192×28672 | 2448.5  | 5585.4              | catlass | 2.28x   |
+
+All six clear the acceptance threshold; the tightest is the 128-row
+`llama3-8b-decode-down` at 1.28x, where the epilogue's INT32 read-back is the
+largest share of the call. The remaining 23 cases have only a `torch-eager` row,
+so their ratios are against a reference implementation rather than a competitor.
 
 ## Correctness
 

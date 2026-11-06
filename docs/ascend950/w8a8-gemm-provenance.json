@@ -1,102 +1,141 @@
 {
-  "schema_version": 1,
-  "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
-  "repository_commit": "<filled at commit time>",
-  "repository_commit_note": "The commit that adds this kernel; this provenance record sits on top of it, so the branch head that ships it has a later hash.",
-  "scope": "Ascend 950DT GemmINT8W8A8FwdOp: all 29 manifest workload cases (Llama-3 8B/70B and Qwen2.5-7B/72B under SmoothQuant, batch 1 to 4096 rows, per-token/per-tensor activation and per-channel/per-tensor weight scales, one biased QKV projection, and the float16 output variant). Not a public performance receipt.",
-  "device": {
-    "model": "Ascend950DT_9582",
-    "cube_cores": 32,
-    "vector_cores": 64,
-    "physical_node": "/dev/davinci1"
+ "schema_version": 1,
+ "manifest_commit": "b84f999c9ec5d375bcedb62b44d79863f830924a",
+ "repository_commit": "<filled at commit time>",
+ "repository_commit_note": "The commit that adds this kernel; this provenance record sits on top of it, so the branch head that ships it has a later hash.",
+ "scope": "Ascend 950DT GemmINT8W8A8FwdOp: all 29 manifest workload cases (Llama-3 8B/70B and Qwen2.5-7B/72B under SmoothQuant, batch 1 to 4096 rows, per-token/per-tensor activation and per-channel/per-tensor weight scales, one biased QKV projection, and the float16 output variant). Not a public performance receipt.",
+ "device": {
+  "model": "Ascend950DT_9582",
+  "cube_cores": 32,
+  "vector_cores": 64,
+  "physical_node": "/dev/davinci1"
+ },
+ "campaign": {
+  "protocol": "issue1-default-clock-task-adapter-v1, one window per arm",
+  "warmup": 3,
+  "calls_per_window": 25,
+  "eviction_bytes": 1073741824,
+  "metric": "arithmetic mean of raw ffts device execution interval unions",
+  "clock_policy": "unchanged platform default",
+  "formal_pending": true,
+  "reason": "Task-private protocol adapter: one profiler window carries all 25 calls instead of one window per call. The eviction and the parsed statistic are unchanged; the public default-clock receipt and the host-wide reservation are still unavailable.",
+  "workspace": "Task acceptance workspace, kept outside the repository.",
+  "environment": {
+   "tilelang": "0.1.15",
+   "torch": "2.13.0+cpu",
+   "torch_npu": "2.13.0rc1",
+   "python": "3.12.11",
+   "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
+   "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
+   "driver": "25.6.rc1",
+   "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
   },
-  "campaign": {
-    "protocol": "issue1-default-clock-task-adapter-v1, one window per arm",
-    "warmup": 3,
-    "calls_per_window": 25,
-    "eviction_bytes": 1073741824,
-    "metric": "arithmetic mean of raw ffts device execution interval unions",
-    "clock_policy": "unchanged platform default",
-    "formal_pending": true,
-    "reason": "Task-private protocol adapter: one profiler window carries all 25 calls instead of one window per call. The eviction and the parsed statistic are unchanged; the public default-clock receipt and the host-wide reservation are still unavailable.",
-    "workspace": "Task acceptance workspace, kept outside the repository.",
-    "environment": {
-      "tilelang": "0.1.15",
-      "torch": "2.13.0+cpu",
-      "torch_npu": "2.13.0rc1",
-      "python": "3.12.11",
-      "compiler_and_headers": "CANN 9.2.0 release (V100R001C12SPC001B237)",
-      "runtime_opp_toolkit": "CANN 9.2.0 (this site's container)",
-      "driver": "25.6.rc1",
-      "canonical_profile_note": "The maintained profile pins runtime/OPP to CANN 9.1.0 and the compiler and headers to the 9.2.0 release. This container serves 9.2.0 for every component; that deviation is recorded here instead of being rounded into one version string."
-    },
-    "stage_protocol": "Each pass is timed with the same window; `forward` is the sum of the two passes, so the stages account for the end-to-end cost."
+  "stage_protocol": "Each pass is timed with the same window; `forward` is the sum of the two passes, so the stages account for the end-to-end cost."
+ },
+ "baseline": {
+  "vendor_ops": "No like-for-like baseline can be built in this container: torch_npu's npu_weight_quant_batchmatmul serves A16W4/A16W8 (BF16 or FP16 activations), and no ACLNN entry point takes INT8 activations with these scale granularities.",
+  "site_snapshot": "The maintainers' baseline snapshot (frozen 2026-11-06T06:32Z, commit bc6edc8e) carries vendor rows for this op measured on the same hardware. 6 of the 29 manifest cases have one; all 6 were measured against this kernel and clear the acceptance threshold.",
+  "fastest_baseline_by_case": {
+   "llama3-8b-decode-qkv": {
+    "ours_us": 20.15,
+    "baseline_us": 33.5,
+    "library": "ops-nn",
+    "speedup": 1.66
+   },
+   "llama3-8b-decode-down": {
+    "ours_us": 52.45,
+    "baseline_us": 67.1,
+    "library": "ops-nn",
+    "speedup": 1.28
+   },
+   "llama3-8b-prefill-qkv": {
+    "ours_us": 351.7,
+    "baseline_us": 502.5,
+    "library": "ops-nn",
+    "speedup": 1.43
+   },
+   "llama3-8b-prefill-down": {
+    "ours_us": 654.7,
+    "baseline_us": 1133.8,
+    "library": "ops-nn",
+    "speedup": 1.73
+   },
+   "llama3-70b-dec-qkv-tsr": {
+    "ours_us": 60.7,
+    "baseline_us": 190.1,
+    "library": "catlass",
+    "speedup": 3.13
+   },
+   "llama3-70b-prefill-down": {
+    "ours_us": 2448.5,
+    "baseline_us": 5585.4,
+    "library": "catlass",
+    "speedup": 2.28
+   }
   },
-  "baseline": {
-    "reference": "This backend's INT8 product on the same shape, same round: identical Cube work, so the ratio isolates the epilogue.",
-    "vendor_ops": "No like-for-like baseline in this container. torch_npu's npu_weight_quant_batchmatmul serves A16W4/A16W8 (BF16 or FP16 activations), and no ACLNN entry point takes INT8 activations with these scale granularities."
+  "coverage": "The other 23 cases have only a torch-eager row; their ratios are against a reference implementation, not a competitor."
+ },
+ "replay": {
+  "entry_point": "scripts/benchmark_ascend.py --op GemmINT8W8A8FwdOp --verify-only",
+  "result": "29 of 29 manifest cases verified, status passed, source fingerprint unchanged",
+  "guard": "scripts/npu_guard.py with /dev/davinci0 remapped to /dev/davinci1 for this site",
+  "receipt": "Task acceptance workspace, kept outside the repository."
+ },
+ "verification": {
+  "manifest_cases": 29,
+  "manifest_cases_passed": 29,
+  "tolerances": "The shared workload numeric policy through the public runner: exact on both sides, one output ulp allowed (2^-7 in bfloat16, 2^-10 in float16)."
+ },
+ "cases": [
+  {
+   "case": "llama3-8b-qkv-b1",
+   "m": 1,
+   "n": 6144,
+   "k": 4096,
+   "product_us": 11.5,
+   "epilogue_us": 2.6,
+   "forward_us": 14.0,
+   "tflops": 3.6
   },
-  "replay": {
-    "entry_point": "scripts/benchmark_ascend.py --op GemmINT8W8A8FwdOp --verify-only",
-    "result": "29 of 29 manifest cases verified, status passed, source fingerprint unchanged",
-    "guard": "scripts/npu_guard.py with /dev/davinci0 remapped to /dev/davinci1 for this site",
-    "receipt": "Task acceptance workspace, kept outside the repository."
+  {
+   "case": "llama3-8b-qkv-b64",
+   "m": 64,
+   "n": 6144,
+   "k": 4096,
+   "product_us": 13.6,
+   "epilogue_us": 3.2,
+   "forward_us": 16.7,
+   "tflops": 192.9
   },
-  "verification": {
-    "manifest_cases": 29,
-    "manifest_cases_passed": 29,
-    "tolerances": "The shared workload numeric policy through the public runner: exact on both sides, one output ulp allowed (2^-7 in bfloat16, 2^-10 in float16)."
+  {
+   "case": "llama3-8b-prefill-qkv",
+   "m": 4096,
+   "n": 6144,
+   "k": 4096,
+   "product_us": 275.0,
+   "epilogue_us": 67.5,
+   "forward_us": 351.7,
+   "tflops": 586.2
   },
-  "cases": [
-    {
-      "case": "llama3-8b-qkv-b1",
-      "m": 1,
-      "n": 6144,
-      "k": 4096,
-      "product_us": 11.5,
-      "epilogue_us": 2.6,
-      "forward_us": 14.0,
-      "tflops": 3.6
-    },
-    {
-      "case": "llama3-8b-qkv-b64",
-      "m": 64,
-      "n": 6144,
-      "k": 4096,
-      "product_us": 13.6,
-      "epilogue_us": 3.2,
-      "forward_us": 16.7,
-      "tflops": 192.9
-    },
-    {
-      "case": "llama3-8b-prefill-qkv",
-      "m": 4096,
-      "n": 6144,
-      "k": 4096,
-      "product_us": 275.0,
-      "epilogue_us": 67.5,
-      "forward_us": 351.7,
-      "tflops": 586.2
-    },
-    {
-      "case": "qwen2.5-7b-prefill-down",
-      "m": 4096,
-      "n": 3584,
-      "k": 18944,
-      "product_us": 665.1,
-      "epilogue_us": 50.1,
-      "forward_us": 717.3,
-      "tflops": 775.4
-    },
-    {
-      "case": "llama3-70b-prefill-down",
-      "m": 4096,
-      "n": 8192,
-      "k": 28672,
-      "product_us": 2365.1,
-      "epilogue_us": 82.3,
-      "forward_us": 2448.5,
-      "tflops": 785.9
-    }
-  ]
+  {
+   "case": "qwen2.5-7b-prefill-down",
+   "m": 4096,
+   "n": 3584,
+   "k": 18944,
+   "product_us": 665.1,
+   "epilogue_us": 50.1,
+   "forward_us": 717.3,
+   "tflops": 775.4
+  },
+  {
+   "case": "llama3-70b-prefill-down",
+   "m": 4096,
+   "n": 8192,
+   "k": 28672,
+   "product_us": 2365.1,
+   "epilogue_us": 82.3,
+   "forward_us": 2448.5,
+   "tflops": 785.9
+  }
+ ]
 }
