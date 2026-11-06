@@ -1,0 +1,40 @@
+{
+  "op": "LayerNormFwdOp",
+  "status": "accepted_npu_operator",
+  "host": "server1/openlibing-DevEnv-661495",
+  "hardware": "Ascend950DT_9582 physical32AIC/64AIV",
+  "manifest_cases": 11,
+  "performance_min_ratio": 0.8435663891614857,
+  "threshold": 0.8,
+  "raw_windows_audited": 165,
+  "performance_evidence": "production-full-audit-v1.json",
+  "public_passed": 42,
+  "public_deselected": 23,
+  "public_scope": "Original conftest CUDA-only exclusion plus non-LayerNorm tests; no newly excluded Layer test or tolerance changes",
+  "public_evidence": "layer-public-v1.xml",
+  "boundary_checks": 72,
+  "boundary_evidence": "layer-production-boundary-v1.json",
+  "source_version": "production-v1",
+  "source_transfers": [
+    "local-source-transfer-v1.json",
+    "remote-source-transfer-v1.json"
+  ],
+  "shared_core_dependency_count": 14,
+  "baseline_evidence": "frozen-baselines-full32.json",
+  "baseline_scope": "all44 full-row-identical admitted physical32 cache entries plus previously audited v9 native/eager; no new baseline timing",
+  "generated_code_review": {
+    "llama-8b-prefill-bfloat16": {
+      "file": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-layer-20261103/llama-8b-prefill-bfloat16-production-full-v1/manifest/llama-8b-prefill-bfloat16.kernel.cpp",
+      "sha256": "753af399ca3db91e0411c9207798d44057384b4daeffd7795434323172b25381",
+      "full_generated_source_read": true
+    },
+    "llama-13b-prefill-float32": {
+      "file": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-layer-20261103/llama-13b-prefill-float32-production-full-v1/manifest/llama-13b-prefill-float32.kernel.cpp",
+      "sha256": "e5dbc4057e2fd071e3dfd92674b7c13186c5fee6251bced4fc3e5907efe1ab00",
+      "full_generated_source_read": true
+    }
+  },
+  "implementation": "Reused previously audited packed SIMD v6 and FP32 two-row v8 dispatch; retained bounded original fallback. Centered variance preserved; X retained in UB, W/B loaded outside row loop, FP32 four accumulation chains; default output cache mode4 confirmed in generated C, no blanket cache0 change.",
+  "raw_location": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-layer-20261103/*-production-full-v1/manifest/raw-profiles",
+  "historical_evidence_limit": "Reused historical baseline admission and audit reports with retained hashes; this turn did not remeasure or regenerate their old raw receipts."
+}

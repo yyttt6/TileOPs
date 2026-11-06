@@ -1,0 +1,127 @@
+{
+  "status": "accepted_NPU_operator_domain",
+  "all_pass": true,
+  "manifest_cases": 7,
+  "min_ratio": 0.9593224434597039,
+  "public_passed": 16,
+  "public_current_affected_passed": 8,
+  "public_unchanged_fallback_reused": 8,
+  "public_partial_run_correctness_reused": 7,
+  "public_framework_limitations": [
+    {
+      "name": "test_bwd_torch_compile_smoke",
+      "message": "TileOPs/tests/ops/test_batch_norm.py:435: in test_bwd_torch_compile_smoke\n    gx, gw, gb = compiled(grad_out, x, weight, mean, rstd)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py:1183: in compile_wrapper\n    raise e.remove_dynamo_frames() from None  # see TORCHDYNAMO_VERBOSE=1\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1079: in _compile_fx_inner\n    raise InductorError(e, currentframe()).with_traceback(\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1059: in _compile_fx_inner\n    mb_compiled_graph = fx_codegen_and_compile(\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1847: in fx_codegen_and_compile\n    return scheme.codegen_and_compile(gm, example_inputs, inputs_to_check, graph_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1608: in codegen_and_compile\n    compiled_module = graph.compile_to_module()\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2669: in compile_to_module\n    return self._compile_to_module()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2675: in _compile_to_module\n    self.codegen_with_cpp_wrapper() if self.cpp_wrapper else self.codegen()\n                                                             ^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2605: in codegen\n    self.init_wrapper_code()\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2345: in init_wrapper_code\n    assert wrapper_code_gen_cls is not None, (\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   torch._inductor.exc.InductorError: AssertionError: Device npu not supported\nE   \nE   Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\""
+    }
+  ],
+  "fx_eager_fullgraph": true,
+  "boundary_checks": 26,
+  "new_timing_windows": 0,
+  "reused_timing_windows": 105,
+  "independently_parsed_original_windows": 105,
+  "independently_parsed_candidate_windows": 150,
+  "shared_dependencies": {
+    "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+    "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+    "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+    "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+    "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+    "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+    "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+    "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+    "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+    "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+    "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+    "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+    "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+    "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+    "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303"
+  },
+  "production_sources": {
+    "batch_norm_backward.py": "b5e40a6c7686d58566240669b1ac3153ac1ae4106c1b22d16e745d424de4144e",
+    "_batch_bwd_optimized.py": "9d79923eafda1d4d3acd64cd64c491ff06bfbefb8ed9b9254dc5207dc67ea33e"
+  },
+  "sources": {
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/batch_bwd_manifest_resume_v2.py": "2d9cc5f2b046cac2c8942e37ec9cd2bd62c853afb852908729c31b0002aab554",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-bwd-20261104/production-src-v2/tileops/kernels/ascend/norm/batch_norm_backward.py": "b5e40a6c7686d58566240669b1ac3153ac1ae4106c1b22d16e745d424de4144e",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-bwd-20261104/production-src-v2/tileops/kernels/ascend/norm/_batch_bwd_optimized.py": "9d79923eafda1d4d3acd64cd64c491ff06bfbefb8ed9b9254dc5207dc67ea33e",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/norm.py": "541f2165f258196c49bca9639cb644c8b7a87f053504b8c03241e6aed72e4268",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+  },
+  "auditor_sha256": "548add6ad3d43217c02708c0135bf60bc173cf56322a9c7f69ed36f3ae809963",
+  "cases": [
+    {
+      "case": "resnet-fc-float16",
+      "us": 2.3695333333333335,
+      "ratio": 2.4172973581295896,
+      "reuse_version": "v4"
+    },
+    {
+      "case": "resnet-stage1-float16",
+      "us": 7.3566,
+      "ratio": 1.3508504834660937,
+      "reuse_version": "v4"
+    },
+    {
+      "case": "resnet-stage1-bfloat16",
+      "us": 7.4412,
+      "ratio": 1.410982099661345,
+      "reuse_version": "v4"
+    },
+    {
+      "case": "resnet-stage2-float16",
+      "us": 8.5894,
+      "ratio": 1.0485094030626898,
+      "reuse_version": "v4"
+    },
+    {
+      "case": "resnet-stage3-float16",
+      "us": 5.701,
+      "ratio": 1.6935508390340874,
+      "reuse_version": "v5"
+    },
+    {
+      "case": "resnet-stage3-float32",
+      "us": 6.113666666666667,
+      "ratio": 1.6147538302164548,
+      "reuse_version": "v4"
+    },
+    {
+      "case": "large-spatial-float16",
+      "us": 1661.9680666666666,
+      "ratio": 0.9593224434597039,
+      "reuse_version": "v2"
+    }
+  ],
+  "notes": [
+    "Original fallback AST unchanged; eight old fallback public cases reused.",
+    "Seven affected public cases passed before missing forward-registration failure; correctness retained with no conflict or visibility loss. Remaining mixed test and eager fullgraph passed after registration import.",
+    "Batch33 failed with FC tail synchronization warning; final dispatch sends non-power-of-two spatial1 inputs to original fallback. All seven timing paths unchanged.",
+    "Historical candidate template header hashes were not separately captured; exact generated C, protocol toolchain and shared source dependencies were checked."
+  ],
+  "operator": "BatchNormBwdOp",
+  "server": "server1",
+  "threshold": 0.8,
+  "ratio_definition": "strongest admitted baseline latency / TileOPs latency",
+  "baseline_remeasured": false,
+  "delivered_sources": {
+    "TileOPs/src/tileops/kernels/ascend/norm/batch_norm_backward.py": "b5e40a6c7686d58566240669b1ac3153ac1ae4106c1b22d16e745d424de4144e",
+    "TileOPs/src/tileops/kernels/ascend/norm/_batch_bwd_optimized.py": "9d79923eafda1d4d3acd64cd64c491ff06bfbefb8ed9b9254dc5207dc67ea33e"
+  },
+  "delivery_dependencies": {
+    "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+    "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+    "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+    "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+    "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+    "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+    "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+    "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+    "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+    "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+    "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+    "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+    "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+    "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+    "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303"
+  }
+}
