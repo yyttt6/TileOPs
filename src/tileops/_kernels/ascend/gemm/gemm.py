@@ -8,7 +8,7 @@ from tilelang.carver.arch.driver import get_num_cube_cores
 
 import tileops.backend._registry
 from tileops._kernels.ascend.gemm.persistent import SCHEDULES, compile_schedule
-from tileops._kernels.gemm import GemmCall, GemmFwdInterface
+from tileops._kernels.gemm import GEMMCall, GEMMFwdInterface
 from tileops._kernels.kernel_base import Kernel
 
 __all__ = ["AscendGemmKernel"]
@@ -32,7 +32,7 @@ def _make_gemm_kernel(m: int, n: int, k: int, dtype: str, device_index: int):
     return compile_schedule(m, n, k, dtype)
 
 
-class AscendGemmKernel(Kernel, GemmFwdInterface):
+class AscendGemmKernel(Kernel, GEMMFwdInterface):
     """Shape-specialized 16-bit GEMM schedules for the Ascend 950 matrix unit.
 
     Each schedule serves exactly one manifest case, named by ``(M, N, K)``, dtype
@@ -45,7 +45,7 @@ class AscendGemmKernel(Kernel, GemmFwdInterface):
     devices = frozenset({"npu"})
 
     @classmethod
-    def refusal(cls, call: GemmCall) -> Optional[str]:
+    def refusal(cls, call: GEMMCall) -> Optional[str]:
         if call.dtype not in (torch.bfloat16, torch.float16):
             return "requires float16 or bfloat16 operands"
         if call.trans_a:
@@ -61,7 +61,7 @@ class AscendGemmKernel(Kernel, GemmFwdInterface):
             )
         return super().refusal(call)
 
-    def __init__(self, call: GemmCall):
+    def __init__(self, call: GEMMCall):
         device_index = call.device.index
         super().__init__(device_index=device_index)
         self._compiled_fn = _make_gemm_kernel(

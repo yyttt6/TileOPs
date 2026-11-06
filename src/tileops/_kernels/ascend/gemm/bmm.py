@@ -9,7 +9,7 @@ import torch
 from tilelang.carver.arch.driver import get_num_cube_cores
 
 import tileops.backend._registry
-from tileops._kernels.gemm import BmmCall, BmmFwdInterface
+from tileops._kernels.gemm import BMMCall, BMMFwdInterface
 from tileops._kernels.kernel_base import Entry, Kernel
 
 _BLOCK_M = 128
@@ -195,17 +195,17 @@ _ALIGNED_L1_SELECTIONS = {
 }
 
 
-class AscendBmmKernel(Kernel, BmmFwdInterface):
+class AscendBmmKernel(Kernel, BMMFwdInterface):
     """Batched dense GEMM on Ascend NPUs: ``d[i] = a[i] @ b[i]`` per batch item."""
 
     devices = frozenset({"npu"})
 
     @classmethod
-    def refusal(cls, call: BmmCall) -> Optional[str]:
+    def refusal(cls, call: BMMCall) -> Optional[str]:
         return None if call.k % 16 == 0 else f"requires k a multiple of 16, got k={call.k}"
 
     @classmethod
-    def entry_for(cls, call: BmmCall) -> Entry:
+    def entry_for(cls, call: BMMCall) -> Entry:
         return (call, lambda: cls(call.batch, call.m, call.n, call.k, call.dtype))
 
     def __init__(self, batch: int, m: int, n: int, k: int, dtype: torch.dtype):
