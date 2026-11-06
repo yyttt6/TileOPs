@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from tileops.ops.reduction import AllFwdOp
+from tileops._ops.reduction import AllFwdOp
 from workloads.device import run_device
 
 

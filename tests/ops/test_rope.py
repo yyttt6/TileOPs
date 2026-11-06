@@ -435,7 +435,7 @@ def test_rope_noncontiguous_1d_works() -> None:
 @pytest.mark.parametrize("invalid_position", [-1, 8])
 def test_rope_position_ids_multihead_range_recovery(invalid_position: int) -> None:
     """Multi-head rotation rejects either range boundary and accepts the next valid call."""
-    from tileops.ops.rope import RoPENeoxPositionIdsFwdOp
+    from tileops._ops.rope import RoPENeoxPositionIdsFwdOp
 
     max_position = 8
     x = torch.randn(2, 32, 128, device=run_device(), dtype=torch.bfloat16)

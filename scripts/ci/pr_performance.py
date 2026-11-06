@@ -32,7 +32,7 @@ def select(root, base):
     changed = subprocess.check_output(
         ["git", "diff", "--name-only", base, "HEAD"], cwd=root, text=True
     ).splitlines()
-    kernels = root / "src/tileops/kernels/ascend"
+    kernels = root / "src/tileops/_kernels/ascend"
     files = list(kernels.rglob("*.py"))
     selected = set()
     direct = {}
@@ -43,7 +43,7 @@ def select(root, base):
         p = root / path
         if not p.exists() or p.suffix != ".py" or p.name == "__init__.py":
             continue
-        if path.startswith("src/tileops/kernels/ascend/"):
+        if path.startswith("src/tileops/_kernels/ascend/"):
             # Include the kernel family for helper/template changes: dependencies may be dynamic.
             tree = ast.parse(p.read_text())
             family = path.split("/")[4]
@@ -57,7 +57,7 @@ def select(root, base):
             )
             family = path.split("/")[4]
             candidates = list((kernels / family).rglob("*.py"))
-        elif path.startswith(("src/tileops/ops/", "workloads/", "benchmarks/_cases/")):
+        elif path.startswith(("src/tileops/_ops/", "workloads/", "benchmarks/_cases/")):
             candidates = [p]
         elif path.startswith(("src/tileops/backend/", "src/tileops/manifest/")):
             candidates = files
@@ -74,7 +74,7 @@ def select(root, base):
                 and n.value.endswith("Op")
                 and n.value.isidentifier()
             )
-        if path.startswith("src/tileops/kernels/ascend/"):
+        if path.startswith("src/tileops/_kernels/ascend/"):
             families.setdefault(family, set()).update(ops)
             has_registration = any(
                 isinstance(n, ast.Constant)

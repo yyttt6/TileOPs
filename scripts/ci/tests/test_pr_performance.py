@@ -18,7 +18,7 @@ def test_changed_kernel_and_helper(tmp_path):
     git("init")
     git("config", "user.email", "test@example.invalid")
     git("config", "user.name", "test")
-    family = tmp_path / "src/tileops/kernels/ascend/gemm"
+    family = tmp_path / "src/tileops/_kernels/ascend/gemm"
     family.mkdir(parents=True)
     (family / "bmm.py").write_text('register("BmmFwdOp")\n')
     (family / "helper.py").write_text("X=1\n")

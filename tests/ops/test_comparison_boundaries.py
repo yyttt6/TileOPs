@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from tileops.ops import elementwise
+from tileops._ops import elementwise
 from workloads.device import run_device
 
 _NAMES = ("Eq", "Ne", "Gt", "Ge", "Lt", "Le")

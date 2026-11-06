@@ -5,12 +5,12 @@ import dataclasses
 import pytest
 import torch
 
-from tileops.kernels.ascend.moe.pre_permute import AscendMoEPrePermuteKernel
-from tileops.kernels.moe.call_spec import PrePermuteCall
+from tileops._kernels.ascend.moe.pre_permute import AscendMoEPrePermuteKernel
+from tileops._kernels.moe.call_spec import PrePermuteCall
 from tileops.manifest import load_adts, load_manifest, load_workloads
 from tileops.manifest.plan import entry_plan
 from tileops.manifest.workload import instantiate
-from tileops.ops.moe import ContiguousLayoutSpec, MoEPrePermuteFwdOp
+from tileops._ops.moe import ContiguousLayoutSpec, MoEPrePermuteFwdOp
 from workloads.device import run_device, run_device_available
 from workloads.moe import MoEPrePermuteWorkload
 from workloads.numerics import compare_outputs

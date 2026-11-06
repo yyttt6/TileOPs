@@ -5,11 +5,11 @@ import dataclasses
 import pytest
 import torch
 
-from tileops.kernels.ascend.sequence_modeling import (
+from tileops._kernels.ascend.sequence_modeling import (
     AscendEngramGateConvBwdKernel,
     AscendEngramGateConvFwdKernel,
 )
-from tileops.kernels.sequence_modeling.engram.call_spec import EngramGateConvCall
+from tileops._kernels.sequence_modeling.engram.call_spec import EngramGateConvCall
 from tileops.sequence_modeling import EngramGateConvBwdOp, EngramGateConvFwdOp
 from workloads.device import run_device, run_device_available
 from workloads.numerics import compare_outputs

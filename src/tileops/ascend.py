@@ -11,4 +11,4 @@ import importlib.util
 # A CUDA installation does not require torch_npu. Import failures with the NPU
 # runtime installed propagate to the backend registry's diagnostic channel.
 if importlib.util.find_spec("torch_npu") is not None:
-    importlib.import_module("tileops.kernels.ascend")
+    importlib.import_module("tileops._kernels.ascend")
