@@ -7,6 +7,7 @@ from tests.compile_contract import assert_op_owns_graph_nodes, register_compile_
 from tests.workload_test_base import TestBase
 from tileops.attention import MergeAttentionStatesFwdOp
 from workloads.attention.merge_states import MergeAttentionStatesWorkload
+from workloads.device import run_device, run_device_available
 
 
 @pytest.mark.parametrize(
@@ -21,6 +22,11 @@ from workloads.attention.merge_states import MergeAttentionStatesWorkload
             17, 3, 576, torch.bfloat16, False, marks=pytest.mark.full, id="vector-tail-576"
         ),
         pytest.param(17, 3, 32, torch.float16, False, marks=pytest.mark.full, id="narrow-32"),
+        # One SIMD lane, a full SIMD vector, and the first lane beyond two vectors.
+        pytest.param(1, 1, 1, torch.float16, False, marks=pytest.mark.full, id="single-lane"),
+        pytest.param(65, 1, 64, torch.float16, False, marks=pytest.mark.full, id="row-tail-65"),
+        pytest.param(127, 1, 129, torch.bfloat16, False, marks=pytest.mark.full, id="row-tail-127"),
+        pytest.param(7, 0, 128, torch.float16, False, marks=pytest.mark.full, id="empty-heads"),
         pytest.param(7, 3, 0, torch.bfloat16, False, marks=pytest.mark.full),
     ],
 )
@@ -40,9 +46,10 @@ def test_merge_attention_states_misaligned_storage():
 
 
 @pytest.mark.smoke
-def test_merge_attention_states_finite_underflow_keeps_nan():
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_merge_attention_states_finite_underflow_keeps_nan(dtype):
     """An underflowed weight does not make a finite-LSE state's NaN value empty."""
-    w = MergeAttentionStatesWorkload(4, 2, 128, torch.float16, finite_underflow=True)
+    w = MergeAttentionStatesWorkload(4, 2, 128, dtype, finite_underflow=True)
     TestBase.check(w, MergeAttentionStatesFwdOp(), *w.gen_inputs())
 
 
@@ -60,6 +67,27 @@ def test_merge_attention_states_graph_replay():
     inputs[1].add_(0.5)
     graph.replay()
     TestBase.check(w, op, *inputs, runs=lambda *args: output)
+
+
+@pytest.mark.smoke
+def test_merge_attention_states_npu_graph_replay():
+    """NPU graph replay reads updated value and LSE buffers without recapture."""
+    if torch.device(run_device()).type != "npu" or not run_device_available():
+        pytest.skip("requires an Ascend NPU and --tileops-device=npu")
+    w = MergeAttentionStatesWorkload(65, 1, 128, torch.bfloat16)
+    inputs = w.gen_inputs()
+    op = MergeAttentionStatesFwdOp()
+    TestBase.check(w, op, *inputs)
+    torch.npu.synchronize()
+    graph = torch.npu.NPUGraph()
+    with torch.npu.graph(graph):
+        output = op(*inputs)
+    for delta in (0.5, -1.25):
+        inputs[1].add_(delta)
+        inputs[2].add_(delta)
+        graph.replay()
+        torch.npu.synchronize()
+        TestBase.check(w, op, *inputs, runs=lambda *args: output)
 
 
 @pytest.mark.smoke
