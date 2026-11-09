@@ -60,3 +60,20 @@ def test_current_alias_precedes_historical_exact_provider():
     history = row('GEMMFwdOp', 'historical')
     assert matching_baselines({'rows': [current], 'historical_rows': [history]},
                               'GEMMFwdOp', 'same', {'n': 64}) == [current]
+
+
+def test_int8_scale_aliases_preserve_granularity():
+    old = {'a': [[1, 32], 'int8'], 'scale_a': [[1, 1], 'float32'],
+           'scale_b': [[1, 64], 'float32']}
+    new = {'a': old['a'], 'a_scale': old['scale_a'], 'b_scale': old['scale_b']}
+    assert identity('GemmINT8W8A8FwdOp', 'case', old) == identity('GEMMINT8W8A8FwdOp', 'case', new)
+    assert identity('GemmINT8W8A8FwdOp', 'case', old) != identity(
+        'GEMMINT8W8A8FwdOp', 'case', {**new, 'b_scale': [[1, 1], 'float32']})
+
+
+def test_legacy_merge_lse_is_natural_never_log2():
+    params = {'s_a': [[17, 4], 'float32']}
+    assert identity('MergeAttentionStatesFwdOp', 'case', params) == identity(
+        'MergeAttentionStatesFwdOp', 'case', {**params, 'lse_base': 'e'})
+    assert identity('MergeAttentionStatesFwdOp', 'case', params) != identity(
+        'MergeAttentionStatesFwdOp', 'case', {**params, 'lse_base': '2'})

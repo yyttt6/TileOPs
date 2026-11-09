@@ -33,6 +33,10 @@ def comparison_identity(op, case, params):
 
     if op == 'GemmFwdOp':
         op = 'GEMMFwdOp'
+    elif op == 'GemmINT8W8A8FwdOp':
+        op = 'GEMMINT8W8A8FwdOp'
+        rename('scale_a', 'a_scale')
+        rename('scale_b', 'b_scale')
     elif op == 'GroupedGemmFwdOp':
         op = 'GroupedGEMMFwdOp'
         for old, new in [('output', 'd'), ('transpose_a', 'trans_a'), ('transpose_b', 'trans_b')]:
@@ -54,4 +58,7 @@ def comparison_identity(op, case, params):
                 'llama-8b-ffn-prefill-bfloat16': 'llama-8b-prefill-tanh-bfloat16',
                 'llama-8b-ffn-decode-bfloat16': 'llama-8b-decode-tanh-bfloat16',
             }.get(case, case)
+    if op == 'MergeAttentionStatesFwdOp':
+        # The old public interface used natural-log LSE; absence never means log2.
+        params.setdefault('lse_base', 'e')
     return op, case, json.dumps(normalize(params), sort_keys=True)
