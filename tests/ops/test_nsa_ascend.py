@@ -57,7 +57,7 @@ def _request(name: str, case) -> NSACall:
             dim=indices["D"],
             selected_blocks=indices["SEL"],
             block_size=params["block_size"],
-            scale=params["scale"],
+            scale=indices["D"] ** -0.5 if params["sm_scale"] is None else params["sm_scale"],
             is_causal=params["is_causal"],
             dtype=dtype,
         )
@@ -70,8 +70,8 @@ def _request(name: str, case) -> NSACall:
             dim=indices["D"],
             chunk_num=indices["C"],
             selected_blocks=params["selected_block_num"],
-            block_size=params["bs"],
-            scale=params["scale"],
+            block_size=params["block_size"],
+            scale=indices["D"] ** -0.5 if params["sm_scale"] is None else params["sm_scale"],
             dtype=dtype,
         )
     return NSACall(
@@ -82,19 +82,19 @@ def _request(name: str, case) -> NSACall:
         dim=indices["DK"],
         dim_v=indices["DV"],
         chunk_num=indices["C"],
-        block_size=params["bs"],
-        scale=params["scale"],
+        block_size=params["block_size"],
+        scale=indices["DK"] ** -0.5 if params["sm_scale"] is None else params["sm_scale"],
         dtype=dtype,
     )
 
 
 def _op(name: str, case):
-    params = case.params
-    if name == "NSAVarlenFwdOp":
-        return NSAVarlenFwdOp(params["is_causal"], params["scale"], params["block_size"])
-    if name == "NSATopKVarlenFwdOp":
-        return NSATopKVarlenFwdOp(params["scale"], params["selected_block_num"], params["bs"])
-    return NSACompressedVarlenFwdOp(params["scale"], params["bs"])
+    constructors = {
+        "NSAVarlenFwdOp": NSAVarlenFwdOp,
+        "NSATopKVarlenFwdOp": NSATopKVarlenFwdOp,
+        "NSACompressedVarlenFwdOp": NSACompressedVarlenFwdOp,
+    }
+    return constructors[name](**case.params)
 
 
 @pytest.mark.smoke
@@ -105,9 +105,9 @@ def test_every_manifest_case_has_an_ascend_candidate():
         for case in cases:
             assert kernel.refusal(_request(name, case)) is None, case.case_id
     # Construction validates each registered kernel against its public interface.
-    NSAVarlenFwdOp(is_causal=True, scale=0.1, block_size=32)
-    NSATopKVarlenFwdOp(scale=1.0, selected_block_num=16, bs=32)
-    NSACompressedVarlenFwdOp(scale=0.08838834764831845, bs=32)
+    NSAVarlenFwdOp(is_causal=True, sm_scale=0.1, block_size=32)
+    NSATopKVarlenFwdOp(sm_scale=1.0, selected_block_num=16, block_size=32)
+    NSACompressedVarlenFwdOp(sm_scale=0.08838834764831845, block_size=32)
 
 
 @pytest.mark.smoke
@@ -190,3 +190,31 @@ def test_public_ascend_path_matches_the_reference(name: str, case):
     expected = workload.ref_program(*inputs)
     actual = _op(name, case)(*inputs)
     compare_outputs(actual, expected, workload.verification(*inputs))
+    if name == "NSACompressedVarlenFwdOp":
+        lse = actual[1]
+        assert lse.shape == (inputs[0].shape[1], inputs[0].shape[0])
+        assert lse.dtype == torch.float32 and lse.is_contiguous()
+        no_closed_chunk = inputs[-1][:, 1] + 1 < case.params["block_size"]
+        assert torch.isneginf(lse[:, no_closed_chunk]).all().item()
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("name", _SPECS)
+def test_empty_npu_domain_uses_current_constructor_parameters(name: str, monkeypatch):
+    from tileops._ops.op_base import Op
+
+    case = _cases(name)[0]
+    op = _op(name, case)
+    monkeypatch.setattr(Op, "_writes_no_elements", lambda self, call: True)
+    # Resolve no device facts in this metadata-only test.
+    monkeypatch.setattr(
+        "tileops._ops.attention.nsa.NSACall", lambda **values: NSACall(**{**values, "device": None})
+    )
+    reject = Mock(side_effect=ValueError("unsupported empty domain"))
+    monkeypatch.setattr(op, "key_for", reject)
+    call = SimpleNamespace(indices=case.indices, device=SimpleNamespace(type="npu", index=0))
+    with pytest.raises(ValueError, match="unsupported empty domain"):
+        op._writes_no_elements(call)
+    request = reject.call_args.args[1]
+    assert request.block_size == op.block_size
+    assert request.scale == _request(name, case).scale

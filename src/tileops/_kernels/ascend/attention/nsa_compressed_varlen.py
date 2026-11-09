@@ -126,7 +126,7 @@ def _make_nsa_compressed_varlen_kernel(
         chunk_offsets: T.Tensor((batch + 1,), "int32"),
         token_indices: T.Tensor((tokens, 2), "int32"),
         output: T.Tensor((tokens, heads, dim_v), dtype),
-        lse: T.Tensor((tokens, heads), dtype),
+        lse: T.Tensor((tokens, heads), "float32"),
     ):
         with T.MixedKernel(grid, sids=2) as (bx, sid):
             q_l1 = T.alloc_l1((head_tile, dim_k), dtype)
@@ -152,7 +152,7 @@ def _make_nsa_compressed_varlen_kernel(
             denominator = T.alloc_shared((softmax_tile,), "float32")
             numerator = T.alloc_shared((vector_rows, dim_v), "float32")
             alpha = T.alloc_shared((vector_rows,), "float32")
-            lse_values = T.alloc_shared((vector_rows,), dtype)
+            lse_values = T.alloc_shared((vector_rows,), "float32")
             T.annotate_layout(
                 {
                     probabilities: make_ascend_compact_nz_layout(probabilities),
@@ -361,7 +361,7 @@ def _make_nsa_compressed_varlen_kernel(
                         normalize_rows(numerator, denominator, result)
                         with T.SimdVF():
                             rows = T.simd.pset(32, "PAT_VL8")
-                            zero = T.simd.vdup(T.float32(0.0), "float32", rows)
+                            negative_infinity = T.simd.vdup(-T.infinity("float32"), "float32", rows)
                             one = T.simd.vdup(T.float32(1.0), "float32", rows)
                             total = T.simd.vld(denominator[0])
                             row_maximum = T.simd.vld(maximum[0])
@@ -369,26 +369,28 @@ def _make_nsa_compressed_varlen_kernel(
                             safe_total = T.simd.vsel(total, one, positive)
                             logarithm = T.simd.vln(safe_total, rows)
                             logsumexp = T.simd.vadd(row_maximum, logarithm, rows)
-                            logsumexp = T.simd.vsel(logsumexp, zero, positive)
-                            converted = T.simd.vcvt(
-                                logsumexp, dtype, rows, round="ROUND_R", sat=False
-                            )
+                            logsumexp = T.simd.vsel(logsumexp, negative_infinity, positive)
                             T.simd.vsts(
-                                lse_values[0], converted, rows, dist="PK_B32", extent=vector_rows
+                                lse_values[0], logsumexp, rows, dist="NORM_B32", extent=vector_rows
                             )
                     else:
                         with T.SimdVF():
                             full = T.simd.pset(16, "PAT_ALL" if dim_v == 128 else "PAT_VL64")
-                            rows = T.simd.pset(16, "PAT_VL8")
+                            rows = T.simd.pset(32, "PAT_VL8")
                             zero_bits = T.simd.vdup(T.uint32(0), "uint32")
                             zero = T.reinterpret(zero_bits, dtype + "x128")
                             for h in T.serial(vector_rows):
                                 T.simd.vsts(result[h, 0], zero, full, dist="NORM_B16", extent=dim_v)
+                            negative_infinity = T.simd.vdup(-T.infinity("float32"), "float32", rows)
                             T.simd.vsts(
-                                lse_values[0], zero, rows, dist="NORM_B16", extent=vector_rows
+                                lse_values[0],
+                                negative_infinity,
+                                rows,
+                                dist="NORM_B32",
+                                extent=vector_rows,
                             )
-                    # The align_v2 UB-to-GM copy keeps this 16-byte store exact;
-                    # each SID writes only its own eight adjacent LSE elements.
+                    # Each SID writes eight adjacent FP32 LSE elements (32 bytes).
+                    # The public boundary converts this token-major storage to head-major.
                     lse_start = head_start + sid * vector_rows
                     T.copy(lse_values, lse[token, lse_start : lse_start + vector_rows])
                     T.dual_copy(result, output[token, head_start : head_start + head_tile, :])
@@ -508,7 +510,8 @@ class AscendNSACompressedFwdVarlenKernel(Kernel, NSACompressedFwdInterface):
         normalized = tuple(
             vector_aligned(tensor) if i < 3 else tensor for i, tensor in enumerate(normalized)
         )
-        return self._compiled(*normalized)
+        output, lse = self._compiled(*normalized)
+        return output, lse.T.contiguous()
 
 
 register_kernel_type("NSACompressedVarlenFwdOp", "ascend", AscendNSACompressedFwdVarlenKernel)
