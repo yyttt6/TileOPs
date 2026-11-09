@@ -101,7 +101,7 @@ class DropoutFwdOp(Op):
         """The ``(seed, offset)`` this call draws from, advancing the generator past it."""
         if self.seed is not None:
             return self.seed, 0
-        generator = torch.cuda.default_generators[flat.device.index]
+        generator = torch.get_device_module(flat.device).default_generators[flat.device.index]
         offset = generator.get_offset()
         # The kernel uses at most `count` draws a stream; torch keeps offsets a multiple of 4.
         generator.set_offset(offset + (flat.numel() + 3) // 4 * 4)
