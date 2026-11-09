@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
 
 
 def canonical_contract(value):
@@ -30,12 +31,19 @@ def canonical_contract(value):
 
 def matching_baselines(baseline, op, case, params):
     """Match a saved definition, including preserved pre-migration contracts."""
+    from baseline_contracts import comparison_identity
+
+    target = comparison_identity(op, case, params)
+    def alias_rank(row):
+        return row["op"] != op or row["case"] != case
+
+    candidates = sorted(baseline["rows"], key=alias_rank) + sorted(
+        baseline.get("historical_rows", []), key=alias_rank
+    )
     matches = [
         b
-        for b in baseline["rows"] + baseline.get("historical_rows", [])
-        if b["op"] == op
-        and b["case"] == case
-        and canonical_contract(b["workload"]["params"]) == canonical_contract(params)
+        for b in candidates
+        if comparison_identity(b["op"], b["case"], b["workload"]["params"]) == target
     ]
     # Current rows precede history; never compare two versions of the same provider.
     providers = {}
@@ -192,6 +200,7 @@ def main():
                 name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
                 for name in (
                     "pr_performance.py",
+                    "baseline_contracts.py",
                     "nightly_device.py",
                     "measured_correctness.py",
                     "nightly_support/complete_profile.py",
