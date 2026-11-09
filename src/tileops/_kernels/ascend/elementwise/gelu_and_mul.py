@@ -29,7 +29,7 @@ try:
     import tilelang
     import tilelang.ascend.language as T
 
-    from tileops._kernels.elementwise.call_spec import FusedGatedCall, FusedGatedFwdInterface
+    from tileops._kernels.elementwise.call_spec import FusedGatedFwdInterface, GELUAndMulCall
     from tileops._kernels.kernel_base import Entry, Kernel
     from tileops.backend._registry import register_kernel_type
 
@@ -204,7 +204,13 @@ if _ASCEND_IMPORT_ERROR is None:
         devices: ClassVar[frozenset[str]] = frozenset({"npu"})
 
         @classmethod
-        def entry_for(cls, call: FusedGatedCall) -> Entry:
+        def refusal(cls, call: GELUAndMulCall) -> str | None:
+            if call.approximate != "none":
+                return f"requires approximate='none', got {call.approximate!r}"
+            return super().refusal(call)
+
+        @classmethod
+        def entry_for(cls, call: GELUAndMulCall) -> Entry:
             return call, lambda: cls(call.m, call.n, call.dtype)
 
         def __init__(self, m: int, n: int, dtype: torch.dtype):
@@ -231,4 +237,4 @@ if _ASCEND_IMPORT_ERROR is None:
                 x = x.contiguous()
             return self.kernel(x)
 
-    register_kernel_type("GeluAndMulFwdOp", "ascend", AscendGELUAndMulKernel)
+    register_kernel_type("GELUAndMulFwdOp", "ascend_erf", AscendGELUAndMulKernel)

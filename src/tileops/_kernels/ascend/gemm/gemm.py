@@ -1,4 +1,4 @@
-"""Dispatch the Ascend 950 16-bit GEMM schedules to ``GemmFwdOp``."""
+"""Dispatch the Ascend 950 16-bit GEMM schedules to ``GEMMFwdOp``."""
 
 import functools
 from typing import Optional
@@ -72,4 +72,4 @@ class AscendGEMMKernel(Kernel, GEMMFwdInterface):
         return self._compiled_fn(a, b)
 
 
-tileops.backend._registry.register_kernel_type("GemmFwdOp", "ascend", AscendGEMMKernel)
+tileops.backend._registry.register_kernel_type("GEMMFwdOp", "ascend", AscendGEMMKernel)

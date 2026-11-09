@@ -242,4 +242,4 @@ class AscendFP8QuantPerTokenGroupKernel(Kernel, FP8QuantFwdInterface):
 
 
 register_kernel_type("FP8QuantPerBlockFwdOp", "ascend", AscendFP8QuantPerBlockKernel)
-register_kernel_type("FP8QuantFwdOp", "ascend", AscendFP8QuantPerTokenGroupKernel)
+register_kernel_type("FP8QuantPerTokenGroupFwdOp", "ascend", AscendFP8QuantPerTokenGroupKernel)
