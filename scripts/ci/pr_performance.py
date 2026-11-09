@@ -28,6 +28,18 @@ def canonical_contract(value):
     return value
 
 
+def matching_baselines(baseline, op, case, params):
+    """Match a saved definition, including preserved pre-migration contracts."""
+    matches = [b for b in baseline['rows'] + baseline.get('historical_rows', [])
+               if b['op'] == op and b['case'] == case
+               and canonical_contract(b['workload']['params']) == canonical_contract(params)]
+    # Current rows precede history; never compare two versions of the same provider.
+    providers = {}
+    for row in matches:
+        providers.setdefault(row['library'], row)
+    return list(providers.values())
+
+
 def select(root, base):
     changed = subprocess.check_output(
         ["git", "diff", "--name-only", base, "HEAD"], cwd=root, text=True
@@ -224,13 +236,7 @@ def main():
                     c["result"]["latency_ms"],
                     rel_tol=1e-10,
                 )
-            matches = [
-                b
-                for b in baseline["rows"]
-                if b["op"] == op
-                and b["case"] == row["case_id"]
-                and canonical_contract(b["workload"]["params"]) == canonical_contract(row["params"])
-            ]
+            matches = matching_baselines(baseline, op, row['case_id'], row['params'])
             us = row["measurement"]["latency_ms"] * 1000
             rows.append(
                 dict(

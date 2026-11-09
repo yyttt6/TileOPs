@@ -25,7 +25,47 @@ concurrency:
   group: ascend950-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.revision || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ascend950
+          path: ci-harness
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: yyttt6/TileOPs.github.io
+          ref: 5f5fa5524bc8477ba6c654224ad4846e279904a1
+          path: baseline-cache
+          persist-credentials: false
+      - name: Package exact sources for isolated runners
+        run: |
+          echo "cbcfc0cd5d98e9e4cb2b294d3fc45edc5226a521519a76b611176305d5b84447  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/ci-sources"
+          git rev-parse HEAD > "$RUNNER_TEMP/ci-sources/source.commit"
+          git archive --format=tar HEAD > "$RUNNER_TEMP/ci-sources/source.tar"
+          tar -rf "$RUNNER_TEMP/ci-sources/source.tar" .git
+          gzip "$RUNNER_TEMP/ci-sources/source.tar"
+          git -C ci-harness archive --format=tar.gz HEAD > "$RUNNER_TEMP/ci-sources/harness.tar.gz"
+          git -C baseline-cache archive --format=tar.gz HEAD data/baseline-cache > "$RUNNER_TEMP/ci-sources/baseline.tar.gz"
+          cd "$RUNNER_TEMP/ci-sources"
+          sha256sum source.commit source.tar.gz harness.tar.gz baseline.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ascend950-sources
+          path: ${{ runner.temp }}/ci-sources
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 7
   preflight:
+    needs: sources
     runs-on: [self-hosted, tileops-cpu-server2]
     timeout-minutes: 30
     env:
@@ -35,19 +75,34 @@ jobs:
       TORCH_EXTENSIONS_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-extensions
       TRITON_CACHE_DIR: /opt/tileops-ci/server2-20261030/cache/cpu-triton
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          ref: ${{ inputs.revision || github.sha }}
-          persist-credentials: false
+          name: ascend950-sources
+          path: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      - name: Unpack verified sources
+        env:
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          DESTINATION: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        run: |
+          cd "$ARCHIVES"
+          sha256sum --check SHA256SUMS
+          mkdir -p "$DESTINATION"
+          tar --no-same-owner -xzf source.tar.gz -C "$DESTINATION"
+          test "$(git -C "$DESTINATION" rev-parse HEAD)" = "$(cat source.commit)"
+          test -z "$(git -C "$DESTINATION" status --porcelain)"
       - name: Check canonical compiler profile without device initialization
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
           python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/toolchain-cpu.json"
       - name: Baseline contract matching regression (CPU only)
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: python scripts/ci/test_pr_baseline_contract.py
       - name: Measured-output correctness regression (CPU only)
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: PYTHONPATH=.:src python -m pytest scripts/ci/tests -q
       - name: CPU contracts (NPU autoload disabled)
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: python scripts/ci/ascend950.py --phase cpu --output "$RUNNER_TEMP/cpu-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -65,31 +120,35 @@ jobs:
     runs-on: [self-hosted, tileops-npu-server2, ascend950-32core]
     timeout-minutes: 720
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          ref: ${{ inputs.revision || github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          ref: ascend950
-          path: ci-harness
-          persist-credentials: false
-      - uses: actions/checkout@v4
-        with:
-          repository: yyttt6/TileOPs.github.io
-          ref: bc6edc8eda953f9d78daea2290ea6d49eec6890b
-          path: baseline-cache
-          persist-credentials: false
-      - name: Verify published baseline snapshot
+          name: ascend950-sources
+          path: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      - name: Unpack verified sources
+        env:
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          DESTINATION: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
-          echo "ff7b35fa6cc7b196d87dbd363c1f784ed872c222d26d92146bf82fa2f69bc88d  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
+          cd "$ARCHIVES"
+          sha256sum --check SHA256SUMS
+          mkdir -p "$DESTINATION"
+          tar --no-same-owner -xzf source.tar.gz -C "$DESTINATION"
+          test "$(git -C "$DESTINATION" rev-parse HEAD)" = "$(cat source.commit)"
+          test -z "$(git -C "$DESTINATION" status --porcelain)"
+          mkdir -p "$DESTINATION/ci-harness" "$DESTINATION/baseline-cache"
+          tar --no-same-owner -xzf harness.tar.gz -C "$DESTINATION/ci-harness"
+          tar --no-same-owner -xzf baseline.tar.gz -C "$DESTINATION/baseline-cache"
+      - name: Verify published baseline snapshot
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        run: |
+          echo "cbcfc0cd5d98e9e4cb2b294d3fc45edc5226a521519a76b611176305d5b84447  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
       - name: Changed operator performance with final-output correctness
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950' }}
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           set -eo pipefail
-          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
+          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$PWD"
           source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
           export TILELANG_CACHE_DIR="$RUNNER_TEMP/pr-perf-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
@@ -112,20 +171,32 @@ jobs:
       group: ascend950-device
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          ref: ${{ inputs.revision || github.sha }}
-          persist-credentials: false
+          name: ascend950-sources
+          path: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+      - name: Unpack verified sources
+        env:
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          DESTINATION: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        run: |
+          cd "$ARCHIVES"
+          sha256sum --check SHA256SUMS
+          mkdir -p "$DESTINATION"
+          tar --no-same-owner -xzf source.tar.gz -C "$DESTINATION"
+          test "$(git -C "$DESTINATION" rev-parse HEAD)" = "$(cat source.commit)"
+          test -z "$(git -C "$DESTINATION" status --porcelain)"
       - name: Correctness under the host NPU reservation
         env:
           CI_MODE: ${{ inputs.mode || 'regression' }}
           CI_OPERATORS: ${{ inputs.operators }}
+        working-directory: ${{ runner.temp }}/ci-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           set -eo pipefail
-          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$GITHUB_WORKSPACE"
+          source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$PWD"
           source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
           TORCH_DEVICE_BACKEND_AUTOLOAD=0 python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/toolchain-npu.json"
-          python /opt/tileops-ci/server2-20261030/config/device-job.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          python /opt/tileops-ci/server2-20261030/config/device-job.py "$PWD" "$RUNNER_TEMP/device-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
