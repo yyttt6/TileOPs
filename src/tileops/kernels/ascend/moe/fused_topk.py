@@ -13,6 +13,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
+from tileops.backend import register_kernel_type
 from tileops.kernels.kernel_base import Kernel
 from tileops.kernels.moe.call_spec import FusedTopKCall, FusedTopKFwdInterface
 
@@ -365,3 +366,6 @@ class AscendFusedTopKKernel(Kernel, FusedTopKFwdInterface):
             bias = torch.zeros((c.num_experts,), dtype=torch.float32, device=gating_output.device)
         weights, ids = self._kernel(gating_output, bias)
         return weights, ids
+
+
+register_kernel_type("FusedTopKFwdOp", "ascend", AscendFusedTopKKernel)

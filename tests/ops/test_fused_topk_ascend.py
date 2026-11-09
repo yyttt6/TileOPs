@@ -18,6 +18,15 @@ _OP = "FusedTopKFwdOp"
 _KERNEL = AscendFusedTopKKernel
 
 
+@pytest.mark.smoke
+def test_ascend_moe_public_registration():
+    from tileops.backend.registry import REGISTERED_KERNEL_TYPES
+    from tileops.kernels.ascend.moe import AscendMoEGroupedGemmFP8Kernel
+
+    assert REGISTERED_KERNEL_TYPES[_OP]["ascend"] is _KERNEL
+    assert REGISTERED_KERNEL_TYPES["MoEGroupedGemmFP8FwdOp"]["ascend"] is AscendMoEGroupedGemmFP8Kernel
+
+
 def _cases():
     plan = entry_plan(_OP, load_manifest()[_OP], load_adts(), resolve=False)
     return [

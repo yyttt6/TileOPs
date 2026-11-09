@@ -121,6 +121,7 @@ def main(argv=None):
 
     from benchmarks._cases import entry
     from benchmarks.api import Implementation, cases
+    from benchmarks.ascend.coverage import registered_coverage
     from tileops.backend import registry
     from tileops.manifest import load_manifest
     from workloads.device import set_run_device
@@ -133,7 +134,7 @@ def main(argv=None):
     if "Ascend950" not in device_name:
         raise RuntimeError(f"This protocol requires Ascend 950, got {device_name}")
     manifest = load_manifest()
-    supported = {op for op, kinds in registry.REGISTERED_KERNEL_TYPES.items() if "ascend" in kinds}
+    supported = set(registered_coverage()["operators"])
     selected = sorted(supported) if args.op == ["all"] else args.op
     if not selected:
         raise RuntimeError(

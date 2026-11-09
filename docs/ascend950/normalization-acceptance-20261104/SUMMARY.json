@@ -1,0 +1,294 @@
+{
+  "scope": "12 accepted normalization operators on physical32 server1; independent RoPE excluded",
+  "performance_policy": "User explicitly requests reuse of completed acceptance; no performance rerun for this PR",
+  "operators": [
+    {
+      "operator": "FusedAddRMSNormFwdOp",
+      "manifest_cases": 10,
+      "min_ratio": 0.8798020549714808,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-rms-20261104/FusedAddRMSNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "cf76f2bd9372d3096e096a8d9164ff5d69ca5cb5761163017f744bb766e540d5",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "FusedQKNormRoPEFwdOp",
+      "manifest_cases": 5,
+      "min_ratio": 1.5977656359045003,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-qk-20261104/FusedQKNormRoPEFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "9c732f92a86eb6fa8e4a1ccf30f762cee90fe0f14d2f6907dc8408396f65ca99",
+      "status": true
+    },
+    {
+      "operator": "AdaLayerNormZeroFwdOp",
+      "manifest_cases": 6,
+      "min_ratio": 1.513240455910147,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-adazero-20261103/AdaLayerNormZeroFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "8166f573ab31fcfc04a551c868ba6b9479888a32101de06512f6f8a9fa53c112",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "LayerNormFwdOp",
+      "manifest_cases": 11,
+      "min_ratio": 0.8435663891614857,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-layer-20261103/LayerNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "4a4f3977d17204f8050fad4c1fb3c95f7052f15aedbb4e038015996db54021be",
+      "status": "accepted_npu_operator"
+    },
+    {
+      "operator": "BatchNormBwdOp",
+      "manifest_cases": 7,
+      "min_ratio": 0.9593224434597039,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-bwd-20261104/BatchNormBwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "013f6eef3e768bf3336015df7045e179179b9620a290a1821e905a5e0023a552",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "RMSNormFwdOp",
+      "manifest_cases": 34,
+      "min_ratio": 0.8581344600241434,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-rms-20261103/RMSNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "bbd6915e739296ffd1f1269a4647049ed191dd4c7b73f7a7a69f513fb3ed15c0",
+      "status": "accepted_npu_operator_with_explicit_public_environment_limits"
+    },
+    {
+      "operator": "FusedAddLayerNormFwdOp",
+      "manifest_cases": 7,
+      "min_ratio": 1.0012232988953362,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-layer-20261104/FusedAddLayerNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "cf93c9301a3bb55447f7e74e4e9541a5b05e26c67009a39d950ff10aebc413ac",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "AdaLayerNormFwdOp",
+      "manifest_cases": 6,
+      "min_ratio": 0.8365927139835063,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-ada-20261103/AdaLayerNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "448200452093b9d404d93be63c14835dce0bc6c2f0ead39ccf1bba5707d7af7f",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "FusedAddRMSNormPerTokenQuantFwdOp",
+      "manifest_cases": 11,
+      "min_ratio": 1.3031039335601866,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/FusedAddRMSNormPerTokenQuantFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "6bfedca3a8b193349c566ead0ce7f627d6e293d08ff0d21609c39f25791594a0",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "BatchNormFwdOp",
+      "manifest_cases": 9,
+      "min_ratio": 0.9404619952771738,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/BatchNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "ce3a504b5deade5ead496422cb2a14fb80afe19bf752859d22a950b4b7d989c5",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "InstanceNormFwdOp",
+      "manifest_cases": 12,
+      "min_ratio": 0.9520356783196662,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-instance-20261104/InstanceNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "0f7384dff6f4c9d069ca611a06b189c44f920493f8f776132f8f844086530b90",
+      "status": "accepted_NPU_operator_domain"
+    },
+    {
+      "operator": "GroupNormFwdOp",
+      "manifest_cases": 10,
+      "min_ratio": 0.8310258793601097,
+      "source_report": "docs/ascend950/dev/norm_server2_acceptance_20261103/resume-group-20261104/GroupNormFwdOp-ACCEPTANCE.json",
+      "source_report_sha256": "01d9870b0f27c24c037dc996607a3db6579eacc6b294796c54cdaf782b9d4705",
+      "status": "accepted_NPU_operator_domain"
+    }
+  ],
+  "kernel_sources": [
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_ada_dispatch.py",
+      "sha256": "703c0baca6b2c77274131f2df7881f474912fa4c5cf799b576a12103fafb3180",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_ada_fp32_simd.py",
+      "sha256": "c3d3673f32ced7845e097659db6c8d84de0558513197e235eedf1bc2b0183d53",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_ada_resident.py",
+      "sha256": "c16ecc733ceea040a503e9e0c88d00e91fe48e2f140d51cb100d04bfdc4253ef",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_batch_bwd_optimized.py",
+      "sha256": "9d79923eafda1d4d3acd64cd64c491ff06bfbefb8ed9b9254dc5207dc67ea33e",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_batch_grouped.py",
+      "sha256": "1f8f83e4f7e7f3d8103f83c7a58cd6a921a45bcce38d721c0f5ffaaaea909041",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_batch_infer_flat.py",
+      "sha256": "32ce288f5d08936d5a88904fb8f6518444554fabc68b67234c1ddc106d2f370a",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_batch_resident.py",
+      "sha256": "0e4fbe358676b9ffd6e5a8f925919b4f639a5a9a897997daf76084ebbf09acee",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_batch_simd_grouped.py",
+      "sha256": "341c3872269b0629f07011dab0655e666766f5e9708e22f2f66fe199cbd99087",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_fused_layer_simd.py",
+      "sha256": "04db5ccb26956a1a73628c4439a9bf228b676535d48ce8b68596ac498698fd25",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py",
+      "sha256": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_fused_rms_simd.py",
+      "sha256": "1dfa4746a809834e9c10911adc6462757ad32678fba7c2e7e95b8002b8538682",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_group_fp32_resident.py",
+      "sha256": "d96e91a7c1419170dc794e2b8b7f398a93348af5cbc01a0a5dcf4b4e31cb3eff",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_group_lowprecision_resident.py",
+      "sha256": "f82bec34783255f358ab896dd426fd01a34ec8e001390fbb1fd2b38e322ede85",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_group_lowprecision_simd.py",
+      "sha256": "803a3582f9336f766c5e1817c7382c3325949858c3e38e1c99aa9ea7f7f8333f",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_instance_train.py",
+      "sha256": "a8422582229f3c864da65fe991f72a4784dd863a31225455bf033df71c70182a",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_instance_train_batched.py",
+      "sha256": "ea1bc911d864615c9abcd814fe8252f67c79044cbcb7356378267039a0dd63d0",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_instance_train_resident.py",
+      "sha256": "cd351dbe8c32e1856508ee6cb27ac39af3deed9475834ff79a94974172644d76",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_instance_untracked.py",
+      "sha256": "18099932d6618cfd3e718e12b46f16e7606bcb9c3998af207d642d0a2af28cd7",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_instance_untracked_batched.py",
+      "sha256": "07a4a58416ef38c0868354c6f9b01c01cd06aa2c376d2f4ac39dbdb71b455f2a",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_layer_batched.py",
+      "sha256": "ed88459c7c19b431274ee7bc2f55572776b3913137ee2b278c7753e12b643524",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_layer_packed.py",
+      "sha256": "e118f5c24e2b56b1492c7c28b6978b129faaf8bdca23e08234441cc85d80c637",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_qk_fused_simd.py",
+      "sha256": "1383b1176a383bb15d6b66c2f4b1cd6634ea8536b8001ae2f6833f38935bb8e0",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_qk_token_simd.py",
+      "sha256": "4a80e07f3f157dcb2888f4911f62782377e0b258c34f2638621dca2bc1ad1621",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_rms_dispatch.py",
+      "sha256": "f6d12681fdfad1780061e89f44540e007d258369f9309e5e3bbc092d5ed02ea2",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_rms_grouped_inverse.py",
+      "sha256": "3236464ba762eb760232f7088730d1bf5efd90190c6c03ea7807112ac7421cf6",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_rms_inplace.py",
+      "sha256": "a053dd31a8574cfe256b83ad281f572849ac17f8124f47642f88330963611cf7",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/_rms_resident.py",
+      "sha256": "beeb00c77ae22c991f3e3ed11ba4f53e2f7de5839dc20f4de0c60f9c619c9db0",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/ada_layer_norm.py",
+      "sha256": "4ef5e70fb490c48e13590f54a436f14809f2cce109950b82b8abf847c9ee2aa1",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/batch_norm_backward.py",
+      "sha256": "b5e40a6c7686d58566240669b1ac3153ac1ae4106c1b22d16e745d424de4144e",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/batch_norm_forward.py",
+      "sha256": "37d8b6f8a7192195668d33082c60dfced591b9684bc7ddfa9746c7527df316fc",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/fused_add_layer_norm.py",
+      "sha256": "e2c17a553f631a793e8a49dda626d7240fead17a0ab61621f47f135aa161d282",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/fused_add_rms_norm.py",
+      "sha256": "492b4c7897f8f2c653a110149f937f9efe64d48fae6e70c7408238e42b2887d5",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/fused_rms_quant.py",
+      "sha256": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/group_norm.py",
+      "sha256": "764520628f7beb05fcf60361a5bd951b50a5f4a6e6765bc1571efc28997b71e4",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/instance_norm.py",
+      "sha256": "79ad51ac35074b1e4f42764c62d269cf2a8bdc4cbac4046fa633dad5b38092a4",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/layer_norm.py",
+      "sha256": "7ac10662bba2988060dca41389530a7693f8fdb0ec50c6d54c04012892b0e65f",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/qk_norm_rope.py",
+      "sha256": "3cc13d23981f20f0cff3b410c72a01a37060aefa9f8bced34fe5f0279fbff004",
+      "appears_in_acceptance_evidence": true
+    },
+    {
+      "path": "TileOPs/src/tileops/kernels/ascend/norm/rms_norm.py",
+      "sha256": "c4a2c2c8ec0801e15543978efb2cffa8d41b29beb50acc5a8481b069e1cedc26",
+      "appears_in_acceptance_evidence": true
+    }
+  ]
+}

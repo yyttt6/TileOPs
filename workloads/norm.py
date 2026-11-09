@@ -414,6 +414,12 @@ def batch_norm_forward_result(subject, *inputs):
     return output, inputs[1], inputs[2]
 
 
+def instance_norm_forward_result(subject, *inputs):
+    """Expose running statistics when the call passes them, including unchanged eval stats."""
+    output = subject(*inputs)
+    return output if inputs[1] is None else (output, inputs[1], inputs[2])
+
+
 def batch_norm_forward_verification(dtype):
     from workloads.numerics import Exact
 
@@ -457,9 +463,10 @@ def _norm_reference(name, inputs, p):
         if name == "InstanceNormFwdOp":
             if rm is not None:
                 rm, rv = rm.clone(), rv.clone()
-            return F.instance_norm(
+            output = F.instance_norm(
                 x, rm, rv, weight, bias, p["use_input_stats"], p["momentum"], eps
             )
+            return output if rm is None else (output, rm, rv)
         return batch_norm_fwd_ref(x, weight, bias, rm, rv, p["training"], p["momentum"], eps)
     if name in ("AdaLayerNormFwdOp", "AdaLayerNormZeroFwdOp"):
         _, scale, shift, *gate = inputs

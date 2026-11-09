@@ -17,6 +17,7 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.ascend.language import simd as S
 
+from tileops.backend import register_kernel_type
 from tileops.kernels.kernel_base import Kernel
 from tileops.kernels.moe.call_spec import MGroupedGemmFP8Call, MGroupedGemmFP8FwdInterface
 
@@ -273,3 +274,6 @@ class AscendMoEGroupedGemmFP8Kernel(Kernel, MGroupedGemmFP8FwdInterface):
             raise ValueError("out must be bfloat16 and shaped like the return value")
         self._kernel(a, a_scale, b, b_scale, layout_metadata, out)
         return out
+
+
+register_kernel_type("MoEGroupedGemmFP8FwdOp", "ascend", AscendMoEGroupedGemmFP8Kernel)

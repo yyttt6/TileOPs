@@ -154,3 +154,17 @@ def test_flashinfer_low_latency_refuses_a_non_cuda_device_before_reading_arch(mo
     )
     reason = bench_gemm._flashinfer_fp8_per_tensor_unsupported_reason(torch.device("cpu"), 32, 128)
     assert "runs on cuda" in reason
+
+
+@pytest.mark.parametrize("dtype", [torch.float8_e4m3fn, torch.float8_e5m2])
+def test_fp8_input_preservation_checks_storage_including_nan(dtype):
+    from workloads.numerics import _unchanged
+
+    source = torch.tensor([0.0, -0.0, 1.0, float("nan")]).to(dtype)
+    actual = source.clone()
+    assert _unchanged([actual], [source])
+    actual.view(torch.uint8)[1] = 0
+    assert not _unchanged([actual], [source])
+    actual = source.clone()
+    actual.view(torch.uint8)[2] = 0
+    assert not _unchanged([actual], [source])

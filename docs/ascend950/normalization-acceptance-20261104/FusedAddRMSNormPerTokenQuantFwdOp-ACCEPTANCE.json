@@ -1,0 +1,1201 @@
+{
+  "status": "accepted_NPU_operator_domain",
+  "manifest_cases": 11,
+  "all_performance_pass": true,
+  "min_ratio": 1.3031039335601866,
+  "candidate_windows": 165,
+  "guard_sha256": {
+    "pilot-overlap-v1": "261be104063f88dc8cd54bddb37d5181635b99d36a1e5d151651460c7dcdc131",
+    "full-overlap-v1": "c20f900d9f84617a2dd2893b6ac1708f99450457ef1267336cde02bfeb59614f"
+  },
+  "production_sources": {
+    "_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+    "fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041"
+  },
+  "cases": [
+    {
+      "case": "llama-8b-prefill-bfloat16-float8_e4m3fn",
+      "us": 336.76193333333333,
+      "ratio": 1.3031039335601866,
+      "baseline": {
+        "us": 438.8358,
+        "source": "existing_qualified_pytorch_missing_v1",
+        "row": {
+          "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+          "case": "llama-8b-prefill-bfloat16-float8_e4m3fn",
+          "providers": {
+            "pytorch_missing": {
+              "eligible": true,
+              "verification": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 32.0,
+                "unchecked_reason": null
+              },
+              "verification_after_timing": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 32.0,
+                "unchecked_reason": null
+              },
+              "timing": {
+                "latency_ms": 0.4388358,
+                "profile_kernel_us": 438.8358,
+                "profile_kernel_count": 21.0,
+                "profile_aic_cycles": 0.0,
+                "profile_aiv_cycles": 41127038.06666667,
+                "profile_excluded_kernel_count": 0.0,
+                "profile_excluded_kernel_us": 0.0,
+                "cold_latency_ms": 3.824859857559204,
+                "latency_samples_ms": [
+                  0.439996,
+                  0.439672,
+                  0.439312,
+                  0.436767,
+                  0.438834,
+                  0.438494,
+                  0.43869,
+                  0.438009,
+                  0.438444,
+                  0.439006,
+                  0.440403,
+                  0.43605,
+                  0.439328,
+                  0.440826,
+                  0.438706
+                ],
+                "latency_median_ms": 0.438834,
+                "latency_stdev_ms": 0.001253365708801703,
+                "latency_min_ms": 0.43605,
+                "latency_max_ms": 0.440826,
+                "measurement_protocol": "ascend950-isolated-ffts-v3",
+                "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+              }
+            }
+          },
+          "sources": {
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+          },
+          "runtime_limit": {
+            "cube_core_num": 32,
+            "vector_core_num": 64
+          },
+          "inputs_preserved": true
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/pilot-v1/results.json",
+      "result_sha256": "d93bd231c5e96a63a80a15fef95debc66830eb978d971a751786b7e784f254b5",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_pilot_v1.py": "630404699039d4971000bcf0e49e8b3bac5135ed592550255ff5eb9ea11b16d1",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "6725a0913e743343702dee9607971c03e81406d5786d4afa26dc48be78563a1f"
+    },
+    {
+      "case": "llama-8b-prefill-i8-bfloat16-int8",
+      "us": 305.1564,
+      "ratio": 1.4789843284733117,
+      "baseline": {
+        "us": 451.3215333333333,
+        "source": "retained_qualified_extended_device_eager_v1",
+        "qualified_audit": "/root/dyq/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/remote-evidence/extended-device-eager-v1/FusedAddRMSNormPerTokenQuantFwdOp/manifest/device-eager-audit-v1.json",
+        "qualified_audit_sha256": "bcbd350b596c632f3a5bc3c88aef53b31c53b483795cf39cf06e888cdbf526e5",
+        "audit_row": {
+          "case": "llama-8b-prefill-i8-bfloat16-int8",
+          "eager_us": 451.3215333333333,
+          "eager_eligible": true
+        },
+        "previous_best": {
+          "us": 453.36306666666667,
+          "source": "existing_qualified_pytorch_missing_v1",
+          "row": {
+            "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+            "case": "llama-8b-prefill-i8-bfloat16-int8",
+            "providers": {
+              "pytorch_missing": {
+                "eligible": true,
+                "verification": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 1.0,
+                  "unchecked_reason": null
+                },
+                "verification_after_timing": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 1.0,
+                  "unchecked_reason": null
+                },
+                "timing": {
+                  "latency_ms": 0.45336306666666665,
+                  "profile_kernel_us": 453.36306666666667,
+                  "profile_kernel_count": 22.0,
+                  "profile_aic_cycles": 0.0,
+                  "profile_aiv_cycles": 42421431.06666667,
+                  "profile_excluded_kernel_count": 0.0,
+                  "profile_excluded_kernel_us": 0.0,
+                  "cold_latency_ms": 1.5906398184597492,
+                  "latency_samples_ms": [
+                    0.453683,
+                    0.457989,
+                    0.451728,
+                    0.44949,
+                    0.455953,
+                    0.456218,
+                    0.453397,
+                    0.454171,
+                    0.451647,
+                    0.457203,
+                    0.452691,
+                    0.449609,
+                    0.453374,
+                    0.449593,
+                    0.4537
+                  ],
+                  "latency_median_ms": 0.453397,
+                  "latency_stdev_ms": 0.002689260664905787,
+                  "latency_min_ms": 0.44949,
+                  "latency_max_ms": 0.457989,
+                  "measurement_protocol": "ascend950-isolated-ffts-v3",
+                  "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                  "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                  "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                  "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+                }
+              }
+            },
+            "sources": {
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+            },
+            "runtime_limit": {
+              "cube_core_num": 32,
+              "vector_core_num": 64
+            },
+            "inputs_preserved": true
+          }
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "2f6dc2c179dc661fdcab1401fe84e460aac3c72f94f8aa0927f6c565a57849cd"
+    },
+    {
+      "case": "llama-8b-decode-b1-bfloat16-float8_e4m3fn",
+      "us": 7.806933333333333,
+      "ratio": 6.07033064626315,
+      "baseline": {
+        "us": 47.39066666666666,
+        "source": "existing_qualified_pytorch_missing_v1",
+        "row": {
+          "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+          "case": "llama-8b-decode-b1-bfloat16-float8_e4m3fn",
+          "providers": {
+            "pytorch_missing": {
+              "eligible": true,
+              "verification": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 0.0,
+                "unchecked_reason": null
+              },
+              "verification_after_timing": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 0.0,
+                "unchecked_reason": null
+              },
+              "timing": {
+                "latency_ms": 0.047390666666666664,
+                "profile_kernel_us": 47.39066666666666,
+                "profile_kernel_count": 21.0,
+                "profile_aic_cycles": 0.0,
+                "profile_aiv_cycles": 241447.4,
+                "profile_excluded_kernel_count": 0.0,
+                "profile_excluded_kernel_us": 0.0,
+                "cold_latency_ms": 0.8446299470961094,
+                "latency_samples_ms": [
+                  0.045968,
+                  0.047525,
+                  0.047322,
+                  0.048044,
+                  0.048051,
+                  0.047019,
+                  0.04718,
+                  0.048473,
+                  0.04772,
+                  0.047669,
+                  0.046629,
+                  0.047269,
+                  0.046691,
+                  0.048161,
+                  0.047139
+                ],
+                "latency_median_ms": 0.047322,
+                "latency_stdev_ms": 0.0006649779444964078,
+                "latency_min_ms": 0.045968,
+                "latency_max_ms": 0.048473,
+                "measurement_protocol": "ascend950-isolated-ffts-v3",
+                "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+              }
+            }
+          },
+          "sources": {
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+          },
+          "runtime_limit": {
+            "cube_core_num": 32,
+            "vector_core_num": 64
+          },
+          "inputs_preserved": true
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "f80f6dc60d7761de95cce14c5367207c4ac2174bb6e6acdd709d3931caf085ae"
+    },
+    {
+      "case": "llama-8b-decode-b64-bfloat16-float8_e4m3fn",
+      "us": 12.761133333333333,
+      "ratio": 6.046453554282014,
+      "baseline": {
+        "us": 77.15960000000001,
+        "source": "retained_qualified_extended_device_eager_v1",
+        "qualified_audit": "/root/dyq/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/remote-evidence/extended-device-eager-v1/FusedAddRMSNormPerTokenQuantFwdOp/manifest/device-eager-audit-v1.json",
+        "qualified_audit_sha256": "bcbd350b596c632f3a5bc3c88aef53b31c53b483795cf39cf06e888cdbf526e5",
+        "audit_row": {
+          "case": "llama-8b-decode-b64-bfloat16-float8_e4m3fn",
+          "eager_us": 77.15960000000001,
+          "eager_eligible": true
+        },
+        "previous_best": {
+          "us": 77.61593333333333,
+          "source": "existing_qualified_pytorch_missing_v1",
+          "row": {
+            "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+            "case": "llama-8b-decode-b64-bfloat16-float8_e4m3fn",
+            "providers": {
+              "pytorch_missing": {
+                "eligible": true,
+                "verification": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 32.0,
+                  "unchecked_reason": null
+                },
+                "verification_after_timing": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 32.0,
+                  "unchecked_reason": null
+                },
+                "timing": {
+                  "latency_ms": 0.07761593333333333,
+                  "profile_kernel_us": 77.61593333333333,
+                  "profile_kernel_count": 21.0,
+                  "profile_aic_cycles": 0.0,
+                  "profile_aiv_cycles": 3835495.6666666665,
+                  "profile_excluded_kernel_count": 0.0,
+                  "profile_excluded_kernel_us": 0.0,
+                  "cold_latency_ms": 0.9409799240529537,
+                  "latency_samples_ms": [
+                    0.077941,
+                    0.075684,
+                    0.081035,
+                    0.077266,
+                    0.07505,
+                    0.079169,
+                    0.079007,
+                    0.079557,
+                    0.077434,
+                    0.074622,
+                    0.080384,
+                    0.0757,
+                    0.077158,
+                    0.077632,
+                    0.0766
+                  ],
+                  "latency_median_ms": 0.077434,
+                  "latency_stdev_ms": 0.00192578653566598,
+                  "latency_min_ms": 0.074622,
+                  "latency_max_ms": 0.081035,
+                  "measurement_protocol": "ascend950-isolated-ffts-v3",
+                  "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                  "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                  "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                  "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+                }
+              }
+            },
+            "sources": {
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+            },
+            "runtime_limit": {
+              "cube_core_num": 32,
+              "vector_core_num": 64
+            },
+            "inputs_preserved": true
+          }
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "4813e0937cb32f924522f19f97eaff530637c4662e3465b4c753699e326e401f"
+    },
+    {
+      "case": "llama-8b-decode-b256-bfloat16-float8_e4m3fn",
+      "us": 28.9924,
+      "ratio": 3.2858427265996144,
+      "baseline": {
+        "us": 95.26446666666666,
+        "source": "retained_qualified_extended_device_eager_v1",
+        "qualified_audit": "/root/dyq/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/remote-evidence/extended-device-eager-v1/FusedAddRMSNormPerTokenQuantFwdOp/manifest/device-eager-audit-v1.json",
+        "qualified_audit_sha256": "bcbd350b596c632f3a5bc3c88aef53b31c53b483795cf39cf06e888cdbf526e5",
+        "audit_row": {
+          "case": "llama-8b-decode-b256-bfloat16-float8_e4m3fn",
+          "eager_us": 95.26446666666666,
+          "eager_eligible": true
+        },
+        "previous_best": {
+          "us": 95.51033333333334,
+          "source": "existing_qualified_pytorch_missing_v1",
+          "row": {
+            "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+            "case": "llama-8b-decode-b256-bfloat16-float8_e4m3fn",
+            "providers": {
+              "pytorch_missing": {
+                "eligible": true,
+                "verification": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 16.0,
+                  "unchecked_reason": null
+                },
+                "verification_after_timing": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 16.0,
+                  "unchecked_reason": null
+                },
+                "timing": {
+                  "latency_ms": 0.09551033333333332,
+                  "profile_kernel_us": 95.51033333333334,
+                  "profile_kernel_count": 21.0,
+                  "profile_aic_cycles": 0.0,
+                  "profile_aiv_cycles": 6115960.666666667,
+                  "profile_excluded_kernel_count": 0.0,
+                  "profile_excluded_kernel_us": 0.0,
+                  "cold_latency_ms": 1.4893598854541779,
+                  "latency_samples_ms": [
+                    0.095803,
+                    0.092983,
+                    0.095321,
+                    0.095476,
+                    0.094395,
+                    0.094464,
+                    0.097116,
+                    0.095105,
+                    0.094863,
+                    0.093778,
+                    0.097415,
+                    0.096014,
+                    0.09702,
+                    0.09434,
+                    0.098562
+                  ],
+                  "latency_median_ms": 0.095321,
+                  "latency_stdev_ms": 0.0015084105478789182,
+                  "latency_min_ms": 0.092983,
+                  "latency_max_ms": 0.098562,
+                  "measurement_protocol": "ascend950-isolated-ffts-v3",
+                  "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                  "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                  "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                  "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+                }
+              }
+            },
+            "sources": {
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+            },
+            "runtime_limit": {
+              "cube_core_num": 32,
+              "vector_core_num": 64
+            },
+            "inputs_preserved": true
+          }
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "5a9f83e3be7afad5b3ec6d411fdd825c2e63cd9be30b0b6380fcd63537f13ed0"
+    },
+    {
+      "case": "llama-70b-prefill-bfloat16-float8_e4m3fn",
+      "us": 618.2916666666666,
+      "ratio": 1.8058947368421054,
+      "baseline": {
+        "us": 1116.5696666666668,
+        "source": "existing_qualified_pytorch_missing_v1",
+        "row": {
+          "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+          "case": "llama-70b-prefill-bfloat16-float8_e4m3fn",
+          "providers": {
+            "pytorch_missing": {
+              "eligible": true,
+              "verification": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 32.0,
+                "unchecked_reason": null
+              },
+              "verification_after_timing": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 32.0,
+                "unchecked_reason": null
+              },
+              "timing": {
+                "latency_ms": 1.1165696666666667,
+                "profile_kernel_us": 1116.5696666666668,
+                "profile_kernel_count": 21.0,
+                "profile_aic_cycles": 0.0,
+                "profile_aiv_cycles": 110747343.0,
+                "profile_excluded_kernel_count": 0.0,
+                "profile_excluded_kernel_us": 0.0,
+                "cold_latency_ms": 2.206980250775814,
+                "latency_samples_ms": [
+                  1.11483,
+                  1.118209,
+                  1.113933,
+                  1.116844,
+                  1.116185,
+                  1.120653,
+                  1.11533,
+                  1.118816,
+                  1.111373,
+                  1.114783,
+                  1.121166,
+                  1.118206,
+                  1.117586,
+                  1.114658,
+                  1.115973
+                ],
+                "latency_median_ms": 1.116185,
+                "latency_stdev_ms": 0.0026075480180941476,
+                "latency_min_ms": 1.111373,
+                "latency_max_ms": 1.121166,
+                "measurement_protocol": "ascend950-isolated-ffts-v3",
+                "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+              }
+            }
+          },
+          "sources": {
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+          },
+          "runtime_limit": {
+            "cube_core_num": 32,
+            "vector_core_num": 64
+          },
+          "inputs_preserved": true
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "4826536ff257f0d456595408f6343b4b7e6432155ba55f8c75dcfa4d898d6405"
+    },
+    {
+      "case": "llama-70b-prefill-i8-float16-int8",
+      "us": 641.6536666666666,
+      "ratio": 1.8640536613469056,
+      "baseline": {
+        "us": 1196.0768666666668,
+        "source": "retained_qualified_extended_device_eager_v1",
+        "qualified_audit": "/root/dyq/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/remote-evidence/extended-device-eager-v1/FusedAddRMSNormPerTokenQuantFwdOp/manifest/device-eager-audit-v1.json",
+        "qualified_audit_sha256": "bcbd350b596c632f3a5bc3c88aef53b31c53b483795cf39cf06e888cdbf526e5",
+        "audit_row": {
+          "case": "llama-70b-prefill-i8-float16-int8",
+          "eager_us": 1196.0768666666668,
+          "eager_eligible": true
+        },
+        "previous_best": {
+          "us": 1198.6072,
+          "source": "existing_qualified_pytorch_missing_v1",
+          "row": {
+            "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+            "case": "llama-70b-prefill-i8-float16-int8",
+            "providers": {
+              "pytorch_missing": {
+                "eligible": true,
+                "verification": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 1.0,
+                  "unchecked_reason": null
+                },
+                "verification_after_timing": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 1.0,
+                  "unchecked_reason": null
+                },
+                "timing": {
+                  "latency_ms": 1.1986071999999999,
+                  "profile_kernel_us": 1198.6072,
+                  "profile_kernel_count": 22.0,
+                  "profile_aic_cycles": 0.0,
+                  "profile_aiv_cycles": 119228215.93333334,
+                  "profile_excluded_kernel_count": 0.0,
+                  "profile_excluded_kernel_us": 0.0,
+                  "cold_latency_ms": 2.2669401951134205,
+                  "latency_samples_ms": [
+                    1.199451,
+                    1.197111,
+                    1.199119,
+                    1.198674,
+                    1.196766,
+                    1.194219,
+                    1.198927,
+                    1.20097,
+                    1.199679,
+                    1.200935,
+                    1.201146,
+                    1.201978,
+                    1.199075,
+                    1.193791,
+                    1.197267
+                  ],
+                  "latency_median_ms": 1.199075,
+                  "latency_stdev_ms": 0.002407345728627885,
+                  "latency_min_ms": 1.193791,
+                  "latency_max_ms": 1.201978,
+                  "measurement_protocol": "ascend950-isolated-ffts-v3",
+                  "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                  "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                  "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                  "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+                }
+              }
+            },
+            "sources": {
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+            },
+            "runtime_limit": {
+              "cube_core_num": 32,
+              "vector_core_num": 64
+            },
+            "inputs_preserved": true
+          }
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "d033a0bf574cac211118813951636a7ce958227df7e32bef2982e6c93f2610fe"
+    },
+    {
+      "case": "llama-70b-decode-b1-bfloat16-float8_e4m3fn",
+      "us": 11.136133333333333,
+      "ratio": 4.341590737658793,
+      "baseline": {
+        "us": 48.348533333333336,
+        "source": "existing_qualified_pytorch_missing_v1",
+        "row": {
+          "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+          "case": "llama-70b-decode-b1-bfloat16-float8_e4m3fn",
+          "providers": {
+            "pytorch_missing": {
+              "eligible": true,
+              "verification": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 0.001953125,
+                "unchecked_reason": null
+              },
+              "verification_after_timing": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 0.001953125,
+                "unchecked_reason": null
+              },
+              "timing": {
+                "latency_ms": 0.04834853333333333,
+                "profile_kernel_us": 48.348533333333336,
+                "profile_kernel_count": 21.0,
+                "profile_aic_cycles": 0.0,
+                "profile_aiv_cycles": 476030.73333333334,
+                "profile_excluded_kernel_count": 0.0,
+                "profile_excluded_kernel_us": 0.0,
+                "cold_latency_ms": 0.9004902094602585,
+                "latency_samples_ms": [
+                  0.048998,
+                  0.047899,
+                  0.048031,
+                  0.047122,
+                  0.048609,
+                  0.049817,
+                  0.049884,
+                  0.048603,
+                  0.047391,
+                  0.048071,
+                  0.047194,
+                  0.04928,
+                  0.048456,
+                  0.047817,
+                  0.048056
+                ],
+                "latency_median_ms": 0.048071,
+                "latency_stdev_ms": 0.0008639556756708119,
+                "latency_min_ms": 0.047122,
+                "latency_max_ms": 0.049884,
+                "measurement_protocol": "ascend950-isolated-ffts-v3",
+                "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+              }
+            }
+          },
+          "sources": {
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+          },
+          "runtime_limit": {
+            "cube_core_num": 32,
+            "vector_core_num": 64
+          },
+          "inputs_preserved": true
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "c79ea3a1ae1d500c7bae4a3ad0173abe4d63cc85144aa43fb1ed0fc976bcde44"
+    },
+    {
+      "case": "llama-70b-decode-b64-bfloat16-float8_e4m3fn",
+      "us": 16.119799999999998,
+      "ratio": 5.5944862839489335,
+      "baseline": {
+        "us": 90.182,
+        "source": "retained_qualified_extended_device_eager_v1",
+        "qualified_audit": "/root/dyq/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/remote-evidence/extended-device-eager-v1/FusedAddRMSNormPerTokenQuantFwdOp/manifest/device-eager-audit-v1.json",
+        "qualified_audit_sha256": "bcbd350b596c632f3a5bc3c88aef53b31c53b483795cf39cf06e888cdbf526e5",
+        "audit_row": {
+          "case": "llama-70b-decode-b64-bfloat16-float8_e4m3fn",
+          "eager_us": 90.182,
+          "eager_eligible": true
+        },
+        "previous_best": {
+          "us": 90.77613333333333,
+          "source": "existing_qualified_pytorch_missing_v1",
+          "row": {
+            "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+            "case": "llama-70b-decode-b64-bfloat16-float8_e4m3fn",
+            "providers": {
+              "pytorch_missing": {
+                "eligible": true,
+                "verification": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 16.0,
+                  "unchecked_reason": null
+                },
+                "verification_after_timing": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 16.0,
+                  "unchecked_reason": null
+                },
+                "timing": {
+                  "latency_ms": 0.09077613333333333,
+                  "profile_kernel_us": 90.77613333333333,
+                  "profile_kernel_count": 21.0,
+                  "profile_aic_cycles": 0.0,
+                  "profile_aiv_cycles": 5861232.2,
+                  "profile_excluded_kernel_count": 0.0,
+                  "profile_excluded_kernel_us": 0.0,
+                  "cold_latency_ms": 1.0346798226237297,
+                  "latency_samples_ms": [
+                    0.089684,
+                    0.092507,
+                    0.089624,
+                    0.088063,
+                    0.092492,
+                    0.091225,
+                    0.094332,
+                    0.090319,
+                    0.091417,
+                    0.091004,
+                    0.088161,
+                    0.088861,
+                    0.089789,
+                    0.093342,
+                    0.090822
+                  ],
+                  "latency_median_ms": 0.090822,
+                  "latency_stdev_ms": 0.0018401377225890565,
+                  "latency_min_ms": 0.088063,
+                  "latency_max_ms": 0.094332,
+                  "measurement_protocol": "ascend950-isolated-ffts-v3",
+                  "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                  "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                  "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                  "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+                }
+              }
+            },
+            "sources": {
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+            },
+            "runtime_limit": {
+              "cube_core_num": 32,
+              "vector_core_num": 64
+            },
+            "inputs_preserved": true
+          }
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "2dc1d7057108f333474b43d1885986d9bdd495904fd66251bdfda9490f62d21d"
+    },
+    {
+      "case": "llama-70b-decode-b256-bfloat16-float8_e4m3fn",
+      "us": 47.14366666666666,
+      "ratio": 2.6197523880903058,
+      "baseline": {
+        "us": 123.50473333333333,
+        "source": "existing_qualified_pytorch_missing_v1",
+        "row": {
+          "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+          "case": "llama-70b-decode-b256-bfloat16-float8_e4m3fn",
+          "providers": {
+            "pytorch_missing": {
+              "eligible": true,
+              "verification": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 32.0,
+                "unchecked_reason": null
+              },
+              "verification_after_timing": {
+                "checked_outputs": 3,
+                "total_outputs": 3,
+                "max_abs_err": 32.0,
+                "unchecked_reason": null
+              },
+              "timing": {
+                "latency_ms": 0.12350473333333334,
+                "profile_kernel_us": 123.50473333333333,
+                "profile_kernel_count": 21.0,
+                "profile_aic_cycles": 0.0,
+                "profile_aiv_cycles": 8896936.333333334,
+                "profile_excluded_kernel_count": 0.0,
+                "profile_excluded_kernel_us": 0.0,
+                "cold_latency_ms": 1.1058100499212742,
+                "latency_samples_ms": [
+                  0.12577,
+                  0.123101,
+                  0.122862,
+                  0.120415,
+                  0.122305,
+                  0.124912,
+                  0.126825,
+                  0.120744,
+                  0.124466,
+                  0.123826,
+                  0.124237,
+                  0.124975,
+                  0.121209,
+                  0.122996,
+                  0.123928
+                ],
+                "latency_median_ms": 0.123826,
+                "latency_stdev_ms": 0.0018274312754975664,
+                "latency_min_ms": 0.120415,
+                "latency_max_ms": 0.126825,
+                "measurement_protocol": "ascend950-isolated-ffts-v3",
+                "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+              }
+            }
+          },
+          "sources": {
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+            "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+            "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+          },
+          "runtime_limit": {
+            "cube_core_num": 32,
+            "vector_core_num": 64
+          },
+          "inputs_preserved": true
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "1407446dde659321d2c11897559671e71d7b6e15c6f89cfbdfbc190bd81ef5af"
+    },
+    {
+      "case": "clamped-amax-bfloat16-float8_e4m3fn",
+      "us": 337.2383333333333,
+      "ratio": 1.3087369466697638,
+      "baseline": {
+        "us": 441.35626666666667,
+        "source": "retained_qualified_extended_device_eager_v1",
+        "qualified_audit": "/root/dyq/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/remote-evidence/extended-device-eager-v1/FusedAddRMSNormPerTokenQuantFwdOp/manifest/device-eager-audit-v1.json",
+        "qualified_audit_sha256": "bcbd350b596c632f3a5bc3c88aef53b31c53b483795cf39cf06e888cdbf526e5",
+        "audit_row": {
+          "case": "clamped-amax-bfloat16-float8_e4m3fn",
+          "eager_us": 441.35626666666667,
+          "eager_eligible": true
+        },
+        "previous_best": {
+          "us": 443.35693333333336,
+          "source": "existing_qualified_pytorch_missing_v1",
+          "row": {
+            "op": "FusedAddRMSNormPerTokenQuantFwdOp",
+            "case": "clamped-amax-bfloat16-float8_e4m3fn",
+            "providers": {
+              "pytorch_missing": {
+                "eligible": true,
+                "verification": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 16.0,
+                  "unchecked_reason": null
+                },
+                "verification_after_timing": {
+                  "checked_outputs": 3,
+                  "total_outputs": 3,
+                  "max_abs_err": 16.0,
+                  "unchecked_reason": null
+                },
+                "timing": {
+                  "latency_ms": 0.44335693333333337,
+                  "profile_kernel_us": 443.35693333333336,
+                  "profile_kernel_count": 22.0,
+                  "profile_aic_cycles": 0.0,
+                  "profile_aiv_cycles": 41610832.93333333,
+                  "profile_excluded_kernel_count": 0.0,
+                  "profile_excluded_kernel_us": 0.0,
+                  "cold_latency_ms": 1.336599700152874,
+                  "latency_samples_ms": [
+                    0.440389,
+                    0.446464,
+                    0.44152,
+                    0.442881,
+                    0.444041,
+                    0.445745,
+                    0.443981,
+                    0.442847,
+                    0.442991,
+                    0.443646,
+                    0.441119,
+                    0.441795,
+                    0.447995,
+                    0.442187,
+                    0.442753
+                  ],
+                  "latency_median_ms": 0.442881,
+                  "latency_stdev_ms": 0.002066643568227295,
+                  "latency_min_ms": 0.440389,
+                  "latency_max_ms": 0.447995,
+                  "measurement_protocol": "ascend950-isolated-ffts-v3",
+                  "profile_coverage_protocol": "v3-distinct-ffts-plus-missing-named-aicpu-v1",
+                  "profile_coverage_adapter": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py",
+                  "profile_coverage_adapter_sha256": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+                  "profile_coverage_evidence": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/fused-baselines-v1/FusedAddRMSNormPerTokenQuantFwdOp/raw-profiles/coverage.json"
+                }
+              }
+            },
+            "sources": {
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_rope_server1_20261103/measure_fused_baselines_v1.py": "c2ebed92bfa5850a27e43b88a53f501e315bfd614bba96e9d456655f460ef1c7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/pointwise.py": "ba585c1af4de10a28cedfecb653f7639d2de003cf7f8893bec5464c2da806e86",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/benchmarks/pytorch_missing/__init__.py": "65cc0719a1fd09876614e61172c195bbdbe0f5add92d02310e75cd76730fa4ff",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/src/tileops/manifest/spec/norm.yaml": "e6c763a9c887ad1bebb913121ee302c42fa114d7d47c0cf60cacb5d42fc1c039",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/complete_profile_v3.py": "a1c393275ee27703cc0a6cbc752accaf5f45e4bc9005dfa1623f4ad93fcceed7",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/kernel_task_profile.py": "82e1a2d3f372a7d4b5bc1ea75e3aac80457df42321079d9540b57664fdf612ed",
+              "/opt/tileops-dev/norm-rope-server1-20261103/workspace/tools/measure_baselines.py": "afdcdd46365e9f0bb6380165e1db874b97e6623f205e9fe0ed99d24bbb9c7fbc",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/_op_plugin_docs.py": "aa0323db98f029166c71044712d4e3bc425be80d41912c6de30b6bce36729d6f",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libnpu_profiler.so": "b9ec49813b8de5430ebf530d6aaa57d879e28158f43ca8c14e1087da4244012d",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libop_plugin_atb.so": "1f09ab9cf6f4930811486fbdb99c61d16188323e0435a11daf59e07fd9ec44d1",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtensorpipe.so": "c9fc58b3a5f48d3f08076b4325ca5ccf2604de859582779090c2322bd5ee43c9",
+              "/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch_npu/lib/libtorch_npu.so": "e2e9daa8e4fd17701f6c7772acc4c6236366d5efe13410ec9b5c9ab7cbc0f39f"
+            },
+            "runtime_limit": {
+              "cube_core_num": 32,
+              "vector_core_num": 64
+            },
+            "inputs_preserved": true
+          }
+        }
+      },
+      "result_path": "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/full-v1/results.json",
+      "result_sha256": "549f9be50174b1e632a5099d48d9d44a3d97a16de29b97c2a985968cdf552004",
+      "sources": {
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_full_v1.py": "8eb051fa8bf0e1a84c569b8cd95d6ea0ac97de86d7f011aa445a358b9aeabde5",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_cpu_factory_v1.py": "4d192a5fead9fdbbd9fcafeb9c4d2e59ddb3d2913c668e160c247328a0f2a857",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/ascend_extended.py": "cd20de054e2684d2e6dba098e9f66cfa80a6721e3c2be8f72074ce89b5d5f6ed",
+        "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+      },
+      "kernel_sha256": "a5fbfad0ca6e37d2d02a11d52a0ac95491f1ba9f3edcb8352f2d0e9c9621f6f1"
+    }
+  ],
+  "frozen_baselines_sha256": "896302361dcf70abdf08b0edfc6d200e61e5dbe790718a6ae477187fcbb4051d",
+  "auditor_sha256": "a42a4b4504ab319414d8b0dbda6fe82168b83566a8a0c45ed9ac6dc420b4bb57",
+  "all_pass": true,
+  "boundary_checks": 40,
+  "boundary_sha256": "e83545584771b34138f128ef65e0b40606579f5db0d37050362efae87bf85ca5",
+  "boundary_sources": {
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/_fused_rms_quant_resident.py": "150f0bb54ed9a34ba63d8efd3d7515cdf44818d66d7c5d0795520cbf4dad4cae",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-fused-quant-20261104/production-src-v1/tileops/kernels/ascend/norm/fused_rms_quant.py": "8672e9a464a897eaa0310599358b04cb4861f677ce5f0b5d9f4883e606234041",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_boundary_v1.py": "c5861d816c1605340a4e05b35b04f3b1936e74538ee0911a89ed941f010939a2",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/fquant_boundary_cpu_factory_v1.py": "9a72de19d1503e81e20ce60248eb5584fc01b30512ad0bb855a4223c04541837"
+  },
+  "boundary_guard_sha256": "975299f52d4de9206e071fdd381ca52942cfd9df78033ec97243e2e4fa0804ba",
+  "shared_dependencies": {
+    "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+    "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+    "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+    "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+    "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+    "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+    "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+    "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+    "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+    "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+    "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+    "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+    "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+    "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+    "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303",
+    "tileops/ops/norm/group_norm.py": "8ad73ce2ae6a1c768a3f2e7b44c4238bcc6537f617e86e3272ea1f76b2860e46",
+    "tileops/kernels/norm/fused_extended_call_spec.py": "ebe2c3711181d8ac9436e5cdfdaddd7c3070247e548926d5505978cd1e43a2e8",
+    "tileops/ops/norm/fused_add_rms_norm_per_token_quant.py": "b8afd6d877c6476ae7f38ce193ad524aa1da3ab4bc6bac9070318eff8d23b53a"
+  },
+  "public_tests": "No dedicated original test exists in TileOPs/tests for this extended op; all 11 original manifest numerical contracts and 40 boundary checks passed.",
+  "notes": [
+    "No baseline remeasurement. Strongest available qualified old eager denominators retained; no new Torch cache row for this op. Native old records retain exact-contract failures and are ineligible.",
+    "Earlier device-eager audit supplies six stronger denominators; retained audit evidence is not represented as freshly re-parsed raw baseline data.",
+    "Resident specialization only for n%32==0 and n<=8192; original fallback body unchanged. CPU cascade order, dtype rounding, scale division and FP8 signed zero preserved.",
+    "Boundary grid: input FP16/BF16, INT8/FP8, shapes3x128/65x4096/2x8192/3x129/2x4097, capNone/.02; zero rows, strided canaries, exact residual, disjoint outputs and output redzones."
+  ],
+  "final_auditor_sha256": "1526ae7f340cee46f25339052bea20f787af32775db4efd6e4d4eaafb0cbffc9"
+}

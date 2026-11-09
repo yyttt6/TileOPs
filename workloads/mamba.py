@@ -615,8 +615,18 @@ def ssd_chunk_state_fwd_ref(
         weight = weight * same.permute(0, 1, 3, 2)
 
     w = weight.permute(0, 1, 3, 2).unsqueeze(-1).unsqueeze(-1)
-    contrib = w * B_heads.unsqueeze(-1) * x_chunked.unsqueeze(-2)
-    out = contrib.sum(dim=2)
+    # Bound the reference's temporary outer products to one chunk on long sequences.
+    # The reduction axis and multiplication order remain identical to the dense path.
+    if b * c * Q * h * n * p > (1 << 30):
+        out = torch.empty((b, c, h, n, p), dtype=torch.float32, device=x.device)
+        for chunk in range(c):
+            contrib = (
+                w[:, chunk] * B_heads[:, chunk].unsqueeze(-1) * x_chunked[:, chunk].unsqueeze(-2)
+            )
+            out[:, chunk] = contrib.sum(dim=1)
+    else:
+        contrib = w * B_heads.unsqueeze(-1) * x_chunked.unsqueeze(-2)
+        out = contrib.sum(dim=2)
     return out.permute(0, 1, 2, 4, 3)
 
 
