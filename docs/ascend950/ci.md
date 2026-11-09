@@ -34,3 +34,13 @@ are retained as Actions artifacts. A green CPU result does not prove NPU correct
 The supervisor retries a crashed runner. After the platform restarts the enclosing
 container, run `/opt/tileops-ci/server2-20261030/start-runners.sh` to restore the
 listeners if the platform does not persist foreground services.
+
+## v0.1.0 development entry
+
+New development and pull requests target `ascend950-v0.1.0`, based on fixed
+NV TileOPs v0.1.0. The previous `ascend950` branch is retained for history; do not
+merge its complete history into the rebased branch. Port only independently
+reviewed changes and preserve original authorship. Official nightly checks out
+`ascend950-v0.1.0`; its local dispatcher runs at 02:00 Asia/Shanghai.
+Measurements use the existing ARM64 toolchain and host NPU guard. Old-contract
+measurements remain historical evidence and are not relabelled as v0.1.0 results.
