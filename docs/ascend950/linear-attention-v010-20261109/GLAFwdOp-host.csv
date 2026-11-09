@@ -1,0 +1,11 @@
+case,candidate_ms,provider,baseline_ms,ratio,historical,metric,measurement_id
+prefill-2k-bfloat16,0.34390535826484364,flash-linear-attention-npu,3123.7568946555257,9083.187625852288,False,host_roundtrip_with_device_synchronize_mean15,
+prefill-4k-bfloat16,0.4825673997402191,flash-linear-attention-npu,6446.208272688091,13358.151164289762,False,host_roundtrip_with_device_synchronize_mean15,
+prefill-8k-bfloat16,0.8590647019445896,flash-linear-attention-npu,15008.52230998377,17470.770567118274,False,host_roundtrip_with_device_synchronize_mean15,
+varlen-4x1k-bfloat16,0.6420119355122248,flash-linear-attention-npu,6289.9235072856145,9797.206499388898,False,host_roundtrip_with_device_synchronize_mean15,
+prefill-3000-bfloat16,0.5461619856456915,flash-linear-attention-npu,4669.756316610922,8550.130619380578,False,host_roundtrip_with_device_synchronize_mean15,
+decode-b1-d64-bfloat16,0.1901926783223947,flash-linear-attention-npu,3.353647949794928,17.63289722494036,False,host_roundtrip_with_device_synchronize_mean15,
+decode-b8-d128-bfloat16,0.17580930143594742,flash-linear-attention-npu,4.399125371128321,25.022142373570908,False,host_roundtrip_with_device_synchronize_mean15,
+decode-first-token-float16,0.19210269674658775,flash-linear-attention-npu,1.5545339634021123,8.092202710994608,False,host_roundtrip_with_device_synchronize_mean15,
+gla-short-continuation-bfloat16,0.367809987316529,flash-linear-attention-npu,515.3903240337968,1401.240699835221,False,host_roundtrip_with_device_synchronize_mean15,
+gla-continue-b4-bfloat16,0.5693892327447733,flash-linear-attention-npu,477.1638786730667,838.0275762730373,False,host_roundtrip_with_device_synchronize_mean15,

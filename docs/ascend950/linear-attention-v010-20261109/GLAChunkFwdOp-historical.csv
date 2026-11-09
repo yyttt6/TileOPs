@@ -1,0 +1,12 @@
+case,provider,metric,baseline_ms,candidate_ms,ratio
+train-2k-float16,qualified_local_eager,device_complete_v3,2.4734141333333333,0.19006626666666665,13.013430403571528
+train-2k-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,3265.809872622291,0.4195194070537885,7784.645519875954
+train-2k-bfloat16,qualified_local_eager,device_complete_v3,2.470233933333333,0.19080006666666668,12.946714204502372
+train-4k-float16,qualified_local_eager,device_complete_v3,4.882591933333334,0.3651715333333333,13.370680591568568
+train-4k-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,6357.793049948911,0.5127720224360625,12398.868837937944
+train-4k-bfloat16,qualified_local_eager,device_complete_v3,4.873765866666666,0.36488173333333335,13.35711114432329
+train-8k-float16,qualified_local_eager,device_complete_v3,9.703307,0.7287381333333333,13.31521784871603
+train-8k-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,14993.288667934636,0.8884880070885023,16875.060269036534
+train-8k-bfloat16,qualified_local_eager,device_complete_v3,9.715526333333335,0.7330068000000001,13.254346799147475
+train-16k-float16,qualified_local_eager,device_complete_v3,19.466650666666666,1.5184503999999999,12.820076748418433
+train-16k-bfloat16,qualified_local_eager,device_complete_v3,19.459797466666664,1.5176190666666667,12.822583673390852

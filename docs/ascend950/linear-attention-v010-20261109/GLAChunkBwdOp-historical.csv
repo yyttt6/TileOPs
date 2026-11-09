@@ -1,0 +1,9 @@
+case,provider,metric,baseline_ms,candidate_ms,ratio
+train-2k-float16,qualified_local_eager,device_complete_v3,6.4928002000000005,4.615469733333334,1.4067474331178946
+train-2k-bfloat16,qualified_local_eager,device_complete_v3,6.472695533333333,4.624309466666666,1.399710720052444
+train-4k-float16,qualified_local_eager,device_complete_v3,13.862691066666667,9.288267533333332,1.4924948077687084
+train-4k-bfloat16,qualified_local_eager,device_complete_v3,13.8147976,9.304235333333335,1.4847859179256928
+train-8k-float16,qualified_local_eager,device_complete_v3,31.2319046,18.55941633333333,1.6828064007544492
+train-8k-bfloat16,qualified_local_eager,device_complete_v3,31.940838399999997,18.523194333333333,1.7243698805513799
+train-16k-float16,qualified_local_eager,device_complete_v3,77.1308076,36.48143546666667,2.1142481542557428
+train-16k-bfloat16,qualified_local_eager,device_complete_v3,77.66625486666666,36.754033666666665,2.1131355423746188

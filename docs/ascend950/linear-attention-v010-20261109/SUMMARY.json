@@ -1,0 +1,145 @@
+{
+  "target": "NV TileOPs v0.1.0",
+  "target_commit": "f7e03a75943550060729167a54f8bfe2f9f242d3",
+  "manifest_sha256": "ffefbf20d4c8d3664fcb0491fd32ed0493922d27e20e637b266f5dd642af69c1",
+  "host": "server1 physical32AIC/64AIV",
+  "runtime_limit": {
+    "cube": 32,
+    "vector": 64
+  },
+  "cases": 415,
+  "operators": [
+    {
+      "op": "GLARecurrentFwdOp",
+      "cases": 8,
+      "minimum_ratio": 1.1223565400957205,
+      "evidence": "GLARecurrentFwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "GLAFwdOp",
+      "cases": 12,
+      "minimum_ratio": 0.8103048451973316,
+      "evidence": "GLAFwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "GLAChunkFwdOp",
+      "cases": 8,
+      "minimum_ratio": 12.820076748418433,
+      "evidence": "GLAChunkFwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "GLAChunkBwdOp",
+      "cases": 8,
+      "minimum_ratio": 1.0048169642395042,
+      "evidence": "GLAChunkBwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "DeltaNetRecurrentFwdOp",
+      "cases": 8,
+      "minimum_ratio": 2.4524835837731134,
+      "evidence": "DeltaNetRecurrentFwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "DeltaNetFwdOp",
+      "cases": 18,
+      "minimum_ratio": 1.0316682921551306,
+      "evidence": "DeltaNetFwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "GDNFwdOp",
+      "cases": 278,
+      "minimum_ratio": 0.8506770094171696,
+      "evidence": "GDNFwdOp.json",
+      "new_remote_measurement": true
+    },
+    {
+      "op": "DeltaNetChunkFwdOp",
+      "cases": 9,
+      "minimum_ratio": 0.9745791716398196,
+      "evidence": "DeltaNetChunkFwdOp.json",
+      "new_remote_measurement": false
+    },
+    {
+      "op": "DeltaNetChunkBwdOp",
+      "cases": 9,
+      "minimum_ratio": 0.8211629400074758,
+      "evidence": "DeltaNetChunkBwdOp.json",
+      "new_remote_measurement": false
+    },
+    {
+      "op": "KDAFwdOp",
+      "cases": 57,
+      "minimum_ratio": 0.9018163080664011,
+      "evidence": "KDAFwdOp.json",
+      "new_remote_measurement": false
+    }
+  ],
+  "integrated_public": {
+    "passed": 167,
+    "skipped": 84,
+    "deselected_cuda_only": 45
+  },
+  "integrated_compile": 30,
+  "production_files": {
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_pack.py": "f87271af43938e23f29a96ba922ff091ea7f1a5a08a11211306dc46d6c36369e",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pack_group_reuse64.py": "7de4995145a2eca153c96b954301180787da97a4b8e67e97f8b7f6a9de18c912",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_vfirst.py": "79483ff675d1d58b917423de44a70dffa496dbb6738445ead0f644303eee51a1",
+    "src/tileops/_kernels/ascend/linear_attention/kda_chunked.py": "dc763fff80acf76ffc53a9b10623792cbe64b4e9a297062bfca7e3b7aabdb7fe",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_output.py": "d34bfbc8444be776eb75bda3ca4c5eb69f070f5706fb61e8e8e19b2f6bfa0c4d",
+    "src/tileops/_kernels/ascend/linear_attention/__init__.py": "c9a0ff3e4f44e12ff51be1855b0ba06b5c14dd74ad6af053f5506f98f4b05d78",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pack_hybrid.py": "06f8e70db5b81253569b71c7ee61b2b54da972e1e6ab09344da1e3b7cafdacaa",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_inference_inverse.py": "ace2e26a59f8c258c3d494e7dd6686934fba3d12595adb675cb998141dfccddb",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_inverse64_gram_compact.py": "b3b003a3448c970f0acc1ddf396f4e61f7a1d157ce2e98a4c3e8da47ac9cb3d3",
+    "src/tileops/_kernels/ascend/linear_attention/gla.py": "fbb5c37af943a8f9e8a00d158dbebdb58464d9cbbb306352d8d2900b588a0f05",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_vfirst_fused.py": "609a9fa3e439d14aa7ffedbac9b193941463adab9f21e6ae3f20993108888b7b",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pack_compact64.py": "efcfbe766dd6a911ce8266d45dacbafae0217975d5b839217152f291cccbfb70",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_pairs.py": "b6cc16e44ef87a21eb8a52bfec76987d1f21ba70e3870bdc21a97aa6b9f32dbb",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pipeline_vector64.py": "96141d36a3368c9b1e05a61dc28bcaba1d9a90dff8fe8aa26159d2fa848377d5",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_chunked_paired.py": "9a5b88fb82a6b433be13e3335b53783b374455c85431b55ed0a62eca5ab9a83c",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_sequential_direct512.py": "c9e0f3188cb5f80eb59e32d70452ba333e0f3cb0819f6dcbec8870d4fa93c8ab",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_seeded_states.py": "b0f16db0755db84aa39e203515d79ea9de1b8744e1d36dadee441b6aa38bd172",
+    "src/tileops/_kernels/ascend/linear_attention/gla_training_fwd.py": "1e47967e48add659791a8daabdeb7705d6c4dc3bf28241f575865bf760985919",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pack64.py": "7ab01480e47e17b388d69a5fcd6a853b0c969b02a5350732d0bda51c4e5ce289",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_chunked_vector64.py": "67911aebb6941538777ba79e715190eb4583ccaebacb3fff05ceabd04ef420f2",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_gram_pair.py": "0def5134cffbd45290283c42ba43cc5735f7a9c36602d9b0077a403b76331cc2",
+    "src/tileops/_kernels/ascend/linear_attention/gdn.py": "a5da596683f7e22d178dc114b8dd6042fb486f05f44546aa9d30ba41dc671ec0",
+    "src/tileops/_kernels/ascend/linear_attention/gla_training_bwd.py": "c294a64c8221e15a82783453c907e24ac2b82c48391dd44a9e0afc848cf2a50b",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pipeline.py": "58c2236250c216830c35515f290b3e30c2a2b253820e75b410459f35f9781cf1",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_chunked.py": "c579bd9059c2008d793af5c56941134f5d48a5d6ce2ddba4908ecf3a1ff2bd76",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_group_scan.py": "30e2a8bf9a2a6e5d72e27f5aaafca2f7d9dd79c792b185020772903d441bf10b",
+    "src/tileops/_kernels/ascend/linear_attention/kda.py": "257c2ee90a6fd8db4ab5a6ac584dfba86fbceb9b14349aaa604d1776ebc78b68",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_scan.py": "1c4a58297ee0cc3d8e1d8e3fb26f27d73bb8a1404b6b712fdad05c388fb8b797",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_sequential_vector_output.py": "a066c499692fdb390e35be0c4b4240f431e5dd132fb0d8f98e08c7f8566c2d11",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_inverse_branch.py": "60b3d60abb49f5fb55965c5c5c235878b28fbcbb8a63a4a8aead967b7496536b",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_training_fwd.py": "a06e9754ba1932b6bced987155b3940df044dc356f728b42e2744d2e73889cdc",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_pack_vector64.py": "dc94dfa720567f79dca727bf7a734395cfdd79f36829e177e1021ed8607be8b1",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_inverse64_gram.py": "8ef090a499f22649356c20c76e375fb8d0c808627eb7250a404e057f6307a4cd",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_training_bwd.py": "4c22a45968b45692776114452cc45a70de3ae0d3ed72f636ef4e53b614bab005",
+    "src/tileops/_kernels/ascend/linear_attention/kda_gate.py": "b2e9a878ccb97dd0235bd683bbcf3efc700cccc144c41b09ee2edfa8b906a1f2",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_inverse.py": "bb812ec94ef5ba97ae693aeaf4e25223c0e542e844438dd35a826b1360cd8f4f",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_inference.py": "533a133cbfc1c7e0e43b0389d25d4639a1318526828efbd70ddb58f9da50b75b",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_inference_pack.py": "8833cef93516d1c6fd27277af54a720ce48db3f50b912e1759fb9377786ff1ad",
+    "src/tileops/_kernels/ascend/linear_attention/gdn_weighted_wu_vector64.py": "a99445eb96799eb1c474eab33562870552c416841278524510bf9e7a97cb9bd0",
+    "src/tileops/_kernels/ascend/linear_attention/gla_chunked.py": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet.py": "24ced51885ed755b35d7baa623227d4aab059b39244fbb6b6db7f0d2c040312c",
+    "src/tileops/_kernels/ascend/linear_attention/deltanet_recurrent.py": "a45eb889a546af70ba278316bc9454d96ccd7e836ef70e6e2d723f8ef58dfcad",
+    "src/tileops/_kernels/ascend/linear_attention/gla_recurrent.py": "55a50734e9ea9e27d97df22b0cf830fe93a13cff96b97614ac16895f7a53e3a2",
+    "workloads/linear_attention/ascend_cases.py": "0d4ec1c9b2ae3e0004755dfc344dda0170eee6832279b5e6b847e732000d1c3d",
+    "workloads/linear_attention/__init__.py": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810",
+    "workloads/linear_attention/gla.py": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b",
+    "workloads/linear_attention/input_values.py": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959",
+    "workloads/linear_attention/gdn.py": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c",
+    "workloads/linear_attention/kda.py": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+    "workloads/linear_attention/deltanet.py": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+  },
+  "minimum_ratio": 0.8103048451973316,
+  "created_at": "2026-11-09T19:08:47.158522+00:00",
+  "raw_evidence": "reports/linear7-server1-v010-20261109/evidence plus existing3 report paths; full profiles and tensors retained outside git",
+  "measurement": "Complete FFTS+AICPU device profile mean15 and independent synchronized host mean15, warm3,1GiB cache flush; compare only corresponding baseline metrics. Older baseline protocol/provenance remains explicit per report."
+}

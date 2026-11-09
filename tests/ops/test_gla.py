@@ -162,7 +162,13 @@ def test_gla_fwd_stays_exact_when_a_chunk_decays_past_the_split_factors() -> Non
     v = torch.randn(B, T, H, V, device=run_device(), dtype=torch.float16) * 0.1
     g = -torch.rand(B, T, H, K, device=run_device(), dtype=torch.float16) * 10.0
     o, final_state, _ = GLAChunkFwdOp(chunk_size=BC, scale=K**-0.5)(q, k, v, g)
-    ref_o, ref_state = gla_fwd_recurrent_torch(q, k, v, g, K**-0.5)
+    # Ascend does not implement FP64 matrix multiplication. Keep the independent
+    # FP64 recurrence on CPU there, then compare on the operator's device.
+    reference_inputs = (
+        tuple(x.cpu() for x in (q, k, v, g)) if q.device.type == "npu" else (q, k, v, g)
+    )
+    ref_o, ref_state = gla_fwd_recurrent_torch(*reference_inputs, K**-0.5)
+    ref_o, ref_state = ref_o.to(o.device), ref_state.to(final_state.device)
     compare_outputs(
         (o, final_state), (ref_o.to(o.dtype), ref_state), chunkwise_verification(torch.float16)
     )
@@ -296,9 +302,16 @@ def test_gla_bwd_stays_exact_when_a_chunk_decays_past_the_split_factors() -> Non
     g = -torch.rand(B, T, H, K, device=device, dtype=torch.float16) * 10.0
     initial_state = torch.randn(B, H, K, V, device=device) * 0.1
     dht = torch.randn(B, H, K, V, device=device) * 0.1
+    # The FP64 recurrence uses matrix multiplication, unsupported on Ascend.
+    reference_inputs = (do, q, k, v, g, initial_state, dht)
+    if q.device.type == "npu":
+        reference_inputs = tuple(x.cpu() for x in reference_inputs)
+    rdo, rq, rk, rv, rg, rinitial, rdht = reference_inputs
     h, ref_grads = gla_recurrent_bwd_torch(
-        do, q, k, v, g, BC, K**-0.5, initial_state=initial_state, dht=dht
+        rdo, rq, rk, rv, rg, BC, K**-0.5, initial_state=rinitial, dht=rdht
     )
+    h = h.to(q.device)
+    ref_grads = tuple(x.to(q.device) for x in ref_grads)
     grads = GLAChunkBwdOp(chunk_size=BC, scale=K**-0.5)(do, dht, q, k, v, g, h)
     compare_outputs(grads[:4], ref_grads, chunkwise_verification(torch.float16, backward=True))
 
@@ -326,6 +339,7 @@ def test_gla_chunk_fwd_feeds_bwd(dtype: torch.dtype) -> None:
     compare_outputs(grads, ref_grads, chunkwise_verification(dtype, backward=True))
 
 
+@pytest.mark.cuda_only
 @pytest.mark.in_tree_kernels
 @pytest.mark.smoke
 def test_gla_refuses_extents_its_gemms_do_not_tile() -> None:

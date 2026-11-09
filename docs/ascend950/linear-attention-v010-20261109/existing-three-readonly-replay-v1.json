@@ -1,0 +1,487 @@
+{
+  "status": "passed",
+  "mode": "Original audits re-executed read-only; only final output-file absence assertion omitted, computed JSON compared exactly to original; no historical files overwritten",
+  "audits": [
+    {
+      "script": "reports/v010-static-adaptation-20261106/audit_delta_chunk_fwd_measure_v1.py",
+      "script_sha256": "63861f7aa9b0e1298b05da4fa59ccbbd01abce747b73782d971b2da23c340b9d",
+      "recomputed_evidence": "reports/v010-static-adaptation-20261106/delta-chunk-fwd-measurement-audit-v1.json",
+      "evidence_sha256": "eba3fec2fb4808b2b793710e851ad1e701ba3b813d8575d68d1f60aa2057c6e0",
+      "identical": true
+    },
+    {
+      "script": "reports/v010-static-adaptation-20261106/audit_delta_chunk_bwd_measure_v2.py",
+      "script_sha256": "9cffe10d077034afca8c7cdff29e114ef21567bc5be4c01c8b8288b9cc61c650",
+      "recomputed_evidence": "reports/v010-static-adaptation-20261106/delta-chunk-bwd-measurement-audit-v2.json",
+      "evidence_sha256": "994050a8c58ee282377191b73190518dc64dce1d3e5e61329eb23d0a2bce17ff",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_00_v15.py",
+      "script_sha256": "53965bbde9a86efa542e9c4197ee9fe70ea14cb5ab6ad4d16f30c03ed4e727f4",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-00-audit-v15.json",
+      "evidence_sha256": "39f75d4b13760065cb5d30caaabd5df18ea570371a4326539c13b3c179a71b03",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_01_v15.py",
+      "script_sha256": "76a34cf5d9c083112d81297bffc73818a6ff5e3789132ecb8e1d721fbbf5d3b8",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-01-audit-v15.json",
+      "evidence_sha256": "d975bfb589731ce34294826da86d1288c1c41c1aa57701fea0f48900b8a5aefa",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_02_v15.py",
+      "script_sha256": "c7a53d0248e53bbb877a1b61be900150d3a7072d992950b7cd628acd08603b73",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-02-audit-v15.json",
+      "evidence_sha256": "a5e36a698603a2bd89d534e154d97217829c7432a9da060d63fa4018da405e21",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_03_v15.py",
+      "script_sha256": "12698768a32dd47d97780835596e54f9f440e9248f0e7ea4c0aca0e48ccf06c5",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-03-audit-v15.json",
+      "evidence_sha256": "2487c994a9548c5897cbb5c1c83b0f14c4ee5acd1d14cf645c15453c6ff15827",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_29_v15.py",
+      "script_sha256": "7514c83e6e754ed61effddb0e5e8923b718bee2cbe672fda7576fc57d42e3ecd",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-29-audit-v15.json",
+      "evidence_sha256": "ce9ac83717b2e44bba0f9b3233b022b77ec5e8c5cff4a7664271ddcf54928852",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_30_v15.py",
+      "script_sha256": "c7e549e90555f05a2be0e1735d06c3503cf69754c470ec09193fb576e53b5e7e",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-30-audit-v15.json",
+      "evidence_sha256": "f180d3b68c3faf1c788e8144b457ae179dc32dc42fb81d11517f5df9908bf605",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_31_v15.py",
+      "script_sha256": "772038f3d9b82aaab565f3e398ed2ed45699e8233d48df44c4e7936c32045693",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-31-audit-v15.json",
+      "evidence_sha256": "6fd9ebaa483810d873f0adc4978a7453509d1cc6b67fa040691d660239211611",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_32_v15.py",
+      "script_sha256": "afa57d5f40392e6d50e6244c295925c9fa4cc19cfa484c7bbd0e269f19c4f976",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-32-audit-v15.json",
+      "evidence_sha256": "1e4deee9d6ff48595136e60f3d82ec14fa1d9e94a2c39ec0c01d1005d87c947e",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_33_v15.py",
+      "script_sha256": "af05d241d650a3967e52a031b230e509526da0049f85866d29bfd798c2062b6b",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-33-audit-v15.json",
+      "evidence_sha256": "83d8af7cb5a8bd19086dc422a1b14150372cb7833b7e1638e958537cb61563d0",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_34_v15.py",
+      "script_sha256": "a03aef4225c3e307ceb4b86485730bd79e171d39d9c08477859eff99031fe580",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-34-audit-v15.json",
+      "evidence_sha256": "55500978372d67f6aa795d36995a0fb62594e42d2c80f5418e135d7a122c16f2",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_36_v15.py",
+      "script_sha256": "fca0edb646796fba552444350c10fc083f99be6b7199d8086747130ab318b9de",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-36-audit-v15.json",
+      "evidence_sha256": "438703d80fc3cf5d63f5a4a735c59d2f829f9e81024d574dd983644ea657ff2c",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_37_v15.py",
+      "script_sha256": "3b818f997841943268ea7a433cea7717575ba25980986afda4da2f1a11db9d71",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-37-audit-v15.json",
+      "evidence_sha256": "e6b7715d5337d12ae9250e928eddaf3800a0e41f4a946e2efbb2e997a26a32e1",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_39_v15.py",
+      "script_sha256": "5255dc2551412cdb4e6316c0e969119fa572480f503708b826536810e15a13f9",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-39-audit-v15.json",
+      "evidence_sha256": "4bf070c364e235134762171ab3f9d8288a8f2967846f298bd6cf635969be5100",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_40_v15.py",
+      "script_sha256": "709e24fcc17f9b82e93d83c0a5b0aa14b46f20441e1532ecca20bc7ab981273d",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-40-audit-v15.json",
+      "evidence_sha256": "589d0c528ecf1337052269f220c7184a6059b70ebb03d0e9dbb98f654613d1b5",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_41_v15.py",
+      "script_sha256": "16b73696c2c27634b81572fb5b322ae3d9316eaef650972aaa3088ee9c5bffb1",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-41-audit-v15.json",
+      "evidence_sha256": "5c09283933f3a62bb882b362fd83274a295054a59ec45506e6b893c8eb1e5182",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_42_v15.py",
+      "script_sha256": "d9dcb97f29c12eb7a553cddc238052ed2a67f52506128df635a1f22fafb54461",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-42-audit-v15.json",
+      "evidence_sha256": "10142de5686743ea5cb3478fae83623c2f351ec40065624caf73b87744af8d0b",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_45_v15.py",
+      "script_sha256": "da739a87c3d7195b09733bc8430e915f8570a59ce4ab11cac20e55f30d9b15c8",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-45-audit-v15.json",
+      "evidence_sha256": "ca592e6e2484a4205434e94715b3596a97c1183e55e8b4d733fa4a7f8cc827b0",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_host_46_v15.py",
+      "script_sha256": "73151a5f111bd4558b610ff97068240547dc152c38c0546eb1e371000d72d89e",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-host-46-audit-v15.json",
+      "evidence_sha256": "5c70f686b56521dd8dabaeb048ab49e44853c25b34f460b436070be57953a76e",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_00_v15.py",
+      "script_sha256": "b0598f36f2dcc1f5590c8848b79c628bcdef5d9ca075d2996954e2bd0958e439",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-00-audit-v15.json",
+      "evidence_sha256": "23ac7d93945023523efa577791691c13d64f3ad83513c4e0fc8ab09af4bcc6c3",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_01_v15.py",
+      "script_sha256": "36fca3b83e8f0487cc3d294a43a307522738a6b2e2acc38ce235eaf09bcd526d",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-01-audit-v15.json",
+      "evidence_sha256": "6352dfb8b498e4671d58031066c58ea3dd5720a4ad5a214b03b7017a8c180908",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_02_v15.py",
+      "script_sha256": "3b5a07c3d981586387d8d6dcfb50d07a2b1f2e9606365b3a4fce0e277f28af45",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-02-audit-v15.json",
+      "evidence_sha256": "65083f5472b977f8324183a620aeaace2f7194029f027ebeb4bd7624fe4c438d",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_03_v15.py",
+      "script_sha256": "aafd538fd8d72918a73e1eba3e83784f49fabaabdfb4fc513e1e46055053523f",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-03-audit-v15.json",
+      "evidence_sha256": "2a25bba43b3dcf9392b2403e0b812ec05248f91efb0a025d5d81cb3e6383527f",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_04_v15.py",
+      "script_sha256": "e6539b765aec95df1a1d16e4836495de8d45f1facc3a1143590c333e21998ef6",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-04-audit-v15.json",
+      "evidence_sha256": "0a49c8d18e10067950951215b05302f85ac2984752c69558a3b0dedeedb449e0",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_05_v15.py",
+      "script_sha256": "97ad01b84d006918f058e22e495f4c88eaf91540d86731614aa460116decba55",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-05-audit-v15.json",
+      "evidence_sha256": "4165b6d0801ace4e9d7a75c416457ea86804c55e60b5e8eb001354a7537e0d4d",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_06_v15.py",
+      "script_sha256": "be80e9ad80771a84b3fedcd249c4eeceaea45dd0f314b5be6457b63be0ed9e35",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-06-audit-v15.json",
+      "evidence_sha256": "91de006e79abbc49d704cf6b4175a42a1487b513d5f62cb5bdaea85398ffe8f2",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_07_v15.py",
+      "script_sha256": "b4caf2a2569244711712c41cd62d486f45e9bbf6f20611ca3ec87fd3020ead2b",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-07-audit-v15.json",
+      "evidence_sha256": "76f458a0e31e1b3f04cad23fbedba45026acbab550cf091b1648d510d5652ae5",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_08_v15.py",
+      "script_sha256": "8349e20f64423c8f67391d1a5ccdf2f3bc37e362d15d6adc7bdb328693346924",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-08-audit-v15.json",
+      "evidence_sha256": "98ed0da0103b2c1fa6b0362b0f9bd2f2181ef269100090137ac68f2812106c8e",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_09_v15.py",
+      "script_sha256": "5e3d6fe138a87473ff593dd12772fd6abd8f9e264ae29a443701d9db9a978388",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-09-audit-v15.json",
+      "evidence_sha256": "2f0d440b2ca7614a51227c907c72b9e6603a330509664798c175a068208221be",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_10_v15.py",
+      "script_sha256": "c6dafeed8249bf33d807175623d2e0e472f3faac8c10de41961188781210472f",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-10-audit-v15.json",
+      "evidence_sha256": "9256f38d1cac223ceaeb715e7d23d4efb7789384fd04bb4e70d5362e7a3ac878",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_11_v15.py",
+      "script_sha256": "3f911fff0d0e371b49afc383438556afeb0c08a910618c0fb29442d30c1626b8",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-11-audit-v15.json",
+      "evidence_sha256": "983163fb356cf471eb4a9868b5df23e807f504704e04fb945c0e8cb86328acf8",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_12_v15.py",
+      "script_sha256": "47aa291524ed469fd732c1672029ab7a9037e83a16285934abd882c85f66fec9",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-12-audit-v15.json",
+      "evidence_sha256": "f49244f3f1f7b5e8d7ca91893d160e67513312e69b0a0501adf560ae295af7c7",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_13_v15.py",
+      "script_sha256": "bdb60104cef22fbeebabfe485c7d4bae26dbb6090744a361b899e3b0702ed3a0",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-13-audit-v15.json",
+      "evidence_sha256": "05a94e4970fd9b0f962256c45f49b0d7f14c201d5dcaa199b536ea0fc961104d",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_14_v15.py",
+      "script_sha256": "1cd162d090755aa770c1511c8d7d254fb0bf7cdf017f673c13c2d51f76ca9747",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-14-audit-v15.json",
+      "evidence_sha256": "9e0ef5650ad50b21e8194f8eb168ae34b5a2ddc13de8a2969f09aec6e53b960f",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_15_v15.py",
+      "script_sha256": "88fe9957a5b6a74e2e4ac5f34ba40226aaa3749a779567a0c19262b6a0bf7012",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-15-audit-v15.json",
+      "evidence_sha256": "b9b12ec6a0ba3dc643902928536ba709ac4f2f824fefa233aaaa2c8db7764261",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_16_v15.py",
+      "script_sha256": "88ba69b2b8a6f887dcb24bd8f7894643fae8bb72aa3608d8d526c94f1ef90051",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-16-audit-v15.json",
+      "evidence_sha256": "6a971c646ffa847bcb755cee104a55a3844f01e62296778dfe8a7b48d45eca7f",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_17_v15.py",
+      "script_sha256": "86c0db87d352d383de36ffaaa77b2289c2af25adbce4bf93e8b00e886482b4a7",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-17-audit-v15.json",
+      "evidence_sha256": "6875bd138d8bae6039597d12010ae2875874c2ceeb6a72abc436ab151d635914",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_18_v15.py",
+      "script_sha256": "04a4a5107b5d588ba6aa0f6e1f8d2de16ac96e1b6b66cba5ebdf611f45047bda",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-18-audit-v15.json",
+      "evidence_sha256": "c2866985df31a0a47ebf62176cc911545c5d78bf62a1a7053c7d3efb9a391f97",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_19_v15.py",
+      "script_sha256": "6bb6e2d96d1b6573e95a20ffd0bf3fd3bf1c8b03d6824ba00696be116e85f2c4",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-19-audit-v15.json",
+      "evidence_sha256": "ce50741d564b1dbe06ba47288ea22cd32c21dbeb20a761cdb0fb727ea8232c9d",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_20_v15.py",
+      "script_sha256": "043799c5713ba4db69eeda970596166db62ee0e59d34c27f97c99b7bbf0f0938",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-20-audit-v15.json",
+      "evidence_sha256": "f33d35c1fbe072430d5d78de1b10b2ef6e17809df95afa3215bfc46dcb6589f5",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_21_v15.py",
+      "script_sha256": "36454f7d1009fdecd6a6dd2a85b37803d6ec2f3354cf317aacaa39f2111e8ed6",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-21-audit-v15.json",
+      "evidence_sha256": "60832c2e7cdf5b1b9a2d25ff0a986dd2eb50ba87f2db54ad030d421b2aaf5a36",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_22_v15.py",
+      "script_sha256": "251b4d431d4b465830572264d1e3ac9bf7840e634df3dec75d4b0f504fb4ddc9",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-22-audit-v15.json",
+      "evidence_sha256": "d388cdb9a8d1b83e0a5b6950e25e056b9b45c8f711ed05d4ce94e596080ac216",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_23_v15.py",
+      "script_sha256": "053c9ed89292e09c80ccdbcbbee17deb378560b4dba74c23512e8cc930b18001",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-23-audit-v15.json",
+      "evidence_sha256": "44ff95899b5e853ee5442e2c30e356cce982926fbff6730b001d1f4432139d39",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_24_v15.py",
+      "script_sha256": "7e9050752a29d6fda08abb253bee1578adfa11f3a0a831407d2e89b90d123400",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-24-audit-v15.json",
+      "evidence_sha256": "4cbb6dc4c8302870a66427d4260093171e6ee1ceccc1a4ec4243edb63aaf0536",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_25_v15.py",
+      "script_sha256": "b4e3af8f54574c770ccef1d52133d196c8b0cef4dd583512a8393d3248748d6e",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-25-audit-v15.json",
+      "evidence_sha256": "b0895b19364f5985c7dbcfbb760b714761f7f02acb6bb0ba43753e28b09fee39",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_26_v15.py",
+      "script_sha256": "0bd1643dae823fab4bf78c683f9d447bc4a51267ed35770530039fad3b159b40",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-26-audit-v15.json",
+      "evidence_sha256": "814065036b2b20d7711c97300cb5e4fbcd759a0f3845b3e4d3b4f2d191ca0846",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_27_v15.py",
+      "script_sha256": "351327f98cfcbb72b7aa5b32d92509d3ab06cf324b7194469be6b5de63ce9243",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-27-audit-v15.json",
+      "evidence_sha256": "4a90e306d82a3529b73520906f429f6537172a7814309d1fa7a3413a255ad929",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_28_v15.py",
+      "script_sha256": "2dd887a1f2372d1c5603089291c20fc86772b5e889614f90736e44bc28469b5b",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-28-audit-v15.json",
+      "evidence_sha256": "7c5af98dcccc279c8383ace5355b618914f64006f2153f0b088ab5adef4b606f",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_29_v15.py",
+      "script_sha256": "cd7adff82de4a558b9c47808b9ab8a46ee36e0094d413a3361d3d9d3e40e9028",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-29-audit-v15.json",
+      "evidence_sha256": "e4d943e2b896a758a6d6e3d6d07ff501af035bc9864dba83948e1577cda31853",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_30_v15.py",
+      "script_sha256": "8302b75c1c7b97d3e0ef7bb421f033b68637615037241bc6eba10613e14d888b",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-30-audit-v15.json",
+      "evidence_sha256": "93822c3510bf2d1c8273cf9bfb417567f06dfbbd34808776d6c9415060a0e8eb",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_31_v15.py",
+      "script_sha256": "aa35f63cbaa918a4b558efdf91cd242ea0ad2e88de9afc695d2a6c941498c091",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-31-audit-v15.json",
+      "evidence_sha256": "fd9b6d95f1650516ea85ad78baf621d95dae6394fedaf391cac3f8124c6aed26",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_32_v15.py",
+      "script_sha256": "b774290d94a236add3b3cce26cef3f5564d47d3058d19732f39488c605838797",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-32-audit-v15.json",
+      "evidence_sha256": "9acf0b855d62d98bfca492982b6b53706fb1bdc74d5bfb36490752879854a16e",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_33_v15.py",
+      "script_sha256": "754abc09f41c1a6c778d63dbd1a4ba619c85ea669bca7b4ee1a983b8704ae733",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-33-audit-v15.json",
+      "evidence_sha256": "cab168a1df408b86532b57f47a024bccc1d917d42a7e1a9e0b9efc918d653c0a",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_34_v15.py",
+      "script_sha256": "09dd8e0c599a62d1eae39d16be942617d039e0276f3aa74ab10ffdce1e47db5f",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-34-audit-v15.json",
+      "evidence_sha256": "8d77697370e7b6c9c8b90baadd9c04a79a2e650674668d7ee48c96c58425b6d7",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_35_v15.py",
+      "script_sha256": "b7894273326691784b87ff455e047f8fefd60e2136e2a847f493f40f78b0b581",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-35-audit-v15.json",
+      "evidence_sha256": "6d9b83b7d110fb1b4ff2e41a7be15a60138a81a470fba918993439c1fa763925",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_36_v15.py",
+      "script_sha256": "7b8c979707343b1c9e96d26f4b0dc20a2e8fe530dadd5da2853ce183f9ed5915",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-36-audit-v15.json",
+      "evidence_sha256": "3788b250c6aa53161dfa6362e71ea47d14d2b688f447d6341b631bb565ebf9e5",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_37_v15.py",
+      "script_sha256": "aa2157791a01df5582861d9f2c2ab8254a881c3563ea0493184923bdae0f372f",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-37-audit-v15.json",
+      "evidence_sha256": "aadb0f74da2525495b425c869d0644c8e915ca5ea91f2d26c125217fd0734583",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_38_v15.py",
+      "script_sha256": "1cccfa47afa954b45b635a62c215503f7f39b9ab43fa31c6f0d461820cdd5e46",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-38-audit-v15.json",
+      "evidence_sha256": "e383ad1d4e8e0fb66d43035a985507e01da29a057cc2483bb9e852a755fa6ed3",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_39_v15.py",
+      "script_sha256": "aa68ca3d15414550055b5c49947e3593cbba19adbceff5f9c6f56526209d243b",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-39-audit-v15.json",
+      "evidence_sha256": "8a05eff81221492ad39ae8ec25cf42fffced20195102fb05568a260b57f321fd",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_40_v15.py",
+      "script_sha256": "a78f2685215ad285c6d9ad6ac6632010789c2717819c58069cb91a0ff45bed57",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-40-audit-v15.json",
+      "evidence_sha256": "ba0bb9188577782bbc4862a2542630bb2abb05c4aeb08e1d3f911384277b2531",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_41_v15.py",
+      "script_sha256": "42b09fb5dd6db5a9541c1a8d6cab245c05b6a0179050f89697a989ad31983bfe",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-41-audit-v15.json",
+      "evidence_sha256": "edcbf668f09358aff1dd98091da727ce2bff94027ff36d9426ded0db0c276f95",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_42_v15.py",
+      "script_sha256": "2fe3af376e977b9f61a64f14fc1ca9594b7d07ca8f7622e67b2ee6b59571522e",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-42-audit-v15.json",
+      "evidence_sha256": "036a0811703c5ba2c60c3221a4b4be70fa4f0ce4845af0d0e543949066bf12b8",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_43_v15.py",
+      "script_sha256": "f5fc797a34baa1f521b23aa23470acc6356519477f7d70cd2d92caf84ab29944",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-43-audit-v15.json",
+      "evidence_sha256": "91a832777fb3600d0255dee95cba760fb7bdfbc66d3807a36e1847224b310d75",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_44_v15.py",
+      "script_sha256": "16beaeb14eef211ce493c8b9a4fde39a4d5799480b6a0ca522a03e250af50c42",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-44-audit-v15.json",
+      "evidence_sha256": "2611ff9d3c75516d8c5ee2e321003a2958f0c6650c2ecfeba7a235efed206f17",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_45_v15.py",
+      "script_sha256": "e5ea1ffe5275fe26ffcb3af1701252fd5fefdc96decbe999c091df78889921a4",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-45-audit-v15.json",
+      "evidence_sha256": "878d483e497bea480147e17f8a8c78660c8ac35ca28c8c72192d072b8100dbbb",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_kda_manifest_46_v15.py",
+      "script_sha256": "ad8eae1cf9bea9ddef9d711c333c9ddcfca5b7050d8483f0a759873b85fe3bf2",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/kda-manifest-46-audit-v15.json",
+      "evidence_sha256": "0003322a1c0b3fe8ce7b73c708e6882c1c2af385c4c2b1584c15563626c4f55a",
+      "identical": true
+    },
+    {
+      "script": "reports/kda-v010-development-20261109/audit_performance_v15.py",
+      "script_sha256": "4e2b927a5ac5a7488c530f2632e692fb6c70b87ab7ef14da80cd1394e263619d",
+      "recomputed_evidence": "reports/kda-v010-development-20261109/performance-audit-v15.json",
+      "evidence_sha256": "23009d7067e41c536c34f4fbbe4f08256b987c0a54185ddb38c038bf5c7cc708",
+      "identical": true
+    }
+  ],
+  "candidate_device_windows": 1125,
+  "delta_reference_device_windows": 270,
+  "kda_independent_host_samples": 345,
+  "delta_candidate_host_samples": 270,
+  "kda_formal_receipts_verified": 65
+}

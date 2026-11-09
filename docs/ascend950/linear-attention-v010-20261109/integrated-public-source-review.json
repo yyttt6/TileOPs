@@ -1,0 +1,14 @@
+{
+  "original_source_sha256": {
+    "tests/ops/test_gla.py": "8905f6db3cbedfaa24c82d8e0875ef4d57ecb95ccae07358553f17c14235ce82",
+    "tests/ops/test_deltanet.py": "3fde57eb0a4d1c9119809d81b65326face5191107d7e642492258846bafe4c7d",
+    "tests/ops/test_kda.py": "becf8a2d288370970d9d784d63c6cf9d459fa45feebb1a5f4e2a35617c7ba030",
+    "tests/ops/test_gdn.py": "d0abe336b6d6603ac31dfe990960e667c2e5d2928b3fb260effa0c04300f9266",
+    "tests/ops/test_gla_ascend.py": "14009dbbe06ea8ca6345b304f948d765a9d0c40987d74cfb3a934c05375edc0e",
+    "tests/ops/test_gla_training_ascend.py": "18c38a98bdc80250bddc5747a4a6a1be4c44f7c2cca1dfb8c08579dd622480bb",
+    "tests/ops/test_deltanet_ascend.py": "bb73034912ef61dbf2018381a0f425dd1216f9987a15506210ee2a2cd13eea5c",
+    "tests/ops/test_gdn_ascend.py": "88df01fce94ffc12582a9f0eafe43861412b2a60dcf42a900d1b751e87fe7b3f"
+  },
+  "unchanged": true,
+  "pytest_exit": 0
+}
