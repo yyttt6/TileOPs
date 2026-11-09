@@ -490,4 +490,4 @@ class AscendGemmINT8Kernel(Kernel, GEMMINT8W8A8FwdInterface):
         return self._scale(acc, scale_a, scale_b, bias)
 
 
-tileops.backend.register_kernel_type("GEMMINT8W8A8FwdOp", "ascend", AscendGemmINT8Kernel)
+tileops.backend._registry.register_kernel_type("GEMMINT8W8A8FwdOp", "ascend", AscendGemmINT8Kernel)
