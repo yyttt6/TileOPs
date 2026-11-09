@@ -11,10 +11,16 @@ from tileops._kernels.attention.call_spec import (
     MergeAttentionStatesCall,
     MergeAttentionStatesFwdInterface,
 )
-from tileops._kernels.kernel_base import Entry, Kernel, vector_aligned
-from tileops.backend import register_kernel_type
+from tileops._kernels.constants import VECTOR_ACCESS_BYTES
+from tileops._kernels.kernel_base import Entry, Kernel
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendMergeAttentionStatesKernel", "merge_states_program"]
+
+
+def vector_aligned(t: torch.Tensor) -> torch.Tensor:
+    """Keep the original read-only 16-byte alignment repair local to this backend."""
+    return t.clone() if t.data_ptr() % VECTOR_ACCESS_BYTES else t
 
 
 def merge_states_program(
