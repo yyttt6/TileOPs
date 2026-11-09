@@ -11,6 +11,7 @@ from tileops.kernels.ascend import (
     quantization,
     reduction,
     rope,
+    sampling,
     sequence_modeling,
 )
 
@@ -24,5 +25,6 @@ __all__ = [
     "quantization",
     "reduction",
     "rope",
+    "sampling",
     "sequence_modeling",
 ]

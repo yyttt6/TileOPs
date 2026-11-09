@@ -442,6 +442,10 @@ def _restore(tensors: list, snapshot: list) -> None:
 def _unchanged(tensors: list, snapshot: list) -> bool:
     try:
         for tensor, source in zip(tensors, snapshot, strict=True):
+            if tensor.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
+                if tensor.dtype != source.dtype or tensor.device != source.device:
+                    return False
+                tensor, source = tensor.view(torch.uint8), source.view(torch.uint8)
             if tensor.device.type == "npu" and tensor.dtype.is_complex:
                 # Ascend IsClose lacks complex support. Preserve dtype and exact
                 # comparison semantics on CPU, including the imaginary component.
