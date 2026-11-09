@@ -4,11 +4,14 @@ from tileops.kernels.ascend import (
     attention,
     elementwise,
     gemm,
+    mamba,
     moe,
+    norm,
     pool,
     quantization,
     reduction,
     rope,
+    sampling,
     sequence_modeling,
 )
 
@@ -16,10 +19,12 @@ __all__ = [
     "attention",
     "elementwise",
     "gemm",
+    "mamba",
     "moe",
     "pool",
     "quantization",
     "reduction",
     "rope",
+    "sampling",
     "sequence_modeling",
 ]

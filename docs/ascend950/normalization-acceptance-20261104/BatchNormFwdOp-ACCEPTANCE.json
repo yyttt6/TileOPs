@@ -1,0 +1,125 @@
+{
+  "status": "accepted_NPU_operator_domain",
+  "manifest_cases": 9,
+  "all_pass": true,
+  "min_ratio": 0.9404619952771738,
+  "public_passed": 30,
+  "public_latest_fixed_passed": 2,
+  "public_candidate_unchanged_passed": 15,
+  "public_original_fallback_unchanged_passed": 13,
+  "public_framework_limitations": [
+    {
+      "name": "test_fwd_torch_compile_smoke",
+      "error": "TileOPs/tests/ops/test_batch_norm.py:418: in test_fwd_torch_compile_smoke\n    y = compiled(x, rm, rv, weight, bias)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py:1183: in compile_wrapper\n    raise e.remove_dynamo_frames() from None  # see TORCHDYNAMO_VERBOSE=1\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1079: in _compile_fx_inner\n    raise InductorError(e, currentframe()).with_traceback(\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1059: in _compile_fx_inner\n    mb_compiled_graph = fx_codegen_and_compile(\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1847: in fx_codegen_and_compile\n    return scheme.codegen_and_compile(gm, example_inputs, inputs_to_check, graph_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/compile_fx.py:1608: in codegen_and_compile\n    compiled_module = graph.compile_to_module()\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2669: in compile_to_module\n    return self._compile_to_module()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2675: in _compile_to_module\n    self.codegen_with_cpp_wrapper() if self.cpp_wrapper else self.codegen()\n                                                             ^^^^^^^^^^^^^^\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2605: in codegen\n    self.init_wrapper_code()\n/opt/tileops-ci/runtime/lib/python3.12/site-packages/torch/_inductor/graph.py:2345: in init_wrapper_code\n    assert wrapper_code_gen_cls is not None, (\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   torch._inductor.exc.InductorError: AssertionError: Device npu not supported\nE   \nE   Set TORCHDYNAMO_VERBOSE=1 for the internal stack trace (please do this especially if you're reporting a bug to PyTorch). For even more developer context, set TORCH_LOGS=\"+dynamo\""
+    }
+  ],
+  "public_mixed_tests_deferred_to_bwd": 4,
+  "fx_eager_fullgraph": true,
+  "boundary_reused_same_source": 129,
+  "boundary_rechecked_changed_path": 6,
+  "boundary_new_small_channels": 9,
+  "new_timing_windows": 0,
+  "reused_timing_windows": 135,
+  "independently_audited_old_candidate_eager_windows": 270,
+  "sources": {
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/batch_fwd_manifest_resume_v6.py": "21a22c910db10b110aba6028c70f09bc98d7ffa59fec911d76fc67042f961fee",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/production-src-v4/tileops/kernels/ascend/norm/batch_norm_forward.py": "37d8b6f8a7192195668d33082c60dfced591b9684bc7ddfa9746c7527df316fc",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/production-src-v4/tileops/kernels/ascend/norm/_batch_infer_flat.py": "32ce288f5d08936d5a88904fb8f6518444554fabc68b67234c1ddc106d2f370a",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/production-src-v4/tileops/kernels/ascend/norm/_batch_simd_grouped.py": "341c3872269b0629f07011dab0655e666766f5e9708e22f2f66fe199cbd99087",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/production-src-v4/tileops/kernels/ascend/norm/_batch_grouped.py": "1f8f83e4f7e7f3d8103f83c7a58cd6a921a45bcce38d721c0f5ffaaaea909041",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/production-src-v4/tileops/kernels/ascend/norm/_batch_resident.py": "0e4fbe358676b9ffd6e5a8f925919b4f639a5a9a897997daf76084ebbf09acee",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/batch_fwd_simd_grouped_candidate_v8.py": "45331728d1b362d38748904b6506495cdc68553dcff57392d94ae4bd47338dd4",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/batch_infer_flat_candidate_v1.py": "32ce288f5d08936d5a88904fb8f6518444554fabc68b67234c1ddc106d2f370a",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/batch_fwd_cpu_factory_v1.py": "6e87846f69d8cd0429a5f3e4e86fff0eb21cfbdeb6c531c4737d6bc9a527ed5a",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/docs/ascend950/dev/norm_server2_acceptance_20261103/resume-batch-fwd-20261104/candidate-production-equivalence-v1.json": "b5e7c7181aa7d383704ee191e71d7495cf4b231fe10fa6ce9e055db5346a123a",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/norm.py": "541f2165f258196c49bca9639cb644c8b7a87f053504b8c03241e6aed72e4268",
+    "/opt/tileops-dev/norm-rope-server1-20261103/workspace/TileOPs/workloads/numerics.py": "ef600c156d927cb9a7401debe056ceaaad57dc0450e949d5f7ba27f14f6ac173"
+  },
+  "auditor_sha256": "219a392589d7850a9899dc8e8f55629ccc065a94a833addee65609435e1ad6c4",
+  "cases": [
+    {
+      "case": "resnet-fc-float16",
+      "ratio": 1.0798818957703251,
+      "us": 7.428466666666666
+    },
+    {
+      "case": "resnet-stage1-float16",
+      "ratio": 1.9862702693001426,
+      "us": 7.429133333333334
+    },
+    {
+      "case": "resnet-stage1-bfloat16",
+      "ratio": 2.1104144667370646,
+      "us": 7.0709333333333335
+    },
+    {
+      "case": "resnet-stage2-float16",
+      "ratio": 1.424990571440544,
+      "us": 9.545466666666668
+    },
+    {
+      "case": "resnet-stage3-float16",
+      "ratio": 1.002740723959791,
+      "us": 15.0082
+    },
+    {
+      "case": "resnet-stage3-float32",
+      "ratio": 1.027986546045001,
+      "us": 5.748
+    },
+    {
+      "case": "large-spatial-float16",
+      "ratio": 1.0481815106118781,
+      "us": 3728.1493333333333
+    },
+    {
+      "case": "resnet-stage3-eval-float16",
+      "ratio": 1.175940189749609,
+      "us": 10.9056
+    },
+    {
+      "case": "resnet-stem-bfloat16",
+      "ratio": 0.9404619952771738,
+      "us": 28.514
+    }
+  ],
+  "operator": "BatchNormFwdOp",
+  "server": "server1",
+  "threshold": 0.8,
+  "ratio_definition": "strongest admitted baseline latency / TileOPs latency",
+  "source_delivery": {
+    "files": {
+      "TileOPs/src/tileops/kernels/ascend/norm/batch_norm_forward.py": "37d8b6f8a7192195668d33082c60dfced591b9684bc7ddfa9746c7527df316fc",
+      "TileOPs/src/tileops/kernels/ascend/norm/_batch_infer_flat.py": "32ce288f5d08936d5a88904fb8f6518444554fabc68b67234c1ddc106d2f370a",
+      "TileOPs/src/tileops/kernels/ascend/norm/_batch_simd_grouped.py": "341c3872269b0629f07011dab0655e666766f5e9708e22f2f66fe199cbd99087",
+      "TileOPs/src/tileops/kernels/ascend/norm/_batch_grouped.py": "1f8f83e4f7e7f3d8103f83c7a58cd6a921a45bcce38d721c0f5ffaaaea909041",
+      "TileOPs/src/tileops/kernels/ascend/norm/_batch_resident.py": "0e4fbe358676b9ffd6e5a8f925919b4f639a5a9a897997daf76084ebbf09acee"
+    },
+    "dependencies": {
+      "tileops/__init__.py": "b0c4f0a19509e6a2f7de5ecab497704b9efb782b4f69bd3931fcb8a9d5b9c44d",
+      "tileops/kernels/__init__.py": "4205aa5724de25118960ef3120d1237cae2a3784e080a4e824edc9116763f335",
+      "tileops/kernels/kernel_base.py": "b17237726016cb292e28b7ee475a917b0023082cc3c69914ff5ccaa5ec30927c",
+      "tileops/kernels/norm/__init__.py": "68df0949b485047433d27afdcc0f68bcd84a3e017c0587385d276ffbf6578ee0",
+      "tileops/kernels/norm/call_spec.py": "3304e065ac6c1b8b1b4b853550d295207d20afbe125cec00717fe1ff2217c405",
+      "tileops/ops/__init__.py": "9bb5784051d9f8830862c279c2c04b0833b0ea6931b611f701556eeff902bcf8",
+      "tileops/ops/op_base.py": "0f5b038305dd50781370af72ed0dc60666852deaf1d5109d67f81925838ee6ef",
+      "tileops/ops/norm/__init__.py": "d497bad5d57c1b8d5b45b80c58f843e32612495c0fe168208fd65c30adf6ea7a",
+      "tileops/backend/__init__.py": "558699e82072b7f28af76746d34b0733444045374a4701b855b339457f34bcb1",
+      "tileops/backend/dispatch.py": "4605563849fe509c90e893bf2ff0ab67ea0d773a67188f3c80b9d0e49074b2a7",
+      "tileops/backend/errors.py": "acd4ab7e17306aead4c93e99fd67b728917e701baa5bff971731c1e6127ea8aa",
+      "tileops/backend/protocol.py": "0df154710bf89c88ed06366f0f5a5433703c15ca85db660436b7e7441232c567",
+      "tileops/backend/registry.py": "55c879eb501637cbc4d925d9672808abc7afade3b1d251299d2c22db34c24756",
+      "tileops/ops/norm/batch_norm.py": "5b7003de1b594e70677f9fe730be0839f0afa23513abf743fa6d776a1f0d02cc",
+      "tileops/ops/norm/affine.py": "0a1357de78158065f5f82677ac80bc3f2bdc8bf867bc11c38aca3bfd68c18303"
+    }
+  },
+  "baseline_remeasured": false,
+  "evidence": [
+    "production-audit-v1.json",
+    "existing-candidate-audit-v1.json",
+    "dispatch-fix-proof-v4.json",
+    "manifest-v5/cases.jsonl",
+    "remote-source-verification-v1.json",
+    "local-source-verification-v1.json"
+  ]
+}
