@@ -17,7 +17,7 @@ from tileops._kernels.attention.paged_cache_gather import (
     PagedKVCacheGatherFwdInterface,
 )
 from tileops._kernels.kernel_base import Kernel
-from tileops.backend import register_kernel_type
+from tileops.backend._registry import register_kernel_type
 
 
 def _vector_cores(device_index):
