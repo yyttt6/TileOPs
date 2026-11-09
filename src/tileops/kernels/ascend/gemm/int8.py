@@ -1,13 +1,20 @@
 """Ascend 950 INT8 GEMM: INT8 operands, INT32 accumulation, row and column scales.
 
-Two passes. The cube multiplies the two INT8 operands into an INT32 accumulator, whose
-partial sums are exact integers; a vector pass then applies the two scales — one per
-tensor or one per row of its operand — and the optional bias, and writes the call's
-output dtype. Scaling inside the cube launch would need a mixed Cube/AIV kernel, so the
-INT32 round trip through GM buys a build that is known to run.
+Two shapes of launch, chosen by what the scales allow.
+
+When both scales are per tensor, the whole call is one cube launch: the fixpipe that
+drains the INT32 accumulator to GM dequantizes it on the way out
+(``QS322BF16_PRE``/``DEQF16`` with the scale in the dequantization register), so the
+INT32 never reaches GM and there is no second pass.
+
+A scale that varies per row or per channel cannot ride that register, so those calls
+still run twice: the cube writes the exact INT32 product, and a vector pass applies
+the scales to it.
 """
 
 import functools
+import os
+from pathlib import Path
 from typing import Optional
 
 import tilelang
@@ -25,6 +32,83 @@ _OPERAND = "int8"
 _ACC = "int32"
 _NUM_AIV_CORES = 64
 _CAST_STAGES = 2
+
+# TileLang 0.1.15 has no way to ask for the fixpipe dequantization an INT32 accumulator
+# needs: `GetCCQuantPre` in src/ascend/op/copy.cc maps a float32 source only, so an
+# INT32-to-bfloat16 copy lowers to asc_quant_mode 0 and reinterprets the accumulator's
+# bits. This prelude is the workaround, and it took four things to get right.
+#
+# 1. The mode value. `QuantMode_t` is defined twice, with different values: the compiler's
+#    built-in cce_aicore_intrinsics.h has QS322BF16_PRE = 36 and VQS322BF16_PRE = 35,
+#    while the pto:: costmodel enum in aarch64-linux/include has them as 35 and 39. 36 is
+#    the per-tensor mode and is the one to use; 35 is the per-channel mode, which reads a
+#    scale tensor that a scalar call does not provide.
+# 2. The scale. It goes through asc_set_l0c_copy_prequant, not through the copy call.
+# 3. The address spaces. The destination must be declared `__gm__` and the accumulator
+#    `__cc__`; without those the C API overloads do not match.
+# 4. The trailing arguments. The 14-argument overload wants
+#    (channel_split, nz2nd, nz2dn, clip_relu_pre) = (0, 1, 0, 0), and
+#    asc_set_l0c_copy_nz_para(1, 0, 0) must run before the copy.
+#
+# Verified on one idle 950DT_9582 against a float32 reference: 16384/16384 elements equal,
+# max_abs_err 0. The natural form of this (an int32 branch in GetCCQuantPre, and a way to
+# pass deqScalar) is proposed upstream.
+def _fixpipe_dequant_available() -> bool:
+    """Whether this CANN build can dequantize an INT32 L0C accumulator in the fixpipe.
+
+    The recipe needs ``asc_set_l0c_copy_prequant`` to reach the hardware. CANN 9.1 declares
+    it for dav-3510 and links, but the ``set_quant_pre`` it reaches is a stub: the kernel
+    compiles and the device then faults, so a compile-time check proves nothing. CANN 9.2
+    honours it.
+
+    The signal is therefore what the toolkit contains, not what it calls itself: only 9.2
+    ships the register-based instruction tree, so its presence next to the headers this
+    build resolves means the register is real. A toolkit that was moved, renamed or
+    partially assembled is classified by its contents.
+    """
+    root = os.environ.get("ASCEND_HOME_PATH") or os.environ.get("ASCEND_TOOLKIT_HOME") or ""
+    if not root:
+        return False
+    # CANN 9.2 carries the register-based instruction tree; 9.1 has only the instruction
+    # tree, and its dav-3510 copy of set_quant_pre is a stub. The directory is the signal
+    # because it sits beside the headers the build actually uses, so a toolkit that was
+    # moved or renamed is detected by what it contains, not by how it is labelled.
+    return (Path(root) / "asc" / "impl" / "c_api" / "reg_base_impl").is_dir()
+
+
+_DEQUANT_PRELUDE = r"""
+#include "cce_aicore_intrinsics.h"
+__aicore__ inline void tl_l0c2bf16_dequant(__gm__ bfloat16_t* dst, __cc__ int32_t* src,
+                                           uint16_t n, uint16_t m, uint16_t dst_row_gap,
+                                           __gm__ float* scale_a, __gm__ float* scale_b) {
+  // Both scales are read from GM here rather than staged through UB: the cube task this
+  // runs in may not touch vector-core memory.
+  // The MMA writes L0C on PIPE_M and the fixpipe drains it on PIPE_FIX. TileLang sees a
+  // call_extern as scalar work and brackets it with PIPE_M -> PIPE_S sync, which does not
+  // order the fixpipe against the MMA; without this the drain reads the previous tile's
+  // accumulator. Order the two pipes explicitly.
+  asc_set_l0c_copy_nz_para(1, 0, 0);
+  // The scale goes in as a packed config, not as the (float, offset, is_signed) overload:
+  // that overload exists only from CANN 9.2, and on 9.1 the symbol resolves to nothing for
+  // dav-3510, so the kernel links and then faults. This is the same bit layout the 9.2
+  // overload assembles internally, so it works on both.
+  //   bit 46      is_signed
+  //   bits 37..45 offset (9 bits)
+  //   bits 13..31 scale's float32 bits, low 13 masked off
+  float scale = scale_a[0] * scale_b[0];
+  uint32_t scale_bits;
+  __builtin_memcpy(&scale_bits, &scale, sizeof(scale_bits));
+  uint64_t prequant = (static_cast<uint64_t>(0) << 46) | (static_cast<uint64_t>(0) << 37) |
+                      static_cast<uint64_t>(scale_bits & 0xFFFFE000u);
+  asc_set_l0c_copy_prequant(prequant);
+  asc_copy_l0c2gm(dst, src, n, m, dst_row_gap, m,
+                  static_cast<asc_store_l2_cache_mode>(0),
+                  static_cast<asc_unit_flag_mode>(0),
+                  static_cast<asc_quant_mode>(QS322BF16_PRE),
+                  static_cast<asc_relu_pre_mode>(0),
+                  0, 1, 0, 0);
+}
+"""
 
 
 def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
@@ -44,6 +128,105 @@ def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
     while tile_m > 16 and 2 * (tile_m + tile_n) * tile_k * 2 >= 512 * 1024:
         tile_m -= 64
     return tile_m, tile_n, tile_k, 2, 32
+
+
+def _fused_program(
+    m: int,
+    n: int,
+    k: int,
+    tile_m: int,
+    tile_n: int,
+    tile_k: int,
+    stages: int,
+    blocks: int,
+    out_dtype: str,
+):
+    """Build the INT8 product with both scales applied by the fixpipe that drains it.
+
+    One launch: the cube accumulates the exact INT32 product and the fixpipe dequantizes
+    it to ``out_dtype`` on the way to GM, so the INT32 never reaches GM. Only the operator's
+    single scalar form goes through here; see the module docstring for why.
+
+    Raises:
+        ValueError: A tile does not divide the shape, or exceeds an on-chip budget, or
+            ``out_dtype`` is not the bfloat16 the prelude implements.
+    """
+    mad_k = 64
+    k_tiles = -(-k // tile_k)
+    if out_dtype != "bfloat16":
+        raise ValueError(f"the fused path writes bfloat16, got {out_dtype}")
+    if k % tile_k or tile_k % mad_k or n % tile_n or m % tile_m:
+        raise ValueError(f"the fused path needs whole M, N and K tiles, got m={m}, n={n}, k={k}")
+    if 2 * (tile_m + tile_n) * tile_k * stages > 512 * 1024:
+        raise ValueError("L1 operand versions exceed the 512 KiB capacity")
+    if 4 * tile_m * tile_n > 256 * 1024:
+        raise ValueError("INT32 accumulator exceeds the 256 KiB L0C capacity")
+
+    @T.prim_func
+    def main(
+        A: T.Tensor((m, k), _OPERAND),
+        B: T.Tensor((n, k), _OPERAND),
+        ScaleA: T.Tensor((1, 1), "float32"),
+        ScaleB: T.Tensor((1, 1), "float32"),
+        D: T.Tensor((m, n), out_dtype),
+    ):
+        T.func_attr({"tilelang_callee_allocated_outputs": 0})
+        with T.Kernel(blocks, prelude=_DEQUANT_PRELUDE) as bx:
+            a_l1 = T.alloc_l1((tile_m, tile_k), _OPERAND)
+            b_l1 = T.alloc_l1((tile_n, tile_k), _OPERAND)
+            a_l0 = T.alloc_l0a((tile_m, mad_k), _OPERAND)
+            b_l0 = T.alloc_l0b((tile_n, mad_k), _OPERAND)
+            acc = T.alloc_l0c((tile_m, tile_n), _ACC)
+            T.annotate_buffer_versions({a_l1: stages, b_l1: stages, a_l0: 2, b_l0: 2})
+            sched = T.AscendTileScheduler(
+                block_m=tile_m,
+                block_n=tile_n,
+                num_cores=blocks,
+                shape_m=m,
+                shape_n=n,
+            )
+            sched.init(bx)
+            while sched.valid():
+                m_start, n_start, rows, cols = sched.tile()
+                for ki in T.Pipelined(k_tiles, num_stages=stages):
+                    start = ki * tile_k
+                    T.copy(
+                        A[m_start : m_start + rows, start : start + tile_k], a_l1[0:rows, 0:tile_k]
+                    )
+                    T.copy(
+                        B[n_start : n_start + cols, start : start + tile_k], b_l1[0:cols, 0:tile_k]
+                    )
+                    for m_slice in range(tile_k // mad_k):
+                        k_slice = m_slice * mad_k
+                        T.copy(a_l1[0:rows, k_slice : k_slice + mad_k], a_l0[0:rows, 0:mad_k])
+                        T.copy(b_l1[0:cols, k_slice : k_slice + mad_k], b_l0[0:cols, 0:mad_k])
+                        T.gemm(
+                            a_l0[0:rows, 0:mad_k],
+                            b_l0[0:cols, 0:mad_k],
+                            acc[0:rows, 0:cols],
+                            transpose_B=True,
+                            clear_accum=ki == 0 and m_slice == 0,
+                        )
+                # The fixpipe drains L0C on a different pipe than the MMA fills it on.
+                # TileLang brackets a call_extern with PIPE_M -> PIPE_S sync, which does not
+                # order the fixpipe, so a late drain would read the previous tile's
+                # accumulator. Barrier both sides.
+                T.ascend_pipe_barrier("PIPE_ALL")
+                T.call_extern(
+                    "handle",
+                    "tl_l0c2bf16_dequant",
+                    T.address_of(D[m_start, n_start]),
+                    T.address_of(acc[0, 0]),
+                    tile_n,
+                    tile_m,
+                    n,
+                    T.address_of(ScaleA[0, 0]),
+                    T.address_of(ScaleB[0, 0]),
+                )
+                T.ascend_pipe_barrier("PIPE_ALL")
+                sched.next_block()
+
+    return main
 
 
 def _gemm_program(
@@ -193,6 +376,28 @@ def _scale_program(
     return main
 
 
+def _fusable(m: int, n: int, k: int) -> bool:
+    """Whether ``(m, n, k)`` is whole tiles under the schedule ``_tiles`` picks.
+
+    The fused path drains the accumulator with a hand-written C call that takes whole
+    tiles, so it cannot serve a call whose M, N or K leaves a remainder.
+    """
+    tile_m, tile_n, tile_k, _, _ = _tiles(m, n, k)
+    return m % tile_m == 0 and n % tile_n == 0 and k % tile_k == 0
+
+
+@functools.lru_cache(maxsize=256)
+def _make_fused(m: int, n: int, k: int, out_dtype: str):
+    """Compile the fixpipe-dequantizing INT8 product serving ``(m, n, k)``."""
+    tile_m, tile_n, tile_k, stages, blocks = _tiles(m, n, k)
+    return tilelang.compile(
+        _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks, out_dtype),
+        target="ascend",
+        out_idx=-1,
+        pass_configs={"tl.enable_fast_math": False},
+    )
+
+
 @functools.lru_cache(maxsize=256)
 def _make_gemm(m: int, n: int, k: int):
     """Compile the INT8 product serving ``(m, n, k)``."""
@@ -249,9 +454,24 @@ class AscendGemmINT8Kernel(Kernel, GemmINT8W8A8FwdInterface):
         if get_num_cube_cores(device_id=device_index or 0) < 32:
             raise RuntimeError("These INT8 schedules require at least 32 Cube cores")
         out_dtype = "bfloat16" if call.out_dtype == torch.bfloat16 else "float16"
-        self._gemm = _make_gemm(call.m, call.n, call.k)
-        self._scale = _make_scale(
-            call.m, call.n, out_dtype, call.has_bias, call.per_token, call.per_channel
+        # One launch when a single scalar per operand carries both scales and no bias
+        # rides along: the fixpipe can fold that scalar pair, and nothing else.
+        self._fused = (
+            not call.per_token and not call.per_channel and not call.has_bias
+            and out_dtype == "bfloat16"
+            and _fusable(call.m, call.n, call.k)
+            and _fixpipe_dequant_available()
+        )
+        if self._fused:
+            self._gemm = _make_fused(call.m, call.n, call.k, out_dtype)
+        else:
+            self._gemm = _make_gemm(call.m, call.n, call.k)
+        self._scale = (
+            None
+            if self._fused
+            else _make_scale(
+                call.m, call.n, out_dtype, call.has_bias, call.per_token, call.per_channel
+            )
         )
 
     def forward(
@@ -262,6 +482,8 @@ class AscendGemmINT8Kernel(Kernel, GemmINT8W8A8FwdInterface):
         scale_b: torch.Tensor,
         bias: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        if self._fused:
+            return self._gemm(a, b, scale_a, scale_b)
         acc = self._gemm(a, b)
         if bias is None:
             return self._scale(acc, scale_a, scale_b)
