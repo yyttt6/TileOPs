@@ -93,9 +93,13 @@ def build_rows(window, dtype):
                                     acc[0] = T.simd.vadd(acc[0], value, full)
                                 if dtype == "float32":
                                     denominator = T.simd.vdup(T.float32(divisor), "float32", full)
-                                    average[0] = T.simd.vdiv(acc[0], denominator, full, precision="ftz_true")
+                                    average[0] = T.simd.vdiv(
+                                        acc[0], denominator, full, precision="ftz_true"
+                                    )
                                 else:
-                                    average[0] = T.simd.vmuls(acc[0], T.float32(1.0 / divisor), full)
+                                    average[0] = T.simd.vmuls(
+                                        acc[0], T.float32(1.0 / divisor), full
+                                    )
                             else:
                                 for tap in T.unroll(kw):
                                     indices = T.simd.vadds(starts, T.int32(tap), full)
@@ -117,8 +121,12 @@ def build_rows(window, dtype):
                                     )
                                 if fixed:
                                     if dtype == "float32":
-                                        denominator = T.simd.vdup(T.float32(divisor), "float32", full)
-                                        average[0] = T.simd.vdiv(acc[0], denominator, full, precision="ftz_true")
+                                        denominator = T.simd.vdup(
+                                            T.float32(divisor), "float32", full
+                                        )
+                                        average[0] = T.simd.vdiv(
+                                            acc[0], denominator, full, precision="ftz_true"
+                                        )
                                     else:
                                         average[0] = T.simd.vmuls(
                                             acc[0], T.float32(1.0 / divisor), full

@@ -21,7 +21,7 @@ from tileops._kernels.gemm.grouped.call_spec import (
 )
 from tileops._kernels.kernel_base import Kernel
 
-__all__ = ["AscendGroupedGemmKernel"]
+__all__ = ["AscendGroupedGEMMKernel"]
 
 _DTYPE_NAMES = {torch.float16: "float16", torch.bfloat16: "bfloat16"}
 
@@ -309,7 +309,7 @@ def _make_grouped_kernel(
     )
 
 
-class AscendGroupedGemmKernel(Kernel, GroupedGEMMFwdInterface):
+class AscendGroupedGEMMKernel(Kernel, GroupedGEMMFwdInterface):
     """One GEMM per group on the Ascend 950 matrix unit, rows packed without padding.
 
     Each group's rows are the contiguous slice ``[batch_offsets[g],
@@ -375,4 +375,6 @@ class AscendGroupedGemmKernel(Kernel, GroupedGEMMFwdInterface):
         return self._compiled_fn(a, b, batch_sizes, batch_offsets, *self._zero_tiles)
 
 
-tileops.backend._registry.register_kernel_type("GroupedGemmFwdOp", "ascend", AscendGroupedGemmKernel)
+tileops.backend._registry.register_kernel_type(
+    "GroupedGemmFwdOp", "ascend", AscendGroupedGEMMKernel
+)

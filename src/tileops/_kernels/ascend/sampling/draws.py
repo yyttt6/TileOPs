@@ -7,7 +7,6 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.sampling.chain_prepare import _prepare_parallel
 from tileops._kernels.ascend.sampling.draw_reduce import _draw_tile, _weights_tile
 from tileops._kernels.kernel_base import Kernel
@@ -15,6 +14,7 @@ from tileops._kernels.sampling.call_spec import (
     ChainSpeculativeSamplingFwdInterface,
     SamplingFromProbsFwdInterface,
 )
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendChainSpeculativeSamplingKernel", "AscendSamplingFromProbsKernel"]
 

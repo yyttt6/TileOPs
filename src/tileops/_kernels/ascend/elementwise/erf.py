@@ -373,7 +373,7 @@ try:
         ``ErfRoundingWorkload``'s n=65,536 for fp16/bf16, schedule §2.5), so it must still be
         UB-budget-safe, not just compile-clean.
 
-        ``num_stages`` is a parameter, not hardcoded, **on purpose**: an earlier version of this
+        ``num_stages`` is a parameter, not hardcoded, **on purpose**: a fixed-depth variant of this
         file hardcoded ``num_stages=2`` here (verbatim from ``sin.py``, whose own tile never
         exceeded 16384) while the primary persistent builder's tile/``num_stages`` pair was
         tuned independently. Widening the persistent tile to 32768 (fp16/bf16) without updating

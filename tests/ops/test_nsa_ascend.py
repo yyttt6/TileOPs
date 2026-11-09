@@ -13,10 +13,10 @@ from tileops._kernels.ascend.attention.nsa_compressed_varlen import (
 from tileops._kernels.ascend.attention.nsa_topk_varlen import AscendNSATopKVarlenKernel
 from tileops._kernels.ascend.attention.nsa_varlen_unified import AscendNSAFwdVarlenKernel
 from tileops._kernels.attention.call_spec import NSACall
+from tileops.attention import NSACompressedVarlenFwdOp, NSATopKVarlenFwdOp, NSAVarlenFwdOp
 from tileops.manifest import load_adts, load_manifest, load_workloads
-from tileops.manifest.plan import entry_plan
-from tileops.manifest.workload import instantiate
-from tileops._ops import NSACompressedVarlenFwdOp, NSATopKVarlenFwdOp, NSAVarlenFwdOp
+from tileops.manifest._plan import entry_plan
+from tileops.manifest._workload import instantiate
 from workloads.attention.nsa import NSACompressedFwdCall, NSAFwdCall, NSATopKCall
 from workloads.device import run_device, run_device_available
 from workloads.numerics import compare_outputs

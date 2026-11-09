@@ -6,11 +6,11 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.quantization.fp8_tokens import build_fp8_tokens
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.quantization.call_spec import FP8QuantPerBlockFwdInterface, QuantizeCall
 from tileops._kernels.quantization.fp8_quant import FP8QuantCall, FP8QuantFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendFP8QuantPerBlockKernel", "AscendFP8QuantPerTokenGroupKernel"]
 

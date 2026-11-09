@@ -44,7 +44,7 @@ def compile_schedule(m: int, n: int, k: int, dtype: str):
         The compiled TileLang kernel, called with ``(a, b)``.
 
     Raises:
-        KeyError: No schedule serves the shape and dtype; :class:`AscendGemmKernel`
+        KeyError: No schedule serves the shape and dtype; :class:`AscendGEMMKernel`
             refuses the call before this is reached.
     """
     module_name, trans_b = SCHEDULES[m, n, k, dtype]

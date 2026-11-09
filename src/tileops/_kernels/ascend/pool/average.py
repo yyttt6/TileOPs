@@ -11,15 +11,14 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool import (
     average_ceil_divisor,
     average_ceil_rotate,
     average_long_deinterleave,
     average_spatial,
-    average_volume_packed,
     average_spatial_pairs,
     average_vision_native,
+    average_volume_packed,
     average_volume_rows,
     average_volume_staging,
 )
@@ -32,6 +31,7 @@ from tileops._kernels.pool.call_spec import (
     AvgPoolCall,
 )
 from tileops._kernels.pool.common import AvgPoolWindow
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendAvgPool1dKernel", "AscendAvgPool2dKernel", "AscendAvgPool3dKernel"]
 
@@ -347,7 +347,9 @@ def _build_average_1d_audio_simd(window: AvgPoolWindow, dtype: str):
                             total = T.simd.vadd(sum01, right, full)
                             if dtype == "float32":
                                 denominator = T.simd.vdup(T.float32(3.0), "float32", full)
-                                average = T.simd.vdiv(total, denominator, full, precision="ftz_true")
+                                average = T.simd.vdiv(
+                                    total, denominator, full, precision="ftz_true"
+                                )
                             else:
                                 average = T.simd.vmuls(total, T.float32(1.0 / 3.0), full)
                             if dtype == "float32":

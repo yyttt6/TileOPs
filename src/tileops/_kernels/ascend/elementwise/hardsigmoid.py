@@ -9,7 +9,7 @@ existing file is edited: ``tileops.backend._registry.register_kernel_type`` join
 (``docs/ascend950/dev_process.md`` §1). ``inplace`` is handled entirely by the op layer
 (``_UnaryActivationMixin.forward``, which copies the kernel's fresh buffer back into ``input``
 when asked); this kernel's ``forward`` always returns a new buffer, exactly like
-``AscendReluKernel``/``relu.py``. An empty call never reaches this kernel: ``Op._run_call``
+``AscendReLUKernel``/``relu.py``. An empty call never reaches this kernel: ``Op._run_call``
 short-circuits a zero-element call to ``_empty_result`` before any kernel is built
 (``ops/op_base.py`` empty branch), so no builder here ever has to launch a zero-thread grid.
 
@@ -379,7 +379,9 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend._registry.register_kernel_type("HardsigmoidFwdOp", "ascend", AscendHardsigmoidKernel)
+    tileops.backend._registry.register_kernel_type(
+        "HardsigmoidFwdOp", "ascend", AscendHardsigmoidKernel
+    )
 
 except ImportError:
     pass

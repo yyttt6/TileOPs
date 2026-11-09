@@ -25,9 +25,9 @@ except ImportError as exc:  # pragma: no cover - exercised only off-Ascend
     get_num_vector_cores = None  # type: ignore[assignment]
     _ASCEND_IMPORT_ERROR = exc
 
-__all__ = ["AscendEluKernel"]
+__all__ = ["AscendELUKernel"]
 
-# SIMT UB budget per vector core, in bytes. Reused verbatim from AscendExpKernel/AscendSiluKernel
+# SIMT UB budget per vector core, in bytes. Reused verbatim from AscendExpKernel/AscendSiLUKernel
 # (exp.py/silu.py): this op has the identical per-element UB footprint shape (one input tile + one
 # output tile, no extra scratch -- alpha/zero/one are trace-time scalars, not buffers).
 _UB_BUDGET_BYTES = 216 * 1024
@@ -136,7 +136,7 @@ def _dtype_str(dtype: torch.dtype) -> str:
     return str(dtype).split(".")[-1]
 
 
-class _EluRunner:
+class _ELURunner:
     """Dispatch one flat ``(n_total,)`` NPU tensor to one or two compiled Ascend programs.
 
     One program (``tail_kernel is None``) for the manifest/divisible and sub-tile shapes --
@@ -146,7 +146,7 @@ class _EluRunner:
     ``flat_input[main_n:]``, joined with ``torch.cat``. This is plain Python control flow around
     two already-compiled kernels, each with bounded UB (<= one tile) -- never a whole-``n`` UB
     allocation -- chosen over an in-kernel conditional epilogue for the same reason
-    ``silu.py::_SiluRunner`` was: nothing in this repo demonstrates a masked tail epilogue under
+    ``silu.py::_SiLURunner`` was: nothing in this repo demonstrates a masked tail epilogue under
     AutoSchedule, and a silent tail miscompile would cost far more than one ``torch.cat`` on the
     (ungraded) non-divisible path. Each half is independently correctness-tested in M3.
     """
@@ -330,9 +330,9 @@ if T is not None:
 
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
-    def _build_elu_kernel(n_total: int, dtype_str: str, alpha: float) -> _EluRunner:
+    def _build_elu_kernel(n_total: int, dtype_str: str, alpha: float) -> _ELURunner:
         """Build (or reuse, via the sub-builders' ``lru_cache``) the Ascend ELU program(s) for
-        any positive ``n_total``, returned as an ``_EluRunner``.
+        any positive ``n_total``, returned as an ``_ELURunner``.
 
         Three dispatch buckets, all with bounded (<= one tile) UB:
 
@@ -344,10 +344,10 @@ if T is not None:
           opus48_round2_schedule.md §1): a full-tile persistent main over ``main_n =
           (n_total // tile_elems) * tile_elems`` with ``_choose_num_blocks`` blocks (a divisor of
           the full-tile count, so equal per-block iterations), plus a ``_build_single_block`` tail
-          over the ``< tile_elems`` remainder, joined by ``_EluRunner`` with ``torch.cat``.
+          over the ``< tile_elems`` remainder, joined by ``_ELURunner`` with ``torch.cat``.
 
         Every positive ``n_total`` builds; direct calls with ``n_total <= 0`` still raise
-        ``ValueError`` here. ``AscendEluKernel.__init__`` handles the exact-zero empty tensor
+        ``ValueError`` here. ``AscendELUKernel.__init__`` handles the exact-zero empty tensor
         before this builder (fresh metadata-preserving output) and rejects negative n. The
         remainder is always ``< tile_elems``
         (its own bounded-UB single-block program), and the main is always an exact multiple of
@@ -358,7 +358,7 @@ if T is not None:
         alpha_key = float(alpha).hex()
         tile_elems = _tile_elems_for_dtype(dtype_str)
         if n_total < tile_elems:
-            return _EluRunner(_build_single_block(n_total, dtype_str, alpha_key), None, n_total)
+            return _ELURunner(_build_single_block(n_total, dtype_str, alpha_key), None, n_total)
         num_blocks = _calibrated_num_blocks()
         block_span = num_blocks * tile_elems
         if n_total % block_span == 0:
@@ -376,9 +376,9 @@ if T is not None:
                 main = _build_tiled(
                     n_total, dtype_str, gen_blocks, gen_tile, gen_stages, alpha_key, *layout
                 )
-                return _EluRunner(main, None, n_total)
+                return _ELURunner(main, None, n_total)
             main = _build_tiled(n_total, dtype_str, num_blocks, tile_elems, _NUM_STAGES, alpha_key)
-            return _EluRunner(main, None, n_total)
+            return _ELURunner(main, None, n_total)
         # General non-divisible shape: full-tile main (divisor block count) + sub-tile tail.
         num_full_tiles = n_total // tile_elems
         tail = n_total - num_full_tiles * tile_elems
@@ -390,10 +390,10 @@ if T is not None:
                 main_n, dtype_str, gen_blocks, tile_elems, _NUM_STAGES, alpha_key
             )
         tail_kernel = _build_single_block(tail, dtype_str, alpha_key) if tail else None
-        return _EluRunner(main_kernel, tail_kernel, main_n)
+        return _ELURunner(main_kernel, tail_kernel, main_n)
 
 
-class AscendEluKernel(Kernel, ELUFwdInterface):
+class AscendELUKernel(Kernel, ELUFwdInterface):
     """ELU on Ascend NPUs: ``y = x if x > 0 else alpha * (exp(x) - 1)``.
 
     See ``docs/ascend950/dev/EluFwdOp/opus48_round2_schedule.md`` for the current tiling design
@@ -423,7 +423,7 @@ class AscendEluKernel(Kernel, ELUFwdInterface):
     def __init__(self, n_total: int, dtype: torch.dtype, alpha: float = 1.0) -> None:
         if _ASCEND_IMPORT_ERROR is not None:
             raise ImportError(
-                "AscendEluKernel requires tilelang.ascend, which failed to import: "
+                "AscendELUKernel requires tilelang.ascend, which failed to import: "
                 f"{_ASCEND_IMPORT_ERROR}"
             ) from _ASCEND_IMPORT_ERROR
         super().__init__()
@@ -471,6 +471,6 @@ class AscendEluKernel(Kernel, ELUFwdInterface):
 try:
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type('ELUFwdOp', "ascend", AscendEluKernel)
+    register_kernel_type("ELUFwdOp", "ascend", AscendELUKernel)
 except ImportError:
     pass

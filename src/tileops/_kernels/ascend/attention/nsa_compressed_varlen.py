@@ -8,14 +8,15 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.layout import make_ascend_compact_nz_layout
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.attention.nsa_common import (
     calibrated_cube_blocks,
     check_inputs,
     normalize_cast_rows,
+    vector_aligned,
 )
 from tileops._kernels.attention.call_spec import NSACall, NSACompressedFwdInterface
-from tileops._kernels.kernel_base import Kernel, vector_aligned
+from tileops._kernels.kernel_base import Kernel
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendNSACompressedFwdVarlenKernel"]
 

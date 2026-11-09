@@ -565,4 +565,6 @@ def _batch_norm_bwd_ref(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     n, c = x.shape[0], x.shape[1]
     call = BatchNormCall(n=n, c=c, spatial=x.numel() // (n * c), dtype=x.dtype)
-    return _FakeBatchNormBwdKernel(call)(grad_out, x, weight, mean, rstd)
+    return _FakeBatchNormBwdKernel(  # lint: test-placement allow: independent torch reference
+        call
+    )(grad_out, x, weight, mean, rstd)

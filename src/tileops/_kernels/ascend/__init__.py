@@ -24,8 +24,4 @@ __all__ = [
     "sequence_modeling",
 ]
 
-from . import attention
-
-from . import mamba
-
-from tileops._kernels.ascend import sampling
+from tileops._kernels.ascend import attention, mamba, sampling

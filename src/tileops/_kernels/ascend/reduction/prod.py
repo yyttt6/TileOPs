@@ -5,10 +5,10 @@ from typing import ClassVar
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.reduction._primitives import restore_reduced, rows_for_axes
 from tileops._kernels.reduction.call_spec import ProdFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 try:
     import tilelang
@@ -114,7 +114,7 @@ if T is not None:
                                 for shift in T.unroll(5):
                                     acc[0] = (
                                         acc[0]
-                                        * T.call_extern(  # lint: extern-target allow: CANN shuffle has no wrapper in the pinned Ascend API.
+                                        * T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
                                             "float32", "asc_shfl_xor", acc[0], T.int32(1) << shift
                                         )
                                     )

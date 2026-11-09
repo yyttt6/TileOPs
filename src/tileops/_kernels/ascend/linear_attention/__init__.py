@@ -1,3 +1,3 @@
 """Ascend linear attention implementations."""
-from . import deltanet_training_fwd
-from . import deltanet_training_bwd
+
+from tileops._kernels.ascend.linear_attention import deltanet_training_bwd, deltanet_training_fwd

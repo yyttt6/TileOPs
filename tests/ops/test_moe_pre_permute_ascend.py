@@ -7,10 +7,10 @@ import torch
 
 from tileops._kernels.ascend.moe.pre_permute import AscendMoEPrePermuteKernel
 from tileops._kernels.moe.call_spec import PrePermuteCall
-from tileops.manifest import load_adts, load_manifest, load_workloads
-from tileops.manifest.plan import entry_plan
-from tileops.manifest.workload import instantiate
 from tileops._ops.moe import ContiguousLayoutSpec, MoEPrePermuteFwdOp
+from tileops.manifest import load_adts, load_manifest, load_workloads
+from tileops.manifest._plan import entry_plan
+from tileops.manifest._workload import instantiate
 from workloads.device import run_device, run_device_available
 from workloads.moe import MoEPrePermuteWorkload
 from workloads.numerics import compare_outputs

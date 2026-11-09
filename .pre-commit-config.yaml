@@ -182,8 +182,8 @@ repos:
 
       - id: native-source-strings-in-csrc
         name: C++/CUDA source strings belong in src/tileops/csrc
-        entry: '\b(import_source\s*\(|prelude\s*=|(__)?asm(__)?(\s+(__)?volatile(__)?)?\s*\()|__(device|global)__'
-        language: pygrep
+        entry: python scripts/lint/native_source_lint.py
+        language: python
         files: ^(src/tileops|workloads|benchmarks|tests)/.*\.py$
 
   - repo: https://github.com/pre-commit/mirrors-clang-format

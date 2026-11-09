@@ -39,7 +39,7 @@ def main():
     from benchmarks.api import cases
     from benchmarks.ascend.coverage import registered_coverage
     from benchmarks.ascend.runner import benchmark_case, source_fingerprint
-    from tileops.backend import registry
+    from tileops.backend import _registry as registry
     from tileops.manifest import load_manifest
     from workloads.device import set_run_device
     from workloads.numerics import Request, check_inputs_preserved

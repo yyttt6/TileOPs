@@ -78,7 +78,7 @@ if T is not None:
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
-class AscendReluKernel(Kernel, UnaryElementwiseFwdInterface):
+class AscendReLUKernel(Kernel, UnaryElementwiseFwdInterface):
     devices: ClassVar[frozenset[str]] = frozenset({"npu"})
 
     @classmethod
@@ -135,4 +135,4 @@ class AscendReluKernel(Kernel, UnaryElementwiseFwdInterface):
         return self.compiled(flat).view(self.dtype).reshape(input.shape)
 
 
-tileops.backend._registry.register_kernel_type('ReLUFwdOp', "ascend", AscendReluKernel)
+tileops.backend._registry.register_kernel_type("ReLUFwdOp", "ascend", AscendReLUKernel)

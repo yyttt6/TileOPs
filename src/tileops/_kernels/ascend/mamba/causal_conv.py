@@ -6,9 +6,12 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Kernel
-from tileops._kernels.mamba.call_spec import CausalConv1dFwdInterface, CausalConv1dUpdateFwdInterface
+from tileops._kernels.mamba.call_spec import (
+    CausalConv1dFwdInterface,
+    CausalConv1dUpdateFwdInterface,
+)
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendCausalConv1dKernel", "AscendCausalConv1dUpdateKernel"]
 

@@ -7,7 +7,6 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.sampling.radix_reduce import (
     _mass_tile,
     _probabilities_tile,
@@ -19,6 +18,7 @@ from tileops._kernels.sampling.call_spec import (
     TopKTopPMaskFwdInterface,
     TopPMaskFwdInterface,
 )
+from tileops.backend._registry import register_kernel_type
 
 __all__ = [
     "AscendTopKMaskKernel",

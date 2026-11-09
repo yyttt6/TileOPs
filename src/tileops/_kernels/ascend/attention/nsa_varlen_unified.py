@@ -8,7 +8,6 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.layout import make_ascend_compact_nz_layout
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.attention.nsa_common import (
     VECTOR_LANES,
     calibrated_cube_blocks,
@@ -17,6 +16,7 @@ from tileops._kernels.ascend.attention.nsa_common import (
 )
 from tileops._kernels.attention.call_spec import NSACall, NSAFwdInterface
 from tileops._kernels.kernel_base import Kernel
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendNSAFwdVarlenKernel"]
 

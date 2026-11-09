@@ -3,7 +3,7 @@
 New, additive file: it does not edit any existing kernel/op module. It self-registers
 with ``tileops.backend._registry.register_kernel_type`` at import time (see
 ``docs/ascend950/dev_process.md`` section 1), so importing this module is what makes
-``AscendGeluAndMulKernel`` participate in ``GeluAndMulFwdOp`` dispatch for npu tensors;
+``AscendGELUAndMulKernel`` participate in ``GeluAndMulFwdOp`` dispatch for npu tensors;
 nothing else needs to change.
 
 The input ``x`` is a single ``(M, 2*N)`` row-major tensor; ``gate = x[:, :N]`` and
@@ -29,15 +29,15 @@ try:
     import tilelang
     import tilelang.ascend.language as T
 
-    from tileops.backend._registry import register_kernel_type
     from tileops._kernels.elementwise.call_spec import FusedGatedCall, FusedGatedFwdInterface
     from tileops._kernels.kernel_base import Entry, Kernel
+    from tileops.backend._registry import register_kernel_type
 
     _ASCEND_IMPORT_ERROR = None
 except ImportError as exc:  # pragma: no cover - exercised only without an Ascend env
     _ASCEND_IMPORT_ERROR = exc
 
-__all__ = ["AscendGeluAndMulKernel"] if _ASCEND_IMPORT_ERROR is None else []
+__all__ = ["AscendGELUAndMulKernel"] if _ASCEND_IMPORT_ERROR is None else []
 
 
 if _ASCEND_IMPORT_ERROR is None:
@@ -191,7 +191,7 @@ if _ASCEND_IMPORT_ERROR is None:
         )
         return tilelang.compile(program, target="ascend", out_idx=-1)
 
-    class AscendGeluAndMulKernel(Kernel, FusedGatedFwdInterface):
+    class AscendGELUAndMulKernel(Kernel, FusedGatedFwdInterface):
         """TileLang-Ascend GeluAndMul: ``y = gelu(gate) * value`` (exact erf GELU).
 
         On float16 and bfloat16 the error function is evaluated with the same clamped
@@ -210,7 +210,7 @@ if _ASCEND_IMPORT_ERROR is None:
         def __init__(self, m: int, n: int, dtype: torch.dtype):
             super().__init__()
             if dtype not in _TORCH_DTYPE_TO_TL:
-                raise ValueError(f"AscendGeluAndMulKernel does not support dtype {dtype!r}")
+                raise ValueError(f"AscendGELUAndMulKernel does not support dtype {dtype!r}")
             self.m = m
             self.n = n
             self.dtype = dtype
@@ -231,4 +231,4 @@ if _ASCEND_IMPORT_ERROR is None:
                 x = x.contiguous()
             return self.kernel(x)
 
-    register_kernel_type("GeluAndMulFwdOp", "ascend", AscendGeluAndMulKernel)
+    register_kernel_type("GeluAndMulFwdOp", "ascend", AscendGELUAndMulKernel)

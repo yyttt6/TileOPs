@@ -40,7 +40,11 @@ if T is not None:
                     original = T.simd.vld(x[i * lanes])
                     sign = T.simd.vand(T.reinterpret(original, int_vector), sign_mask, mask)
                     value[0] = original
-                    T.evaluate(T.call_extern("void", "tileops_ceil_native", value[0], mask))
+                    T.evaluate(
+                        T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "void", "tileops_ceil_native", value[0], mask
+                        )
+                    )
                     # Native vtrc clears -0; rounding cannot change the sign.
                     result_bits = T.simd.vor(T.reinterpret(value[0], int_vector), sign, mask)
                     T.simd.vsts(y[i * lanes], T.reinterpret(result_bits, float_vector), mask)
@@ -58,7 +62,12 @@ if T is not None:
 
         @T.prim_func
         def main(X: T.Tensor((n,), dtype), Y: T.Tensor((n,), dtype)):
-            with T.Kernel(grid, prelude=_NATIVE_CEIL_PRELUDE) as bx:
+            with T.Kernel(
+                grid,
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_CEIL_PRELUDE
+                ),
+            ) as bx:
                 if full:
                     x = T.alloc_shared((tile,), dtype)
                     y = x

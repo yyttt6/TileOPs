@@ -1,9 +1,13 @@
 """Constants, reductions and device facts shared by the Ascend NSA kernels."""
 
 import functools
+from typing import Optional
 
 import tilelang.ascend.language as T
+import torch
 from tilelang.carver.arch.driver import get_num_cube_cores
+
+from tileops._kernels.constants import VECTOR_ACCESS_BYTES
 
 __all__ = [
     "FLOAT32_MAX",
@@ -165,3 +169,8 @@ def normalize_cast_rows(rows: int, width: int, dtype: str):
                     )
 
     return macro
+
+
+def vector_aligned(t: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
+    """Copy a read-only input only when its storage misses a vector boundary."""
+    return t.clone() if t is not None and t.data_ptr() % VECTOR_ACCESS_BYTES else t

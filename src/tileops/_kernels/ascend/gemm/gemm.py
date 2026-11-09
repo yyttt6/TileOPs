@@ -11,7 +11,7 @@ from tileops._kernels.ascend.gemm.persistent import SCHEDULES, compile_schedule
 from tileops._kernels.gemm import GEMMCall, GEMMFwdInterface
 from tileops._kernels.kernel_base import Kernel
 
-__all__ = ["AscendGemmKernel"]
+__all__ = ["AscendGEMMKernel"]
 
 
 def _dtype_name(dtype: torch.dtype) -> str:
@@ -32,7 +32,7 @@ def _make_gemm_kernel(m: int, n: int, k: int, dtype: str, device_index: int):
     return compile_schedule(m, n, k, dtype)
 
 
-class AscendGemmKernel(Kernel, GEMMFwdInterface):
+class AscendGEMMKernel(Kernel, GEMMFwdInterface):
     """Shape-specialized 16-bit GEMM schedules for the Ascend 950 matrix unit.
 
     Each schedule serves exactly one manifest case, named by ``(M, N, K)``, dtype
@@ -72,4 +72,4 @@ class AscendGemmKernel(Kernel, GEMMFwdInterface):
         return self._compiled_fn(a, b)
 
 
-tileops.backend._registry.register_kernel_type("GemmFwdOp", "ascend", AscendGemmKernel)
+tileops.backend._registry.register_kernel_type("GemmFwdOp", "ascend", AscendGEMMKernel)

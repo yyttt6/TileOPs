@@ -6,13 +6,13 @@ import math
 import tilelang
 import tilelang.ascend.language as T
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.mamba.call_spec import (
     SSDChunkCumsumFwdInterface,
     SSDDecodeFwdInterface,
     SSDStatePassingFwdInterface,
 )
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendSSDChunkCumsumKernel", "AscendSSDRecurrentKernel", "AscendSSDStatePassingKernel"]
 
@@ -203,11 +203,10 @@ def _recurrent(batch, heads, width, states, groups, dtype):
                             State[b, h, p, n] = v
                             accum[0] = accum[0] + v * T.cast(C[b, g, n], "float32")
                     for shift in T.unroll(5):
-                        accum[0] = (
-                            accum[0]
-                            + T.call_extern(  # lint: extern-target allow: CANN shuffle has no wrapper in the pinned Ascend API.
-                                "float32", "asc_shfl_xor", accum[0], T.int32(1) << shift
-                            )
+                        accum[0] = accum[
+                            0
+                        ] + T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "float32", "asc_shfl_xor", accum[0], T.int32(1) << shift
                         )
                     if lane == 0:
                         Y[b, h, p] = accum[0]

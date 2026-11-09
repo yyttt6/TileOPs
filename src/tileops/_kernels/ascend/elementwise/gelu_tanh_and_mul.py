@@ -30,7 +30,7 @@ try:
 except ImportError:
     _ASCEND_AVAILABLE = False
 
-__all__ = ["AscendGeluTanhAndMulKernel"]
+__all__ = ["AscendGELUTanhAndMulKernel"]
 
 # Bytes one (gate | value | out) UB buffer occupies for one tile: reproduces the
 # validated anchor from examples/ascend/example_vecadd.py (tile=8192 fp32 elements,
@@ -188,7 +188,7 @@ def _build_kernel(m: int, n: int, dtype: torch.dtype):
 
 if _ASCEND_AVAILABLE:
 
-    class AscendGeluTanhAndMulKernel(Kernel, FusedGatedFwdInterface):
+    class AscendGELUTanhAndMulKernel(Kernel, FusedGatedFwdInterface):
         """Ascend TileLang implementation of ``GeluTanhAndMulFwdOp``.
 
         Tiling is a general function of ``(m, n, dtype)`` (``T.ceildiv``-equivalent
@@ -225,4 +225,4 @@ if _ASCEND_AVAILABLE:
 
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type("GeluTanhAndMulFwdOp", "ascend", AscendGeluTanhAndMulKernel)
+    register_kernel_type("GeluTanhAndMulFwdOp", "ascend", AscendGELUTanhAndMulKernel)

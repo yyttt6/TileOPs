@@ -1,4 +1,3 @@
-from tileops._kernels.norm.fused_extended_call_spec import FusedRMSQuantCall, FusedRMSQuantInterface
 from typing import ClassVar, Mapping, Optional, Tuple
 
 import torch
@@ -11,6 +10,10 @@ from tileops._kernels.norm import (
 from tileops._kernels.norm.call_spec import (
     FusedAddRMSNormPerTokenQuantFwdInterface,
     RMSNormQuantCall,
+)
+from tileops._kernels.norm.fused_extended_call_spec import (
+    FusedRMSQuantCall,
+    FusedRMSQuantFwdInterface,
 )
 from tileops._ops.op_base import Op
 from tileops.backend import Target
@@ -60,8 +63,8 @@ class FusedAddRMSNormPerTokenQuantFwdOp(Op):
         "fused_add_rms_norm_per_token_quant_stream": FusedAddRMSNormPerTokenQuantStreamKernel,
     }
     interfaces: ClassVar[Mapping[str, type[KernelInterface]]] = {
-        "ascend_fused_rms_quant": FusedRMSQuantInterface,
-        "fused_add_rms_norm_per_token_quant": FusedAddRMSNormPerTokenQuantFwdInterface
+        "ascend_fused_rms_quant": FusedRMSQuantFwdInterface,
+        "fused_add_rms_norm_per_token_quant": FusedAddRMSNormPerTokenQuantFwdInterface,
     }
 
     def __init__(
@@ -111,7 +114,7 @@ class FusedAddRMSNormPerTokenQuantFwdOp(Op):
         leading = input.shape[:-1]
         rows = input.reshape(-1, n).contiguous()
         if input.device.type == "npu":
-            ascend_call = lambda: FusedRMSQuantCall(
+            ascend_call = lambda: FusedRMSQuantCall(  # noqa: E731
                 device=input.device,
                 rows=rows.shape[0],
                 cols=n,

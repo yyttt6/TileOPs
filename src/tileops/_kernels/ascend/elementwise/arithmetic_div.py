@@ -42,7 +42,11 @@ if T is not None:
                     numerator[j] = scalar_a
                     adjustment[j] = T.float32(0)
                     if T.abs(scalar_a) >= T.abs(scalar_b) * T.float32(limit):
-                        rem = T.call_extern("float32", "fmodf", scalar_a, scalar_b)
+                        rem = (
+                            T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                                "float32", "fmodf", scalar_a, scalar_b
+                            )
+                        )
                         numerator[j] = scalar_a - rem
                         adjustment[j] = T.if_then_else(
                             T.And(rem != 0, (scalar_b < 0) != (rem < 0)), T.float32(1), T.float32(0)

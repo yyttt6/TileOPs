@@ -47,13 +47,13 @@ dtype], and a small one would lose precision"); the positive branch returns the 
 storage-dtype value unchanged. See ``_leaky_relu_body_promote`` below (schedule doc §4.2 Variant
 A, the generic/tail body) and ``_leaky_relu_body_native`` (§4.2 Variant B, an H3 diagnostic
 variant that skips the fp32 round trip -- built and measured but never wired into
-``AscendLeakyReluKernel``. The opus48 round measured both this native variant and a branchless
+``AscendLeakyReLUKernel``. The opus48 round measured both this native variant and a branchless
 ``max/min`` reformulation on device against Variant A at the production tiling; both were slightly
 *slower* and the native one lost bit-exactness (max_abs_err 3.05e-5 at slope 0.01) -- evidence in
 ``docs/ascend950/dev/resume_20261019/workers/LeakyReluFwdOp/round_opus48/probe_round1.json`` and
 ``probe_body_ganfeat.json``. Those are finite negative results for those two bodies, **not** a
 DMA-bound proof: all of them shared the same compiler lowering (the per-thread inner loop was
-emitted as a serial loop), so the vector-pipeline cost was never isolated; the round-1 review
+emitted as a serial loop), so the vector-pipeline cost was never isolated; the recorded review
 (``opus48_review.md`` §6) explicitly rejects the earlier "DMA-bound" conclusion. (The earlier
 ``round_1_result.md`` the prior docstring cited was never found on disk; those "measured" claims
 are superseded by this round's logged measurements, the only A/B numbers to rely on.)
@@ -302,7 +302,7 @@ try:
 
         Built and measured for the H3 A/B question ("does skipping the fp32 promote
         measurably help, since this op is memory-bound and has no transcendental intrinsic to
-        compete against") but **not** wired into ``AscendLeakyReluKernel``. The opus48 round
+        compete against") but **not** wired into ``AscendLeakyReLUKernel``. The opus48 round
         measured it on device (``round_opus48/probe_round1.json``): at tile 8192 fp16 16M it was
         *slower* than Variant A (29.31 vs 28.69 us) and lost bit-exactness (max_abs_err 3.05e-5 at
         slope 0.01), i.e. a clean negative result -- the H3 prediction ("expect little to no
@@ -315,7 +315,7 @@ try:
                 slope_native = T.cast(negative_slope, x_ub.dtype)
                 y_ub[i] = T.if_then_else(x_ub[i] > zero_native, x_ub[i], slope_native * x_ub[i])
 
-    # Explicit-T.SimdVF production body (round-2 schedule §3 VF-A; round-1 review §7 item 2).
+    # Explicit-T.SimdVF production body (round-2 schedule §3 VF-A; recorded review §7 item 2).
     # One 64-lane fp32 vector chain per 64 storage elements, four independent chains per serial
     # step (``T.unroll(4)``) so the compiler can overlap the vld/vcvt/compare/multiply/select
     # latency instead of issuing one register chain at a time. The vector register is 2048 bit:
@@ -565,7 +565,7 @@ try:
             n_total, dtype, _TILE_SMALL_FALLBACK, negative_slope, slope_key, zero_sign_bits, variant
         )
 
-    class AscendLeakyReluKernel(Kernel, LeakyReLUFwdInterface):
+    class AscendLeakyReLUKernel(Kernel, LeakyReLUFwdInterface):
         """Leaky ReLU on Ascend NPUs: ``y = x if x > 0 else negative_slope * x``.
 
         One compare, one trivial-cost multiply, one load, one store per element; whether the
@@ -605,7 +605,9 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend._registry.register_kernel_type('LeakyReLUFwdOp', "ascend", AscendLeakyReluKernel)
+    tileops.backend._registry.register_kernel_type(
+        "LeakyReLUFwdOp", "ascend", AscendLeakyReLUKernel
+    )
 
 except ImportError:
     pass

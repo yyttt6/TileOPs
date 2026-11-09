@@ -13,7 +13,6 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.ascend.language import simd as S
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool import (
     max_alexnet_pairs,
     max_c3d_native4,
@@ -37,6 +36,7 @@ from tileops._kernels.pool.call_spec import (
     MaxPool3dFwdInterface,
     MaxPool3dIndicesFwdInterface,
 )
+from tileops.backend._registry import register_kernel_type
 
 
 def _staged_1d_program(

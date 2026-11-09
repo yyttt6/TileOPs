@@ -5,8 +5,6 @@ Provides:
     in place
 """
 
-from tileops._kernels.norm.fused_extended_call_spec import QKNormRoPECall, QKNormRoPEInterface
-
 from typing import ClassVar, Mapping
 
 import torch
@@ -14,6 +12,7 @@ import torch
 from tileops._kernels.kernel_base import Kernel, KernelInterface
 from tileops._kernels.norm import FusedQKNormRoPEKernel
 from tileops._kernels.norm.call_spec import FusedQKNormRoPECall, FusedQKNormRoPEFwdInterface
+from tileops._kernels.norm.fused_extended_call_spec import QKNormRoPECall, QKNormRoPEFwdInterface
 from tileops._ops.op_base import Op
 from tileops.backend import Target
 
@@ -45,8 +44,8 @@ class FusedQKNormRoPEFwdOp(Op):
         "fused_qk_norm_rope": FusedQKNormRoPEKernel
     }
     interfaces: ClassVar[Mapping[str, type[KernelInterface]]] = {
-        "ascend_qk_norm_rope": QKNormRoPEInterface,
-        "fused_qk_norm_rope": FusedQKNormRoPEFwdInterface
+        "ascend_qk_norm_rope": QKNormRoPEFwdInterface,
+        "fused_qk_norm_rope": FusedQKNormRoPEFwdInterface,
     }
 
     def __init__(

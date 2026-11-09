@@ -10,8 +10,8 @@ import functools
 import pytest
 import torch
 
-from tests.workload_test_base import FixtureBase, TestBase
 from tests.ops._div_reference import div_reference
+from tests.workload_test_base import FixtureBase, TestBase
 from tileops._ops.elementwise import (
     AddFwdOp,
     DivFwdOp,
@@ -377,7 +377,9 @@ def test_floor_divide_op(n_total: int, dtype: torch.dtype) -> None:
         (RemainderFwdOp, {}, torch.remainder),
     ],
 )
-def test_floor_ops_match_torch_on_special_values(a_shape, b_shape, dtype, op_cls, op_kwargs, ref_fn) -> None:
+def test_floor_ops_match_torch_on_special_values(
+    a_shape, b_shape, dtype, op_cls, op_kwargs, ref_fn
+) -> None:
     """``1.0 // 0.1`` is 9, an infinite divisor floors a mixed-sign quotient to -1,
     and a zero result keeps its sign.
 
@@ -407,7 +409,9 @@ def test_floor_ops_match_torch_on_special_values(a_shape, b_shape, dtype, op_cls
         ref = div_reference(a.cpu(), b.cpu(), "floor").to(a.device)
     else:
         ref = ref_fn(a, b)
-    compare_outputs(out, ref, ElementwiseWorkload(type(op).__name__, (), **op_kwargs).verification(a, b))
+    compare_outputs(
+        out, ref, ElementwiseWorkload(type(op).__name__, (), **op_kwargs).verification(a, b)
+    )
     number = ~ref.isnan()
     assert torch.equal(torch.signbit(out[number]), torch.signbit(ref[number]))
 
@@ -460,8 +464,13 @@ def test_16bit_div_matches_torch_bit_for_bit(a_shape, b_shape, dtype, make_op, r
     out = make_op()(a, b)
     factory = getattr(make_op, "func", make_op)
     if a.device.type == "npu" and factory in (DivFwdOp, FloorDivideFwdOp):
-        mode = ("floor" if factory is FloorDivideFwdOp else
-                make_op.keywords.get("rounding_mode") if isinstance(make_op, functools.partial) else None)
+        mode = (
+            "floor"
+            if factory is FloorDivideFwdOp
+            else make_op.keywords.get("rounding_mode")
+            if isinstance(make_op, functools.partial)
+            else None
+        )
         ref = div_reference(a.cpu(), b.cpu(), mode).to(a.device)
     else:
         ref = ref_fn(a, b)

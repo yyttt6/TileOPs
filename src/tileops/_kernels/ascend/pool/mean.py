@@ -13,7 +13,6 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool import mean_fullwidth6, mean_fullwidth_stream, mean_uniform_wide
 from tileops._kernels.ascend.pool import mean_ragged_tail_aligned as _ragged_tail_aligned
 from tileops._kernels.ascend.pool.adaptive_helpers import mean_tiling
@@ -28,6 +27,7 @@ from tileops._kernels.ascend.pool.mean_ragged_selected import (
 )
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops._kernels.pool.call_spec import MeanPoolingCall, MeanPoolingFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendMeanPoolingFwdKernel"]
 

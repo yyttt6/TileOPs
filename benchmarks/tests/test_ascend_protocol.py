@@ -212,11 +212,19 @@ def test_composite_coverage_requires_every_delegate():
 
 
 def test_composite_discovery_keeps_named_ascend_variants(monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarks.ascend import coverage
     from benchmarks.ascend.coverage import registered_coverage
     from tileops import manifest
-    from tileops.backend import registry
+    from tileops.backend import _registry as registry
 
-    monkeypatch.setattr(manifest, "load_manifest", lambda: {})
+    monkeypatch.setattr(
+        manifest,
+        "load_manifest",
+        lambda: {name: {"family": "fake"} for name in ("NamedOp", "DefaultOp")},
+    )
+    monkeypatch.setattr(coverage.importlib, "import_module", lambda _: SimpleNamespace())
     monkeypatch.setattr(
         registry,
         "REGISTERED_KERNEL_TYPES",
@@ -224,6 +232,9 @@ def test_composite_discovery_keeps_named_ascend_variants(monkeypatch):
             "NamedOp": {"ascend_train": object(), "ascend_infer": object()},
             "DefaultOp": {"ascend": object()},
             "OtherOp": {"cuda": object(), "not_ascend": object()},
+            "LegacyOp": {"ascend": object()},
         },
     )
-    assert registered_coverage()["operators"] == ["DefaultOp", "NamedOp"]
+    result = registered_coverage()
+    assert result["operators"] == ["DefaultOp", "NamedOp"]
+    assert result["unmapped_registrations"] == ["LegacyOp"]

@@ -5,9 +5,9 @@ from typing import ClassVar
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.elementwise.call_spec import PReLUFwdInterface
 from tileops._kernels.kernel_base import Kernel
+from tileops.backend._registry import register_kernel_type
 
 try:
     import tilelang
@@ -149,7 +149,7 @@ if T is not None:
         return tilelang.compile(main, target="ascend", out_idx=[2])
 
 
-class AscendPreluKernel(Kernel, PReLUFwdInterface):
+class AscendPReLUKernel(Kernel, PReLUFwdInterface):
     devices: ClassVar[frozenset[str]] = frozenset({"npu"})
 
     @classmethod
@@ -195,4 +195,4 @@ class AscendPreluKernel(Kernel, PReLUFwdInterface):
 
 
 if T is not None:
-    register_kernel_type('PReLUFwdOp', "ascend", AscendPreluKernel)
+    register_kernel_type("PReLUFwdOp", "ascend", AscendPReLUKernel)

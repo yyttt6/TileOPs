@@ -29,7 +29,11 @@ if T is not None:
     def _quick_floor(av, bv, q, dtype: str, mask):
         whole = T.simd.alloc_local(1, "float32")
         whole[0] = q
-        T.evaluate(T.call_extern("void", "ew_floor_fast_inplace", whole[0], mask))
+        T.evaluate(
+            T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                "void", "ew_floor_fast_inplace", whole[0], mask
+            )
+        )
         if dtype == "float32":
             zero = T.simd.vdup(T.float32(0), "float32", mask)
             residual = T.simd.alloc_local(1, "float32")
@@ -92,7 +96,11 @@ if T is not None:
                     numerator[j] = scalar_a
                     adjustment[j] = T.float32(0)
                     if T.abs(scalar_a) >= T.abs(scalar_b) * T.float32(limit):
-                        rem = T.call_extern("float32", "fmodf", scalar_a, scalar_b)
+                        rem = (
+                            T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                                "float32", "fmodf", scalar_a, scalar_b
+                            )
+                        )
                         numerator[j] = scalar_a - rem
                         adjustment[j] = T.if_then_else(
                             T.And(rem != 0, (scalar_b < 0) != (rem < 0)), T.float32(1), T.float32(0)
@@ -330,7 +338,12 @@ if T is not None:
         def main(
             A: T.Tensor((n,), dtype), B: T.Tensor((period or n,), dtype), C: T.Tensor((n,), dtype)
         ):
-            with T.Kernel(grid, prelude=_PRELUDE) as bx:
+            with T.Kernel(
+                grid,
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _PRELUDE
+                ),
+            ) as bx:
                 if full:
                     a = T.alloc_shared((tile,), dtype)
                     b = T.alloc_shared((b_width,), dtype)
@@ -521,7 +534,12 @@ if T is not None:
 
         @T.prim_func
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
-            with T.Kernel(grid, prelude=_PRELUDE) as bx:
+            with T.Kernel(
+                grid,
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _PRELUDE
+                ),
+            ) as bx:
                 a = T.alloc_shared((width,), dtype)
                 b = T.alloc_shared((period,), dtype)
                 c = T.alloc_shared((width,), dtype)
@@ -657,7 +675,12 @@ if T is not None:
 
         @T.prim_func
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
-            with T.Kernel(grid, prelude=_PRELUDE) as bx:
+            with T.Kernel(
+                grid,
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _PRELUDE
+                ),
+            ) as bx:
                 a = T.alloc_shared((width,), dtype)
                 b = T.alloc_shared((period,), dtype)
                 c = T.alloc_shared((width,), dtype)
@@ -694,7 +717,12 @@ if T is not None:
 
         @T.prim_func
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
-            with T.Kernel(grid, prelude=_PRELUDE) as bx:
+            with T.Kernel(
+                grid,
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _PRELUDE
+                ),
+            ) as bx:
                 a = T.alloc_shared((width,), dtype)
                 b = T.alloc_shared((period,), dtype)
                 c = T.alloc_shared((width,), dtype)

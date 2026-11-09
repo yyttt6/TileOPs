@@ -19,7 +19,8 @@ def _check(name, a_cpu, b_cpu):
     assert torch.equal(a.cpu().view(torch.uint8), a_cpu.view(torch.uint8))
     assert torch.equal(b.cpu().view(torch.uint8), b_cpu.view(torch.uint8))
     assert result.untyped_storage().data_ptr() not in {
-        a.untyped_storage().data_ptr(), b.untyped_storage().data_ptr()
+        a.untyped_storage().data_ptr(),
+        b.untyped_storage().data_ptr(),
     }
 
 
@@ -28,14 +29,42 @@ def _check(name, a_cpu, b_cpu):
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
 def test_comparison_special_values_across_vector_blocks(name, dtype):
     tiny = torch.finfo(dtype).tiny
-    a = torch.tensor([
-        float("nan"), float("nan"), 1., 1., 2., float("inf"), float("-inf"),
-        0., -0., tiny, -tiny, tiny / 2, -tiny / 2,
-    ], dtype=dtype).repeat(384)[:4096]
-    b = torch.tensor([
-        float("nan"), 1., float("nan"), 1., 3., float("inf"), 0.,
-        -0., 0., 0., 0., 0., 0.,
-    ], dtype=dtype).repeat(384)[:4096]
+    a = torch.tensor(
+        [
+            float("nan"),
+            float("nan"),
+            1.0,
+            1.0,
+            2.0,
+            float("inf"),
+            float("-inf"),
+            0.0,
+            -0.0,
+            tiny,
+            -tiny,
+            tiny / 2,
+            -tiny / 2,
+        ],
+        dtype=dtype,
+    ).repeat(384)[:4096]
+    b = torch.tensor(
+        [
+            float("nan"),
+            1.0,
+            float("nan"),
+            1.0,
+            3.0,
+            float("inf"),
+            0.0,
+            -0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ],
+        dtype=dtype,
+    ).repeat(384)[:4096]
     _check(name, a, b)
 
 
@@ -43,9 +72,18 @@ def test_comparison_special_values_across_vector_blocks(name, dtype):
 @pytest.mark.parametrize("name", _NAMES)
 def test_comparison_int64_extrema(name):
     limits = torch.iinfo(torch.int64)
-    a = torch.tensor([
-        limits.min, limits.min + 1, -1, 0, 1, limits.max - 1, limits.max,
-    ], dtype=torch.int64).repeat(600)[:4096]
+    a = torch.tensor(
+        [
+            limits.min,
+            limits.min + 1,
+            -1,
+            0,
+            1,
+            limits.max - 1,
+            limits.max,
+        ],
+        dtype=torch.int64,
+    ).repeat(600)[:4096]
     _check(name, a, a.roll(1))
 
 
@@ -58,11 +96,17 @@ def test_comparison_noncanonical_boolean_storage(name):
 
 
 @pytest.mark.smoke
-@pytest.mark.parametrize("dtype,n", [
-    (torch.int64, 8192), (torch.int64, 8256),
-    (torch.float16, 24576), (torch.float16, 32704),
-    (torch.float32, 12288), (torch.float32, 16320),
-])
+@pytest.mark.parametrize(
+    "dtype,n",
+    [
+        (torch.int64, 8192),
+        (torch.int64, 8256),
+        (torch.float16, 24576),
+        (torch.float16, 32704),
+        (torch.float32, 12288),
+        (torch.float32, 16320),
+    ],
+)
 def test_comparison_full_tiles_and_large_tails(dtype, n):
     a = torch.arange(n).remainder(97).to(dtype)
     b = a.roll(1)

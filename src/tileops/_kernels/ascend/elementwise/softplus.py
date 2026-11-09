@@ -24,7 +24,7 @@ except ImportError as exc:  # pragma: no cover - exercised only off-Ascend
 
 __all__ = ["AscendSoftplusKernel"]
 
-# SIMT UB budget per vector core, in bytes. Reused verbatim from AscendSiluKernel (silu.py),
+# SIMT UB budget per vector core, in bytes. Reused verbatim from AscendSiLUKernel (silu.py),
 # which discovered it via a real on-device compile failure on float32's dynamic-shared-memory
 # limit -- this op has the identical per-element UB footprint shape (one input tile + one output
 # tile, no extra scratch: the scaled/exp/log intermediates are per-thread registers, not UB

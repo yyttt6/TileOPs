@@ -200,7 +200,9 @@ def build(window, dtype, stages=1):
                             if fixed:
                                 if dtype == "float32" and nd == 2:
                                     denominator = S.vdup(T.float32(divisor), "float32", full)
-                                    average = S.vdiv(acc[0], denominator, full, precision="ftz_true")
+                                    average = S.vdiv(
+                                        acc[0], denominator, full, precision="ftz_true"
+                                    )
                                 else:
                                     average = S.vmuls(acc[0], T.float32(1.0 / divisor), full)
                             else:

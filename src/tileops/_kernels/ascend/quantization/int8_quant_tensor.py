@@ -6,10 +6,10 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.quantization.int8_scale import int8_divide, int8_scale
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.quantization.call_spec import INT8QuantPerTensorFwdInterface, QuantizeCall
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendINT8QuantPerTensorKernel"]
 

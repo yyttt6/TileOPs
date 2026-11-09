@@ -4,12 +4,12 @@ import functools
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.elementwise._erf import gelu as _exact_gelu
 from tileops._kernels.elementwise.call_spec import GELUCall, UnaryElementwiseFwdInterface
 from tileops._kernels.kernel_base import Kernel
+from tileops.backend._registry import register_kernel_type
 
-__all__ = ["AscendGeluKernel"]
+__all__ = ["AscendGELUKernel"]
 
 try:
     import tilelang
@@ -129,7 +129,7 @@ else:
         than ``T.Persistent`` (round_2_schedule.md §2 point 2: with exactly one tile per
         core, ``T.Persistent``'s general re-looping machinery degenerates to exactly what
         this direct form already expresses, so the simpler form is used). Structurally this
-        ports ``AscendGeluAndMulKernel``'s decode-case grid shape
+        ports ``AscendGELUAndMulKernel``'s decode-case grid shape
         (``gelu_and_mul.py``'s ``_gelu_and_mul_program`` with ``m=1``), not its math -- the
         GELU polynomial itself is still the shared, unmodified ``_erf.gelu`` import.
         """
@@ -197,7 +197,7 @@ else:
 
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
-    class AscendGeluKernel(Kernel, UnaryElementwiseFwdInterface):
+    class AscendGELUKernel(Kernel, UnaryElementwiseFwdInterface):
         """GELU on Ascend, with exact-erf and tanh approximation modes."""
 
         devices = frozenset({"npu"})
@@ -239,4 +239,4 @@ else:
             result = self.kernel(flat)
             return result.reshape(input.shape)
 
-    register_kernel_type('GELUFwdOp', "ascend", AscendGeluKernel)
+    register_kernel_type("GELUFwdOp", "ascend", AscendGELUKernel)

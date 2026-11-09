@@ -176,7 +176,7 @@ def test_device_failure_keeps_receipt_and_does_not_run_next_case(tmp_path, monke
             benchmark_case=None, source_fingerprint=lambda: {}
         ),
         "tileops.backend": SimpleNamespace(
-            registry=SimpleNamespace(
+            _registry=SimpleNamespace(
                 ensure_loaded=lambda: None,
                 LOAD_FAILURES=[],
                 REGISTERED_KERNEL_TYPES={"BrokenOp": {"ascend"}},

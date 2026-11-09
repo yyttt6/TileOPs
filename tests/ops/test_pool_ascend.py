@@ -7,10 +7,10 @@ import torch
 from torch.utils._pytree import tree_map
 
 import tileops._ops as ops
-from tileops.manifest import load_adts, load_manifest, load_workloads
-from tileops.manifest.plan import entry_plan
-from tileops.manifest.workload import instantiate
 from tileops._ops.pool import AvgPool1dFwdOp
+from tileops.manifest import load_adts, load_manifest, load_workloads
+from tileops.manifest._plan import entry_plan
+from tileops.manifest._workload import instantiate
 from workloads.device import run_device, run_device_available
 from workloads.numerics import compare_outputs
 from workloads.pool import (

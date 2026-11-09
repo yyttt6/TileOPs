@@ -40,7 +40,7 @@ except ImportError as exc:  # pragma: no cover - exercised only off-Ascend
     T = None  # type: ignore[assignment]
     _ASCEND_IMPORT_ERROR = exc
 
-__all__ = ["AscendSiluKernel"]
+__all__ = ["AscendSiLUKernel"]
 
 # SIMT UB budget per vector core, in bytes, borrowed from
 # ascend_baselines/TileKernels/tile_kernels/config.py:get_max_ub_per_vector_core -- flagged
@@ -186,7 +186,7 @@ if T is not None:
         14,336 elements use seven blocks, reducing small-workload launch overhead.
 
         Round 2 fix for the decode case (round_2_schedule.md SS1.2), porting
-        ``AscendGeluKernel``'s proven ``_build_decode_multicore`` (``gelu.py:157-190``):
+        ``AscendGELUKernel``'s proven ``_build_decode_multicore`` (``AscendGELUKernel-190``):
         round 1 ran the *entire* decode-sized extent on one of the device's 72 AIV cores via
         ``_build_single_block``, leaving the rest idle, and missed its target by 1.78x.
         ``GeluFwdOp`` round 2 measured the identical fix (same ``n_total=14,336``, same
@@ -312,7 +312,7 @@ if T is not None:
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
-class _SiluRunner:
+class _SiLURunner:
     """Dispatches one flat ``(n_total,)`` NPU tensor to one or two compiled Ascend programs.
 
     Two programs only when ``n_total`` exceeds the tile size and does not divide it evenly:
@@ -344,7 +344,7 @@ class _SiluRunner:
 
 
 @functools.lru_cache(maxsize=None)
-def _build_silu_kernel(n_total: int, dtype_str: str) -> _SiluRunner:
+def _build_silu_kernel(n_total: int, dtype_str: str) -> _SiLURunner:
     """Build (or reuse, by ``(n_total, dtype_str)``) the Ascend SiLU program.
 
     ``n_total <= tile_elems``: choose a core count dividing the number of 64-lane
@@ -358,9 +358,9 @@ def _build_silu_kernel(n_total: int, dtype_str: str) -> _SiluRunner:
     ``n_total > tile_elems``: a persistent-block main loop over ``tile_elems``-sized tiles
     (``tile_elems`` from ``_tile_elems_for_dtype``, itemsize-dependent), plus -- when
     ``n_total`` is not an exact multiple of ``tile_elems`` -- a second, differently-sized
-    single-block program for the remainder (see ``_SiluRunner``). Every sub-builder is
+    single-block program for the remainder (see ``_SiLURunner``). Every sub-builder is
     memoized with ``functools.lru_cache``, and ``n_total``/``dtype_str`` are Python-level
-    facts fixed per compiled kernel instance (one per distinct ``AscendSiluKernel(n_total,
+    facts fixed per compiled kernel instance (one per distinct ``AscendSiLUKernel(n_total,
     dtype)``), so this is Python-level specialization, not a runtime mask: every ``n_total``
     gets a *correct* schedule, not one that assumes even division (round_1_schedule.md SS5
     risk 2: a hardcoded "must divide evenly" kernel is not an acceptable general
@@ -380,10 +380,12 @@ def _build_silu_kernel(n_total: int, dtype_str: str) -> _SiluRunner:
         )
         num_cores = _choose_num_blocks(n_total // 64, active_cores)
         if num_cores > 1:
-            return _SiluRunner(
-                _build_decode_multicore(n_total, dtype_str, num_cores, 4 if decode_bf16 else 0), None, n_total
+            return _SiLURunner(
+                _build_decode_multicore(n_total, dtype_str, num_cores, 4 if decode_bf16 else 0),
+                None,
+                n_total,
             )
-        return _SiluRunner(_build_single_block(n_total, dtype_str), None, n_total)
+        return _SiLURunner(_build_single_block(n_total, dtype_str), None, n_total)
 
     num_full_tiles = n_total // tile_elems
     tail = n_total - num_full_tiles * tile_elems
@@ -404,10 +406,10 @@ def _build_silu_kernel(n_total: int, dtype_str: str) -> _SiluRunner:
     num_blocks = _choose_num_blocks(num_full_tiles, _num_vector_cores())
     main_kernel = _build_tiled(main_n, dtype_str, num_blocks, tile_elems)
     tail_kernel = _build_single_block(tail, dtype_str) if tail else None
-    return _SiluRunner(main_kernel, tail_kernel, main_n)
+    return _SiLURunner(main_kernel, tail_kernel, main_n)
 
 
-class AscendSiluKernel(Kernel, UnaryElementwiseFwdInterface):
+class AscendSiLUKernel(Kernel, UnaryElementwiseFwdInterface):
     """Ascend NPU SiLU: ``x / (1 + exp(-x))`` in fp32, mirroring ``SiluFwdKernel.op_func``.
 
     See ``docs/ascend950/dev/SiluFwdOp/round_1_schedule.md`` for the tiling design. ``devices``
@@ -433,7 +435,7 @@ class AscendSiluKernel(Kernel, UnaryElementwiseFwdInterface):
     def __init__(self, n_total: int, dtype: torch.dtype) -> None:
         if _ASCEND_IMPORT_ERROR is not None:
             raise ImportError(
-                "AscendSiluKernel requires tilelang.ascend, which failed to import: "
+                "AscendSiLUKernel requires tilelang.ascend, which failed to import: "
                 f"{_ASCEND_IMPORT_ERROR}"
             ) from _ASCEND_IMPORT_ERROR
         super().__init__()
@@ -475,6 +477,6 @@ class AscendSiluKernel(Kernel, UnaryElementwiseFwdInterface):
 try:
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type('SiLUFwdOp', "ascend", AscendSiluKernel)
+    register_kernel_type("SiLUFwdOp", "ascend", AscendSiLUKernel)
 except ImportError:
     pass

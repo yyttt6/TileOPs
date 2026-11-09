@@ -286,18 +286,14 @@ def test_unary_int_torch_fallback(op_cls, torch_fn, int_dtype) -> None:
     assert y.dtype == int_dtype
     # Device Neg/Sign omit these integer widths. Use CPU arithmetic on the
     # actual input for those references, retaining the exact integer contract.
-    cpu_reference = (
-        op_cls is NegFwdOp and int_dtype in (torch.int16, torch.uint8)
-    ) or (
+    cpu_reference = (op_cls is NegFwdOp and int_dtype in (torch.int16, torch.uint8)) or (
         op_cls is SignFwdOp and int_dtype in (torch.int8, torch.int16, torch.uint8)
     )
     if x.device.type == "npu" and cpu_reference:
         expected = torch_fn(x.cpu()).to(x.device)
     else:
         expected = torch_fn(x)
-    compare_outputs(
-        y, expected, ElementwiseWorkload(type(op).__name__, (x,)).verification(*(x,))
-    )
+    compare_outputs(y, expected, ElementwiseWorkload(type(op).__name__, (x,)).verification(*(x,)))
 
 
 @pytest.mark.smoke

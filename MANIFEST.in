@@ -7,6 +7,8 @@ prune assets
 prune workloads
 prune .github
 prune scripts
+prune config
+prune requirements
 
 # Same rule, for root files rather than trees.
 exclude .clang-format

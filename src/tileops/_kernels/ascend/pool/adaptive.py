@@ -11,7 +11,6 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.pool.adaptive_helpers import adaptive_tiling
 from tileops._kernels.ascend.pool.adaptive_spatial import configuration as spatial_configuration
 from tileops._kernels.ascend.pool.adaptive_spatial import spatial_program
@@ -22,6 +21,7 @@ from tileops._kernels.pool.call_spec import (
     AdaptiveMaxPool2dIndicesFwdInterface,
     AdaptivePool2dCall,
 )
+from tileops.backend._registry import register_kernel_type
 
 __all__ = [
     "AscendAdaptiveAvgPool2dKernel",

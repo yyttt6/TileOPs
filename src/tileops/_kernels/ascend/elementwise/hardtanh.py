@@ -27,7 +27,7 @@ except ImportError as exc:  # pragma: no cover - exercised only off-Ascend
 
 __all__ = ["AscendHardtanhKernel"]
 
-# SIMT UB budget per vector core, in bytes. Reused verbatim from AscendExpKernel/AscendEluKernel:
+# SIMT UB budget per vector core, in bytes. Reused verbatim from AscendExpKernel/AscendELUKernel:
 # this op has the identical per-element UB footprint shape (one input tile + one output tile, no
 # extra scratch -- min_val/max_val are trace-time scalars, not buffers).
 _UB_BUDGET_BYTES = 216 * 1024
@@ -53,7 +53,7 @@ _BOUNDED_CONV_FEAT_NUM_BLOCKS = 56
 # Fixed scheduling selected by the round-3 shared-runner profile_short re-rank of the same nine
 # (num_blocks, tile_elems, num_stages) candidates per case.  The short profile (1 warmup + 3 raw
 # independent profiler samples) is a search score, never a formal M4 number; the two previously
-# tried candidates were rejected by formal M4.  Keyed by ``(n_total, dtype_str)``; bounds are not
+# evaluated candidates were rejected by formal M4.  Keyed by ``(n_total, dtype_str)``; bounds are not
 # part of the key and every other shape keeps the calibrated / conv-feat / general routing.
 _TUNED_TILING = {
     (2048 * 4096, "float16"): (64, 16384, 3),  # bounded-hidden-float16
@@ -94,7 +94,7 @@ def _calibrated_num_blocks(fallback: int = _FALLBACK_VECTOR_CORES) -> int:
     """Persistent-grid block count for the large, bandwidth-bound tiled path.
 
     Live-queries this SKU's real vector-core count (``get_num_vector_cores``, device 0) and
-    floors it to the nearest power of two, matching ``AscendEluKernel``'s
+    floors it to the nearest power of two, matching ``AscendELUKernel``'s
     ``_calibrated_num_blocks`` (``elu.py``) exactly -- six independent pilots (``GeluFwdOp``,
     ``SiluFwdOp``, ``ReluFwdOp`` round 2, ``ExpFwdOp``, ``EluFwdOp``) already swept this under the
     official (no-cache-flush) M4 protocol and converged on 64 as both the live-queried floor

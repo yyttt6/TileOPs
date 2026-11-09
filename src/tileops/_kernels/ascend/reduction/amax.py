@@ -6,10 +6,10 @@ from typing import ClassVar
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.reduction._primitives import restore_reduced, rows_for_axes
 from tileops._kernels.reduction.call_spec import ReduceFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 try:
     import tilelang

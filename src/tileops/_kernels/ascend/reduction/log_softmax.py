@@ -6,11 +6,11 @@ from typing import ClassVar
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.reduction.logsumexp import build as build_parts
 from tileops._kernels.ascend.reduction.softmax import build_statistics
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.reduction.call_spec import SoftmaxFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 try:
     import tilelang

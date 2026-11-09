@@ -19,7 +19,7 @@ The schedule's own scoped tile-widening fallback lever closed the gap: ``tile=16
 ``float16``/``bfloat16`` only, ``tile=8192`` unchanged for ``float32`` (whose one case already
 passed) -- see ``round_1_result.md`` §4 for the measured before/after.
 
-Manifest confirmed (``elementwise_unary_math.yaml:167-184``): ``signature.forall.T =
+Manifest confirmed (``the SinFwdOp manifest entry-184``): ``signature.forall.T =
 DType[float16 | bfloat16 | float32]`` only, no integer type in the union, and
 ``SinFwdOp.kernel_types = {"sin": SinFwdKernel}`` has no ``"sin_int"`` companion (unlike
 ``AbsFwdOp``/``NegFwdOp``/``SignFwdOp``) -- trig-of-an-integer has no int-output interpretation

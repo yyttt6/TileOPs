@@ -185,10 +185,10 @@ def _make_bmm_aligned_l1_kernel(
     return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
-
 @functools.lru_cache(maxsize=1)
 def _make_bmm_small_fp16_kernel():
     """Split each 128-square batch item into four independent Cube tiles."""
+
     @T.prim_func
     def main(
         A: T.Tensor((8, 128, 128), "float16"),
@@ -202,10 +202,10 @@ def _make_bmm_small_fp16_kernel():
             batch = bx // 4
             mi = (bx % 4) // 2 * 64
             ni = bx % 2 * 64
-            T.copy(A[batch, mi:mi + 64, 0:128], a)
-            T.copy(B[batch, 0:128, ni:ni + 64], b, transpose=True)
+            T.copy(A[batch, mi : mi + 64, 0:128], a)
+            T.copy(B[batch, 0:128, ni : ni + 64], b, transpose=True)
             T.gemm(a, b, acc, transpose_B=True, clear_accum=True)
-            T.copy(acc, D[batch, mi:mi + 64, ni:ni + 64])
+            T.copy(acc, D[batch, mi : mi + 64, ni : ni + 64])
 
     return tilelang.compile(main, target="ascend", out_idx=-1)
 
@@ -222,7 +222,7 @@ _ALIGNED_L1_SELECTIONS = {
 }
 
 
-class AscendBmmKernel(Kernel, BMMFwdInterface):
+class AscendBMMKernel(Kernel, BMMFwdInterface):
     """Batched dense GEMM on Ascend NPUs: ``d[i] = a[i] @ b[i]`` per batch item."""
 
     devices = frozenset({"npu"})
@@ -264,4 +264,4 @@ class AscendBmmKernel(Kernel, BMMFwdInterface):
         return self._compiled_fn(a, b)
 
 
-tileops.backend._registry.register_kernel_type('BMMFwdOp', "ascend", AscendBmmKernel)
+tileops.backend._registry.register_kernel_type("BMMFwdOp", "ascend", AscendBMMKernel)

@@ -106,7 +106,9 @@ if T is not None:
                     native_whole = T.simd.alloc_local(1, "float32")
                     native_whole[0] = q
                     T.evaluate(
-                        T.call_extern("void", "w1_native_floor_inplace", native_whole[0], mask)
+                        T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "void", "w1_native_floor_inplace", native_whole[0], mask
+                        )
                     )
                     whole = native_whole[0]
                 else:
@@ -182,7 +184,9 @@ if T is not None:
                     native_trunc = T.simd.alloc_local(1, "float32")
                     native_trunc[0] = q
                     T.evaluate(
-                        T.call_extern("void", "w1_native_trunc_inplace", native_trunc[0], mask)
+                        T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "void", "w1_native_trunc_inplace", native_trunc[0], mask
+                        )
                     )
                     whole = native_trunc[0]
                 else:
@@ -277,7 +281,11 @@ if T is not None:
                     (T.reinterpret(repair_bv, "uint32") & T.uint32(0x7FFFFFFF))
                     < T.uint32(0x00800000),
                 ):
-                    repair_rem = T.call_extern("float32", "fmodf", repair_av, repair_bv)
+                    repair_rem = (
+                        T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "float32", "fmodf", repair_av, repair_bv
+                        )
+                    )
                     c[j] = T.if_then_else(
                         T.And(repair_rem != 0, (repair_rem < 0) != (repair_bv < 0)),
                         repair_rem + repair_bv,
@@ -297,7 +305,11 @@ if T is not None:
                         (T.reinterpret(channel_bv, "uint32") & T.uint32(0x7FFFFFFF))
                         < T.uint32(0x00800000),
                     ):
-                        channel_rem = T.call_extern("float32", "fmodf", channel_av, channel_bv)
+                        channel_rem = (
+                            T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                                "float32", "fmodf", channel_av, channel_bv
+                            )
+                        )
                         c[ch * repeat + j] = T.if_then_else(
                             T.And(channel_rem != 0, (channel_rem < 0) != (channel_bv < 0)),
                             channel_rem + channel_bv,
@@ -467,7 +479,11 @@ if T is not None:
                 max_q[0] = T.simd.vmax(max_q[0], q_bits, mask)
                 whole = T.simd.alloc_local(1, "float32")
                 whole[0] = q
-                T.evaluate(T.call_extern("void", "w1_native_floor_inplace", whole[0], mask))
+                T.evaluate(
+                    T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                        "void", "w1_native_floor_inplace", whole[0], mask
+                    )
+                )
                 T.simd.vsts(c[i * 64], T.simd.vcvt(whole[0], "bfloat16"), mask, dist="PK_B32")
             T.simd.vsts(guard[0], T.simd.vcmin(min_q[0], mask), mask)
             T.simd.vsts(guard[64], T.simd.vcmax(max_q[0], mask), mask)
@@ -539,7 +555,9 @@ if T is not None:
         ):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -662,7 +680,9 @@ if T is not None:
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -749,7 +769,9 @@ if T is not None:
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -804,7 +826,9 @@ if T is not None:
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((n,), dtype), C: T.Tensor((n,), dtype)):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -879,7 +903,9 @@ if T is not None:
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -953,7 +979,9 @@ if T is not None:
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -1008,7 +1036,9 @@ if T is not None:
         def main(A: T.Tensor((n,), dtype), B: T.Tensor((period,), dtype), C: T.Tensor((n,), dtype)):
             with T.Kernel(
                 grid,
-                prelude=_NATIVE_FLOOR_PRELUDE
+                prelude=(  # lint: ascend-prelude allow: native SIMD helper
+                    _NATIVE_FLOOR_PRELUDE
+                )
                 if rounding_mode in ("floor_native", "remainder_native")
                 else None,
             ) as bx:
@@ -1064,7 +1094,11 @@ if T is not None:
                     or rounding_mode == "remainder_raw"
                     or rounding_mode == "remainder_native"
                 ):
-                    native = T.call_extern("float32", "fmodf", av, bv)
+                    native = (
+                        T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "float32", "fmodf", av, bv
+                        )
+                    )
                     rem = T.if_then_else(T.abs(bv) == T.float32(float("inf")), av, native)
                     signed = T.if_then_else(T.And(rem != 0, (rem < 0) != (bv < 0)), rem + bv, rem)
                     result = T.if_then_else(
@@ -1074,8 +1108,14 @@ if T is not None:
                     )
                 else:
                     q = av / bv
-                    whole = T.call_extern("float32", "floorf", q)
-                    residual = T.call_extern("float32", "fmaf", -whole, bv, av)
+                    whole = T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                        "float32", "floorf", q
+                    )
+                    residual = (
+                        T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                            "float32", "fmaf", -whole, bv, av
+                        )
+                    )
                     down = T.And(residual != 0, (residual < 0) != (bv < 0))
                     lower = T.if_then_else(down, whole - 1, whole)
                     up = T.And(

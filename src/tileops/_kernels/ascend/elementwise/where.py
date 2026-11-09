@@ -6,9 +6,9 @@ from typing import ClassVar
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.elementwise.call_spec import WhereFwdInterface
 from tileops._kernels.kernel_base import Kernel
+from tileops.backend._registry import register_kernel_type
 
 try:
     import tilelang

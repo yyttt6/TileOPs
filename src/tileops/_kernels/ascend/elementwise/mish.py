@@ -219,7 +219,7 @@ try:
         ``num_blocks`` (schedule doc §4.3): spreads the (correctness-only, non-latency-graded)
         small-shape case across the calibrated core count rather than collapsing to a single
         core, per the "decode/small shape shouldn't be single-core" lesson (dev_process.md
-        §7.5) and directly following ``AscendGeluKernel._build_decode_multicore``
+        §7.5) and directly following ``AscendGELUKernel._build_decode_multicore``
         (``gelu.py``, round 2) -- same grid shape, different (this op's) per-lane math.
 
         No ``T.Pipelined`` loop: each of ``num_blocks`` blocks does exactly one GM->UB copy, one

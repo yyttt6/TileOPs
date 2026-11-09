@@ -34,7 +34,7 @@ positive result either way.)
 Tiling (round 1 structure, generalized in round 2 to the sibling ``sigmoid.py``/``silu.py`` tail
 pattern): a flat ``n_total`` is split into a full-tile prefix run by a persistent, pipelined
 multi-block program and a ``< tile`` remainder run by a one-block program, combined in Python by
-``_SeluRunner`` (``torch.cat``). No in-kernel masking and no single kernel that allocates both a
+``_SELURunner`` (``torch.cat``). No in-kernel masking and no single kernel that allocates both a
 full and a tail buffer (so the persistent UB budget is never doubled). Per-element UB footprint is
 one input tile + one output tile, no scratch (``alpha``/``scale``/``zero``/``one`` are trace-time
 scalars). Manifest fast path is unchanged from round 1: 8M/16M both land on ``num_blocks=64`` with
@@ -47,7 +47,7 @@ Round-2 (AutoTuner) extension: ``_build_tiled`` takes ``num_stages`` as an expli
 parameter (default ``_NUM_STAGES=3``) used by both ``annotate_buffer_versions`` and
 ``T.Pipelined``, so the ``lru_cache`` key really separates pipeline depths instead of mutating a
 global. ``_MANIFEST_TILING`` is a fixed lookup for the four measured manifest ``(n_total,dtype)``
-pairs only; every other shape keeps the round-1 routing. ``AscendSeluKernel.forward`` serves an
+pairs only; every other shape keeps the round-1 routing. ``AscendSELUKernel.forward`` serves an
 empty tensor (``n_total == 0``) by returning a fresh empty clone before any program is built or
 launched -- the manifest ``Shape`` has no non-empty restriction, so this is part of the contract,
 not a rejected input. Negative ``n_total`` is still rejected.
@@ -87,7 +87,7 @@ except ImportError as exc:  # pragma: no cover - exercised only off-Ascend
     get_num_vector_cores = None  # type: ignore[assignment]
     _ASCEND_IMPORT_ERROR = exc
 
-__all__ = ["AscendSeluKernel"]
+__all__ = ["AscendSELUKernel"]
 
 # The SELU constants (torch.nn.functional.selu / the CUDA SeluFwdKernel). Fixed by the activation,
 # not parameters: the one source of truth both builders bake into the compiled body.
@@ -194,7 +194,7 @@ if T is not None:
 
         Serves two routes: any ``n_total <= tile`` (the small/edge shapes and the 64-element
         inplace-conformance case), and -- reused unchanged -- the ``< tile`` remainder of the
-        tiled path when ``n_total`` is not a whole number of tiles (``_SeluRunner``). UB is
+        tiled path when ``n_total`` is not a whole number of tiles (``_SELURunner``). UB is
         ``2 * extent * itemsize`` (no pipeline buffering): at the largest ``extent`` it ever sees
         (``tile - 1``) that is <= 2*16383*2 = 64 KiB, well within budget.
         """
@@ -253,7 +253,7 @@ if T is not None:
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
-class _SeluRunner:
+class _SELURunner:
     """Dispatches one flat ``(n_total,)`` NPU tensor to one or two compiled Ascend programs.
 
     One program for ``n_total <= tile`` (single-block) or an exact multiple of ``num_blocks*tile``
@@ -279,20 +279,20 @@ class _SeluRunner:
 
 
 @functools.lru_cache(maxsize=None)
-def _build_selu_kernel(n_total: int, dtype_str: str) -> "_SeluRunner":
+def _build_selu_kernel(n_total: int, dtype_str: str) -> "_SELURunner":
     """Build (memoized by ``(n_total, dtype_str)``) the Ascend SELU runner for ``n_total``.
 
     ``n_total <= tile``: one single-block program (correctness path for small/edge shapes and the
     conformance case). ``n_total > tile``: a persistent tiled program over the full-tile prefix
     ``main_n = (n_total // tile) * tile`` with ``num_blocks`` the largest core-bounded divisor of
     the tile count, plus -- when ``n_total`` is not a whole number of tiles -- a single-block
-    program for the ``< tile`` remainder, combined by ``_SeluRunner``. Every manifest shape has
+    program for the ``< tile`` remainder, combined by ``_SELURunner``. Every manifest shape has
     ``tail == 0``.
 
     A ``(n_total, dtype_str)`` present in ``_MANIFEST_TILING`` uses that measured
     ``(num_blocks, tile_elems, num_stages)`` directly; it must divide ``n_total`` exactly and fit
     the UB budget. Every other shape keeps the round-1 routing above. ``n_total == 0`` is served
-    by ``AscendSeluKernel.forward`` before this builder is called; a non-positive value here is an
+    by ``AscendSELUKernel.forward`` before this builder is called; a non-positive value here is an
     internal contract violation.
     """
     if n_total <= 0:
@@ -309,22 +309,22 @@ def _build_selu_kernel(n_total: int, dtype_str: str) -> "_SeluRunner":
             )
         if 2 * tile_elems * num_stages * itemsize > _UB_BUDGET_BYTES:
             raise ValueError(f"manifest tiling {tiling!r} exceeds the UB budget for {dtype_str}")
-        return _SeluRunner(
+        return _SELURunner(
             _build_tiled(n_total, dtype_str, num_blocks, tile_elems, num_stages), None, n_total
         )
     tile_elems = _tile_elems_for_dtype(dtype_str)
     if n_total <= tile_elems:
-        return _SeluRunner(_build_single_block(n_total, dtype_str), None, n_total)
+        return _SELURunner(_build_single_block(n_total, dtype_str), None, n_total)
     num_full_tiles = n_total // tile_elems
     main_n = num_full_tiles * tile_elems
     tail = n_total - main_n
     num_blocks = _choose_num_blocks(num_full_tiles, _num_vector_cores())
     main_kernel = _build_tiled(main_n, dtype_str, num_blocks, tile_elems)
     tail_kernel = _build_single_block(tail, dtype_str) if tail else None
-    return _SeluRunner(main_kernel, tail_kernel, main_n)
+    return _SELURunner(main_kernel, tail_kernel, main_n)
 
 
-class AscendSeluKernel(Kernel, UnaryElementwiseFwdInterface):
+class AscendSELUKernel(Kernel, UnaryElementwiseFwdInterface):
     """SELU on Ascend NPUs: ``y = scale * (x if x >= 0 else alpha * (exp(x) - 1))``.
 
     ``alpha = 1.6732632423543772``, ``scale = 1.0507009873554805``. See
@@ -356,7 +356,7 @@ class AscendSeluKernel(Kernel, UnaryElementwiseFwdInterface):
     def __init__(self, n_total: int, dtype: torch.dtype) -> None:
         if _ASCEND_IMPORT_ERROR is not None:
             raise ImportError(
-                "AscendSeluKernel requires tilelang.ascend, which failed to import: "
+                "AscendSELUKernel requires tilelang.ascend, which failed to import: "
                 f"{_ASCEND_IMPORT_ERROR}"
             ) from _ASCEND_IMPORT_ERROR
         if n_total < 0:
@@ -400,6 +400,6 @@ class AscendSeluKernel(Kernel, UnaryElementwiseFwdInterface):
 try:
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type('SELUFwdOp', "ascend", AscendSeluKernel)
+    register_kernel_type("SELUFwdOp", "ascend", AscendSELUKernel)
 except ImportError:
     pass

@@ -7,13 +7,14 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.ascend.attention.nsa_common import (
     calibrated_cube_blocks,
     check_inputs,
+    vector_aligned,
 )
 from tileops._kernels.attention.call_spec import NSACall, NSATopKFwdInterface
-from tileops._kernels.kernel_base import Kernel, vector_aligned
+from tileops._kernels.kernel_base import Kernel
+from tileops.backend._registry import register_kernel_type
 
 __all__ = ["AscendNSATopKVarlenKernel"]
 

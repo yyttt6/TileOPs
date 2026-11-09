@@ -13,9 +13,6 @@ import torch
 from tileops._kernels.convolution import (
     Conv1dCall,
     Conv1dFwdInterface,
-    Conv1dKernel,
-    Conv1dPointwiseKernel,
-    Conv1dUnitStrideKernel,
     Conv2d1x1Kernel,
     Conv2dCall,
     Conv2dFwdInterface,
@@ -25,15 +22,16 @@ from tileops._kernels.convolution import (
     Conv3dFwdInterface,
     Conv3dKernel,
     Conv3dNdhwcKernel,
-    DepthwiseConv1dKernel,
     DepthwiseConv2dKernel,
-    GroupConv1dKernel,
     GroupConv2dKernel,
     GroupConv3dKernel,
 )
 from tileops._kernels.convolution.ascend_dispatch import (
-    Conv1dKernel, Conv1dPointwiseKernel, Conv1dUnitStrideKernel,
-    DepthwiseConv1dKernel, GroupConv1dKernel,
+    Conv1dKernel,
+    Conv1dPointwiseKernel,
+    Conv1dUnitStrideKernel,
+    DepthwiseConv1dKernel,
+    GroupConv1dKernel,
 )
 from tileops._kernels.kernel_base import Kernel, KernelInterface
 from tileops._ops.op_base import Op

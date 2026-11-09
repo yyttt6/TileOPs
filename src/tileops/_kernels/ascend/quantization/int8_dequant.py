@@ -6,7 +6,6 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.quantization.call_spec import (
     DequantizeCall,
@@ -14,6 +13,7 @@ from tileops._kernels.quantization.call_spec import (
     INT8DequantPerChannelFwdInterface,
     INT8DequantPerTensorFwdInterface,
 )
+from tileops.backend._registry import register_kernel_type
 
 __all__ = [
     "AscendINT8DequantPerBlockKernel",

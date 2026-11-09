@@ -5,10 +5,10 @@ from typing import ClassVar
 
 import torch
 
-from tileops.backend._registry import register_kernel_type
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.reduction._primitives import restore_reduced, rows_for_axes
 from tileops._kernels.reduction.call_spec import VarMeanFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 try:
     import tilelang
@@ -398,7 +398,9 @@ class AscendVarMeanKernel(Kernel, VarMeanFwdInterface):
     def forward(self, input):
         if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
-        result = self.compiled(input if self.direct_layout else rows_for_axes(input, self.call.axes))
+        result = self.compiled(
+            input if self.direct_layout else rows_for_axes(input, self.call.axes)
+        )
         return tuple(
             restore_reduced(value, self.call.shape, self.call.axes, self.call.keepdim)
             for value in result
