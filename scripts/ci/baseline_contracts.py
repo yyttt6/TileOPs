@@ -41,6 +41,16 @@ def comparison_identity(op, case, params):
         op = 'GroupedGEMMFwdOp'
         for old, new in [('output', 'd'), ('transpose_a', 'trans_a'), ('transpose_b', 'trans_b')]:
             rename(old, new)
+    elif op == 'GemmW4A8FwdOp':
+        op = 'GEMMW4A8FwdOp'
+        rename('output', 'd')
+    elif op == 'GemmW4A16FwdOp':
+        op = 'GEMMW4A16FwdOp'
+        rename('output', 'd')
+    elif op == 'GemmFP8FwdOp':
+        op = 'GEMMFP8FwdOp'
+        rename('scale_a', 'a_scale')
+        rename('scale_b', 'b_scale')
     elif op == 'FP8QuantFwdOp':
         op = 'FP8QuantPerTokenGroupFwdOp'
         for old, new in [('input_tensor', 'x'), ('output_tensor', 'q'), ('scale_tensor', 'scale')]:
