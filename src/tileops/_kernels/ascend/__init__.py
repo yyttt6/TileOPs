@@ -27,3 +27,5 @@ __all__ = [
 from . import attention
 
 from . import mamba
+
+from tileops._kernels.ascend import sampling

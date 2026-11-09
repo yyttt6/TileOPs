@@ -5,6 +5,7 @@ the op. The random ops are compared by support, structure and distribution: a ke
 Philox stream need not match the reference's.
 """
 
+import numpy as np
 import pytest
 import torch
 
@@ -116,6 +117,9 @@ def _special_rows(vocab: int, dtype: torch.dtype) -> torch.Tensor:
         (torch.bfloat16, 4096),
         (torch.float16, 999),
         (torch.float32, 999),
+        (torch.bfloat16, 4099),
+        (torch.float16, 4099),
+        (torch.float32, 4099),
     ],
 )
 def test_top_k_mask_matches_the_reference_bit_for_bit(dtype: torch.dtype, vocab: int):
@@ -129,6 +133,9 @@ def test_top_k_mask_matches_the_reference_bit_for_bit(dtype: torch.dtype, vocab:
     out = _run(TopKMaskFwdOp(), logits, k)
     # Bit patterns, so that -0.0 kept where the reference keeps 0.0 is a failure.
     compare_outputs(out, ref, top_k_mask_verification(logits))
+    k[3] = vocab
+    out = _run(TopKMaskFwdOp(), logits, k)
+    compare_outputs(out, top_k_mask(logits, k), top_k_mask_verification(logits))
 
 
 @pytest.mark.packaging(family="sampling")
@@ -211,6 +218,10 @@ def test_top_p_mask_rows_at_the_contract_endpoints():
         out = _run(TopPMaskFwdOp(), logits, p)
         assert (out[0] == -_INF).all(), vocab
         assert torch.equal(out[1] != -_INF, logits.float().softmax(-1)[1] > 0), vocab
+        # p=1 retains positive probabilities, excluding logits whose softmax underflows.
+        logits[1, :5] = torch.tensor([0.0, -90.0, -100.0, -200.0, -1000.0], device=device)
+        out = _run(TopPMaskFwdOp(), logits, p)
+        assert torch.equal(out[1] != -_INF, logits.float().softmax(-1)[1] > 0), vocab
         logits[0, vocab // 2] = float("nan")
         logits[1, 0] = _INF
         logits[2] = -_INF
@@ -247,22 +258,29 @@ def test_top_k_top_p_mask(dtype):
         (torch.float32, 999),
     ],
 )
-def test_top_k_top_p_mask_cuts_special_rows_where_the_reference_does(dtype, vocab):
+@pytest.mark.parametrize("repetitions", [1, 3])
+def test_top_k_top_p_mask_cuts_special_rows_where_the_reference_does(dtype, vocab, repetitions):
     """Row 1's top-k bound lands on a zero and the other zero is kept with it; rows 2 and 3
     have no finite largest logit once ``k`` leaves them whole, so the reference's
     probabilities are NaN, top-p removes nothing and the kept sets have to agree exactly.
     The NaN row is cut both ways: at a ``k`` that drops its NaNs and at one that keeps them."""
     # Allow threshold-rounding differences only for tokens this close to the cutoff.
-    logits = _special_rows(vocab, dtype)
+    logits = _special_rows(vocab, dtype).repeat(repetitions, 1)
     device = logits.device
-    p = torch.tensor([0.9, 0.95, 0.8, 0.95, 0.6, 0.5], dtype=torch.float32, device=device)
-    for nan_k in (2, vocab):
+    logits[3::6, 5:] = -1000.0
+    logits[3::6, 5:10] = torch.tensor([5.0, 4.0, 3.0, 2.0, 1.0], dtype=dtype, device=device)
+    p = torch.tensor([0.9, 0.95, 0.8, 0.5, 0.6, 0.5], dtype=torch.float32, device=device).repeat(
+        repetitions
+    )
+    for nan_k in (2, 10, vocab):
         k = torch.tensor(
             [1, vocab // 2, vocab, nan_k, vocab // 4, vocab // 3], dtype=torch.int32, device=device
-        )
+        ).repeat(repetitions)
         ref = top_p_mask(top_k_mask(logits, k), p)
         out = _run(TopKTopPMaskFwdOp(), logits, k, p)
         compare_outputs(out, ref, top_p_mask_verification(logits, p, k=k))
+        if nan_k == 10:
+            assert ((out[3::6] != -_INF).sum(-1) == 1).all()
 
 
 @pytest.mark.sm89
@@ -426,6 +444,10 @@ def test_chain_speculative_sampling_accepts_the_reference_prefix(batch, vocab, n
     # These cases cover launch boundaries, exact acceptance and residual-token support.
     out, ref = _run(op, *inputs), workload.ref_program(*inputs)
     compare_outputs(out, ref, workload.verification(*inputs))
+    assert torch.equal(out[1], ref[1])
+    position = torch.arange(num_draft + 1, device=device)[None]
+    accepted = position < ref[1][:, None]
+    assert torch.equal(out[0][accepted], ref[0][accepted])
 
 
 _SMALL_CALLS = {
@@ -467,3 +489,61 @@ def test_probabilities_off_a_vector_boundary_give_the_aligned_result(cls):
         assert all(map(torch.equal, got, want))
     else:
         assert torch.equal(got, want)
+
+
+@pytest.mark.parametrize(
+    "dtype, storage, nan_bits, one_bits, negative_zero",
+    [
+        (torch.float16, torch.int16, 0x7C01, 0x3C00, -32768),
+        (torch.bfloat16, torch.int16, 0x7F81, 0x3F80, -32768),
+        (torch.float32, torch.int32, 0x7FA12345, 0x3F800000, -2147483648),
+    ],
+)
+def test_min_p_mask_preserves_retained_storage_bits(
+    dtype, storage, nan_bits, one_bits, negative_zero
+):
+    """Promoting and narrowing retained logits must not quiet NaNs or change their payloads."""
+    device = run_device()
+    bits = torch.tensor(
+        [[nan_bits, one_bits, negative_zero, 0], [one_bits, negative_zero, 0, one_bits]],
+        dtype=storage,
+        device=device,
+    )
+    logits = bits.view(dtype)
+    min_p = torch.tensor([1.0, 0.0], device=device)
+    out = _run(MinPMaskFwdOp(), logits, min_p)
+    # The first row's NaN threshold and the second row's disabled mask retain every bit.
+    assert torch.equal(out.view(storage), bits)
+
+
+@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32])
+@pytest.mark.parametrize("cls", [TopPMaskFwdOp, TopKTopPMaskFwdOp])
+def test_top_p_keeps_probabilities_tied_by_float32_rounding(dtype, cls):
+    """Distinct logits whose softmax probabilities tie must cross the boundary together."""
+    device = run_device()
+    logits = torch.tensor([[0.0, 1e-8, -200.0]], dtype=dtype, device=device)
+    p = torch.tensor([0.25], device=device)
+    if cls is TopPMaskFwdOp:
+        out = _run(cls(), logits, p)
+    else:
+        k = torch.tensor([2], dtype=torch.int32, device=device)
+        out = _run(cls(), logits, k, p)
+    probs = logits.float().softmax(-1)
+    assert probs[0, 0] == probs[0, 1]
+    assert torch.equal(out != -_INF, torch.tensor([[True, True, False]], device=device))
+    assert torch.equal(out[:, :2], logits[:, :2])
+
+
+def test_sampling_from_probs_never_draws_a_trailing_zero_probability():
+    """A uniform near one must still select positive support after accumulated roundoff."""
+    weights = np.random.default_rng(77).random((48, 256), dtype=np.float32)[-1]
+    weights /= weights.sum()
+    probs = torch.zeros((1, 258 * 8192), dtype=torch.float32)
+    probs[0, : 256 * 8192 : 8192] = torch.from_numpy(weights)
+    device = run_device()
+    probs = probs.to(device)
+    seed = torch.tensor([2160754], dtype=torch.int64, device=device)
+    offset = torch.tensor([7], dtype=torch.int64, device=device)
+    token = _run(SamplingFromProbsFwdOp(), probs, seed, offset)
+    assert ((token >= 0) & (token < probs.shape[1])).all()
+    assert (probs.gather(1, token.long()[:, None]) > 0).all()
