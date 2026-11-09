@@ -37,6 +37,27 @@ class ContractTest(unittest.TestCase):
         ):
             self.assertNotEqual(canonical_contract(base), canonical_contract(other))
 
+    def test_ssd_chunk_state_group_state_input_alias_preserves_contract(self):
+        op = "SSDChunkStateFwdOp"
+        case = "mamba2-1p3b-float16-float32"
+        group_state = [[2, 32768, 1, 128], "float16"]
+        seq_idx = [[2, 32768], "int32"]
+        legacy = dict(
+            library="torch-eager",
+            op=op,
+            case=case,
+            workload={"params": {"Bmat": group_state, "seq_idx": seq_idx}},
+            latency_us=181768.9,
+        )
+        baseline = {"rows": [legacy]}
+        params = {"B": group_state, "seq_idx": seq_idx}
+        self.assertEqual(matching_baselines(baseline, op, case, params), [legacy])
+        self.assertEqual(matching_baselines(baseline, op, case, {"B": group_state}), [])
+        grouped = {**params, "B": [[2, 32768, 2, 128], "float16"]}
+        self.assertEqual(matching_baselines(baseline, op, case, grouped), [])
+        with self.assertRaisesRegex(ValueError, "Ambiguous"):
+            matching_baselines(baseline, op, case, {**params, "Bmat": group_state})
+
 
 if __name__ == "__main__":
     unittest.main()
