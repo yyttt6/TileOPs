@@ -162,10 +162,26 @@ class EngramDecodeWorkload(WorkloadBase):
         return y_ref, state_ref
 
     def verification(self, *inputs):
-        from workloads.numerics import Exact, zeroed_input
+        from workloads.numerics import Exact, NegativeControl, zeroed_input
 
         atol = 0.05 if inputs[0].dtype == torch.float16 else 0.1
-        return Exact(controls=(zeroed_input(0, "first-input-zeroed"),), atol=atol, rtol=0.05)
+        controls = (zeroed_input(0, "first-input-zeroed"),)
+        if self.d_mem == 0:
+            # Clearing an empty projection input is an identity, not a faulty
+            # computation. Check that stale values in either output are rejected.
+            def stale_output(reference, args):
+                y, state = reference(*args)
+                return y + 1, state
+
+            def stale_state(reference, args):
+                y, state = reference(*args)
+                return y, state + 1
+
+            controls = (
+                NegativeControl("stale-empty-projection-output", stale_output),
+                NegativeControl("stale-empty-projection-state", stale_state),
+            )
+        return Exact(controls=controls, atol=atol, rtol=0.05)
 
 
 def _rmsnorm(x, w, eps=1e-6):

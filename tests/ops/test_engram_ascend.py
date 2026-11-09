@@ -1,4 +1,4 @@
-"""Ascend GateConv selection and actual forward-to-backward saved-tensor coverage."""
+"""Ascend Engram selection, saved-tensor coverage and decode regressions."""
 
 import dataclasses
 
@@ -10,10 +10,11 @@ from tileops._kernels.ascend.sequence_modeling import (
     AscendEngramGateConvFwdKernel,
 )
 from tileops._kernels.sequence_modeling.engram.call_spec import EngramGateConvCall
-from tileops.sequence_modeling import EngramGateConvBwdOp, EngramGateConvFwdOp
+from tileops.sequence_modeling import EngramDecodeFwdOp, EngramGateConvBwdOp, EngramGateConvFwdOp
 from workloads.device import run_device, run_device_available
 from workloads.numerics import compare_outputs
 from workloads.sequence_modeling.engram import (
+    EngramDecodeWorkload,
     EngramGateConvBwdWorkload,
     EngramGateConvFwdWorkload,
 )
@@ -99,4 +100,59 @@ def test_gateconv_ascend_forward_backward(M, seq_len, d, dtype):
     for original, snapshot in zip(
         inputs + backward_inputs, snapshots + backward_snapshots, strict=True
     ):
+        assert torch.equal(original, snapshot)
+
+
+@pytest.mark.parametrize(
+    "batch,d,max_conv_len,conv_kernel_size,dilation,zero_state,dtype",
+    [
+        # Empty projections must write nonempty outputs and a complete zero cache.
+        pytest.param(1, 16, 2, 1, 1, True, torch.float16, marks=pytest.mark.smoke),
+        pytest.param(1, 16, 2, 1, 1, True, torch.bfloat16, marks=pytest.mark.smoke),
+        # Preserve dilated history contributions and the shift across padded rows/columns.
+        pytest.param(17, 17, 4, 3, 2, False, torch.float16, marks=pytest.mark.full),
+        pytest.param(17, 17, 4, 3, 2, False, torch.bfloat16, marks=pytest.mark.full),
+    ],
+)
+def test_engram_decode_ascend_zero_memory(
+    batch, d, max_conv_len, conv_kernel_size, dilation, zero_state, dtype
+):
+    """An empty projection reduction must not expose stale Cube accumulators."""
+    if torch.device(run_device()).type != "npu" or not run_device_available():
+        pytest.skip("requires an Ascend NPU and --tileops-device=npu")
+    workload = EngramDecodeWorkload(batch, 0, d, max_conv_len, conv_kernel_size, dilation, dtype)
+    inputs = workload.gen_inputs()
+    if zero_state:
+        inputs[1].zero_()
+        inputs[2].zero_()
+    else:
+        inputs[2].add_(1)
+    for tensor in inputs[5:]:
+        tensor.fill_(1)
+    snapshots = tuple(t.clone() for t in inputs)
+    expected = workload.ref_program(*inputs)
+    op = EngramDecodeFwdOp(batch, 0, d, max_conv_len, conv_kernel_size, dilation)
+
+    # Run a nonzero projection before each empty one so fresh zeroed storage
+    # cannot conceal the uninitialised-accumulator regression.
+    priming_workload = EngramDecodeWorkload(
+        batch, 16, d, max_conv_len, conv_kernel_size, dilation, dtype
+    )
+    priming_inputs = priming_workload.gen_inputs()
+    for tensor in priming_inputs:
+        tensor.fill_(1)
+    priming_op = EngramDecodeFwdOp(batch, 16, d, max_conv_len, conv_kernel_size, dilation)
+    previous = None
+    for _ in range(2):
+        priming_op(*priming_inputs)
+        actual = op(*inputs)
+        compare_outputs(actual, expected, workload.verification(*inputs))
+        if zero_state:
+            for tensor in actual:
+                assert torch.count_nonzero(tensor) == 0
+        if previous is not None:
+            for tensor, repeated in zip(previous, actual, strict=True):
+                assert torch.equal(tensor, repeated)
+        previous = actual
+    for original, snapshot in zip(inputs, snapshots, strict=True):
         assert torch.equal(original, snapshot)

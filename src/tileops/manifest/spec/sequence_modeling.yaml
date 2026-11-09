@@ -117,6 +117,9 @@ EngramDecodeFwdOp:
   - {batch: 1, d_mem: 512, d: 256, max_conv_len: 12, conv_kernel_size: 4, dilation: 3, L: 12, dtype_cases: [{T: float16}], label: serving-b1}
   - {batch: 4, d_mem: 1024, d: 512, max_conv_len: 20, conv_kernel_size: 4, dilation: 5, L: 20, dtype_cases: [{T: float16}], label: serving-b4}
   - {batch: 8, d_mem: 512, d: 256, max_conv_len: 18, conv_kernel_size: 4, dilation: 3, L: 18, dtype_cases: [{T: bfloat16}], label: serving-b8}
+  # Include the empty-reduction regression in manifest-based device CI.
+  - {batch: 1, d_mem: 0, d: 16, max_conv_len: 2, conv_kernel_size: 1, dilation: 1, L: 2, dtype_cases: [{T: float16}, {T: bfloat16}], label: zero-memory}
+  - {batch: 17, d_mem: 0, d: 17, max_conv_len: 4, conv_kernel_size: 3, dilation: 2, L: 4, dtype_cases: [{T: float16}, {T: bfloat16}], label: zero-memory-dilated-tail}
 
   roofline:
     flops: "4 * batch * d_mem * d + batch * (16 * d + conv_kernel_size * 2 * d) + 20 * batch"
