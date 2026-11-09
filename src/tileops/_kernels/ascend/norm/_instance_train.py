@@ -88,21 +88,9 @@ else:
                         with T.SimtVF(threads=32):
                             old_m=T.cast(T.cast(old_mean[0],dtype),'float32')
                             old_v=T.cast(T.cast(old_var[0],dtype),'float32')
-                            if dtype=='bfloat16':
-                                mom=T.float32(bf_momentum)
-                                previous=T.float32(bf_previous)
-                                mean=T.cast(T.cast(accum[0],dtype),'float32')
-                                variance_sum=T.cast(T.cast(accum[1],dtype),'float32')
-                                divisor=T.float32(bf_divisor)
-                                unbiased=T.cast(T.cast(variance_sum/divisor,dtype),'float32')
-                                mean_new=T.cast(T.cast(mom*mean,dtype),'float32')
-                                mean_old=T.cast(T.cast(previous*old_m,dtype),'float32')
-                                var_old=T.cast(T.cast(previous*old_v,dtype),'float32')
-                                update[0]=T.cast(T.cast(mean_new+mean_old,dtype),'float32')
-                                update[1]=T.cast(T.cast(mom*unbiased+var_old,dtype),'float32')
-                            else:
-                                update[0]=T.cast(T.cast(momentum*accum[0]+(1-momentum)*old_m,dtype),'float32')
-                                update[1]=T.cast(T.cast(momentum*(accum[1]/(n-1))+(1-momentum)*old_v,dtype),'float32')
+                            # NPU updates use FP32 arithmetic between dtype-boundary casts.
+                            update[0]=T.cast(T.cast(momentum*accum[0]+(1-momentum)*old_m,dtype),'float32')
+                            update[1]=T.cast(T.cast(momentum*(accum[1]/(n-1))+(1-momentum)*old_v,dtype),'float32')
                             accum[1] = T.rsqrt(accum[1] / n + eps)
                         T.copy(update[:2],U[row,:2])
                         for channel in T.serial(cpg):

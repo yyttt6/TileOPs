@@ -17,6 +17,7 @@ from tileops._kernels.ascend.pool import (
     average_ceil_rotate,
     average_long_deinterleave,
     average_spatial,
+    average_volume_packed,
     average_spatial_pairs,
     average_vision_native,
     average_volume_rows,
@@ -344,7 +345,11 @@ def _build_average_1d_audio_simd(window: AvgPoolWindow, dtype: str):
                             # Match the generic +0-initialized accumulator for -0 inputs.
                             sum01 = T.simd.vadd(T.simd.vadd(zero, left, full), center, full)
                             total = T.simd.vadd(sum01, right, full)
-                            average = T.simd.vmuls(total, T.float32(1.0 / 3.0), full)
+                            if dtype == "float32":
+                                denominator = T.simd.vdup(T.float32(3.0), "float32", full)
+                                average = T.simd.vdiv(total, denominator, full, precision="ftz_true")
+                            else:
+                                average = T.simd.vmuls(total, T.float32(1.0 / 3.0), full)
                             if dtype == "float32":
                                 T.simd.vsts(result[v * 64], average, full)
                             else:
@@ -379,7 +384,7 @@ class _AscendAverage(Kernel):
         window = _window(call)
         dtype = str(call.dtype).split(".")[-1]
         self.output_shape = (call.n, call.c_in, *window.out)
-        self.config = {
+        config = {
             "tile_outputs": _tile_outputs(window),
             "tap_chunk": min(math.prod(window.kernel), 64),
             "stages": 1,
@@ -388,10 +393,10 @@ class _AscendAverage(Kernel):
             self.ndim == 1 and call.size[0] >= 1024 and call.window[0] <= 64 and call.stride[0] <= 8
         )
         build = _build_average_1d_staged if self.staged_1d else _build_average
-        self.config["path"] = "staged_width" if self.staged_1d else "output_vectors"
+        config["path"] = "staged_width" if self.staged_1d else "output_vectors"
         spatial_stages = _spatial_stages(window, dtype)
         if spatial_stages:
-            self.config.update(
+            config.update(
                 path="spatial-pipeline" if spatial_stages == 2 else "spatial-simd",
                 stages=spatial_stages,
             )
@@ -400,16 +405,16 @@ class _AscendAverage(Kernel):
         pairs_case = average_spatial_pairs.call_contract(call)
         if average_ceil_rotate.call_contract(call) == "ceil1d":
             assert average_ceil_rotate.supports(window, dtype, "ceil1d")
-            self.config.update(path="ceil1d_rotate_edges", stages=1, batch_rows=4)
+            config.update(path="ceil1d_rotate_edges", stages=1, batch_rows=4)
             self.kernel = average_ceil_rotate.build("rotate_edges")
         elif average_long_deinterleave.supports_call(call) and average_long_deinterleave.supports(
             window, dtype
         ):
-            self.config.update(path="long_temporal_deinterleave", stages=2)
+            config.update(path="long_temporal_deinterleave", stages=2)
             self.kernel = average_long_deinterleave.build(window, dtype)
         elif average_vision_native.call_contract(call) == "vision5":
             assert average_vision_native.supports(window, dtype, "vision5")
-            self.config.update(
+            config.update(
                 path="vision5_native_register_reuse",
                 stages=2,
                 paired_rows=4,
@@ -418,9 +423,12 @@ class _AscendAverage(Kernel):
                 whole_plane_fp32_staging=False,
             )
             self.kernel = average_vision_native.build("vision5")
+        elif average_volume_packed.supports(window, dtype):
+            config.update(path="volume_packed_bf16", stages=2, paired_rows=4)
+            self.kernel = average_volume_packed.build(window, dtype)
         elif average_volume_staging.call_contract(call) == "ceilvideo":
             assert average_volume_staging.supports(window, dtype, "ceilvideo")
-            self.config.update(
+            config.update(
                 path="ceil_video_volume_staging",
                 stages=2,
                 jobs=128,
@@ -430,11 +438,11 @@ class _AscendAverage(Kernel):
             self.kernel = average_volume_staging.build("ceilvideo")
         elif average_ceil_divisor.call_contract(call) == "ceildiv2d":
             assert average_ceil_divisor.supports(window, dtype, "ceildiv2d")
-            self.config.update(path="ceil_divisor_register_reuse", stages=2, paired_rows=2)
+            config.update(path="ceil_divisor_register_reuse", stages=2, paired_rows=2)
             self.kernel = average_ceil_divisor.build()
         elif pairs_case is not None:
             assert average_spatial_pairs.contract(window, dtype) == pairs_case
-            self.config.update(
+            config.update(
                 path="spatial-pairs",
                 stages=2,
                 paired_rows=2,
@@ -445,13 +453,13 @@ class _AscendAverage(Kernel):
         elif average_volume_rows.call_contract(call) and average_volume_rows.supports(
             window, dtype
         ):
-            self.config.update(path="volume_rows_ceil_f16", stages=2, paired_rows=4)
+            config.update(path="volume_rows_ceil_f16", stages=2, paired_rows=4)
             self.kernel = average_volume_rows.build(window, dtype)
         elif self.audio_simd and math.prod(self.output_shape) != 0:
-            self.config["path"] = "audio_dma_simd"
+            config["path"] = "audio_dma_simd"
             self.kernel = _build_average_1d_audio_simd(window, str(call.dtype).split(".")[-1])
         elif self.row_simd and math.prod(self.output_shape) != 0:
-            self.config["path"] = "temporal_dma_simd"
+            config["path"] = "temporal_dma_simd"
             self.kernel = build_rows(window, str(call.dtype).split(".")[-1])
         else:
             self.kernel = (
@@ -460,9 +468,10 @@ class _AscendAverage(Kernel):
                 else build(
                     window,
                     str(call.dtype).split(".")[-1],
-                    self.config["tile_outputs"],
+                    config["tile_outputs"],
                 )
             )
+        self.config = config
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if tuple(x.shape) != self.input_shape or x.dtype != self.dtype:

@@ -222,16 +222,16 @@ else:
             super().__init__();self.call=call
             if call.num_groups<=0 or call.c%call.num_groups:raise ValueError('Groups must divide channels')
             if call.dtype not in (torch.float16,torch.bfloat16,torch.float32):raise TypeError('Unsupported dtype')
-        def forward(self,x,weight=None,bias=None):
+        def forward(self,input,weight=None,bias=None):
             c=self.call
-            if x.numel()==0:return torch.empty_like(x)
-            if x.shape[1]!=c.c or x.dtype!=c.dtype:raise ValueError('Invalid GroupNorm input')
+            if input.numel()==0:return torch.empty_like(input)
+            if input.shape[1]!=c.c or input.dtype!=c.dtype:raise ValueError('Invalid GroupNorm input')
             for param in (weight,bias):
                 if param is not None and (param.numel()!=c.c or param.dtype!=c.dtype):raise ValueError('Invalid affine parameter')
-            rows=x.reshape(x.shape[0]*c.num_groups,(c.c//c.num_groups)*c.spatial)
-            unused=x.reshape(-1)[:c.c]
+            rows=input.reshape(input.shape[0]*c.num_groups,(c.c//c.num_groups)*c.spatial)
+            unused=input.reshape(-1)[:c.c]
             w=unused if weight is None else weight.reshape(c.c)
             b=unused if bias is None else bias.reshape(c.c)
-            self.compiled=build(x.shape[0],c.c,c.spatial,c.num_groups,str(c.dtype).split('.')[-1],c.eps,weight is not None,bias is not None)
-            return self.compiled(rows,w,b).reshape(x.shape)
+            self.compiled=build(input.shape[0],c.c,c.spatial,c.num_groups,str(c.dtype).split('.')[-1],c.eps,weight is not None,bias is not None)
+            return self.compiled(rows,w,b).reshape(input.shape)
     register_kernel_type('GroupNormFwdOp','ascend',AscendGroupNormKernel)

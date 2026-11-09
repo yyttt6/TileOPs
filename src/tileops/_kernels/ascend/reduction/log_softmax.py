@@ -275,14 +275,14 @@ class AscendLogSoftmaxKernel(Kernel, SoftmaxFwdInterface):
             self.statistics = build_statistics(self.m, self.chunks)
             self.output = build_output(self.m, self.n, dtype, out_dtype)
 
-    def forward(self, x):
-        if tuple(x.shape) != self.call.shape or x.dtype != self.call.dtype:
+    def forward(self, input):
+        if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
         if self.empty:
-            return torch.empty_like(x, dtype=self.call.out_dtype)
-        if x.is_neg():
-            x = x.resolve_neg()
-        arg = x.movedim(self.call.axis, -1).contiguous().reshape(self.m, self.n)
+            return torch.empty_like(input, dtype=self.call.out_dtype)
+        if input.is_neg():
+            input = input.resolve_neg()
+        arg = input.movedim(self.call.axis, -1).contiguous().reshape(self.m, self.n)
         if self.fused:
             y = self.compiled(arg)
         else:

@@ -660,13 +660,13 @@ class AscendArgminKernel(Kernel, ArgreduceFwdInterface):
                     call.m, self.chunks, "int32" if call.n < 2147483647 else "int64"
                 )
 
-    def forward(self, x):
-        if tuple(x.shape) != self.call.shape or x.dtype != self.call.dtype:
+    def forward(self, input):
+        if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
         arg = (
-            x.reshape(self.call.n, self.call.m)
+            input.reshape(self.call.n, self.call.m)
             if self.leading
-            else rows_for_axes(x, self.call.axes)
+            else rows_for_axes(input, self.call.axes)
         )
         if self.leading:
             result = self.compiled(arg)

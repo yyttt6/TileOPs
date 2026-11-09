@@ -135,13 +135,13 @@ else:
         def __init__(self,call):
             super().__init__();self.call=call
             if call.dtype not in (torch.float16,torch.bfloat16,torch.float32):raise TypeError('Unsupported norm dtype')
-        def forward(self,x,residual,weight):
+        def forward(self,input,residual,weight):
             n=self.call.n
-            if n<=0 or x.shape!=residual.shape or weight.numel()!=n:raise ValueError('Invalid fused norm signature')
-            if not x.numel():return [torch.empty_like(x),torch.empty_like(x)]
-            xx=x.reshape(-1,n)
+            if n<=0 or input.shape!=residual.shape or weight.numel()!=n:raise ValueError('Invalid fused norm signature')
+            if not input.numel():return [torch.empty_like(input),torch.empty_like(input)]
+            xx=input.reshape(-1,n)
             self.compiled=build(xx.shape[0],n,str(self.call.dtype).split('.')[-1],self.call.eps, True)
             y,r=self.compiled(xx,residual.reshape_as(xx),weight.reshape(n))
-            return [y.reshape_as(x),r.reshape_as(x)]
+            return [y.reshape_as(input),r.reshape_as(input)]
 
     register_kernel_type('FusedAddRMSNormFwdOp','ascend',AscendFusedAddRMSNormKernel)

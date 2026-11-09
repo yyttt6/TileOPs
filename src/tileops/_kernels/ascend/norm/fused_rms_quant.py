@@ -16,6 +16,12 @@ else:
 
     @functools.lru_cache(maxsize=128)
     def build(m,n,dtype,quant_dtype,eps,cap):
+        if quant_dtype=='float8_e4m3fn' and n%128==0 and n<=8192:
+            from ._fused_rms_quant_fast_fp8 import build as fast_fp8
+            return fast_fp8(m,n,dtype,quant_dtype,eps,cap)
+        if quant_dtype=='int8' and n%128==0 and n<=8192 and m>=64:
+            from ._fused_rms_quant_fast_int8 import build as fast_int8
+            return fast_int8(m,n,dtype,quant_dtype,eps,cap)
         if n%32==0 and n<=8192:
             from ._fused_rms_quant_resident import build as resident
             return resident(m,n,dtype,quant_dtype,eps,cap)
@@ -80,6 +86,7 @@ else:
                                 for ilp in T.serial(1,4):partial[lane]=partial[lane]+cascade[0,ilp*8+lane%8]
                             for j in T.serial(n%8):stats[0]=stats[0]+squared[((n%32)//8)*8+j]
                             for lane in T.serial(8):stats[0]=stats[0]+partial[lane]
+                            sum_value=stats[0]
                             mean=stats[0]/n
                             mean_remainder=T.call_extern('float32','fmaf',-mean,T.float32(n),stats[0])
                             stats[3]=(mean+mean_remainder/n)+T.float32(eps)
@@ -90,6 +97,7 @@ else:
                             inverse=T.float32(1)/root
                             remainder=T.call_extern('float32','fmaf',-inverse,root,T.float32(1))
                             stats[0]=inverse+remainder/root
+                            stats[0]=T.if_then_else((T.reinterpret(sum_value,'uint32') & 2147483647)==2139095040,T.float32(0),stats[0])
                         for chunk in T.serial((n+width-1)//width):
                             start=chunk*width;valid=T.min(width,n-start)
                             T.copy(X[row,start:start+valid],x[:valid]);T.copy(R[row,start:start+valid],r[:valid]);T.copy(W[start:start+valid],w[:valid])
@@ -101,14 +109,14 @@ else:
                                         normalized=T.cast(value*stats[0],dtype)
                                         o[i]=value
                                         weighted=T.cast(T.cast(normalized,'float32')*T.cast(w[i],'float32'),dtype)
-                                        T.reducer_update(peak[0],T.abs(T.cast(weighted,'float32')))
+                                        T.reducer_update(peak[0],T.if_then_else((T.reinterpret(T.cast(weighted,'float32'),'uint32') & 2147483647)>2139095040,T.float32(0),T.abs(T.cast(weighted,'float32'))))
                                 result=T.alloc_fragment((1,),'float32');T.finalize_reducer(peak,result)
                                 stats[1]=T.max(stats[1],result[0])
                         with T.SimtVF(threads=32):
                             if cap is not None:stats[1]=T.min(stats[1],T.float32(cap))
                             estimate=stats[1]/maximum
                             remainder=T.call_extern('float32','fmaf',-estimate,T.float32(maximum),stats[1])
-                            stats[2]=estimate+remainder*T.float32(1.0/maximum)
+                            stats[2]=T.if_then_else((T.reinterpret(stats[1],'uint32') & 2147483647)==2139095040,stats[1],estimate+remainder*T.float32(1.0/maximum))
                             stats[2]=T.max(stats[2],T.float32(1.0/(448.0*512.0) if quant_dtype=='float8_e4m3fn' else 1.1920928955078125e-7))
                             scale_out[0]=stats[2]
                         T.copy(scale_out[:1],S[row,:1])
@@ -126,6 +134,11 @@ else:
                                         quotient=T.cast(weighted,'float32')/denominator
                                         remainder=T.call_extern('float32','fmaf',-quotient,denominator,T.cast(weighted,'float32'))
                                         divided=quotient+remainder/denominator
+                                        nonfinite=(T.reinterpret(T.cast(weighted,'float32'),'uint32') & 2147483647)>=2139095040
+                                        infinite_scale=(T.reinterpret(denominator,'uint32') & 2147483647)==2139095040
+                                        raw_product=T.cast(weighted,'float32')*(T.float32(1)/denominator)
+                                        divided=T.if_then_else(nonfinite | infinite_scale,raw_product,divided)
+                                        divided=T.if_then_else((T.reinterpret(divided,'uint32') & 2147483647)>2139095040,T.float32(448 if quant_dtype=='float8_e4m3fn' else 0),divided)
                                         if quant_dtype=='int8':divided=T.nearbyint(divided)
                                         converted=T.cast(T.min(T.max(divided,T.float32(minimum)),T.float32(maximum)),quant_dtype)
                                         if quant_dtype=='float8_e4m3fn':
@@ -142,9 +155,9 @@ else:
         @classmethod
         def entry_for(cls,call):return call,lambda:cls(call)
         def __init__(self,call):super().__init__();self.call=call
-        def forward(self,x,residual,weight):
+        def forward(self,input,residual,weight):
             c=self.call
-            if not c.rows:return torch.empty_like(x,dtype=getattr(torch,c.quant_dtype)),torch.empty((0,1),device=x.device,dtype=torch.float32),torch.empty_like(x)
+            if not c.rows:return torch.empty_like(input,dtype=getattr(torch,c.quant_dtype)),torch.empty((0,1),device=input.device,dtype=torch.float32),torch.empty_like(input)
             self.compiled=build(c.rows,c.cols,str(c.dtype).split('.')[-1],c.quant_dtype,c.eps,c.scale_ub)
-            return tuple(self.compiled(x,residual,weight))
+            return tuple(self.compiled(input,residual,weight))
     register_kernel_type('FusedAddRMSNormPerTokenQuantFwdOp','ascend',AscendFusedRMSQuantKernel)

@@ -95,29 +95,29 @@ else:
             return unused if weight is None else weight,unused if bias is None else bias
 
     class AscendInstanceNormKernel(_InstanceBase,InstanceNormFwdInterface):
-        def forward(self,x,running_mean=None,running_var=None,weight=None,bias=None):
+        def forward(self,input,running_mean=None,running_var=None,weight=None,bias=None):
             c=self.call
             if c.spatial<=1:raise ValueError('Input statistics require more than one spatial value')
-            w,b=self.affine(x,weight,bias)
+            w,b=self.affine(input,weight,bias)
             self.compiled=build_input_stats(c.n,c.c,c.spatial,c.c,str(c.dtype).split('.')[-1],c.eps,weight is not None,bias is not None)
-            return self.compiled(x.reshape(c.n*c.c,c.spatial),w,b).reshape_as(x)
+            return self.compiled(input.reshape(c.n*c.c,c.spatial),w,b).reshape_as(input)
 
     class AscendInstanceNormTrainKernel(_InstanceBase,InstanceNormTrainFwdInterface):
-        def forward(self,x,running_mean,running_var,weight=None,bias=None):
+        def forward(self,input,running_mean,running_var,weight=None,bias=None):
             c=self.call
             if c.spatial<=1:raise ValueError('Input statistics require more than one spatial value')
-            w,b=self.affine(x,weight,bias);dtype=str(c.dtype).split('.')[-1]
+            w,b=self.affine(input,weight,bias);dtype=str(c.dtype).split('.')[-1]
             self.compiled=build_train(c.n,c.c,c.spatial,dtype,c.eps,c.momentum,weight is not None,bias is not None)
-            y,updates=self.compiled(x.reshape(c.n*c.c,c.spatial),w,b,running_mean,running_var)
+            y,updates=self.compiled(input.reshape(c.n*c.c,c.spatial),w,b,running_mean,running_var)
             self.update=build_update(c.n,c.c,dtype)
             self.update(updates,running_mean,running_var)
-            return y.reshape_as(x)
+            return y.reshape_as(input)
 
     class AscendInstanceNormInferKernel(_InstanceBase,InstanceNormInferFwdInterface):
-        def forward(self,x,running_mean,running_var,weight=None,bias=None):
-            c=self.call;w,b=self.affine(x,weight,bias)
+        def forward(self,input,running_mean,running_var,weight=None,bias=None):
+            c=self.call;w,b=self.affine(input,weight,bias)
             self.compiled=build_infer(c.n,c.c,c.spatial,str(c.dtype).split('.')[-1],c.eps,weight is not None,bias is not None)
-            return self.compiled(x.reshape(c.n*c.c,c.spatial),w,b,running_mean,running_var).reshape_as(x)
+            return self.compiled(input.reshape(c.n*c.c,c.spatial),w,b,running_mean,running_var).reshape_as(input)
 
     register_kernel_type('InstanceNormFwdOp','ascend_input_stats',AscendInstanceNormKernel)
     register_kernel_type('InstanceNormFwdOp','ascend_train',AscendInstanceNormTrainKernel)

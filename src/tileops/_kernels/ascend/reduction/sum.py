@@ -283,16 +283,16 @@ class AscendSumKernel(Kernel, ReduceFwdInterface):
         self.compiled, self.chunks = build(call.m, call.n, dtype, "float32" if chunks > 1 else out)
         self.finish = build(call.m, self.chunks, "float32", out)[0] if self.chunks > 1 else None
 
-    def forward(self, x):
-        if tuple(x.shape) != self.call.shape or x.dtype != self.call.dtype:
+    def forward(self, input):
+        if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
         rows = (
-            x.reshape(self.outer, self.call.m, self.inner)
+            input.reshape(self.outer, self.call.m, self.inner)
             if self.edge
             else (
-                x.reshape(self.call.n, self.call.m)
+                input.reshape(self.call.n, self.call.m)
                 if self.leading
-                else rows_for_axes(x, self.call.axes)
+                else rows_for_axes(input, self.call.axes)
             )
         )
         result = self.compiled(rows)

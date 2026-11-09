@@ -403,7 +403,7 @@ class AscendEluKernel(Kernel, ELUFwdInterface):
     Ascend SoC-version gate here to replace the CUDA SM-version one (``Kernel._check_arch`` skips
     the check entirely when ``supported_archs is None``).
 
-    Implements ``ELUFwdInterface`` (``ELUCall`` carries ``alpha``, which the generic
+    Implements ``EluFwdInterface`` (``EluCall`` carries ``alpha``, which the generic
     ``UnaryElementwiseFwdInterface``'s request type does not -- confirmed against
     ``EluFwdOp.interfaces`` directly, dev_process.md §7.5's ``ReciprocalFwdInterface`` pitfall).
 
@@ -471,6 +471,6 @@ class AscendEluKernel(Kernel, ELUFwdInterface):
 try:
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type("EluFwdOp", "ascend", AscendEluKernel)
+    register_kernel_type('ELUFwdOp', "ascend", AscendEluKernel)
 except ImportError:
     pass

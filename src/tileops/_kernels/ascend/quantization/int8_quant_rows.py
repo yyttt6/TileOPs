@@ -222,5 +222,5 @@ class AscendSmoothQuantKernel(_RowsKernel, SmoothQuantFwdInterface):
 
 
 register_kernel_type("INT8QuantPerChannelFwdOp", "ascend", AscendINT8QuantPerChannelKernel)
-register_kernel_type("INT8QuantPerBlockFwdOp", "ascend", AscendINT8QuantPerBlockKernel)
+register_kernel_type('INT8QuantPerTokenGroupFwdOp', "ascend", AscendINT8QuantPerBlockKernel)
 register_kernel_type("SmoothQuantFwdOp", "ascend", AscendSmoothQuantKernel)

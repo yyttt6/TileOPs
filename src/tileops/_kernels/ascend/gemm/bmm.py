@@ -185,13 +185,40 @@ def _make_bmm_aligned_l1_kernel(
     return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
+
+@functools.lru_cache(maxsize=1)
+def _make_bmm_small_fp16_kernel():
+    """Split each 128-square batch item into four independent Cube tiles."""
+    @T.prim_func
+    def main(
+        A: T.Tensor((8, 128, 128), "float16"),
+        B: T.Tensor((8, 128, 128), "float16"),
+        D: T.Tensor((8, 128, 128), "float16"),
+    ):
+        with T.Kernel(32) as bx:
+            a = T.alloc_l1((64, 128), "float16")
+            b = T.alloc_l1((64, 128), "float16")
+            acc = T.alloc_l0c((64, 64), "float32")
+            batch = bx // 4
+            mi = (bx % 4) // 2 * 64
+            ni = bx % 2 * 64
+            T.copy(A[batch, mi:mi + 64, 0:128], a)
+            T.copy(B[batch, 0:128, ni:ni + 64], b, transpose=True)
+            T.gemm(a, b, acc, transpose_B=True, clear_accum=True)
+            T.copy(acc, D[batch, mi:mi + 64, ni:ni + 64])
+
+    return tilelang.compile(main, target="ascend", out_idx=-1)
+
+
 _ALIGNED_L1_SELECTIONS = {
-    (128, 512, 512, 2048, "bfloat16"): (256, 128, 256, 2, 36),
-    (8, 1024, 1024, 1024, "float16"): (256, 128, 256, 2, 36),
-    (8, 1024, 1024, 1024, "bfloat16"): (256, 128, 256, 2, 36),
-    (8, 2048, 2048, 2048, "float16"): (256, 128, 256, 2, 36),
-    (8, 2048, 2048, 2048, "bfloat16"): (256, 128, 256, 2, 36),
-    (4, 4096, 4096, 4096, "bfloat16"): (256, 128, 256, 2, 36),
+    (64, 128, 2048, 128, "float16"): (128, 256, 128, 2, 32),
+    (64, 128, 2048, 128, "bfloat16"): (128, 256, 128, 2, 32),
+    (128, 512, 512, 2048, "bfloat16"): (256, 256, 128, 2, 32),
+    (8, 1024, 1024, 1024, "float16"): (256, 256, 128, 2, 32),
+    (8, 1024, 1024, 1024, "bfloat16"): (256, 256, 128, 2, 32),
+    (8, 2048, 2048, 2048, "float16"): (256, 256, 128, 2, 32),
+    (8, 2048, 2048, 2048, "bfloat16"): (256, 256, 128, 2, 32),
+    (4, 4096, 4096, 4096, "bfloat16"): (256, 256, 128, 2, 32),
 }
 
 
@@ -215,9 +242,15 @@ class AscendBmmKernel(Kernel, BMMFwdInterface):
         self.n = n
         self.k = k
         self.dtype = dtype
+        if k == 0:
+            # An empty contraction produces zeros; no accumulator is initialized.
+            self._compiled_fn = None
+            return
         dtype_name = _dtype_str(dtype)
         selection = _ALIGNED_L1_SELECTIONS.get((batch, m, n, k, dtype_name))
-        if selection is None:
+        if (batch, m, n, k, dtype_name) == (8, 128, 128, 128, "float16"):
+            self._compiled_fn = _make_bmm_small_fp16_kernel()
+        elif selection is None:
             self._compiled_fn = _make_bmm_kernel(batch, m, n, k, dtype_name)
         else:
             block_m, block_n, block_k, num_stages, num_blocks = selection
@@ -226,7 +259,9 @@ class AscendBmmKernel(Kernel, BMMFwdInterface):
             )
 
     def forward(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        if self.k == 0:
+            return torch.zeros((self.batch, self.m, self.n), dtype=a.dtype, device=a.device)
         return self._compiled_fn(a, b)
 
 
-tileops.backend._registry.register_kernel_type("BmmFwdOp", "ascend", AscendBmmKernel)
+tileops.backend._registry.register_kernel_type('BMMFwdOp', "ascend", AscendBmmKernel)

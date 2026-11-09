@@ -509,6 +509,18 @@ def _norm_reference(name, inputs, p, native=False):
                 x, weight, bias, rm, rv, True, p["momentum"], eps, True
             )
             return out, save_mean, save_invstd, rm, rv
+        if rm is not None:
+            # Running statistics follow the original input dtype's update semantics.
+            # The copies above preserve the caller's inputs for benchmark reuse.
+            output = F.instance_norm(
+                x, rm, rv, weight, bias, p["use_input_stats"], p["momentum"], eps
+            )
+            if not native and p["use_input_stats"]:
+                # Keep the high-precision output oracle, independently of the updates.
+                output = F.instance_norm(
+                    wide(x), None, None, wide(weight), wide(bias), True, p["momentum"], eps
+                ).to(x.dtype)
+            return output, rm, rv
         return F.instance_norm(
             wide(x), rm, rv, wide(weight), wide(bias), p["use_input_stats"], p["momentum"], eps
         ).to(x.dtype)

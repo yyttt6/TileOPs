@@ -310,13 +310,13 @@ class AscendLogSumExpKernel(Kernel, LogSumExpFwdInterface):
             self.compiled, self.chunks = build(self.m, self.n, dtype, self.outer, self.inner)
             self.finish = build_finish(self.m, self.chunks, dtype)
 
-    def forward(self, x):
-        if tuple(x.shape) != self.call.shape or x.dtype != self.call.dtype:
+    def forward(self, input):
+        if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
         arg = (
-            x.reshape(self.outer, self.m, self.inner)
+            input.reshape(self.outer, self.m, self.inner)
             if self.edge
-            else rows_for_axes(x, self.call.axes)
+            else rows_for_axes(input, self.call.axes)
         )
         result = self.compiled(arg)
         if self.finish is not None:

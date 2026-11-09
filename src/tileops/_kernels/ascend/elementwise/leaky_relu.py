@@ -4,7 +4,7 @@
 Round 1 of ``docs/ascend950/dev_process.md``'s Ascend development loop for ``LeakyReluFwdOp``;
 see ``docs/ascend950/dev/LeakyReluFwdOp/round_1_schedule.md`` for the full design this file
 implements. Registers an additional implementation of ``LeakyReluFwdOp``'s own
-``LeakyReLUFwdInterface`` (``tileops._kernels.elementwise.call_spec.LeakyReLUFwdInterface`` --
+``LeakyReluFwdInterface`` (``tileops._kernels.elementwise.call_spec.LeakyReluFwdInterface`` --
 **not** the generic ``UnaryElementwiseFwdInterface`` most batch-1/2 unary ops use; schedule doc
 §2.1 flags this as the ``ReciprocalFwdOp`` trap class: the two interfaces' ``forward(self,
 input)`` signatures look identical, so getting this wrong raises ``"keys implement none of its
@@ -578,7 +578,7 @@ try:
         CUDA-locked ``ScalarParamUnaryKernel``/``UnaryKernel`` family, which imports
         ``tilelang.language`` (the CUDA dialect facade).
 
-        Subclasses ``LeakyReLUFwdInterface`` (``tileops._kernels.elementwise.call_spec``), **not**
+        Subclasses ``LeakyReluFwdInterface`` (``tileops._kernels.elementwise.call_spec``), **not**
         the generic ``UnaryElementwiseFwdInterface`` -- ``LeakyReluFwdOp`` declares the former as
         its own ``interfaces`` mapping (schedule doc §2.1); subclassing the generic interface
         here would make every ``LeakyReluFwdOp()`` construction raise ``"keys implement none of
@@ -605,7 +605,7 @@ try:
             result = self._compiled_fn(flat)
             return result.reshape(input.shape)
 
-    tileops.backend._registry.register_kernel_type("LeakyReluFwdOp", "ascend", AscendLeakyReluKernel)
+    tileops.backend._registry.register_kernel_type('LeakyReLUFwdOp', "ascend", AscendLeakyReluKernel)
 
 except ImportError:
     pass

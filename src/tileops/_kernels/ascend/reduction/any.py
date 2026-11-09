@@ -459,23 +459,23 @@ class AscendAnyKernel(Kernel, LogicalReduceFwdInterface):
         self.output_pitch = 32 if self.stream else 1
         self.finish = build_finish(self.m, self.chunks) if self.chunks > 1 else None
 
-    def forward(self, x):
-        if tuple(x.shape) != self.call.shape or x.dtype != self.call.dtype:
+    def forward(self, input):
+        if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
         # Conjugation only changes a sign; logical truth can read the physical values.
-        if x.is_conj():
-            x = x.conj()
-        if x.is_neg():
-            x = x.resolve_neg()
+        if input.is_conj():
+            input = input.conj()
+        if input.is_neg():
+            input = input.resolve_neg()
         if self.edge:
             arg = (
-                x.reshape(self.outer, self.m, self.inner)
+                input.reshape(self.outer, self.m, self.inner)
                 .view(self.view_dtype)
                 .reshape(self.outer, self.m, self.inner * self.words)
             )
         else:
             arg = (
-                rows_for_axes(x, self.call.axes)
+                rows_for_axes(input, self.call.axes)
                 .view(self.view_dtype)
                 .reshape(self.m, self.n * self.words)
             )

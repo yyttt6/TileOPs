@@ -321,6 +321,10 @@ class RoPENeoxPositionIdsFwdOp(Op):
         num_tokens, num_heads, head_dim = x.shape
         rotary_dim = head_dim if self.rotary_dim is None else self.rotary_dim
         cos, sin = self._get_cos_sin(rotary_dim, x.dtype, x.device)
+        # Preserve range failures when narrowing int64 positions: otherwise a
+        # multiple of 2**32 could wrap into the valid table range.
+        if positions.dtype == torch.int64:
+            positions = positions.clamp(min=-1, max=self.max_position)
         x, positions = x.contiguous(), positions.to(torch.int32).contiguous()
         kernel = self.kernel_for(
             "rope_neox_position_ids",
@@ -340,7 +344,7 @@ class RoPENeoxPositionIdsFwdOp(Op):
         # front of every call cost more device time than the rotation they guard.
         # It clamps its own table index, so this call read nothing out of bounds.
         if kernel.take_out_of_range():
-            raise ValueError("positions must be in [0, max_position)")
+            raise ValueError("positions (position_ids) must be in [0, max_position)")
         return output
 
 

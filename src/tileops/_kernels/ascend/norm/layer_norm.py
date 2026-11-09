@@ -111,22 +111,22 @@ class AscendLayerNormKernel(Kernel, LayerNormFwdInterface):
         if call.n <= 0:
             raise ValueError('LayerNorm width must be positive')
 
-    def forward(self, x, weight=None, bias=None):
+    def forward(self, input, weight=None, bias=None):
         n = self.call.n
-        if x.numel() == 0:
-            return torch.empty_like(x)
-        if x.numel() % n or x.dtype != self.call.dtype:
+        if input.numel() == 0:
+            return torch.empty_like(input)
+        if input.numel() % n or input.dtype != self.call.dtype:
             raise ValueError('Invalid LayerNorm input signature')
-        if weight is not None and (weight.numel() != n or weight.dtype != x.dtype):
+        if weight is not None and (weight.numel() != n or weight.dtype != input.dtype):
             raise ValueError('Invalid LayerNorm weight signature')
-        if bias is not None and (bias.numel() != n or bias.dtype != x.dtype):
+        if bias is not None and (bias.numel() != n or bias.dtype != input.dtype):
             raise ValueError('Invalid LayerNorm bias signature')
-        rows = x.reshape(-1, n)
+        rows = input.reshape(-1, n)
         # An unused input view avoids an allocation for the unweighted signature.
         w = rows[0] if weight is None else weight.reshape(n)
-        kernel = build(rows.shape[0], n, str(x.dtype).split('.')[-1], self.call.eps, weight is not None, bias is not None)
+        kernel = build(rows.shape[0], n, str(input.dtype).split('.')[-1], self.call.eps, weight is not None, bias is not None)
         b = rows[0] if bias is None else bias.reshape(n)
-        return kernel(rows, w, b).reshape(x.shape)
+        return kernel(rows, w, b).reshape(input.shape)
 
 
 register_kernel_type('LayerNormFwdOp', 'ascend', AscendLayerNormKernel)

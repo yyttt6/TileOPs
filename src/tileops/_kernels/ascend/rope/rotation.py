@@ -175,11 +175,11 @@ class AscendRoPEPositionsKernel(Kernel, RoPENeoxPositionIdsFwdInterface):
         )
         self._invalid = None
 
-    def forward(self, x, cos, sin, position_ids):
-        self._require_devices(x=x, cos=cos, sin=sin, position_ids=position_ids)
+    def forward(self, x, cos, sin, positions):
+        self._require_devices(x=x, cos=cos, sin=sin, position_ids=positions)
         if self._optimized is not None:
-            return self._optimized(x, cos, sin, position_ids)
-        result, self._invalid = self._run(x.view(-1), cos.view(-1), sin.view(-1), position_ids)
+            return self._optimized(x, cos, sin, positions)
+        result, self._invalid = self._run(x.view(-1), cos.view(-1), sin.view(-1), positions)
         return result.view_as(x)
 
     def take_out_of_range(self):

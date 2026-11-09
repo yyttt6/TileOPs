@@ -400,6 +400,6 @@ class AscendSeluKernel(Kernel, UnaryElementwiseFwdInterface):
 try:
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type("SeluFwdOp", "ascend", AscendSeluKernel)
+    register_kernel_type('SELUFwdOp', "ascend", AscendSeluKernel)
 except ImportError:
     pass

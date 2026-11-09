@@ -31,6 +31,10 @@ from tileops._kernels.convolution import (
     GroupConv2dKernel,
     GroupConv3dKernel,
 )
+from tileops._kernels.convolution.ascend_dispatch import (
+    Conv1dKernel, Conv1dPointwiseKernel, Conv1dUnitStrideKernel,
+    DepthwiseConv1dKernel, GroupConv1dKernel,
+)
 from tileops._kernels.kernel_base import Kernel, KernelInterface
 from tileops._ops.op_base import Op
 from tileops._perf.profile import tensor_core_roof

@@ -395,10 +395,10 @@ class AscendVarMeanKernel(Kernel, VarMeanFwdInterface):
             factory(*args, layout_outer=call.shape[0]) if self.direct_layout else factory(*args)
         )
 
-    def forward(self, x):
-        if tuple(x.shape) != self.call.shape or x.dtype != self.call.dtype:
+    def forward(self, input):
+        if tuple(input.shape) != self.call.shape or input.dtype != self.call.dtype:
             raise ValueError("Input signature changed")
-        result = self.compiled(x if self.direct_layout else rows_for_axes(x, self.call.axes))
+        result = self.compiled(input if self.direct_layout else rows_for_axes(input, self.call.axes))
         return tuple(
             restore_reduced(value, self.call.shape, self.call.axes, self.call.keepdim)
             for value in result

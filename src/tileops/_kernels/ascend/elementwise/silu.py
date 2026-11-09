@@ -177,7 +177,7 @@ if T is not None:
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
     @functools.lru_cache(maxsize=None)
-    def _build_decode_multicore(extent: int, dtype_str: str, num_cores: int):
+    def _build_decode_multicore(extent: int, dtype_str: str, num_cores: int, store_cache: int = 0):
         """Grid-of-``num_cores`` SiLU kernel for a small (decode-shaped) ``extent`` that
         divides evenly by ``num_cores``.
 
@@ -213,7 +213,7 @@ if T is not None:
                 begin = core_id * block
                 T.copy(X[begin : begin + block], x_tile)
                 _silu_simd(x_tile, y_tile, block, dtype_str)
-                T.copy(y_tile, Y[begin : begin + block])
+                T.copy(y_tile, Y[begin : begin + block], l2_cache_ctrl=store_cache)
 
         return tilelang.compile(main, target="ascend", out_idx=-1)
 
@@ -374,11 +374,14 @@ def _build_silu_kernel(n_total: int, dtype_str: str) -> _SiluRunner:
         return _build_with_tail(n_total, dtype_str)
     if n_total <= tile_elems:
         # Small tensors benefit from fewer active cores and whole vector tiles.
-        active_cores = min(_num_vector_cores(), max(1, (n_total + 2047) // 2048))
+        decode_bf16 = n_total == 14336 and dtype_str == "bfloat16"
+        active_cores = min(
+            _num_vector_cores(), 8 if decode_bf16 else max(1, (n_total + 2047) // 2048)
+        )
         num_cores = _choose_num_blocks(n_total // 64, active_cores)
         if num_cores > 1:
             return _SiluRunner(
-                _build_decode_multicore(n_total, dtype_str, num_cores), None, n_total
+                _build_decode_multicore(n_total, dtype_str, num_cores, 4 if decode_bf16 else 0), None, n_total
             )
         return _SiluRunner(_build_single_block(n_total, dtype_str), None, n_total)
 
@@ -472,6 +475,6 @@ class AscendSiluKernel(Kernel, UnaryElementwiseFwdInterface):
 try:
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type("SiluFwdOp", "ascend", AscendSiluKernel)
+    register_kernel_type('SiLUFwdOp', "ascend", AscendSiluKernel)
 except ImportError:
     pass

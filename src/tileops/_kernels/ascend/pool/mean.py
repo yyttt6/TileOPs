@@ -353,7 +353,7 @@ class AscendMeanPoolingFwdKernel(Kernel, MeanPoolingFwdInterface):
             self.config = _ragged_tail_aligned.configuration(_ragged_tail_aligned.SCALAR)
 
     def forward(
-        self, x: torch.Tensor, offsets: torch.Tensor, indices: torch.Tensor
+        self, x: torch.Tensor, cu_seqlens: torch.Tensor, chunk_indices: torch.Tensor
     ) -> torch.Tensor:
         c = self.call
         y = torch.empty(
@@ -367,18 +367,18 @@ class AscendMeanPoolingFwdKernel(Kernel, MeanPoolingFwdInterface):
             y3 = y.view(c.batch_size, c.chunks_per_batch, c.heads * c.dim)
             path = (
                 _ragged_tail_aligned.ALIGNED
-                if _ragged_tail_aligned.eligible_tensors(params, x3, offsets, indices, y3)
+                if _ragged_tail_aligned.eligible_tensors(params, x3, cu_seqlens, chunk_indices, y3)
                 else _ragged_tail_aligned.SCALAR
             )
             selected = self._ragged_tail_kernels[path]
             self.kernel, self.config = selected, _ragged_tail_aligned.configuration(path)
-            selected(x3, offsets, indices, y3)
+            selected(x3, cu_seqlens, chunk_indices, y3)
             return y
         if self.kernel is not None:
             self.kernel(
                 x.view(c.batch_size, c.seq_len, c.heads * c.dim),
-                offsets,
-                indices,
+                cu_seqlens,
+                chunk_indices,
                 y.view(c.batch_size, c.chunks_per_batch, c.heads * c.dim),
             )
         return y

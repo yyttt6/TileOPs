@@ -195,4 +195,4 @@ class AscendPreluKernel(Kernel, PReLUFwdInterface):
 
 
 if T is not None:
-    register_kernel_type("PreluFwdOp", "ascend", AscendPreluKernel)
+    register_kernel_type('PReLUFwdOp', "ascend", AscendPreluKernel)

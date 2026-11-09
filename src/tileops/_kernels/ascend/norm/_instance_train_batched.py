@@ -63,19 +63,9 @@ def build_batched(batch,channels,n,dtype,eps,momentum,weighted,biased):
                             accum[tx,1]=accum[tx,1]+accum[tx,2]
                             old_m=T.cast(T.cast(old_mean[(first+tx)%channels],dtype),'float32')
                             old_v=T.cast(T.cast(old_var[(first+tx)%channels],dtype),'float32')
-                            if dtype=='bfloat16':
-                                mom=T.float32(bf_momentum);previous=T.float32(bf_previous)
-                                mean=T.cast(T.cast(accum[tx,0],dtype),'float32')
-                                variance_sum=T.cast(T.cast(accum[tx,1],dtype),'float32')
-                                unbiased=T.cast(T.cast(variance_sum/T.float32(bf_divisor),dtype),'float32')
-                                mean_new=T.cast(T.cast(mom*mean,dtype),'float32')
-                                mean_old=T.cast(T.cast(previous*old_m,dtype),'float32')
-                                var_old=T.cast(T.cast(previous*old_v,dtype),'float32')
-                                update[tx,0]=T.cast(T.cast(mean_new+mean_old,dtype),'float32')
-                                update[tx,1]=T.cast(T.cast(mom*unbiased+var_old,dtype),'float32')
-                            else:
-                                update[tx,0]=T.cast(T.cast(momentum*accum[tx,0]+(1-momentum)*old_m,dtype),'float32')
-                                update[tx,1]=T.cast(T.cast(momentum*(accum[tx,1]/(n-1))+(1-momentum)*old_v,dtype),'float32')
+                            # NPU updates use FP32 arithmetic between dtype-boundary casts.
+                            update[tx,0]=T.cast(T.cast(momentum*accum[tx,0]+(1-momentum)*old_m,dtype),'float32')
+                            update[tx,1]=T.cast(T.cast(momentum*(accum[tx,1]/(n-1))+(1-momentum)*old_v,dtype),'float32')
                             accum[tx,1]=T.rsqrt(accum[tx,1]/n+eps)
                     T.copy(update[:rows,:2],U[first:first+rows,:2])
                     with T.SimtVF(threads=256):

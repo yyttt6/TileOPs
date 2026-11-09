@@ -198,7 +198,11 @@ def build(window, dtype, stages=1):
                                                     acc[0], S.vsel(values, zero, masks[kx]), full
                                                 )
                             if fixed:
-                                average = S.vmuls(acc[0], T.float32(1.0 / divisor), full)
+                                if dtype == "float32" and nd == 2:
+                                    denominator = S.vdup(T.float32(divisor), "float32", full)
+                                    average = S.vdiv(acc[0], denominator, full, precision="ftz_true")
+                                else:
+                                    average = S.vmuls(acc[0], T.float32(1.0 / divisor), full)
                             else:
                                 xstart = S.vadds(
                                     S.vmuls(lane, T.int32(sw), full), T.int32(-pw), full

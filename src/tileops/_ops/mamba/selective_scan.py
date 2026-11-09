@@ -12,8 +12,10 @@ import torch
 from tileops._kernels.kernel_base import Kernel, KernelInterface
 from tileops._kernels.mamba import (
     SelectiveScanCall,
-    SelectiveScanChunkKernel,
     SelectiveScanFwdInterface,
+)
+from tileops._kernels.mamba.selective_scan_dispatch import (
+    SelectiveScanChunkKernel,
     SelectiveScanStepKernel,
 )
 from tileops._ops.op_base import Op

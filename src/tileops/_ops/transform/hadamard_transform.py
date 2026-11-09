@@ -19,6 +19,10 @@ from tileops._kernels.transform import (
     HadamardTransformFwdInterface,
     HadamardWarpRowsKernel,
 )
+from tileops._kernels.transform.hadamard_dispatch import (
+    HadamardBaseExchangeKernel, HadamardExchangeKernel, HadamardMultiPassKernel,
+    HadamardSharedRowsKernel, HadamardWarpRowsKernel,
+)
 from tileops._ops.op_base import Op
 from tileops.backend import Target
 

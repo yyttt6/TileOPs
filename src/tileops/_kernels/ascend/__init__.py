@@ -3,6 +3,7 @@
 from tileops._kernels.ascend import (
     elementwise,
     gemm,
+    linear_attention,
     moe,
     norm,
     pool,
@@ -22,3 +23,7 @@ __all__ = [
     "rope",
     "sequence_modeling",
 ]
+
+from . import attention
+
+from . import mamba

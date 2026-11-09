@@ -208,18 +208,18 @@ if _ASCEND_IMPORT_ERROR is None:
             self._dtype_str = _TORCH_DTYPE_TO_TL[dtype]
             self.kernel = _build_silu_and_mul_kernel(m, n, self._dtype_str) if m and n else None
 
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
+        def forward(self, input: torch.Tensor) -> torch.Tensor:
             """Return ``silu(x[:, :n]) * x[:, n:]``; nothing is written in place."""
             if (
-                x.device.type != "npu"
-                or x.dtype != self.dtype
-                or tuple(x.shape) != (self.m, 2 * self.n)
+                input.device.type != "npu"
+                or input.dtype != self.dtype
+                or tuple(input.shape) != (self.m, 2 * self.n)
             ):
                 raise ValueError("SiluAndMul input differs from the compiled NPU signature")
             if not self.m or not self.n:
-                return torch.empty((self.m, self.n), dtype=self.dtype, device=x.device)
-            if not x.is_contiguous():
-                x = x.contiguous()
-            return self.kernel(x)
+                return torch.empty((self.m, self.n), dtype=self.dtype, device=input.device)
+            if not input.is_contiguous():
+                input = input.contiguous()
+            return self.kernel(input)
 
-    register_kernel_type("SiluAndMulFwdOp", "ascend", AscendSiluAndMulKernel)
+    register_kernel_type("SiLUAndMulFwdOp", "ascend", AscendSiluAndMulKernel)

@@ -135,4 +135,4 @@ class AscendReluKernel(Kernel, UnaryElementwiseFwdInterface):
         return self.compiled(flat).view(self.dtype).reshape(input.shape)
 
 
-tileops.backend._registry.register_kernel_type("ReluFwdOp", "ascend", AscendReluKernel)
+tileops.backend._registry.register_kernel_type('ReLUFwdOp', "ascend", AscendReluKernel)

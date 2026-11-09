@@ -475,7 +475,7 @@ class _AscendMaxPoolBase(Kernel):
             str(call.dtype).split(".")[-1],
             self.with_indices,
         )
-        self.config = {
+        config = {
             "protocol": "maximum-spatial-v1",
             "tile_outputs": 256,
             "tap_tile": 16,
@@ -483,7 +483,7 @@ class _AscendMaxPoolBase(Kernel):
             "spatial_candidate_plan": spatial,
         }
         if selected_dilated:
-            self.config.update(
+            config.update(
                 path="dilated1d_dma_simd",
                 row_tile=4,
                 outputs_per_tile=4092,
@@ -491,7 +491,7 @@ class _AscendMaxPoolBase(Kernel):
                 stages=1,
             )
         elif selected_alexnet:
-            self.config.update(
+            config.update(
                 path="alexnet_pairs",
                 stages=2,
                 active_lanes=54,
@@ -499,7 +499,7 @@ class _AscendMaxPoolBase(Kernel):
                 output_pair_dma_copies=14,
             )
         elif selected_c3d:
-            self.config.update(
+            config.update(
                 path="c3d_pool2_native4_indices" if self.with_indices else "c3d_pool2_pairs_values",
                 stages=2,
                 active_lanes=112 if self.with_indices else 56,
@@ -508,7 +508,7 @@ class _AscendMaxPoolBase(Kernel):
                 output_dma_copies=1,
             )
         elif selected_resnet:
-            self.config.update(
+            config.update(
                 path="resnet_separable_wh_values",
                 stages=2,
                 native_lanes=128,
@@ -516,7 +516,7 @@ class _AscendMaxPoolBase(Kernel):
                 explicit_ub_bytes=65024,
             )
         elif selected_medicalnet and not self.with_indices:
-            self.config.update(
+            config.update(
                 path="medicalnet_separable_ring_values",
                 stages=2,
                 input_planes_per_channel=32,
@@ -524,7 +524,7 @@ class _AscendMaxPoolBase(Kernel):
                 explicit_ub_bytes=137984,
             )
         elif selected_medicalnet:
-            self.config.update(
+            config.update(
                 path="medicalnet_separable_ring_indices",
                 stages=2,
                 input_planes_per_channel=32,
@@ -532,18 +532,19 @@ class _AscendMaxPoolBase(Kernel):
                 explicit_ub_bytes=189952,
             )
         elif selected_resnet_indices:
-            self.config.update(
+            config.update(
                 path="resnet_separable_wh_indices",
                 stages=2,
                 native_lanes=128,
                 output_pair_lanes=112,
             )
         elif selected_global128:
-            self.config.update(
+            config.update(
                 path="global128_native_guard256_l2keep_values",
                 l2_cache_ctrl=4,
                 **max_global_native_guard.CONFIGS["native_guard"],
             )
+        self.config = config
 
     def forward(self, x):
         if (

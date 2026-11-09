@@ -111,7 +111,7 @@ class FusedAddRMSNormPerTokenQuantFwdOp(Op):
         leading = input.shape[:-1]
         rows = input.reshape(-1, n).contiguous()
         if input.device.type == "npu":
-            ascend_call = FusedRMSQuantCall(
+            ascend_call = lambda: FusedRMSQuantCall(
                 device=input.device,
                 rows=rows.shape[0],
                 cols=n,
@@ -120,7 +120,7 @@ class FusedAddRMSNormPerTokenQuantFwdOp(Op):
                 eps=self.eps,
                 scale_ub=self.scale_ub,
             )
-            q, scale, residual_out = self.kernel_for("ascend_fused_rms_quant", lambda: ascend_call)(
+            q, scale, residual_out = self.kernel_for("ascend_fused_rms_quant", ascend_call)(
                 rows, residual.reshape(-1, n).contiguous(), weight.contiguous()
             )
             return q.reshape_as(input), scale.reshape(*leading, 1), residual_out.reshape_as(input)

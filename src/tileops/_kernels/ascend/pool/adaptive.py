@@ -58,6 +58,22 @@ def _extreme_rows(source, output, rows: int, cols: int, maximum: bool):
             T.simd.vsts(output[r], acc[0], one, "ONEPT_B32")
 
 
+@T.macro
+def _sum_rows(source, output, rows: int, cols: int):
+    """Store one scalar per row; generic reduction lowering pads row stores."""
+    with T.SimdVF():
+        full = T.simd.pset(32)
+        one = T.simd.pset(32, "PAT_VL1")
+        for r in T.serial(rows):
+            acc = T.simd.alloc_local((1,), "float32")
+            acc[0] = T.simd.vcadd(T.simd.vld(source[r, 0]), full)
+            for v in T.serial(1, cols // 64):
+                acc[0] = T.simd.vadd(
+                    acc[0], T.simd.vcadd(T.simd.vld(source[r, v * 64]), full), full
+                )
+            T.simd.vsts(output[r], acc[0], one, "ONEPT_B32")
+
+
 def _global_avg_simd_program(planes, spatial, dtype):
     """Small global bins: aligned DMA rows, one SIMD reduction per plane.
 
@@ -296,8 +312,7 @@ def adaptive_program(planes, h, w, oh, ow, dtype, maximum, with_indices):
                         if maximum:
                             _extreme_rows(work, reduced, rows, cols, True)
                         else:
-                            with T.SimdVF():
-                                T.reduce_sum(work, reduced, dim=1)
+                            _sum_rows(work, reduced, rows, cols)
                         if maximum:
                             with T.SimtVF(threads=256):
                                 for r, k in T.Parallel(rows, cols):

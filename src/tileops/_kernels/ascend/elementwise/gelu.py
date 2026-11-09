@@ -239,4 +239,4 @@ else:
             result = self.kernel(flat)
             return result.reshape(input.shape)
 
-    register_kernel_type("GeluFwdOp", "ascend", AscendGeluKernel)
+    register_kernel_type('GELUFwdOp', "ascend", AscendGeluKernel)
