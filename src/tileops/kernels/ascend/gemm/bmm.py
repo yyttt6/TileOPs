@@ -216,6 +216,15 @@ class AscendBmmKernel(Kernel, BmmFwdInterface):
         self.k = k
         self.dtype = dtype
         dtype_name = _dtype_str(dtype)
+        # An empty K reduction contracts nothing, so every product is the identity, zero. The
+        # K loop would run no iteration and never issue the ``T.gemm`` that clears the L0C
+        # accumulator, which would then be copied out uninitialised; neither the Cube's
+        # accumulator nor a UB tile can be zeroed here, since an L0C fill is not a supported
+        # scope and a UB fill of the storage dtype is rejected by the semantic check. The
+        # output is still non-empty, so the empty-call early exit does not cover this case.
+        if k == 0:
+            self._compiled_fn = None
+            return
         selection = _ALIGNED_L1_SELECTIONS.get((batch, m, n, k, dtype_name))
         if selection is None:
             self._compiled_fn = _make_bmm_kernel(batch, m, n, k, dtype_name)
@@ -226,6 +235,8 @@ class AscendBmmKernel(Kernel, BmmFwdInterface):
             )
 
     def forward(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        if self._compiled_fn is None:
+            return torch.zeros((self.batch, self.m, self.n), dtype=self.dtype, device=a.device)
         return self._compiled_fn(a, b)
 
 

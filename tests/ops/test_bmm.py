@@ -160,6 +160,22 @@ def test_bmm_k_not_multiple_of_16_raises() -> None:
 
 @pytest.mark.smoke
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float16])
+def test_bmm_empty_reduction_is_zero(dtype: torch.dtype) -> None:
+    """K=0 contracts nothing, so every product is zero while the output stays non-empty.
+
+    ``torch.bmm`` returns zeros for the same call. A K loop over an empty range issues no
+    multiply, so the accumulator is never written; the implementation must still return the
+    identity rather than whatever the accumulator held.
+    """
+    op = BmmFwdOp()
+    a = torch.randn(2, 16, 0, device=run_device(), dtype=dtype)
+    b = torch.randn(2, 0, 32, device=run_device(), dtype=dtype)
+    out = op(a, b)
+    torch.testing.assert_close(out, torch.zeros((2, 16, 32), dtype=dtype, device=run_device()))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float16])
 @pytest.mark.parametrize(
     "batch, m, n, k",
     [
