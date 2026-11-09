@@ -77,3 +77,10 @@ def test_legacy_merge_lse_is_natural_never_log2():
         'MergeAttentionStatesFwdOp', 'case', {**params, 'lse_base': 'e'})
     assert identity('MergeAttentionStatesFwdOp', 'case', params) != identity(
         'MergeAttentionStatesFwdOp', 'case', {**params, 'lse_base': '2'})
+
+
+def test_bmm_name_only_mapping_preserves_batch_and_layout():
+    p = {'a': [[8, 16, 32], 'float16'], 'b': [[8, 32, 64], 'float16']}
+    assert identity('BmmFwdOp', 'case', p) == identity('BMMFwdOp', 'case', p)
+    assert identity('BmmFwdOp', 'case', p) != identity(
+        'BMMFwdOp', 'case', {**p, 'b': [[8, 64, 32], 'float16']})
