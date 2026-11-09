@@ -22,18 +22,24 @@ def _dtype_str(dtype: torch.dtype) -> str:
     return str(dtype).split(".")[-1]
 
 
-@functools.lru_cache(maxsize=1)
-def _calibrated_num_cube_cores(fallback: int = 36) -> int:
-    """This SKU's real Cube core count, queried live (not hardcoded)."""
+@functools.lru_cache(maxsize=8)
+def _calibrated_num_cube_cores(device_index: int, fallback: int = 36) -> int:
+    """The Cube core count of ``device_index``, queried live (not hardcoded).
+
+    The device is part of the key: a heterogeneous host can report a different count per
+    card, and caching one card's answer for another would size the grid from the wrong
+    board. A failed query falls back rather than refusing the call, so the diagnostic is
+    lost; the fallback is the smallest 950 board these schedules were tuned on.
+    """
     try:
-        queried = get_num_cube_cores(device_id=0)
+        queried = get_num_cube_cores(device_id=device_index)
     except Exception:
         queried = None
     return int(queried) if queried else fallback
 
 
 @functools.lru_cache(maxsize=64)
-def _make_bmm_kernel(batch: int, m: int, n: int, k: int, dtype: str):
+def _make_bmm_kernel(batch: int, m: int, n: int, k: int, dtype: str, device_index: int):
     """Build (and cache) the persistent batched-GEMM kernel for one ``(batch, m, n, k,
     dtype)`` combination."""
     block_m, block_n, block_k = (_BLOCK_M, _BLOCK_N, _BLOCK_K)
@@ -41,7 +47,7 @@ def _make_bmm_kernel(batch: int, m: int, n: int, k: int, dtype: str):
     n_tiles = -(-n // block_n)
     num_k_blocks = -(-k // block_k)
     total_tiles = batch * m_tiles * n_tiles
-    num_blocks = min(_calibrated_num_cube_cores(), total_tiles)
+    num_blocks = min(_calibrated_num_cube_cores(device_index), total_tiles)
 
     @T.prim_func
     def main(
@@ -206,10 +212,22 @@ class AscendBmmKernel(Kernel, BmmFwdInterface):
 
     @classmethod
     def entry_for(cls, call: BmmCall) -> Entry:
-        return (call, lambda: cls(call.batch, call.m, call.n, call.k, call.dtype))
+        device_index = call.device.index if call.device is not None else None
+        return (
+            call,
+            lambda: cls(call.batch, call.m, call.n, call.k, call.dtype, device_index),
+        )
 
-    def __init__(self, batch: int, m: int, n: int, k: int, dtype: torch.dtype):
-        super().__init__()
+    def __init__(
+        self,
+        batch: int,
+        m: int,
+        n: int,
+        k: int,
+        dtype: torch.dtype,
+        device_index: Optional[int] = None,
+    ):
+        super().__init__(device_index=device_index)
         self.batch = batch
         self.m = m
         self.n = n
@@ -227,7 +245,9 @@ class AscendBmmKernel(Kernel, BmmFwdInterface):
             return
         selection = _ALIGNED_L1_SELECTIONS.get((batch, m, n, k, dtype_name))
         if selection is None:
-            self._compiled_fn = _make_bmm_kernel(batch, m, n, k, dtype_name)
+            self._compiled_fn = _make_bmm_kernel(
+                batch, m, n, k, dtype_name, device_index or 0
+            )
         else:
             block_m, block_n, block_k, num_stages, num_blocks = selection
             self._compiled_fn = _make_bmm_aligned_l1_kernel(
