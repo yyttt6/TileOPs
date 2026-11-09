@@ -4,6 +4,8 @@ import pytest
 
 from scripts.ci.baseline_contracts import comparison_identity as identity
 
+pytestmark = pytest.mark.smoke
+
 
 def test_gelu_merge_keeps_modes_distinct_and_preserves_inputs():
     old = {'x': [[2048, 28672], 'float16'], 'output': [[2048, 14336], 'float16']}

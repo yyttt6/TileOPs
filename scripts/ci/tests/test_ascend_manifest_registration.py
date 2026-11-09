@@ -1,8 +1,13 @@
 """Catch stale manifest names before an otherwise green CPU preflight."""
+
 import ast
 from pathlib import Path
 
+import pytest
+
 from tileops.manifest import load_manifest
+
+pytestmark = pytest.mark.smoke
 
 
 def test_literal_ascend_registrations_name_current_manifest_entries():

@@ -46,6 +46,9 @@ def execute(
     return MODULE.measure_and_verify(case, impl, measure, expected_calls=expected_calls)
 
 
+pytestmark = pytest.mark.smoke
+
+
 def test_only_final_timed_output_checked_without_extra_call():
     calls = []
     references = []

@@ -1,4 +1,9 @@
+
+import pytest
+
 from scripts.ci.nightly_device import registered_ascend_ops
+
+pytestmark = pytest.mark.smoke
 
 
 def test_multiple_interfaces_are_discovered_once_without_default_key():
