@@ -376,5 +376,5 @@ class AscendGroupedGEMMKernel(Kernel, GroupedGEMMFwdInterface):
 
 
 tileops.backend._registry.register_kernel_type(
-    "GroupedGemmFwdOp", "ascend", AscendGroupedGEMMKernel
+    "GroupedGEMMFwdOp", "ascend", AscendGroupedGEMMKernel
 )

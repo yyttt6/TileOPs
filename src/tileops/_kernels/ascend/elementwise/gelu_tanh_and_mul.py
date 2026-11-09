@@ -19,7 +19,7 @@ from typing import ClassVar
 import torch
 
 from tileops._kernels.constants import GELU_TANH_COEFF, SQRT_2_OVER_PI
-from tileops._kernels.elementwise.call_spec import FusedGatedCall, FusedGatedFwdInterface
+from tileops._kernels.elementwise.call_spec import FusedGatedFwdInterface, GELUAndMulCall
 from tileops._kernels.kernel_base import Entry, Kernel
 
 try:
@@ -201,7 +201,13 @@ if _ASCEND_AVAILABLE:
         # supported_archs left at the Kernel default (None): no CUDA arch check applies.
 
         @classmethod
-        def entry_for(cls, call: FusedGatedCall) -> Entry:
+        def refusal(cls, call: GELUAndMulCall) -> str | None:
+            if call.approximate != "tanh":
+                return f"requires approximate='tanh', got {call.approximate!r}"
+            return super().refusal(call)
+
+        @classmethod
+        def entry_for(cls, call: GELUAndMulCall) -> Entry:
             return call, lambda: cls(call.m, call.n, call.dtype)
 
         def __init__(self, m: int, n: int, dtype: torch.dtype):
@@ -225,4 +231,4 @@ if _ASCEND_AVAILABLE:
 
     from tileops.backend._registry import register_kernel_type
 
-    register_kernel_type("GeluTanhAndMulFwdOp", "ascend", AscendGELUTanhAndMulKernel)
+    register_kernel_type("GELUAndMulFwdOp", "ascend_tanh", AscendGELUTanhAndMulKernel)

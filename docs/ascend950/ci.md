@@ -44,3 +44,20 @@ reviewed changes and preserve original authorship. Official nightly checks out
 `ascend950-v0.1.0`; its local dispatcher runs at 02:00 Asia/Shanghai.
 Measurements use the existing ARM64 toolchain and host NPU guard. Old-contract
 measurements remain historical evidence and are not relabelled as v0.1.0 results.
+
+### v0.1.0 registration and baseline identity checks
+
+CPU preflight checks every literal Ascend registration against the current manifest.
+The nightly controller also rejects unmapped registrations before selecting all
+operators, so a stale public name cannot silently disappear from coverage.
+GELUAndMul selects separate erf/tanh implementations by its `approximate` call field.
+Dropout passes the seed and offset at launch and uses the input device's default
+generator; changing the mask does not require recompiling a kernel.
+
+Baseline comparisons admit only the explicit metadata mappings in
+`scripts/ci/baseline_contracts.py`: GEMM, GroupedGEMM, FP8 token-group quantization,
+and the two former fused GELU names. Shapes, dtypes, transpose flags, and GELU mode
+must still match exactly. Original measurement IDs, protocols and latencies are
+preserved. This is not a general case-name or parameter similarity matcher.
+New nightly artifacts record `contract_identity_version=v010-reviewed-aliases-v1`;
+older sealed artifacts are validated with their original matching rules.

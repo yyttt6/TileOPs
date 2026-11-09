@@ -4,11 +4,16 @@ import importlib.util
 import subprocess
 from pathlib import Path
 
+import pytest
+
 SPEC = importlib.util.spec_from_file_location(
     "pr_perf", Path(__file__).parents[1] / "pr_performance.py"
 )
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+
+
+pytestmark = pytest.mark.smoke
 
 
 def test_changed_kernel_and_helper(tmp_path):

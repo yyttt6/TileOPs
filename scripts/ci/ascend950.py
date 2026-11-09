@@ -47,6 +47,7 @@ def main():
                         "pytest",
                         "-q",
                         "--tileops-device=cpu",
+                        "scripts/ci/tests",
                         "tests/test_validate_manifest.py",
                         "tests/test_check_bench_coverage.py",
                         "tests/test_target_conformance.py",

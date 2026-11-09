@@ -72,7 +72,8 @@ if T is not None:
         y_ub,
         n: int,
         threads: int,
-        seed: int,
+        seed,
+        offset,
         p: float,
         scale: float,
         step,
@@ -97,7 +98,7 @@ if T is not None:
             tx = T.get_thread_binding()
             # Globally unique per (iteration, core, lane): see module docstring §3.3.
             seq = (step * num_blocks + bx) * threads + tx
-            T.rng_init(seed, seq=seq, off=0)
+            T.rng_init(seed, seq=seq, off=offset)
             for i in T.Parallel(n):
                 r = T.rng_rand_float(dist="uniform")
                 keep = r >= T.cast(p, "float32")
@@ -112,7 +113,6 @@ if T is not None:
         n_total: int,
         dtype_str: str,
         p: float,
-        seed: int,
         num_blocks: int,
         tile: int,
         num_stages: int,
@@ -139,7 +139,12 @@ if T is not None:
         threads = _THREADS_BY_DTYPE[dtype_str]
 
         @T.prim_func
-        def main(X: T.Tensor((n_total,), dtype_str), Y: T.Tensor((n_total,), dtype_str)):
+        def main(
+            X: T.Tensor((n_total,), dtype_str),
+            Y: T.Tensor((n_total,), dtype_str),
+            seed: T.int64,
+            offset: T.int64,
+        ):
             with T.Kernel(num_blocks) as bx:
                 x_ub = T.alloc_shared((tile,), dtype_str)
                 y_ub = T.alloc_shared((tile,), dtype_str)
@@ -148,14 +153,14 @@ if T is not None:
                     begin = (step * num_blocks + bx) * tile
                     T.copy(X[begin : begin + tile], x_ub)
                     _dropout_iter_body(
-                        x_ub, y_ub, tile, threads, seed, p, scale, step, num_blocks, bx
+                        x_ub, y_ub, tile, threads, seed, offset, p, scale, step, num_blocks, bx
                     )
                     T.copy(y_ub, Y[begin : begin + tile])
 
-        return tilelang.compile(main, target="ascend", out_idx=-1)
+        return tilelang.compile(main, target="ascend", out_idx=1)
 
     @functools.lru_cache(maxsize=64)
-    def _build_bounded_tail(n_total: int, dtype_str: str, p: float, seed: int, tile: int):
+    def _build_bounded_tail(n_total: int, dtype_str: str, p: float, tile: int):
         """Parallel full tiles and a padded UB tail with disjoint RNG subsequences."""
         scale = 1.0 / (1.0 - p) if p < 1.0 else 0.0
         stages = _NUM_STAGES
@@ -169,7 +174,12 @@ if T is not None:
         tail_step = (full * threads + tail_threads - 1) // tail_threads
 
         @T.prim_func
-        def main(X: T.Tensor((n_total,), dtype_str), Y: T.Tensor((n_total,), dtype_str)):
+        def main(
+            X: T.Tensor((n_total,), dtype_str),
+            Y: T.Tensor((n_total,), dtype_str),
+            seed: T.int64,
+            offset: T.int64,
+        ):
             with T.Kernel(grid) as bx:
                 if full:
                     x = T.alloc_shared((tile,), dtype_str)
@@ -180,7 +190,7 @@ if T is not None:
                         if block < full:
                             begin = block * tile
                             T.copy(X[begin : begin + tile], x)
-                            _dropout_iter_body(x, y, tile, threads, seed, p, scale, step, grid, bx)
+                            _dropout_iter_body(x, y, tile, threads, seed, offset, p, scale, step, grid, bx)
                             T.copy(y, Y[begin : begin + tile])
                 if tail:  # noqa: SIM102 - preserve validated TileLang DSL structure
                     if bx == 0:
@@ -188,26 +198,26 @@ if T is not None:
                         yt = T.alloc_shared((padded,), dtype_str)
                         T.copy(X[full * tile : n_total], xt[:tail])
                         _dropout_iter_body(
-                            xt, yt, padded, tail_threads, seed, p, scale, tail_step, 1, 0
+                            xt, yt, padded, tail_threads, seed, offset, p, scale, tail_step, 1, 0
                         )
                         T.copy(yt[:tail], Y[full * tile : n_total])
 
-        return tilelang.compile(main, target="ascend", out_idx=-1)
+        return tilelang.compile(main, target="ascend", out_idx=1)
 
     @functools.lru_cache(maxsize=64)
-    def _make_dropout_kernel(n_total: int, dtype_str: str, p: float, seed: int):
+    def _make_dropout_kernel(n_total: int, dtype_str: str, p: float):
         """Pick the persistent-grid or bounded-tail tiling for ``n_total`` elements.
 
-        Cached on ``(n_total, dtype_str, p, seed)``, not just ``(n_total, dtype_str)`` like
-        ``GeluFwdOp``/``ReluFwdOp``'s builders: ``p`` and ``seed`` are baked into the compiled
+        Cached on ``(n_total, dtype_str, p)``, not just ``(n_total, dtype_str)`` like
+        ``GeluFwdOp``/``ReluFwdOp``'s builders: ``p`` is baked into the compiled
         program as Python-level constants (schedule §3.3), the same caching granularity the
         in-tree CUDA ``_make_dropout_kernel`` (``kernels/elementwise/dropout.py``) already uses.
         """
         tile = _TILE_BY_DTYPE[dtype_str]
         block_span = _NUM_BLOCKS * tile
         if n_total % block_span == 0:
-            return _build_persistent(n_total, dtype_str, p, seed, _NUM_BLOCKS, tile, _NUM_STAGES)
-        return _build_bounded_tail(n_total, dtype_str, p, seed, tile)
+            return _build_persistent(n_total, dtype_str, p, _NUM_BLOCKS, tile, _NUM_STAGES)
+        return _build_bounded_tail(n_total, dtype_str, p, tile)
 
 
 class AscendDropoutKernel(Kernel, DropoutFwdInterface):
@@ -228,10 +238,10 @@ class AscendDropoutKernel(Kernel, DropoutFwdInterface):
 
     @classmethod
     def entry_for(cls, call: DropoutCall) -> Entry:
-        return call, lambda: cls(call.count, call.dtype, call.p, call.seed)
+        return call, lambda: cls(call.count, call.dtype, call.p)
 
     def __init__(
-        self, n_total: int, dtype: torch.dtype, p: float, seed: int, config: Optional[dict] = None
+        self, n_total: int, dtype: torch.dtype, p: float, config: Optional[dict] = None
     ) -> None:
         if T is None:
             raise ImportError(
@@ -248,12 +258,11 @@ class AscendDropoutKernel(Kernel, DropoutFwdInterface):
         self.n_total = n_total
         self.dtype = dtype
         self.p = p
-        self.seed = seed
         self._compiled_fn = (
-            _make_dropout_kernel(n_total, self.dtype_to_str(dtype), p, seed) if n_total else None
+            _make_dropout_kernel(n_total, self.dtype_to_str(dtype), p) if n_total else None
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, seed: int, offset: int) -> torch.Tensor:
         """Run inverted dropout on the flat ``(call.count,)`` input ``x``; see
         ``DropoutFwdInterface.forward`` for the exact contract."""
         if x.device.type != "npu":
@@ -265,7 +274,7 @@ class AscendDropoutKernel(Kernel, DropoutFwdInterface):
             raise ValueError("Input does not match compiled dropout signature")
         if not self.n_total:
             return torch.empty_like(x)
-        return self._compiled_fn(x.contiguous().reshape(-1))
+        return self._compiled_fn(x.contiguous().reshape(-1), seed, offset)
 
 
 if T is not None:
