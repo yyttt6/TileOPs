@@ -13,6 +13,7 @@ from tileops.backend import Target
 from tileops.kernels.kernel_base import Kernel, KernelInterface
 from tileops.kernels.norm import FusedQKNormRoPEKernel
 from tileops.kernels.norm.call_spec import FusedQKNormRoPECall, FusedQKNormRoPEFwdInterface
+from tileops.kernels.norm.fused_extended_call_spec import QKNormRoPECall, QKNormRoPEInterface
 from tileops.ops.op_base import Op
 
 __all__ = ["FusedQKNormRoPEFwdOp"]
@@ -43,7 +44,8 @@ class FusedQKNormRoPEFwdOp(Op):
         "fused_qk_norm_rope": FusedQKNormRoPEKernel
     }
     interfaces: ClassVar[Mapping[str, type[KernelInterface]]] = {
-        "fused_qk_norm_rope": FusedQKNormRoPEFwdInterface
+        "ascend_qk_norm_rope": QKNormRoPEInterface,
+        "fused_qk_norm_rope": FusedQKNormRoPEFwdInterface,
     }
 
     def __init__(
@@ -94,6 +96,31 @@ class FusedQKNormRoPEFwdOp(Op):
         Returns:
             None; ``qkv`` is mutated and no other tensor is touched.
         """
+        if qkv.device.type == "npu":
+            ascend_call = QKNormRoPECall(
+                device=qkv.device,
+                tokens=qkv.shape[0],
+                heads=self.num_heads,
+                kv_heads=self.num_kv_heads,
+                dim=q_weight.numel(),
+                cache_rows=cos_sin_cache.shape[0],
+                rotary_dim=cos_sin_cache.shape[1],
+                dtype=qkv.dtype,
+                cache_dtype=cos_sin_cache.dtype,
+                eps=self.eps,
+                layout=self.rope_layout,
+            )
+            contiguous = qkv.contiguous()
+            self.kernel_for("ascend_qk_norm_rope", ascend_call)(
+                contiguous,
+                q_weight.contiguous(),
+                k_weight.contiguous(),
+                cos_sin_cache.contiguous(),
+                positions.contiguous(),
+            )
+            if contiguous is not qkv:
+                qkv.copy_(contiguous)
+            return None
         call = FusedQKNormRoPECall(
             heads=self.num_heads,
             kv_heads=self.num_kv_heads,

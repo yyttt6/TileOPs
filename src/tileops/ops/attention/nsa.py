@@ -71,6 +71,27 @@ class NSATopKVarlenFwdOp(Op):
 
         super().__init__(target=target)
 
+    def _writes_no_elements(self, call: object) -> bool:
+        """Enforce the Ascend domain before the shared empty-output shortcut."""
+        empty = super()._writes_no_elements(call)
+        if empty and call.device.type == "npu":
+            indices = call.indices
+            request = NSACall(
+                batch=indices["N"],
+                c_seq_len=indices["T_q"],
+                heads=indices["H"],
+                heads_kv=indices["H_kv"],
+                dim=indices["D"],
+                chunk_num=indices["C"],
+                selected_blocks=self.selected_block_num,
+                block_size=self.bs,
+                scale=self.scale,
+                dtype=getattr(torch, indices["T"]),
+                device=call.device,
+            )
+            self.key_for("nsa_topk_varlen_kernel", request)
+        return empty
+
     def roofline_data_terms(self) -> "dict[str, int]":
         """The (token, chunk) pairs this call's request lengths make it score."""
         from tileops.perf.formulas import nsa_topk_scored_pairs
@@ -129,6 +150,11 @@ class NSAVarlenFwdOp(Op):
     A causal token sees the keys of its selected blocks up to its own position, a
     non-causal one up to the end of its sequence; a block starting past that bound
     contributes nothing, and a token no block gives a key outputs zeros.
+
+    On Ascend, only the four declared workload configurations are supported;
+    shape, dtype, block size, causal mode and scale select the specialization.
+    Request offsets and selected-block metadata remain dynamic. Other NPU call
+    configurations are rejected before empty-output handling.
     """
 
     kernel_types: ClassVar[Mapping[str, type[Kernel]]] = {
@@ -161,6 +187,27 @@ class NSAVarlenFwdOp(Op):
         self.block_size = block_size
 
         super().__init__(target=target)
+
+    def _writes_no_elements(self, call: object) -> bool:
+        """Enforce the Ascend domain before the shared empty-output shortcut."""
+        empty = super()._writes_no_elements(call)
+        if empty and call.device.type == "npu":
+            indices = call.indices
+            request = NSACall(
+                batch=indices["N"],
+                c_seq_len=indices["T_q"],
+                heads=indices["H"],
+                heads_kv=indices["H_kv"],
+                dim=indices["D"],
+                selected_blocks=indices["SEL"],
+                block_size=self.block_size,
+                scale=self.scale,
+                is_causal=self.is_causal,
+                dtype=getattr(torch, indices["T"]),
+                device=call.device,
+            )
+            self.key_for("nsa_fwd_varlen_kernel", request)
+        return empty
 
     def roofline_data_terms(self) -> "dict[str, int]":
         """The key rows this call's selection scores and the distinct rows it reads."""
@@ -252,6 +299,27 @@ class NSACompressedVarlenFwdOp(Op):
         self.bs = bs
 
         super().__init__(target=target)
+
+    def _writes_no_elements(self, call: object) -> bool:
+        """Enforce the Ascend domain before the shared empty-output shortcut."""
+        empty = super()._writes_no_elements(call)
+        if empty and call.device.type == "npu":
+            indices = call.indices
+            request = NSACall(
+                batch=indices["N"],
+                c_seq_len=indices["T_q"],
+                heads=indices["H"],
+                heads_kv=indices["H_kv"],
+                dim=indices["DK"],
+                dim_v=indices["DV"],
+                chunk_num=indices["C"],
+                block_size=self.bs,
+                scale=self.scale,
+                dtype=getattr(torch, indices["T"]),
+                device=call.device,
+            )
+            self.key_for("nsa_compressed_fwd_varlen_kernel", request)
+        return empty
 
     def roofline_data_terms(self) -> "dict[str, int]":
         """The (token, chunk) pairs this call's request lengths make it score."""

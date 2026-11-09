@@ -28,6 +28,18 @@ def canonical_contract(value):
     return value
 
 
+def matching_baselines(baseline, op, case, params):
+    """Match a saved definition, including preserved pre-migration contracts."""
+    matches = [b for b in baseline['rows'] + baseline.get('historical_rows', [])
+               if b['op'] == op and b['case'] == case
+               and canonical_contract(b['workload']['params']) == canonical_contract(params)]
+    # Current rows precede history; never compare two versions of the same provider.
+    providers = {}
+    for row in matches:
+        providers.setdefault(row['library'], row)
+    return list(providers.values())
+
+
 def select(root, base):
     changed = subprocess.check_output(
         ["git", "diff", "--name-only", base, "HEAD"], cwd=root, text=True
@@ -102,6 +114,20 @@ def select(root, base):
     return dict(changed=changed, operators=sorted(selected), reasons=reasons)
 
 
+def affected_composites(selected, registered):
+    """Retest supported composites when any of their transitive delegates changes."""
+    affected = set(selected)
+    while True:
+        added = {
+            name
+            for name, children in registered.get("delegates", {}).items()
+            if set(children) & affected
+        }
+        if added <= affected:
+            return sorted(affected & set(registered["operators"]))
+        affected.update(added)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--base", required=True)
@@ -147,7 +173,7 @@ def main():
 
     assert guarded("__list__", out / "registered.json") == 0
     registered = json.loads((out / "registered.json").read_text())
-    ops = sorted(set(plan["operators"]) & set(registered["operators"]))
+    ops = affected_composites(plan["operators"], registered)
     assert ops, "Changed operators have no registered Ascend implementation"
     plan["operators"] = ops
     save("selection.json", plan)
@@ -210,13 +236,7 @@ def main():
                     c["result"]["latency_ms"],
                     rel_tol=1e-10,
                 )
-            matches = [
-                b
-                for b in baseline["rows"]
-                if b["op"] == op
-                and b["case"] == row["case_id"]
-                and canonical_contract(b["workload"]["params"]) == canonical_contract(row["params"])
-            ]
+            matches = matching_baselines(baseline, op, row['case_id'], row['params'])
             us = row["measurement"]["latency_ms"] * 1000
             rows.append(
                 dict(

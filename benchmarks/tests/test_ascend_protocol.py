@@ -190,3 +190,40 @@ def test_source_fingerprint_includes_native_code(monkeypatch, tmp_path):
     assert "src/tileops/csrc/kernel.h" in before
     header.write_text("void kernel(int);\n")
     assert before != runner.source_fingerprint()
+
+
+def test_composite_coverage_requires_every_delegate():
+    from benchmarks.ascend.coverage import include_composites
+
+    delegates = {
+        "ParentOp": ["FirstOp", "SecondOp"],
+        "GrandparentOp": ["ParentOp"],
+        "CycleAOp": ["CycleBOp"],
+        "CycleBOp": ["CycleAOp"],
+        "EmptyOp": [],
+    }
+    assert include_composites({"FirstOp"}, delegates) == {"FirstOp"}
+    assert include_composites({"FirstOp", "SecondOp"}, delegates) == {
+        "FirstOp",
+        "SecondOp",
+        "ParentOp",
+        "GrandparentOp",
+    }
+
+
+def test_composite_discovery_keeps_named_ascend_variants(monkeypatch):
+    from benchmarks.ascend.coverage import registered_coverage
+    from tileops import manifest
+    from tileops.backend import registry
+
+    monkeypatch.setattr(manifest, "load_manifest", lambda: {})
+    monkeypatch.setattr(
+        registry,
+        "REGISTERED_KERNEL_TYPES",
+        {
+            "NamedOp": {"ascend_train": object(), "ascend_infer": object()},
+            "DefaultOp": {"ascend": object()},
+            "OtherOp": {"cuda": object(), "not_ascend": object()},
+        },
+    )
+    assert registered_coverage()["operators"] == ["DefaultOp", "NamedOp"]
