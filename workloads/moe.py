@@ -1005,7 +1005,7 @@ class SharedExpertMLPWorkload(CallWorkload):
     def ref_program(
         self, hidden_states: torch.Tensor, w_gate_up: torch.Tensor, w_down: torch.Tensor
     ) -> torch.Tensor:
-        """``down(silu(gate) * up)`` in fp32, cast to the hidden dtype."""
+        """FP32 projections with input-dtype activation rounding before down."""
         return ref_shared_expert(hidden_states, w_gate_up, w_down)
 
     def verification(self, *inputs):
@@ -1013,8 +1013,11 @@ class SharedExpertMLPWorkload(CallWorkload):
 
 
 def ref_shared_expert(hidden, gate_up, down):
-    """Shared expert MLP in FP32, narrowed once to the token dtype."""
+    """Shared expert MLP with the interface's input-dtype activation boundary."""
     act = gated_activation(hidden.float() @ gate_up.float().T, "silu_and_mul")
+    # Both standalone and composite shared experts round the activation before
+    # down. A final-only cast loses this boundary, notably for FP16 subnormals.
+    act = act.to(hidden.dtype).float()
     return (act @ down.float().T).to(hidden.dtype)
 
 
