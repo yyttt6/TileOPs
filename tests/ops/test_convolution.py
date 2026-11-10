@@ -1243,3 +1243,243 @@ def test_conv1d_graph_reads_updated_inference_weights() -> None:
         inputs[1].mul_(0.5)
         graph.replay()
         workload.check(op, *inputs, runs=lambda *args: output)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    "op_cls, reference, rank",
+    [
+        (Conv1dFwdOp, F.conv1d, 1),
+        (Conv2dFwdOp, F.conv2d, 2),
+        (Conv3dFwdOp, F.conv3d, 3),
+    ],
+    ids=["conv1d", "conv2d", "conv3d"],
+)
+@pytest.mark.parametrize("nonfinite", [float("nan"), float("inf")], ids=["nan", "inf"])
+@pytest.mark.parametrize("use_bias", [False, True], ids=["no-bias", "bias"])
+@pytest.mark.parametrize("size, padding", [(5, 1), (8, 0)], ids=["padded", "valid"])
+def test_groups_do_not_mix_nonfinite_values(
+    op_cls,
+    reference,
+    rank: int,
+    nonfinite: float,
+    use_bias: bool,
+    size: int,
+    padding: int,
+) -> None:
+    x = torch.ones((1, 4, *((size,) * rank)), device=run_device(), dtype=torch.float16)
+    x[:, 0] = nonfinite
+    weight = torch.ones((8, 2, *((3,) * rank)), device=run_device(), dtype=torch.float16)
+    bias = torch.ones(8, device=run_device(), dtype=torch.float16) if use_bias else None
+    actual = op_cls(groups=2, padding=padding)(x, weight, bias)
+    # The finite group's answer is independent of all values in the first group.
+    expected = reference(
+        x[:, 2:].contiguous(),
+        weight[4:].contiguous(),
+        bias=bias[4:] if bias is not None else None,
+        padding=padding,
+    )
+    torch.testing.assert_close(actual[:, 4:], expected, rtol=0, atol=0)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_long_window_grouped_channel_tails_read_updated_weights(dtype) -> None:
+    """Grouped channel tails and live weights remain correct across repeated calls."""
+    op = Conv1dFwdOp(padding=3, dilation=2, groups=2)
+    x = torch.randn(1, 130, 37, device=run_device(), dtype=dtype)
+    weight = torch.randn(258, 65, 10, device=run_device(), dtype=dtype)
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight)
+        ref = F.conv1d(x, weight, padding=3, dilation=2, groups=2)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("channels", [(64, 128), (256, 80)])
+def test_grouped_pointwise_bias_with_spatial_and_channel_tails(dtype, channels) -> None:
+    """Biased grouped pointwise convolution handles partial spatial and channel tiles."""
+    ci, co = channels
+    op = Conv2dFwdOp(groups=2)
+    x = torch.randn(1, ci * 2, 23, 23, device=run_device(), dtype=dtype)
+    weight = torch.randn(co * 2, ci, 1, 1, device=run_device(), dtype=dtype)
+    bias = torch.randn(co * 2, device=run_device(), dtype=dtype)
+    out = op(x, weight, bias)
+    ref = F.conv2d(x, weight, bias, groups=2)
+    compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_long_window_grouped_bias_matches_torch(dtype) -> None:
+    op = Conv1dFwdOp(padding=3, dilation=2, groups=2)
+    x = torch.randn(1, 128, 37, device=run_device(), dtype=dtype)
+    weight = torch.randn(256, 64, 10, device=run_device(), dtype=dtype)
+    bias = torch.randn(256, device=run_device(), dtype=dtype)
+    out = op(x, weight, bias)
+    ref = F.conv1d(x, weight, bias, padding=3, dilation=2, groups=2)
+    compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+@pytest.mark.parametrize("channels", [(16, 32), (64, 128)])
+def test_small_channel_five_by_five_spatial_tails(dtype, use_bias, channels) -> None:
+    op = Conv2dFwdOp(padding=2)
+    ci, co = channels
+    x = torch.randn(2, ci, 9, 11, device=run_device(), dtype=dtype)
+    weight = torch.randn(co, ci, 5, 5, device=run_device(), dtype=dtype)
+    bias = torch.randn(co, device=run_device(), dtype=dtype) if use_bias else None
+    out = op(x, weight, bias)
+    ref = F.conv2d(x, weight, bias, padding=2)
+    compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+def test_large_spatial_convolution_tails(dtype, use_bias) -> None:
+    op = Conv2dFwdOp(padding=1)
+    x = torch.randn(1, 128, 92, 90, device=run_device(), dtype=dtype)
+    weight = torch.randn(256, 128, 3, 3, device=run_device(), dtype=dtype)
+    bias = torch.randn(256, device=run_device(), dtype=dtype) if use_bias else None
+    out = op(x, weight, bias)
+    ref = F.conv2d(x, weight, bias, padding=1)
+    compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+@pytest.mark.parametrize("channels", [(64, 128), (128, 256)])
+def test_volume_stride_two_channel_and_spatial_tails(dtype, use_bias, channels) -> None:
+    ci, co = channels
+    op = Conv3dFwdOp(stride=2, padding=1)
+    x = torch.randn(1, ci, 5, 13, 15, device=run_device(), dtype=dtype)
+    weight = torch.randn(co, ci, 3, 3, 3, device=run_device(), dtype=dtype)
+    bias = torch.randn(co, device=run_device(), dtype=dtype) if use_bias else None
+    out = op(x, weight, bias)
+    ref = F.conv3d(x, weight, bias, stride=2, padding=1)
+    compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+def test_resident_feature_spatial_tails(dtype, use_bias) -> None:
+    """Fused paths handle partial spatial tiles and consume updated weights."""
+    op = Conv2dFwdOp(padding=1)
+    x = torch.randn(1, 64, 33, 35, device=run_device(), dtype=dtype)
+    weight = torch.randn(64, 64, 3, 3, device=run_device(), dtype=dtype)
+    bias = torch.randn(64, device=run_device(), dtype=dtype) if use_bias else None
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight, bias)
+        ref = F.conv2d(x, weight, bias, padding=1)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+def test_fused_short_window_spatial_tails(dtype, use_bias) -> None:
+    """Fused paths handle partial spatial tiles and consume updated weights."""
+    op = Conv1dFwdOp(padding=0)
+    x = torch.randn(1, 80, 513, device=run_device(), dtype=dtype)
+    weight = torch.randn(1280, 80, 3, device=run_device(), dtype=dtype)
+    bias = torch.randn(1280, device=run_device(), dtype=dtype) if use_bias else None
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight, bias)
+        ref = F.conv1d(x, weight, bias, padding=0)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+def test_resident_volume_spatial_tails(dtype, use_bias) -> None:
+    """Fused paths handle partial spatial tiles and consume updated weights."""
+    op = Conv3dFwdOp(padding=1)
+    x = torch.randn(1, 32, 8, 65, 64, device=run_device(), dtype=dtype)
+    weight = torch.randn(64, 32, 3, 3, 3, device=run_device(), dtype=dtype)
+    bias = torch.randn(64, device=run_device(), dtype=dtype) if use_bias else None
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight, bias)
+        ref = F.conv3d(x, weight, bias, padding=1)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+def test_downsampling_resident_weights_with_spatial_tails(dtype, use_bias) -> None:
+    op = Conv2dFwdOp(stride=2, padding=2)
+    x = torch.randn(1, 128, 57, 59, device=run_device(), dtype=dtype)
+    weight = torch.randn(256, 128, 5, 5, device=run_device(), dtype=dtype)
+    bias = torch.randn(256, device=run_device(), dtype=dtype) if use_bias else None
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight, bias)
+        ref = F.conv2d(x, weight, bias, stride=2, padding=2)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+def test_large_channel_dilated_convolution_spatial_tails() -> None:
+    dtype = torch.float16
+    op = Conv2dFwdOp(padding=12, dilation=12)
+    x = torch.randn(1, 2048, 29, 31, device=run_device(), dtype=dtype)
+    weight = torch.randn(256, 2048, 3, 3, device=run_device(), dtype=dtype)
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight)
+        ref = F.conv2d(x, weight, padding=12, dilation=12)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+@pytest.mark.parametrize("channels,height,width", [(128, 29, 32), (256, 57, 60)])
+def test_fused_downsampling_spatial_tails(dtype, use_bias, channels, height, width) -> None:
+    op = Conv2dFwdOp(stride=2, padding=1)
+    x = torch.randn(1, 128, height, width, device=run_device(), dtype=dtype)
+    weight = torch.randn(channels, 128, 3, 3, device=run_device(), dtype=dtype)
+    bias = torch.randn(channels, device=run_device(), dtype=dtype) if use_bias else None
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight, bias)
+        ref = F.conv2d(x, weight, bias, stride=2, padding=1)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize(
+    "groups,depth,height", [(8, 4, 24), (16, 4, 32), (32, 8, 28), (32, 12, 28)]
+)
+def test_folded_grouped_volume_spatial_tails(dtype, groups, depth, height) -> None:
+    op = Conv3dFwdOp(groups=groups, padding=1)
+    x = torch.randn(1, groups * 2, depth, height, 28, device=run_device(), dtype=dtype)
+    weight = torch.randn(groups * 4, 2, 3, 3, 3, device=run_device(), dtype=dtype)
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        out = op(x, weight)
+        ref = F.conv3d(x, weight, groups=groups, padding=1)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("nonfinite", [float("nan"), float("inf")], ids=["nan", "inf"])
+def test_folded_volume_keeps_nonfinite_values_within_their_group(nonfinite) -> None:
+    x = torch.ones(1, 16, 4, 24, 28, device=run_device(), dtype=torch.float16)
+    x[:, 0] = nonfinite
+    weight = torch.ones(32, 2, 3, 3, 3, device=run_device(), dtype=torch.float16)
+    actual = Conv3dFwdOp(groups=8, padding=1)(x, weight)
+    expected = F.conv3d(x[:, 2:].contiguous(), weight[4:].contiguous(), groups=7, padding=1)
+    torch.testing.assert_close(actual[:, 4:], expected, rtol=0, atol=0)
