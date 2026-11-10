@@ -84,3 +84,14 @@ def test_bmm_name_only_mapping_preserves_batch_and_layout():
     assert identity('BmmFwdOp', 'case', p) == identity('BMMFwdOp', 'case', p)
     assert identity('BmmFwdOp', 'case', p) != identity(
         'BMMFwdOp', 'case', {**p, 'b': [[8, 64, 32], 'float16']})
+
+
+def test_relu_spelling_alias_keeps_exact_case_and_mutation_contract():
+    from scripts.ci.baseline_contracts import comparison_identity
+
+    params = {"input": [[1, 4096], "bfloat16"], "output": [[1, 4096], "bfloat16"], "inplace": False}
+    old = comparison_identity("ReluFwdOp", "decode", params)
+    assert old == comparison_identity("ReLUFwdOp", "decode", params)
+    assert old != comparison_identity("ReLUFwdOp", "decode", {**params, "inplace": True})
+    assert old != comparison_identity("ReLUFwdOp", "prefill", params)
+    assert old != comparison_identity("ReLUFwdOp", "decode", {**params, "input": [[2, 4096], "bfloat16"]})
