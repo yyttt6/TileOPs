@@ -30,6 +30,78 @@ def _vector_cores(device_index):
 
 
 @functools.lru_cache(maxsize=64)
+def _compile_generic(batch, pages, page_size, table_width, width, dtype, out_dtype, starts, blocks):
+    """Gather one row/column tile at a time, with bounded UB and exact DMA lengths.
+
+    GM/UB T.copy uses Ascend byte-counted align intrinsics. Round only the UB
+    capacity, never the GM region, so narrow rows and column tails cannot
+    overwrite adjacent output rows. Automatic scheduling supplies pipe events.
+    """
+    total = T.dynamic("total")
+    quantized = dtype == "float8_e4m3fn"
+    tile = min(1024, 64 * ((width + 63) // 64))
+    columns = (width + tile - 1) // tile
+
+    @T.prim_func
+    def main(
+        dst: T.Tensor((total, width), out_dtype),
+        cache: T.Tensor((pages * page_size, width), dtype),
+        table: T.Tensor((batch, table_width), "int32"),
+        cu: T.Tensor((batch + 1,), "int32"),
+        start: T.Tensor((batch,) if starts else (batch + 1,), "int32"),
+        scale: T.Tensor((1,) if quantized else (pages * page_size, width),
+                        "float32" if quantized else dtype),
+    ):
+        with T.Kernel(blocks) as bx:
+            raw = T.alloc_shared((tile,), dtype)
+            converted = T.alloc_shared((tile,) if quantized else (1,), out_dtype)
+            factor = T.alloc_shared((1,), "float32")
+            if quantized:
+                T.copy(scale, factor)
+            tasks = T.cast(total, "int64") * columns
+            for step in T.serial(T.ceildiv(tasks, blocks)):
+                task = T.cast(step, "int64") * blocks + bx
+                if task < tasks:
+                    row = task // columns
+                    col = task % columns * tile
+                    count = T.min(tile, width - col)
+                    # Upper-bound search skips repeated offsets/empty requests.
+                    # Scalar GM reads avoid allocating batch-sized metadata UB.
+                    lo = T.alloc_var("int32", init=0)
+                    hi = T.alloc_var("int32", init=batch)
+                    while lo < hi:
+                        mid = lo + (hi - lo) // 2
+                        if cu[mid + 1] <= row:
+                            lo = mid + 1
+                        else:
+                            hi = mid
+                    pos = row - T.cast(cu[lo], "int64")
+                    if starts:
+                        pos = pos + T.cast(start[lo], "int64")
+                    physical = (
+                        T.cast(table[lo, pos // page_size], "int64") * page_size
+                        + pos % page_size
+                    )
+                    T.copy(cache[physical, col:col + count], raw[:count])
+                    if quantized:
+                        with T.SimdVF():
+                            multiplier = T.simd.vdup(factor[0], "float32")
+                            for part in T.serial(T.ceildiv(count, 64)):
+                                valid = T.cast(T.min(64, count - part * 64), "uint32")
+                                mask = T.simd.update_mask(valid, 32)
+                                codes = T.simd.vld(raw[part * 64], dist="UNPK4_B8")
+                                wide = T.simd.vcvt(codes, "float32", part=0)
+                                value = T.simd.vmul(wide, multiplier, mask)
+                                result = T.simd.vcvt(value, out_dtype, mask, sat=False)
+                                T.simd.vsts(converted[part * 64], result, mask, "PK_B32")
+                        T.copy(converted[:count], dst[row, col:col + count])
+                    else:
+                        T.copy(raw[:count], dst[row, col:col + count])
+
+    return tilelang.compile(main, target="ascend", out_idx=[])
+
+
+@functools.lru_cache(maxsize=64)
 def _compile(batch, pages, page_size, table_width, width, dtype, out_dtype, starts, blocks):
     group_rows, tile_rows = 32, 8
     buffers = 2
@@ -189,6 +261,7 @@ class AscendPagedKVCacheGatherKernel(Kernel, PagedKVCacheGatherFwdInterface):
     """Gather supported row geometries without copying metadata to the host."""
 
     devices: ClassVar[frozenset[str]] = frozenset({"npu"})
+    preferred_over: ClassVar[frozenset[str]] = frozenset({"ascend_generic"})
 
     @classmethod
     def refusal(cls, call: PagedKVCacheGatherCall):
@@ -196,6 +269,8 @@ class AscendPagedKVCacheGatherKernel(Kernel, PagedKVCacheGatherFwdInterface):
             return "requires page size 16/64 and row width 576/1024"
         if not 0 < call.batch <= 256 or min(call.num_pages, call.table_width) <= 0:
             return "requires 1..256 requests and nonempty page pool/table"
+        if call.page_size * call.table_width > (1 << 31) - 1:
+            return "requires logical positions to fit int32"
         if call.dtype not in (torch.float16, torch.bfloat16, torch.float8_e4m3fn):
             return "requires FP16, BF16 or FP8 E4M3FN cache"
         if call.dtype == torch.float8_e4m3fn:
@@ -256,4 +331,41 @@ class AscendPagedKVCacheGatherKernel(Kernel, PagedKVCacheGatherFwdInterface):
 
 
 
+class AscendPagedKVCacheGatherGenericKernel(AscendPagedKVCacheGatherKernel):
+    """General DMA/SIMD gather, sharing the fast path's argument validation.
+
+    The public Op already stages strided destinations and makes metadata
+    contiguous. This implementation needs no SIMT or host metadata copies.
+    """
+
+    preferred_over: ClassVar[frozenset[str]] = frozenset()
+
+    @classmethod
+    def refusal(cls, call):
+        if min(call.batch, call.num_pages, call.page_size, call.table_width, call.row_width) <= 0:
+            return "requires positive cache, table and row extents"
+        if call.dtype not in (torch.float16, torch.bfloat16, torch.float8_e4m3fn):
+            return "requires FP16, BF16 or FP8 E4M3FN cache"
+        if call.dtype == torch.float8_e4m3fn:
+            if call.out_dtype not in (torch.float16, torch.bfloat16):
+                return "FP8 requires FP16/BF16 destination"
+        elif call.out_dtype != call.dtype:
+            return "unquantized gather preserves dtype"
+        return None
+
+    def __init__(self, call):
+        reason = self.refusal(call)
+        if reason:
+            raise ValueError(reason)
+        Kernel.__init__(self, device_index=call.device.index if call.device is not None else None)
+        self.call = call
+        self.dtype = call.dtype
+        self._compiled = _compile_generic(
+            call.batch, call.num_pages, call.page_size, call.table_width, call.row_width,
+            self.dtype_str, self.dtype_to_str(call.out_dtype), call.has_starts,
+            _vector_cores(self.device_index),
+        )
+
+
 register_kernel_type("PagedKVCacheGatherFwdOp", "ascend", AscendPagedKVCacheGatherKernel)
+register_kernel_type("PagedKVCacheGatherFwdOp", "ascend_generic", AscendPagedKVCacheGatherGenericKernel)
