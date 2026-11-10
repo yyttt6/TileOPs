@@ -144,14 +144,29 @@ jobs:
       - name: Changed operator performance with final-output correctness
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950-v0.1.0' }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
         working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           set -eo pipefail
           source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$PWD"
           source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
-          export TILELANG_CACHE_DIR="$RUNNER_TEMP/pr-perf-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
           TORCH_DEVICE_BACKEND_AUTOLOAD=0 python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/pr-toolchain.json"
+          # PR events test a synthetic merge. Its first parent is the base actually
+          # tested, which may be newer than the event payload's base SHA.
+          if [[ -n "$PR_HEAD" ]]; then
+            read -r -a parents <<< "$(git show -s --format=%P HEAD)"
+            [[ "${#parents[@]}" -eq 2 && "${parents[1]}" == "$PR_HEAD" ]] || { echo "Unexpected PR merge parents" >&2; exit 1; }
+            PR_BASE="${parents[0]}"
+          fi
+          git rev-parse "$PR_BASE^{commit}" > "$RUNNER_TEMP/pr-selection-base.txt"
+          # Prefer the trusted harness; candidate fallback bootstraps this CPU-only
+          # helper for its introducing PR. The measurement harness stays trusted.
+          CACHE_KEY_SCRIPT=ci-harness/scripts/ci/tilelang_cache_key.py
+          if [[ ! -f "$CACHE_KEY_SCRIPT" ]]; then CACHE_KEY_SCRIPT=scripts/ci/tilelang_cache_key.py; fi
+          TILELANG_CACHE_KEY="$(python "$CACHE_KEY_SCRIPT" --source "$PWD" --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --verified-toolchain "$RUNNER_TEMP/pr-toolchain.json" --output "$RUNNER_TEMP/pr-cache.json")"
+          export TILELANG_CACHE_DIR="/opt/tileops-ci/server2-20261030/cache/tilelang-v1-${TILELANG_CACHE_KEY}"
+          mkdir -p "$TILELANG_CACHE_DIR"
           python ci-harness/scripts/ci/pr_performance.py --base "$PR_BASE" --baseline baseline-cache/data/baseline-cache/snapshot.json --output "/opt/tileops-ci/server2-20261030/pr-evidence-v010/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -160,6 +175,8 @@ jobs:
           path: |
             /opt/tileops-ci/server2-20261030/pr-evidence-v010/${{ github.run_id }}-${{ github.run_attempt }}
             ${{ runner.temp }}/pr-toolchain.json
+            ${{ runner.temp }}/pr-cache.json
+            ${{ runner.temp }}/pr-selection-base.txt
           retention-days: 90
   device:
     needs: preflight

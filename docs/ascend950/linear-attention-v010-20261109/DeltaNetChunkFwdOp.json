@@ -1,0 +1,272 @@
+{
+  "op": "DeltaNetChunkFwdOp",
+  "status": "accepted_isolated_candidate_against_qualified_remote_targets",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube_core_num": 32,
+    "vector_core_num": 64
+  },
+  "manifest_cases": 9,
+  "independent_cpu_cases": 9,
+  "cpu_outputs_per_case": 6,
+  "original_partial_checked_outputs": 1,
+  "profile_windows_replayed": 270,
+  "separate_host_measurement_cases": 9,
+  "public_tests": 10,
+  "compile_tests": 3,
+  "extended_checks": 10,
+  "guarded_input_buffers": 40,
+  "minimum_ratio": 0.9745791716398196,
+  "comparisons": [
+    {
+      "case": "train-2k-float16",
+      "device_tileops_ms": 0.2346828,
+      "host_tileops_ms": 1.376489953448375,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 8.119604561277322,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 4.960696817952341,
+          "metric": "independent_host_roundtrip"
+        }
+      ],
+      "minimum_ratio": 4.960696817952341,
+      "passed": true,
+      "generated_source_sha256": "f5dc8b0eccd131eafe285a2d352c3245d369bf621d25660dc611af1ed2977598"
+    },
+    {
+      "case": "train-2k-bfloat16",
+      "device_tileops_ms": 0.23517626666666666,
+      "host_tileops_ms": 1.6842899844050407,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 8.081052396443633,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 4.032461159457698,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 248.30649152805668
+        }
+      ],
+      "minimum_ratio": 4.032461159457698,
+      "passed": true,
+      "generated_source_sha256": "7bdf249c2b601302a15aa95be2b1d853c90d8a7a7ea4adcac2edad1a34600e8e"
+    },
+    {
+      "case": "train-4k-float16",
+      "device_tileops_ms": 0.4135145333333333,
+      "host_tileops_ms": 1.8263659439980984,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 8.903426368891832,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 7.200425946261828,
+          "metric": "independent_host_roundtrip"
+        }
+      ],
+      "minimum_ratio": 7.200425946261828,
+      "passed": true,
+      "generated_source_sha256": "e8646cef7d4deaea6f299c02385b45446cf4e0e6db67dfced5467f9e3774b79c"
+    },
+    {
+      "case": "train-4k-bfloat16",
+      "device_tileops_ms": 0.4125977333333333,
+      "host_tileops_ms": 1.4260419954856236,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 8.95345636088484,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 9.013174539165641,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 282.7134324215063
+        }
+      ],
+      "minimum_ratio": 8.95345636088484,
+      "passed": true,
+      "generated_source_sha256": "515dd10e27a4e02a3b310fe76dfa7c90bc11b68d1dbc76cbdc2b7295678650f8"
+    },
+    {
+      "case": "train-8k-float16",
+      "device_tileops_ms": 0.7890448666666667,
+      "host_tileops_ms": 1.4635440583030384,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 9.24611198704121,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 16.853497898165482,
+          "metric": "independent_host_roundtrip"
+        }
+      ],
+      "minimum_ratio": 9.24611198704121,
+      "passed": true,
+      "generated_source_sha256": "fa5c9b08e4b5f32f41daefe9206ce49af94145a3722c17b9a592d38cdab29f28"
+    },
+    {
+      "case": "train-8k-bfloat16",
+      "device_tileops_ms": 0.7826333333333334,
+      "host_tileops_ms": 1.7692620245118935,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 9.355042463478,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 13.927831487829003,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 298.17761633800416
+        }
+      ],
+      "minimum_ratio": 9.355042463478,
+      "passed": true,
+      "generated_source_sha256": "3babfa36ffb00e582970045edab80a1066bfa40470ed2b58ec101896c0ede6dc"
+    },
+    {
+      "case": "train-16k-float16",
+      "device_tileops_ms": 1.5673573333333333,
+      "host_tileops_ms": 2.1605806425213814,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 9.253974758361846,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 23.08545630028024,
+          "metric": "independent_host_roundtrip"
+        }
+      ],
+      "minimum_ratio": 9.253974758361846,
+      "passed": true,
+      "generated_source_sha256": "68efcb35a5b5818693205e4183594365dd3bb3f3d3c488b17774a7ecad55f4eb"
+    },
+    {
+      "case": "train-16k-bfloat16",
+      "device_tileops_ms": 1.5607410666666666,
+      "host_tileops_ms": 2.5858606522281966,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 9.31860988600458,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 18.83292098258938,
+          "metric": "independent_host_roundtrip"
+        }
+      ],
+      "minimum_ratio": 9.31860988600458,
+      "passed": true,
+      "generated_source_sha256": "3cba25c598a425e2045032b5370a199621f01cd97935bbaa63362f115e94b893"
+    },
+    {
+      "case": "deltanet-1.3b-train-bfloat16",
+      "device_tileops_ms": 0.10737260000000001,
+      "host_tileops_ms": 1.6523720386127632,
+      "targets": [
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 3.756860378408147,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-six-output-eager",
+          "ratio": 0.9745791716398196,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 355.70949199330175
+        },
+        {
+          "library": "sgl-kernel-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 4.848975747381858
+        }
+      ],
+      "minimum_ratio": 0.9745791716398196,
+      "passed": true,
+      "generated_source_sha256": "b6e9c401586e23ba4b89f687caa9901ab6044fb001e0632ea3e47aed7e1b76ca"
+    }
+  ],
+  "source_snapshot": "integration-base-delta-chunk-v1",
+  "delivery": {
+    "shared_source_changed": false,
+    "changed_files": [
+      "src/tileops/_kernels/ascend/__init__.py",
+      "src/tileops/_kernels/ascend/linear_attention/__init__.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_chunked.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_group_scan.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_inverse.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_output.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_pack.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_pairs.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_scan.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_seeded_states.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_training_bwd.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_training_fwd.py"
+    ],
+    "patch": "delta-chunk-forward-integration-v1.patch",
+    "patch_sha256": "06974f15a934696b8d545ca76e3462abcb92b042616082fbccd0b968d0175978",
+    "backward": "Source present butnotimported/registered;thisreport acceptsforwardonly."
+  },
+  "reference_disposition": "Originalv010Partial1 unchanged;independentFP64CPU all6outputs supplementat originaltol. Existingall6outputtorchNPUreference independentlyqualifiedcurrent9cases, measured inseparatehostmean15 andcompleteFFTS+AICPUdevice windows. Originallinalg_invCPUfallback notusedasfull-deviceperformancebaseline.",
+  "native_disposition": "5legacy numericconstraints retained;5correctnessreceipts SHAauthenticated sixoutputs, paramsS->h equivalent;oldnative rawprofilesnotretained,notretroactivelyqualifiedraw/currentcontract.",
+  "evidence": {
+    "delta-chunk-fwd-initial-audit-v1.json": "ecb87195160def6b63ff14e32f40f9615db5d552d49056913bd7b420c17b4340",
+    "delta-chunk-fwd-initial-detailed-audit-v1.json": "27730e1189dba861be13b2eaa7dc0098b8e4697ebd2f65c0efbd08d21246849b",
+    "delta-chunk-fwd-measurement-audit-v1.json": "eba3fec2fb4808b2b793710e851ad1e701ba3b813d8575d68d1f60aa2057c6e0",
+    "delta-chunk-fwd-public-compile-audit-v1.json": "fa99b97ee31f7c6e5a353898f0bdc8594ac082c85a0246e3044b192cfbc3caa3",
+    "delta-chunk-fwd-extended-audit-v1.json": "a08feaf301feed4fbb5c446238266a9481e10ee448a19f7de76286ad4e844357",
+    "delta-chunk-fwd-final-source-audit-v1.json": "3d8fc7897ae81213b36cdd7f5cc43528cbb9b36518c3cae176ee64ed66af55ba",
+    "delta-chunk-forward-delivery-review-v1.json": "098a9efdabde59d610adf29fde43d9bf7e393ce0efd931e487a82e198c90974a",
+    "delta-chunk-fwd-native-receipt-review-v1.json": "2dd93a55a353a83275750d05937c8cffd1d76a4fe4955eb20af14e936b4d5c3d",
+    "delta-chunk-integrated-migration-audit-v1.json": "d435a68425b1b6b4418ab9fc05f58d04b18df0fee4a02338e08e7703f4548677",
+    "delta-chunk-fwd-legacy-eager-server1-inventory-v1.json": "45f5f3a73fb64b8f5e0132c893a3165f13f368545bd39078b4fddb3159439e8f"
+  },
+  "accepted_at": "2026-11-07T16:51:50.035632+00:00",
+  "original_report": {
+    "path": "reports/v010-static-adaptation-20261106/DeltaNetChunkFwdOp-server1-report.json",
+    "sha256": "ba2d85d856edfd15dc682605a89316e4cdf50b02fe17b44edc1de694e6fb413a"
+  }
+}

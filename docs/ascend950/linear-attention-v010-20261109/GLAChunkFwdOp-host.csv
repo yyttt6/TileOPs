@@ -1,0 +1,4 @@
+case,candidate_ms,provider,baseline_ms,ratio,historical,metric,measurement_id
+train-2k-bfloat16,0.4195194070537885,flash-linear-attention-npu,3265.809872622291,7784.645519875954,False,host_roundtrip_with_device_synchronize_mean15,
+train-4k-bfloat16,0.5127720224360625,flash-linear-attention-npu,6357.793049948911,12398.868837937944,False,host_roundtrip_with_device_synchronize_mean15,
+train-8k-bfloat16,0.8884880070885023,flash-linear-attention-npu,14993.288667934636,16875.060269036534,False,host_roundtrip_with_device_synchronize_mean15,

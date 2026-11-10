@@ -1,0 +1,182 @@
+{
+  "op": "GLARecurrentFwdOp",
+  "status": "accepted_isolated_candidate_physical32_v010",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube_core_num": 32,
+    "vector_core_num": 64
+  },
+  "cases": 8,
+  "passed": 8,
+  "minimum_ratio": 1.2018436403873942,
+  "comparisons": [
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 123.671,
+      "tileops_us": 5.736933333333334,
+      "ratio": 21.55698747298208,
+      "measurement_id": "0904d1a33177870ad0dec628454ebbe5079dff9941ddba689754c4625b68217b"
+    },
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 32.4148,
+      "tileops_us": 5.736933333333334,
+      "ratio": 5.650196388314313,
+      "measurement_id": "2d803b8f6e9323b89193e0207b68e36be91da58304044626cb705a04887d7227"
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 189.01399999999998,
+      "tileops_us": 5.0652,
+      "ratio": 37.31619679380873,
+      "measurement_id": "5a17c62f222a9a4934e44260b760b8678fff3dbb7e4b57e6ea57268763c29d6f"
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 34.191,
+      "tileops_us": 5.0652,
+      "ratio": 6.750177683013504,
+      "measurement_id": "5ef457f531213df21ad46a5989b45186ecf5ca8eabd5cfd46c02401a78ff8fbd"
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 293.2264666666667,
+      "tileops_us": 8.491866666666667,
+      "ratio": 34.53027210350296,
+      "measurement_id": "a8f30e4f98c87da0ff17f9a837c4a8d3e79a1d62b23cad129a5f8f3872a02d31"
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 38.82853333333333,
+      "tileops_us": 8.491866666666667,
+      "ratio": 4.572437940617689,
+      "measurement_id": "6e7fc623b5c0ccdf7b86cc6d8ae746ebcd4a4e40d268af00875d47b536326ae5"
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 434.81586666666664,
+      "tileops_us": 11.801866666666667,
+      "ratio": 36.84297399281469,
+      "measurement_id": "cba41842fd00b92f8de7df69c4c1c02b8902e790faec6864452373b8d66f9a8c"
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 42.1594,
+      "tileops_us": 11.801866666666667,
+      "ratio": 3.5722654043428155,
+      "measurement_id": "33b46c3354373ad63ec59b5714e8b7eac74d0c5b43f3e8db8478b49aa6e9be78"
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 498.21253333333334,
+      "tileops_us": 14.813666666666666,
+      "ratio": 33.63195247631692,
+      "measurement_id": "f27542f70b80d131dd6cbff7003f4f55f2b2d0d9d4c853b46058c5ac0d2dd91c"
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 44.5718,
+      "tileops_us": 14.813666666666666,
+      "ratio": 3.0088296843005335,
+      "measurement_id": "f09920498ca6d089f24017529620ff4218767a286cdb4af4e14191b1e3d3c582"
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 1736.2814,
+      "tileops_us": 51.13666666666666,
+      "ratio": 33.95374617039307,
+      "measurement_id": "442861212a2e3834a34a45ceb6ddd336ef686d565c365a7917aed1caa11989b2"
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 76.9848,
+      "tileops_us": 51.13666666666666,
+      "ratio": 1.505471612020077,
+      "measurement_id": "4b4e58f049cc4516d4ee199e68e69229e83b4403b83b3e5bf02ffb8945f075f6"
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 2872.6732666666667,
+      "tileops_us": 75.50193333333334,
+      "ratio": 38.04767824929869,
+      "measurement_id": "d1cf67527c0d7918f63a2fcdd2616dace70d15ad52958a09858d2cc86a961412"
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 96.50366666666667,
+      "tileops_us": 75.50193333333334,
+      "ratio": 1.2781615305215142,
+      "measurement_id": "8c91d97d20f046e938410df333539c7c3244015f3dc117987824638260d2538a"
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "library": "flash-linear-attention-npu",
+      "baseline_us": 3424.002933333333,
+      "tileops_us": 99.28906666666666,
+      "ratio": 34.48519608738391,
+      "measurement_id": "dfb62db48f8799ef559d6580ca55a968a7506fa191a8e9bb76b1b0a8622480e2"
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "library": "torch-eager",
+      "baseline_us": 119.32993333333333,
+      "tileops_us": 99.28906666666666,
+      "ratio": 1.2018436403873942,
+      "measurement_id": "62046f6bea5b21a9ee3a4c890983a2f4d874c27fc213bd81d8b093510320c518"
+    }
+  ],
+  "public_tests": 20,
+  "extended_checks": 24,
+  "device_windows_audited": 120,
+  "host_samples_audited": 120,
+  "source_snapshot": "base-v2",
+  "receipts": {
+    "linear7-gla-recurrent-device-v2": "727d79b4813c503b7d04fc5bffdad23e8569068a44a4a5237a3b9a161e72b286",
+    "linear7-gla-recurrent-host-v2": "548aaeebae1bb97479cb92407e94de8e6712df9dff4932126ecbe3e917a038db",
+    "linear7-gla-recurrent-public-v2": "2e185b5fe8f250f51b3466ed3991c654a527c37ce2da3b5477b0e6adf4ea69b7",
+    "linear7-gla-recurrent-extended-v3": "945069e9038e5612351e72b2d57e36639feffbecf7bb151f79589acf2500d584"
+  },
+  "baseline": "published physical32 snapshot plus8 preserved historical host constraints; gk->g only rename, full params identical",
+  "delivery": "PR formatted copy computationalAST identical; final integrated entry check remains part of batch PR",
+  "failed_attempts": [
+    "guard-native receipt unsupported",
+    "old public registry import",
+    "extended report serialization shadowed variable"
+  ],
+  "accepted_at": "2026-11-09T09:22:41.449016+00:00",
+  "toolchain_reverified": {
+    "path": "linear7-toolchain-v1.json",
+    "sha256": "d463879c4bd276c75f799d1c671b2296131d4eea98ce3ab1548edb0b19da28be",
+    "status": "passed"
+  },
+  "original_report": {
+    "path": "reports/linear7-server1-v010-20261109/GLARecurrentFwdOp-server1-report.json",
+    "sha256": "a54991bdce05261fe14a6849fc350bb05aad7346fcc4ece33545d30258cbad93"
+  },
+  "comparison_files": [
+    "GLARecurrentFwdOp-device.csv",
+    "GLARecurrentFwdOp-host.csv",
+    "GLARecurrentFwdOp-historical.csv"
+  ],
+  "case_timings": "GLARecurrentFwdOp-timings.csv",
+  "historical_source": {
+    "path": "docs/ascend950/dev/linear_attention_local32_20261103/reports/GLARecurrentFwdOp.json",
+    "sha256": "fb2588f40403a3a6fdcb96f4af83cb137fcd10a4883e28af13262d0c695594b7",
+    "provenance": "Historical local36capped32 and native targets retain original provenance"
+  },
+  "minimum_including_all_retained_constraints": 1.1223565400957205
+}

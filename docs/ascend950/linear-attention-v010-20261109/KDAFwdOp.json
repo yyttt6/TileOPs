@@ -1,0 +1,407 @@
+{
+  "op": "KDAFwdOp",
+  "status": "accepted",
+  "target_tag": "v0.1.0",
+  "target_commit": "f7e03a75943550060729167a54f8bfe2f9f242d3",
+  "host": "server1",
+  "hardware": "physical32AIC/64AIV verified inside every guarded workload",
+  "runtime_limits": {
+    "cube_core_num": 32,
+    "vector_core_num": 64
+  },
+  "manifest_cases": 57,
+  "passed_cases": 57,
+  "baseline_constraints": 91,
+  "minimum_ratio": 0.9018163080664011,
+  "device_windows": 855,
+  "independent_host_samples": 345,
+  "correctness": {
+    "status": "public and boundary readiness passed; performance NOT accepted",
+    "public_passed": 43,
+    "architecture_skipped": 15,
+    "cuda_only_deselected": [
+      "test_kda_prefill_correlated_keys[chunk-bf16]",
+      "test_kda_prefill_correlated_keys[chunk-fp16]",
+      "test_kda_prefill_correlated_keys[fused-sm89-bf16]",
+      "test_kda_prefill_correlated_keys[fused-sm89-fp16]",
+      "test_kda_prefill_correlated_keys[fused-sm90-bf16]",
+      "test_kda_prefill_correlated_keys[fused-sm90-fp16]",
+      "test_kda_raw_gate_prefill_uses_chunk_path[128-80-166912]",
+      "test_kda_raw_gate_prefill_uses_chunk_path[128-89-101376]",
+      "test_kda_raw_gate_prefill_uses_chunk_path[128-90-232448]",
+      "test_kda_raw_gate_prefill_uses_chunk_path[64-80-166912]",
+      "test_kda_raw_gate_prefill_uses_chunk_path[64-89-101376]",
+      "test_kda_raw_gate_prefill_uses_chunk_path[64-90-232448]"
+    ],
+    "supplemental_correlated_cases": 4,
+    "packed_cases": 12,
+    "output_guard_cases": 14,
+    "guard_regions": 176,
+    "audit_sha256": {
+      "kda-public-edges-v15-r2-audit.json": "de0baae6dbccca6ddf8fe94eea6174511c1ebc6eee04b6bd0b8a26597a106ea2",
+      "kda-public-basic-v15-audit.json": "7c993baad8342b2eab8be5f4cd8ce64dde5c5225fb38050256e10fbc95267d94",
+      "kda-public-raw-a-v15-audit.json": "93a9c2fe37e561a98e1fdc8525f1ea1e6e6ffc241c058c6e0418070a52867bd0",
+      "kda-public-raw-b-v15-audit.json": "f68ab811f48e5d53be0cafd650176ad89191dea5385466bc9637ddbe9f0b501e",
+      "kda-public-strong-v15-audit.json": "7fe70d8839bf10a629252bdacbea7d9895d430e765828e6d2ecc0d928f968966",
+      "kda-correlated-audit-v15.json": "ac284c18548cb9b95c176d89cf0173b0067001c87d177c8288f6ed82571ff0a2",
+      "kda-packed-initial-audit-v15.json": "816231b2f524ebf3abdcfab995ce5f53170618efe32a38cf926c2c317562a584",
+      "kda-output-guards-audit-v15.json": "1c9fcc4d93adcb7a8b3bec905a70bb1da0728b5a705d46c6f90f72f6152bffd2"
+    }
+  },
+  "source_snapshot": "/root/dyq/workspace/reports/kda-v010-development-20261109/integration-base-kda-v15",
+  "delivery_patch": "/root/dyq/workspace/reports/kda-v010-development-20261109/KDAFwdOp-candidate-v15.patch",
+  "production_files": 4,
+  "performance_audit": "/root/dyq/workspace/reports/kda-v010-development-20261109/performance-audit-v15.json",
+  "evidence_sha256": {
+    "performance-audit-v15.json": "23009d7067e41c536c34f4fbbe4f08256b987c0a54185ddb38c038bf5c7cc708",
+    "readiness-v15.json": "3acb23f8d48f4a0454d74661b79377d870f9c28a8bbaa6049ded0bd80e4e69f8",
+    "candidate-source-delta-v15.json": "5a52eb4aead10d5643dfae061a11d950eb0b5b77070d536897fabd4f3caa31da",
+    "full-source-delta-v15.json": "321c33c07523893e66614e46a63cd7218532ef74efd2f998f529cfef14518502",
+    "patch-replay-v15.json": "71bd72d62cea2f1756834a794326f2126a6d58af676eb97321299905ee39f14b",
+    "historical-admission-targets-v1.json": "8b938c1da7ca042d9e6fd3bced50daf7cb4277ad73f55f2ab6ef6ac703acc484",
+    "new-baseline-archive-audit-v3.json": "a041f488e000bbc432daf5369cd07d6c2564a04ca7514987851b0f2fad43423d",
+    "new-baseline-timing-protocols-v1.json": "2a6e0fd440688040d2137075ce8cccf4665cfbaa6e4ef8361dfd13d86ce98e5b",
+    "new-baseline-contracts-v1.json": "98655c0aff928b74c980d39b3396bfc6d4b3ebad750423acb8e51aa5cef649c7",
+    "control-audit-v12.json": "628cb1c91b9b5f0e6df55c3294d72d2fca7781c68ccd63c7745600178475ca66",
+    "control-audit-v14.json": "3137f41b908c8763f532ab019681df4cd66570582fda9896b8247a4ab8f9c5ef",
+    "control-audit-v15.json": "bd6be7cbd930651bd6f03c711b638a4e137015bd0defacc9971f55337e34dc6a",
+    "resume-validation-preflight-v15-r2.json": "6670085466230338cb28ee080cd52895b479f2fe4d9c0bcb7195147e479b1777"
+  },
+  "formal_receipts": [
+    {
+      "label": "kda-host-00-v15",
+      "guard_sha256": "582945c0dd831320f9d70f672f8ebeec79d9d556abc5d83c6a1358877274a984",
+      "results_sha256": "4a510b68d15328a047b4706879a492ac709a73ad12842d61b5b5a33b7488fa4b"
+    },
+    {
+      "label": "kda-host-01-v15",
+      "guard_sha256": "6035c658e69c074dc8681f95a4483baa5cb5052e4e1f3190e7117d70c268b67b",
+      "results_sha256": "ebf0b580196f3a8a9ee6577cc612cefad1bd95e857cc41f74365be364469552b"
+    },
+    {
+      "label": "kda-host-02-v15",
+      "guard_sha256": "7645bb0c673985d8e73a1d459879e67310dc796d38c4a1daf897519b715e51c9",
+      "results_sha256": "91a3b930010f67f727cc31e35f36dd375400902dc1bf4021127694bd4b793678"
+    },
+    {
+      "label": "kda-host-03-v15",
+      "guard_sha256": "a40cc6d795394b8eabb95f73611a62bdb7e8a03cad5e2675fcc7fa1fc5fbdac9",
+      "results_sha256": "dcd3d661cd1cb658c73ac9d639e766150400529e811e88d223a0f3b30cfa8cd5"
+    },
+    {
+      "label": "kda-host-29-v15",
+      "guard_sha256": "d94cb0889ab1c543be3b7ebd6efab2223ebf8b307872f54710bdea1a62e853dd",
+      "results_sha256": "b32d2b4fad02fdfd68159c686a64023a9b83a01527bed52a294adc46470510e9"
+    },
+    {
+      "label": "kda-host-30-v15",
+      "guard_sha256": "d33b68dfb43ab5e76a46e714d7b3e2fb7dc24288610610eb0abb63e490e23eaa",
+      "results_sha256": "d512abc9ffba4c5ccaa6d8ccb498b59baf6269884cf00f3fde3b358fae070c14"
+    },
+    {
+      "label": "kda-host-31-v15",
+      "guard_sha256": "89536623becd2fc48137b5f92fb6db251a59267375520f0a4b7eb67380fca109",
+      "results_sha256": "1fa44067a1b4b1d0a53029d0ccd9ca71175b71e47f62e59598810b0e0e9d66aa"
+    },
+    {
+      "label": "kda-host-32-v15",
+      "guard_sha256": "6770d27cc084afd014831e2ae9e5f213f155955cf877ca2b66444a7889247997",
+      "results_sha256": "498538e5a9846870c343a75e3706161f0c092a66b0fdc23372786bd8d6b0dcba"
+    },
+    {
+      "label": "kda-host-33-v15",
+      "guard_sha256": "87d1384d2ad10abb4b54cfa5ae6a4500b77a0ff78ef4d1d32faf2f6687ad573c",
+      "results_sha256": "ef00cfbc8952ce6dd240c0b1ff772d9f77465934cadb7b415cce0c87a26cc4b9"
+    },
+    {
+      "label": "kda-host-34-v15",
+      "guard_sha256": "ca0a0ae8cd8fb653557ac75dec33c9c46b1cb9257b91229db8e1483f35806dfb",
+      "results_sha256": "6bccb649072de80272c3dd0289dc92ae9c262cdcd514ad5531573c49d7f2fe38"
+    },
+    {
+      "label": "kda-host-36-v15",
+      "guard_sha256": "164b27e29ae85320431f2e050ee3f162de0b962744267f6fe203fa40cc2df588",
+      "results_sha256": "dbb4657a86f928be460c8b7290c32665fcae5e3ffb009c9e06e50164672e71fb"
+    },
+    {
+      "label": "kda-host-37-v15",
+      "guard_sha256": "052d18797b79d704aa803d91cb55bb319c533d6eaf44e2f7eddd8ab9b184bec7",
+      "results_sha256": "fbb97f5b8d4658a9596a35f2951fbf7e9d19c78f8f7576805270dffb41f5a5be"
+    },
+    {
+      "label": "kda-host-39-v15",
+      "guard_sha256": "853a479c5ef0fa72767a87c2b3e4c02023aabb005c2c4f79f3d8e4980e887101",
+      "results_sha256": "29da4a889d944dffe6d810dd7ef90552ad6ac74fa1a9dfe1b1ce84506fa9cfa8"
+    },
+    {
+      "label": "kda-host-40-v15",
+      "guard_sha256": "358fe3ecee9c346c08a7a5a7d70fc5c317c06dd1cfd73deb5e8575227c82c26d",
+      "results_sha256": "f82e7775ff0b7315beeca85960752bc4720276fc177c2fe06c61dfcc3ae32bbd"
+    },
+    {
+      "label": "kda-host-41-v15",
+      "guard_sha256": "cdfed2099e251db6967dea60f7aff2a6f320acf7436595238a55942ff147675e",
+      "results_sha256": "de2945a8315cf7059c7f3499a3738dc1c3af532d6fb887ae601a98a13515b91d"
+    },
+    {
+      "label": "kda-host-42-v15",
+      "guard_sha256": "ec6c0e3f17aa1179ecdc3347acdced6199f8dff5757ee910969a2ac6226e19ed",
+      "results_sha256": "67abe68983613f50b31c41be5ee86fa678956764dd277435552b79e8c652c95d"
+    },
+    {
+      "label": "kda-host-45-v15",
+      "guard_sha256": "298db5bdda5264650f514d7789eeacb648649dea5e5a94830a11a37fcda76be1",
+      "results_sha256": "d1549f3d6e215daa126ee0b3cb1b3ccd822a084ae917c579129a64ed6d2211b4"
+    },
+    {
+      "label": "kda-host-46-v15",
+      "guard_sha256": "33c15800e9b893f4262fe781f941a7fc6dc963ed4c0566ab5cbd3cdffa6fa195",
+      "results_sha256": "b0113c502f901698c6da55d55ffcabb84aa3f529842a32fb149d08ab821aa3cf"
+    },
+    {
+      "label": "kda-manifest-00-v15",
+      "guard_sha256": "a551a29c55d914ba2e1eef4ffd451ec2f61dd7ee1275d5cc819c5bbf1bed6a5d",
+      "results_sha256": "0f9c7c2038c8e9864dbc0023049f1c8fe6192f42fad8c628e5d2a1c022ca4355"
+    },
+    {
+      "label": "kda-manifest-01-v15",
+      "guard_sha256": "32925df294e921163566f38fd2071a856816088028fb75cf099cb2cbeca4454d",
+      "results_sha256": "b6243db4c36c12d3f1d604ee73e0861259bbf42830fc9411125c92c572801f0b"
+    },
+    {
+      "label": "kda-manifest-02-v15",
+      "guard_sha256": "b880f79db0d6a1e9ba47810ab44ca0d5e5006beaf1077b0569c4bc4268811044",
+      "results_sha256": "4321570983bab542c484f3db31cf4eb53239266d2511913407e5052062cec8fd"
+    },
+    {
+      "label": "kda-manifest-03-v15",
+      "guard_sha256": "902f76021c6b3a0977b66005c2c5ebea86554310a24e09bfe2710339888fcc17",
+      "results_sha256": "4fb4b171310ab513e10e5ab1fec20f220125d447f03c0cd5a55b0a8849651788"
+    },
+    {
+      "label": "kda-manifest-04-v15",
+      "guard_sha256": "85ebfeb0b1de569b868e5ced2e583463a8cdc2a9a92c2f546a1cb09fd87e9343",
+      "results_sha256": "409ac723e9a33a6c3383937c8ac4648a6b711bc3305c1fd64de2689dea3b2690"
+    },
+    {
+      "label": "kda-manifest-05-v15",
+      "guard_sha256": "9ccb1d046f4486476cda3a94adca58056a54f9aa0013f62b5c148c346be0cae0",
+      "results_sha256": "378e19a95d3037fbb19bf42330a010a613dd7522b65e33114027245926bc43ae"
+    },
+    {
+      "label": "kda-manifest-06-v15",
+      "guard_sha256": "5bfb9d94200fe5d405cadfa943092b5dd3157f8259093a63a54adb2b2e1e5be6",
+      "results_sha256": "17e7a53a78637020df65c5410593883236e1a073e272e58d106d9c05cf45d35e"
+    },
+    {
+      "label": "kda-manifest-07-v15",
+      "guard_sha256": "9af7480d0b70802ae6746ec25daad3ca317d9b979d89b4310d4e001b8bdf923f",
+      "results_sha256": "cea0d55bd0b5b5c29a6d850cfb570c341b046bbdc128d2db9c5ceb7831168b05"
+    },
+    {
+      "label": "kda-manifest-08-v15",
+      "guard_sha256": "7c2ec6bf6ac74dba03ddd6f88cf329062f17bb8d4d03323a1fa47871fca2b128",
+      "results_sha256": "631efbd544bd7a84705cd5f3be8c8675613d8a024d301a04e2bc4911507a4d84"
+    },
+    {
+      "label": "kda-manifest-09-v15",
+      "guard_sha256": "c2f01daec2834c0acf9efc029eee5647fb0194a570323601542dbf31984ea4a2",
+      "results_sha256": "5f4096e4fd7b514e6768def93c33785fe879547f7b07c3619431e959d5375e58"
+    },
+    {
+      "label": "kda-manifest-10-v15",
+      "guard_sha256": "d1a63e14397dfd509652877767b8709c5ebb558f497624c9c9d3714d5789f554",
+      "results_sha256": "b9037c70b852ae9d5bf621e5d7d827196db77152b40dc44d3ac8dd6c1f9c6aec"
+    },
+    {
+      "label": "kda-manifest-11-v15",
+      "guard_sha256": "3c6a97475258578062e63cf06fe9743646468c5307d0f1afbeae0749eaf14f2c",
+      "results_sha256": "fbf59b8e089e79c0abbfd6e88767be2b3746c16a259e6e350f80f3c3159ef18d"
+    },
+    {
+      "label": "kda-manifest-12-v15",
+      "guard_sha256": "5e458e3bf62a15d3a9a21ce1f9a9e2c69236aedca895bc333a299527ca6138fd",
+      "results_sha256": "5d55839ad077c5131143b8e0968cc912b4ed19a8a53358922ade7c36cbfa0b0e"
+    },
+    {
+      "label": "kda-manifest-13-v15",
+      "guard_sha256": "15d256a2c2e751b72da86df758ae035b04c2afeb8ac78cbd70f25bd061b7df1b",
+      "results_sha256": "a1e719f3258bfff9e4c04a7d373d0213cf903c65bc8cd4dd318cc9b4c15a1f92"
+    },
+    {
+      "label": "kda-manifest-14-v15",
+      "guard_sha256": "a991caab2dfef50fd56356123b880228cc04bbcfbddb4527d25b892fdc0578d1",
+      "results_sha256": "f1c3b4467eb3148ec718736b2f71b1f4512b36acd83841b347a806b13860e001"
+    },
+    {
+      "label": "kda-manifest-15-v15",
+      "guard_sha256": "30000c54b82d550c06875615a038d56968b74089a915b39280c6c1b83c05a3ea",
+      "results_sha256": "0353da5075fb2fa40da3267b43c9456320d4476a7343989d7b0d6f601c90f6c5"
+    },
+    {
+      "label": "kda-manifest-16-v15",
+      "guard_sha256": "de4144f1b6a262d93ae730fa53e9de7ae0c09c161d82fd2930f08f4f1d4c7e41",
+      "results_sha256": "2d908135aeffaf4636db95b2c4fa3dc3f0c24e8518363f8fb2a0a690aea7ad6d"
+    },
+    {
+      "label": "kda-manifest-17-v15",
+      "guard_sha256": "6d175ac2e4b0eda1f0ec454470f4d4598597d9448ac64208c2e2e70428073a86",
+      "results_sha256": "03d2a96eb2fd49c0f60dbc2675da1a52080e0f5975d84f8de13e9c7a39075896"
+    },
+    {
+      "label": "kda-manifest-18-v15",
+      "guard_sha256": "2be56c5d71a20182eae876d33fcbb72c336aedb3c25ac9a5e86f8be0aeedc870",
+      "results_sha256": "567f2e7c7a43a5d8cc59d6037f492fcab659d721f84f923274195468274be5f8"
+    },
+    {
+      "label": "kda-manifest-19-v15",
+      "guard_sha256": "f30edd7af6b1994de6b1dea71f7639a0eb44255b09e0a34e77e8fffa817abdde",
+      "results_sha256": "8c263f4afc206ce3dd0fcb53dcd269da4e6ee9e409465228dc88b3788683a624"
+    },
+    {
+      "label": "kda-manifest-20-v15",
+      "guard_sha256": "c4c7e12e86ff92a7fde99f878988f96d07a77d405100c3b39b662fee3bf8a170",
+      "results_sha256": "409c5274fce8c5315bacfc14fee0120b35c4ce967d2eeb4344b896a93a6c94c5"
+    },
+    {
+      "label": "kda-manifest-21-v15",
+      "guard_sha256": "d64d17c069ffb2f642a3d3b6410a54097f073df5ff7989d033e5f25c62d0fe6c",
+      "results_sha256": "8af2a7acbcdb3926ca8c3fa0d8d3e3eef6e0c16fd5d23424669a558b8a577001"
+    },
+    {
+      "label": "kda-manifest-22-v15",
+      "guard_sha256": "d7c21473e9646d7f94c13e088843cb777795de2ccc437f74b8d9ad474ab58551",
+      "results_sha256": "8e472501a85c702068bb711f2c1bc7c21131d816762fb59959ef500872a1a28f"
+    },
+    {
+      "label": "kda-manifest-23-v15",
+      "guard_sha256": "2d6223c5362081c020379af421191beaf633b3dc8552dfa11a9a132e5d888e92",
+      "results_sha256": "8aeef1634876d43a63597e6fdbecb9011988d73a52b743953b9dae7919ef17b4"
+    },
+    {
+      "label": "kda-manifest-24-v15",
+      "guard_sha256": "e674c380e6194bf42f7badc983440bb41aba07617e69e62d5efe2b9ae9def214",
+      "results_sha256": "82bea22a5b305b7b042e87c2dc70b75f46038aa83d98d6c064bd98b159fc08cf"
+    },
+    {
+      "label": "kda-manifest-25-v15",
+      "guard_sha256": "5d5dd3fb9c48668b00509de4e04ee2d02a0d416c262a778bdf27bfb424653ad6",
+      "results_sha256": "8c311e4c34b16e0732ba4d94f9a7f73b6321d6b0eb7959ebe83d8ad56f3d7853"
+    },
+    {
+      "label": "kda-manifest-26-v15",
+      "guard_sha256": "f44b0120e27b920e6cd6101bf89794b5a9c3a121562eec81ec69467770870a1c",
+      "results_sha256": "dfca1e5b9a8fb07abc19b4e1ffef1e36c383234c523fb1892cfe1668f12c572d"
+    },
+    {
+      "label": "kda-manifest-27-v15",
+      "guard_sha256": "5458b2f2520d28a3207c4e1a09b3813c9eef9a5fcff67e8ad27f9df6caed7f87",
+      "results_sha256": "a7e53bf45bb466502f8936fc248a726aa4da2d11b92216089274feffc0665247"
+    },
+    {
+      "label": "kda-manifest-28-v15",
+      "guard_sha256": "802af37bef94e07c4385451eee322200e253832f388defff0878c355eaca59d1",
+      "results_sha256": "57dcc31af1b9c9d3730e281f3e099e65e6193c0db9dd075169f7fe8075b37824"
+    },
+    {
+      "label": "kda-manifest-29-v15",
+      "guard_sha256": "bb5497f094a2cba796a206883b6a731486cb041e1ab29dd890c406d9e9c19862",
+      "results_sha256": "385434c6e2f9b4956aab65218a7f147e4f75b349241b732ddbb2efb3e28d8590"
+    },
+    {
+      "label": "kda-manifest-30-v15",
+      "guard_sha256": "21fb1070a1fd5a12cfdf286ff3258bc8df71444acbad7ddc96f973248f966e8c",
+      "results_sha256": "22a7873ca43caaaca5307d1859dfc2f5aaf3881f166b6300efe81ca77138718d"
+    },
+    {
+      "label": "kda-manifest-31-v15",
+      "guard_sha256": "245dc75e7cc01e606a9175630c7198d24ea6f05fd554cf5bfaa41cc4f750da1a",
+      "results_sha256": "05b9a7d4d6978bd0ec8df375df407f06fbde07fae24d98d1bf361d4d894ff46b"
+    },
+    {
+      "label": "kda-manifest-32-v15",
+      "guard_sha256": "181830195601e7e77f602387df15729ac4de790abe1c1d1b7d53a2db3d8ca9a2",
+      "results_sha256": "cceecd835921911ff0040c537b196c08759165b720678f8f11014eba26350fcc"
+    },
+    {
+      "label": "kda-manifest-33-v15",
+      "guard_sha256": "fd3bdb5061791fe798499106892fb7c591c538491d630ef9a5f1d3e440737cda",
+      "results_sha256": "0d0b67d21a148a8215af6a05408e63c2b2232a17be78f796dec60f8ea94cdc26"
+    },
+    {
+      "label": "kda-manifest-34-v15",
+      "guard_sha256": "ac3f759288a9ad7010bc9e05c0e0999ed802697b8876b6c97b9edd1ea26c624f",
+      "results_sha256": "2e9e27f6be3e62a79a36d31bcc5ebfbde4e20906df703d6878b4d94eba33d1f1"
+    },
+    {
+      "label": "kda-manifest-35-v15",
+      "guard_sha256": "46197057524bf05e62dc8a3ed367547b07ea66f7e82b40c60f9f396869bd22c0",
+      "results_sha256": "669f4e7c88d8b7abfd9ecf92483c7a6735fba40a788dc66fe4b0ed374bec12cb"
+    },
+    {
+      "label": "kda-manifest-36-v15",
+      "guard_sha256": "d229e41d27aaa88ea8a3edae0a6a2f64ba210d1575d7475aa89144920cd29599",
+      "results_sha256": "39d04615edc03d6da6a1d77b20e37c84eaed9cc4f1566b9abcf745bcfc64d378"
+    },
+    {
+      "label": "kda-manifest-37-v15",
+      "guard_sha256": "440f62124db8afd1766c0bb24ad8b108fd3f57a3bb30430a4bd4483c5da8b1c4",
+      "results_sha256": "3787a20fab313597bd792fbdd73bf424634d5b439f1961a6d9f8267a5b7c5315"
+    },
+    {
+      "label": "kda-manifest-38-v15",
+      "guard_sha256": "f393f8ce4811b5d983ba09f4e8bf55ddc35b292477df42dd5242acf1188cedf9",
+      "results_sha256": "34b6283e221af9df996fa8f69f710ce524642706576206733fd4ee24d94ddb12"
+    },
+    {
+      "label": "kda-manifest-39-v15",
+      "guard_sha256": "cb740cff77d0e01c303bc4520774da16414e21b2143cee6b95fc227f97fd8c45",
+      "results_sha256": "d400eece11a0eb595897270f47cb57fd9a818a044233147599d12f85acf31e29"
+    },
+    {
+      "label": "kda-manifest-40-v15",
+      "guard_sha256": "a8c57856b795e082f0d8d5498426e0b2871496a17dbb46d0f447aaa104754624",
+      "results_sha256": "22d328b30f30932eae4b07bb8ed06a68485d32c3fd8b5411942fdc33d6d43f88"
+    },
+    {
+      "label": "kda-manifest-41-v15",
+      "guard_sha256": "c83165bba6c66a9b7ce0769d0d0cb5fdf376c9eccd348fcaf1b8c4c8595664a4",
+      "results_sha256": "e36e9f4d9ebd29b355df4a4103ada53c35e6627cf30e4e2020eb3952db36e263"
+    },
+    {
+      "label": "kda-manifest-42-v15",
+      "guard_sha256": "8593e90d76cb17d8abb3aa3966a8512bd75d21a5c5e157e16500a2d0f387bb76",
+      "results_sha256": "f21ea20185a2963449862814ac62220e66dd2db9a5927e930f9e93490a42fd97"
+    },
+    {
+      "label": "kda-manifest-43-v15",
+      "guard_sha256": "4fad726ce664aa9c613149726dff5192b9980852c5d28b6b4c0a686e7c82604a",
+      "results_sha256": "de0d756b3f6a7234a49ed8cba29feed01165e8a92fe2e565b66574a563449bee"
+    },
+    {
+      "label": "kda-manifest-44-v15",
+      "guard_sha256": "a37c7fa4bfec45e91f0a235c281131f554f72a0cd43972c227960289e92dc380",
+      "results_sha256": "efd54aae87cdac5fb41735308ca205ab429b23e75407d15ae7dcea4b661beba0"
+    },
+    {
+      "label": "kda-manifest-45-v15",
+      "guard_sha256": "5497bfaa5eae10b8add0e5a33ab4f31f781a3fab6a348ada90547564564b76b8",
+      "results_sha256": "1f2417e98777dbc1958eabb75706504490f45f46fde3b7996cbe6e576f88f220"
+    },
+    {
+      "label": "kda-manifest-46-v15",
+      "guard_sha256": "f0f3fa3bab97c67dde4c669e0012c53a0ec6f89c01cf2214d3dd648a92c9856f",
+      "results_sha256": "950f1eba63c5af0835cb8e8a81c9fef0b1a5b1751dd5bb8449ddbcfa93adff2f"
+    }
+  ],
+  "limitations": [
+    "Other7 linear attention v0.1.0 adaptations and18 handed-off operators are outside this task.",
+    "Original15 architecture skips and12CUDA-only exclusions retained;4 original correlated-key numerical checks additionally invoked on Ascend.",
+    "Historical frozen host fallback qualifications and new accepted baseline input-sampling limitations retained; no baseline constraints removed.",
+    "User-interrupted public-edge receipt preserved; accepted retry uses same source with r2 label."
+  ],
+  "original_report": {
+    "path": "reports/kda-v010-development-20261109/KDAFwdOp-server1-report.json",
+    "sha256": "09a6f37f118d5ec15ddb83fe16348d1c69d0c567b0184b24670b5d094ee1a4b9"
+  }
+}

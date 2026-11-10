@@ -1,0 +1,2207 @@
+[
+  {
+    "op": "GLARecurrentFwdOp",
+    "snapshot": "base-v2",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_recurrent.py",
+        "accepted_sha256": "220612807ae895c3493f6972abc178b8db221cc81b146c0b620c85a8c305cd2d",
+        "final_sha256": "55a50734e9ea9e27d97df22b0cf830fe93a13cff96b97614ac16895f7a53e3a2",
+        "complete_ast_equal": false,
+        "removed_unused_torch_import_only": true
+      }
+    ],
+    "unchanged_dependencies": [
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "sha256": "1dd790eef1d362e6d9f3b0e1e1836f587a2cdb094160f790d62ed0d0a352a274"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "sha256": "6770f2978583178e0e33b2c99ae8c29536ee67d6e117a8dc240ad2202981bd76"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "sha256": "fd42e7f8b196ed172a92de95bccaa8d26e1d8e4ae22b0f0d00145ac46fc7ea2e"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "sha256": "1f61c1407f297aef6001a6a0919d2ca69ef086b2c7fc3dd3b23c013847b182fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "sha256": "97b90d8532d49158fee999e7407bfd61f839425502770c8adcc02bbbc1529d84"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "sha256": "c0d48dabe722c1aa34247da09d9474d9458d98126e7ad63235c96f54284e9403"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "sha256": "9bbdb40c6879ce07051c94e6b807ce5dd57ffa07848c87802f51b76c140442fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "sha256": "a758db8e815bb4aca38460f3f9d9e11a84c915974d84ed7e525befe660e67cb7"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "sha256": "546b8052323a2a2e05633e62bce8b2856f4ec1f2754c12b7d8265255d101b034"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "sha256": "9d301029d2540683eec600c33b585448050b98ba9a21a9b03df5cd7b0f089680"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "sha256": "fb1e55d2885301ea70545807ba065df677234d9594ad4573b97f79d286d4a2a0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "sha256": "d8205cc8958cdff3429b1ac657f6ba8742fb159348e1552acda4484cdec4a925"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "sha256": "f92470224936603d104240f91c6f2c86f1dcb85ecc9e898370cea0e218fda887"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "sha256": "6cecc835a7b561dd1cfddc4305b7a93f468c3f158a96f11fd702744d0524a77e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "sha256": "86ebdef2dea4361d30b2a1892a5dc33654c5f054428125ee8374d4d1b6f74631"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "sha256": "05081ad429717ed5fa37c4fa5f01d59b73556e909c285b2113b833972f72ad31"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "sha256": "51f285f968e4a469e5e680ed7e40b706fc9f05bea40cc92c57c2214491c7977e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "sha256": "b4875513511a6479b32bc40920a0228c5f22f35b06cf63b7447d2595e98ba03c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "sha256": "f4baf2f3a3fa981a549bab7c7d8c499949769ef97065d3b17932c9ed202c809f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "sha256": "bb2e2e608bb483c54b5c1c835379327257a9a26ed354ecb725099d461ce56c99"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "sha256": "be2c397ab3720ef45b473aee0f56c89072d26526283377f35a44e6d01dc052a3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "sha256": "2157af0debfdf7bae9b7a90dabe8e9bf4f28428ffb918ba17939ae238e83c265"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "sha256": "a82cae6ff83604635fbee571700f880215e90f65046856212a26fc082e63add8"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "sha256": "a78856223576ad7aaf412a95aa4661ef4316521efad635c56c2c978f28e6344b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "sha256": "c581e2e879b7a47a10113cfa38d31de4ab8f47005e0a283d4d381dbef11d4d96"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "sha256": "a6e2ce2aef40d595678c6c44ca9a55e3606650d8d73ff82d795071fbddc61274"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "sha256": "936209258b3ff808c30900488549990b43ef85bed8691552cfc874de7a10e284"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "sha256": "9120051ea099c865376df5ed98ef24eeb06849e9b2cd3191676afabfca9c6f77"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "sha256": "1ebe2afba474abe593feb37335df0eec6fccc42119d2c7ade6755b01d62c20dd"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "sha256": "f8e91da8407f7f9894e1c379dd5124114d536b9c13e0252008291ed81b951e0e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "sha256": "430c8b049bc28aa5345d2be908a618dd22050b96947580a88f91e367550eac1e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "sha256": "26ee5844115271c7917f486bcbe9894722a6bae8f7ead6cad8892a8004a6a7b7"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "sha256": "664db342f374c7403892502feb354686f41cce9dd3c966458e71aa5cf5e7dbec"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "sha256": "7a981ff4616c66afc2fb2b682454bdcde2d6670fb00bef0b0724a67fda6e483c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "sha256": "0b6616b246fa5e0034370569c33848b83e0e2a9289843be99f5ebd9027654abf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "sha256": "0f232bbecfbd7b336e65ad12b6783fc7ccf516d54f757a5ccb2eb165abfce54b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "sha256": "1ed0e18b3b79d288b8bb3c977813bdb5b4f20624b91e8f04ca5b50128177858d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "sha256": "8aa126668356aefbddf02f9ef9cd99f18b7df0d6a163fcfc093a7286982420bf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "sha256": "e0473bb7d788f140c227f4843ef77fd853a8d088c1aed2497effea5be9df2006"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "sha256": "bb32473ec5cfefbc0244aa0ecf70bde48a8cbac40e6f18b239b4abbfb884b5aa"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "sha256": "34a8d4064ab14541834922c2efcf3444147e9c2aa7f51b205284f7b0b88bea93"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "sha256": "ef4a6657e4fa0c12bf94637101cd28322429adf858a8530efe3afe28c7e82ae6"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "sha256": "339163490de9838aa86b06dca3ca084096f1e78ba8ec4af44a011704487f405f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "sha256": "6fe91679540646e97360f5794ca34651fdc65389cd1c60688904cfdf39bd7ad3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "sha256": "ba23060a48165a5078ff8de60e4417f3f1072b5ab5e79e0296b950db19b62db0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "sha256": "e08eb4f5ac29bec6284507e8b795e1d1779833d0261011c3d3b27b05d6c79cf2"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "sha256": "33e8b2e13b3bea2e34743a7ffb4fe5b197ac24f129df5fd093eb5c7949ef6235"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "sha256": "6517aa3c441b36be1172566cb28ab7d0f1b82d53e481f3a3a0edd4e119f1e60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "sha256": "4b6b7743c6a920d4a18011312de2142153a2109357b5fec0849a82c11d3906db"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "sha256": "58f0178cdbee31a5af7cd06cc4d33ac743b6ded170688d9dd3f971741440b63a"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "sha256": "8ce77470e5ba1d9a957b15aef19e8e74cd4a14a2e5c8d46f4843605eb13bfc2f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "sha256": "178c26efdbf32c7ebf18d616e24a66980d51ce24bde4064e4b99d844b89cf41d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "sha256": "eae765236993900adc384f53cb0a471f14c6b85acef9bdac3196abcf3475a60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "sha256": "27969909b97f411877148f4a12a64b6f198f2bd9ba378b6e6f76166c38365cd1"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "sha256": "1ab2c77a0988acda49b3728c66199b7dd9dd1ba6f72d3266fb2fa551476c7e3c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "sha256": "4b94fa82f9f743b405f67d82a8625723380b0c103d29986c8b380a946b56b2ea"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "sha256": "0ac93f7b16fc84d90daee21025e4c9b9917c1d0beaa3eadffb6dfe85f86eb62b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "sha256": "130dc55ee7df430e978a6497460ac3d042c7e864c704521fe1de21d0ae2866c1"
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "sha256": "5b250641e44dc7f0b668df2f8f255f19898eb4cdacf44efa1f284a7e0a03714b"
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "sha256": "c689f50320b9efcc9081a6128c699994708c4770099cb723de7670f4bb2cf19e"
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "sha256": "75f8f4053268d19f7a13fcadc60a565c6575a293166f2e532d68850ca7e4cd95"
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "sha256": "3cf45e1c60b88334527a40d97e830c1f3960fec82a63f59e84c5b765134b6363"
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "sha256": "f4f09c317b315dce0ad865a7af4d5effc17f9005a63f2b2e3eea5b774288745a"
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "sha256": "029826a4fe5afa9316792161304631d7fe65c3a03191bdce23968afb5dc4af5a"
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "sha256": "871f85626f1dda4abc8684e016c9e826d38b93676b23902d740ed310f45f667d"
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "sha256": "705129f2b851617e6020e996601b86a57854dc248ff96a9027c458e158bdd17f"
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "sha256": "bb8daedf9db7c6896a6874b6aa1b2b8c43abe52c0ebca0459f4234dcb08eca08"
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "sha256": "187318cb4441f58b67fe3f9d67a71fd6ab8c8fc387927b22e22b98aebef363e6"
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "sha256": "d3b0c7e66f4386837ffff5912f5b88111b84a89d1210a548ae7dcf2fe91787a0"
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "sha256": "8f0cd4873127d4cb8b9d6a6747902510751a95145b1b111117cee2cdc6e8d9c0"
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "sha256": "7a0768f7138b0a5b1ddf06c90c082c8d9818443e664f2de42888503e48b9c45c"
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "sha256": "9a0e860c6ed354a0a245a719e1772518b58aa3ac2029b22fd995bcb340846649"
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "sha256": "3888cfa94a4808b67dcc108ee62d27d9ee160a032739400a454055345c90000e"
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "sha256": "82ae19e4d9c34ec7cf41d308ed481e0d13fa09ce45f004980a9c035bbc32b616"
+      },
+      {
+        "file": "src/tileops/linear_attention.py",
+        "sha256": "98698b13f3fb9d1c01b030d16be3d2f5a8c05cf02ac287abb8b8ea0672142c9b"
+      },
+      {
+        "file": "workloads/linear_attention/__init__.py",
+        "sha256": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810"
+      },
+      {
+        "file": "workloads/linear_attention/gla.py",
+        "sha256": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b"
+      },
+      {
+        "file": "workloads/linear_attention/input_values.py",
+        "sha256": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959"
+      },
+      {
+        "file": "workloads/linear_attention/gdn.py",
+        "sha256": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c"
+      },
+      {
+        "file": "workloads/linear_attention/deltanet.py",
+        "sha256": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+      }
+    ],
+    "reference_placement_changes": [
+      {
+        "file": "workloads/linear_attention/kda.py",
+        "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+        "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+        "unchanged_ast_after_removing_npu_placement_branch": true,
+        "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+        "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+        "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+        "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+        "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+      }
+    ],
+    "entry_registration": "Final integrated physical32 run required",
+    "shared_numerics_change": "pr-target-drift-v1.json: added FP8 branch only; FP16/BF16 behavior preserved"
+  },
+  {
+    "op": "GLAFwdOp",
+    "snapshot": "base-v5",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla.py",
+        "accepted_sha256": "fbb5c37af943a8f9e8a00d158dbebdb58464d9cbbb306352d8d2900b588a0f05",
+        "final_sha256": "fbb5c37af943a8f9e8a00d158dbebdb58464d9cbbb306352d8d2900b588a0f05",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_chunked.py",
+        "accepted_sha256": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+        "final_sha256": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      }
+    ],
+    "unchanged_dependencies": [
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "sha256": "1dd790eef1d362e6d9f3b0e1e1836f587a2cdb094160f790d62ed0d0a352a274"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "sha256": "6770f2978583178e0e33b2c99ae8c29536ee67d6e117a8dc240ad2202981bd76"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "sha256": "fd42e7f8b196ed172a92de95bccaa8d26e1d8e4ae22b0f0d00145ac46fc7ea2e"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "sha256": "1f61c1407f297aef6001a6a0919d2ca69ef086b2c7fc3dd3b23c013847b182fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "sha256": "97b90d8532d49158fee999e7407bfd61f839425502770c8adcc02bbbc1529d84"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "sha256": "c0d48dabe722c1aa34247da09d9474d9458d98126e7ad63235c96f54284e9403"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "sha256": "9bbdb40c6879ce07051c94e6b807ce5dd57ffa07848c87802f51b76c140442fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "sha256": "a758db8e815bb4aca38460f3f9d9e11a84c915974d84ed7e525befe660e67cb7"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "sha256": "546b8052323a2a2e05633e62bce8b2856f4ec1f2754c12b7d8265255d101b034"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "sha256": "9d301029d2540683eec600c33b585448050b98ba9a21a9b03df5cd7b0f089680"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "sha256": "fb1e55d2885301ea70545807ba065df677234d9594ad4573b97f79d286d4a2a0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "sha256": "d8205cc8958cdff3429b1ac657f6ba8742fb159348e1552acda4484cdec4a925"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "sha256": "f92470224936603d104240f91c6f2c86f1dcb85ecc9e898370cea0e218fda887"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "sha256": "6cecc835a7b561dd1cfddc4305b7a93f468c3f158a96f11fd702744d0524a77e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "sha256": "86ebdef2dea4361d30b2a1892a5dc33654c5f054428125ee8374d4d1b6f74631"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "sha256": "05081ad429717ed5fa37c4fa5f01d59b73556e909c285b2113b833972f72ad31"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "sha256": "51f285f968e4a469e5e680ed7e40b706fc9f05bea40cc92c57c2214491c7977e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "sha256": "b4875513511a6479b32bc40920a0228c5f22f35b06cf63b7447d2595e98ba03c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "sha256": "f4baf2f3a3fa981a549bab7c7d8c499949769ef97065d3b17932c9ed202c809f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "sha256": "bb2e2e608bb483c54b5c1c835379327257a9a26ed354ecb725099d461ce56c99"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "sha256": "be2c397ab3720ef45b473aee0f56c89072d26526283377f35a44e6d01dc052a3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "sha256": "2157af0debfdf7bae9b7a90dabe8e9bf4f28428ffb918ba17939ae238e83c265"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "sha256": "a82cae6ff83604635fbee571700f880215e90f65046856212a26fc082e63add8"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "sha256": "a78856223576ad7aaf412a95aa4661ef4316521efad635c56c2c978f28e6344b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "sha256": "c581e2e879b7a47a10113cfa38d31de4ab8f47005e0a283d4d381dbef11d4d96"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "sha256": "a6e2ce2aef40d595678c6c44ca9a55e3606650d8d73ff82d795071fbddc61274"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "sha256": "936209258b3ff808c30900488549990b43ef85bed8691552cfc874de7a10e284"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "sha256": "9120051ea099c865376df5ed98ef24eeb06849e9b2cd3191676afabfca9c6f77"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "sha256": "1ebe2afba474abe593feb37335df0eec6fccc42119d2c7ade6755b01d62c20dd"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "sha256": "f8e91da8407f7f9894e1c379dd5124114d536b9c13e0252008291ed81b951e0e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "sha256": "430c8b049bc28aa5345d2be908a618dd22050b96947580a88f91e367550eac1e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "sha256": "26ee5844115271c7917f486bcbe9894722a6bae8f7ead6cad8892a8004a6a7b7"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "sha256": "664db342f374c7403892502feb354686f41cce9dd3c966458e71aa5cf5e7dbec"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "sha256": "7a981ff4616c66afc2fb2b682454bdcde2d6670fb00bef0b0724a67fda6e483c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "sha256": "0b6616b246fa5e0034370569c33848b83e0e2a9289843be99f5ebd9027654abf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "sha256": "0f232bbecfbd7b336e65ad12b6783fc7ccf516d54f757a5ccb2eb165abfce54b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "sha256": "1ed0e18b3b79d288b8bb3c977813bdb5b4f20624b91e8f04ca5b50128177858d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "sha256": "8aa126668356aefbddf02f9ef9cd99f18b7df0d6a163fcfc093a7286982420bf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "sha256": "e0473bb7d788f140c227f4843ef77fd853a8d088c1aed2497effea5be9df2006"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "sha256": "bb32473ec5cfefbc0244aa0ecf70bde48a8cbac40e6f18b239b4abbfb884b5aa"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "sha256": "34a8d4064ab14541834922c2efcf3444147e9c2aa7f51b205284f7b0b88bea93"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "sha256": "ef4a6657e4fa0c12bf94637101cd28322429adf858a8530efe3afe28c7e82ae6"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "sha256": "339163490de9838aa86b06dca3ca084096f1e78ba8ec4af44a011704487f405f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "sha256": "6fe91679540646e97360f5794ca34651fdc65389cd1c60688904cfdf39bd7ad3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "sha256": "ba23060a48165a5078ff8de60e4417f3f1072b5ab5e79e0296b950db19b62db0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "sha256": "e08eb4f5ac29bec6284507e8b795e1d1779833d0261011c3d3b27b05d6c79cf2"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "sha256": "33e8b2e13b3bea2e34743a7ffb4fe5b197ac24f129df5fd093eb5c7949ef6235"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "sha256": "6517aa3c441b36be1172566cb28ab7d0f1b82d53e481f3a3a0edd4e119f1e60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "sha256": "4b6b7743c6a920d4a18011312de2142153a2109357b5fec0849a82c11d3906db"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "sha256": "58f0178cdbee31a5af7cd06cc4d33ac743b6ded170688d9dd3f971741440b63a"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "sha256": "8ce77470e5ba1d9a957b15aef19e8e74cd4a14a2e5c8d46f4843605eb13bfc2f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "sha256": "178c26efdbf32c7ebf18d616e24a66980d51ce24bde4064e4b99d844b89cf41d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "sha256": "eae765236993900adc384f53cb0a471f14c6b85acef9bdac3196abcf3475a60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "sha256": "27969909b97f411877148f4a12a64b6f198f2bd9ba378b6e6f76166c38365cd1"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "sha256": "1ab2c77a0988acda49b3728c66199b7dd9dd1ba6f72d3266fb2fa551476c7e3c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "sha256": "4b94fa82f9f743b405f67d82a8625723380b0c103d29986c8b380a946b56b2ea"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "sha256": "0ac93f7b16fc84d90daee21025e4c9b9917c1d0beaa3eadffb6dfe85f86eb62b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "sha256": "130dc55ee7df430e978a6497460ac3d042c7e864c704521fe1de21d0ae2866c1"
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "sha256": "5b250641e44dc7f0b668df2f8f255f19898eb4cdacf44efa1f284a7e0a03714b"
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "sha256": "c689f50320b9efcc9081a6128c699994708c4770099cb723de7670f4bb2cf19e"
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "sha256": "75f8f4053268d19f7a13fcadc60a565c6575a293166f2e532d68850ca7e4cd95"
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "sha256": "3cf45e1c60b88334527a40d97e830c1f3960fec82a63f59e84c5b765134b6363"
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "sha256": "f4f09c317b315dce0ad865a7af4d5effc17f9005a63f2b2e3eea5b774288745a"
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "sha256": "029826a4fe5afa9316792161304631d7fe65c3a03191bdce23968afb5dc4af5a"
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "sha256": "871f85626f1dda4abc8684e016c9e826d38b93676b23902d740ed310f45f667d"
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "sha256": "705129f2b851617e6020e996601b86a57854dc248ff96a9027c458e158bdd17f"
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "sha256": "bb8daedf9db7c6896a6874b6aa1b2b8c43abe52c0ebca0459f4234dcb08eca08"
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "sha256": "187318cb4441f58b67fe3f9d67a71fd6ab8c8fc387927b22e22b98aebef363e6"
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "sha256": "d3b0c7e66f4386837ffff5912f5b88111b84a89d1210a548ae7dcf2fe91787a0"
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "sha256": "8f0cd4873127d4cb8b9d6a6747902510751a95145b1b111117cee2cdc6e8d9c0"
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "sha256": "7a0768f7138b0a5b1ddf06c90c082c8d9818443e664f2de42888503e48b9c45c"
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "sha256": "9a0e860c6ed354a0a245a719e1772518b58aa3ac2029b22fd995bcb340846649"
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "sha256": "3888cfa94a4808b67dcc108ee62d27d9ee160a032739400a454055345c90000e"
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "sha256": "82ae19e4d9c34ec7cf41d308ed481e0d13fa09ce45f004980a9c035bbc32b616"
+      },
+      {
+        "file": "src/tileops/linear_attention.py",
+        "sha256": "98698b13f3fb9d1c01b030d16be3d2f5a8c05cf02ac287abb8b8ea0672142c9b"
+      },
+      {
+        "file": "workloads/linear_attention/__init__.py",
+        "sha256": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810"
+      },
+      {
+        "file": "workloads/linear_attention/gla.py",
+        "sha256": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b"
+      },
+      {
+        "file": "workloads/linear_attention/input_values.py",
+        "sha256": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959"
+      },
+      {
+        "file": "workloads/linear_attention/gdn.py",
+        "sha256": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c"
+      },
+      {
+        "file": "workloads/linear_attention/deltanet.py",
+        "sha256": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+      }
+    ],
+    "reference_placement_changes": [
+      {
+        "file": "workloads/linear_attention/kda.py",
+        "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+        "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+        "unchanged_ast_after_removing_npu_placement_branch": true,
+        "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+        "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+        "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+        "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+        "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+      }
+    ],
+    "entry_registration": "Final integrated physical32 run required",
+    "shared_numerics_change": "pr-target-drift-v1.json: added FP8 branch only; FP16/BF16 behavior preserved"
+  },
+  {
+    "op": "GLAChunkFwdOp",
+    "snapshot": "base-v7",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_training_fwd.py",
+        "accepted_sha256": "1e47967e48add659791a8daabdeb7705d6c4dc3bf28241f575865bf760985919",
+        "final_sha256": "1e47967e48add659791a8daabdeb7705d6c4dc3bf28241f575865bf760985919",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_chunked.py",
+        "accepted_sha256": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+        "final_sha256": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      }
+    ],
+    "unchanged_dependencies": [
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "sha256": "1dd790eef1d362e6d9f3b0e1e1836f587a2cdb094160f790d62ed0d0a352a274"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "sha256": "6770f2978583178e0e33b2c99ae8c29536ee67d6e117a8dc240ad2202981bd76"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "sha256": "fd42e7f8b196ed172a92de95bccaa8d26e1d8e4ae22b0f0d00145ac46fc7ea2e"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "sha256": "1f61c1407f297aef6001a6a0919d2ca69ef086b2c7fc3dd3b23c013847b182fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "sha256": "97b90d8532d49158fee999e7407bfd61f839425502770c8adcc02bbbc1529d84"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "sha256": "c0d48dabe722c1aa34247da09d9474d9458d98126e7ad63235c96f54284e9403"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "sha256": "9bbdb40c6879ce07051c94e6b807ce5dd57ffa07848c87802f51b76c140442fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "sha256": "a758db8e815bb4aca38460f3f9d9e11a84c915974d84ed7e525befe660e67cb7"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "sha256": "546b8052323a2a2e05633e62bce8b2856f4ec1f2754c12b7d8265255d101b034"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "sha256": "9d301029d2540683eec600c33b585448050b98ba9a21a9b03df5cd7b0f089680"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "sha256": "fb1e55d2885301ea70545807ba065df677234d9594ad4573b97f79d286d4a2a0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "sha256": "d8205cc8958cdff3429b1ac657f6ba8742fb159348e1552acda4484cdec4a925"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "sha256": "f92470224936603d104240f91c6f2c86f1dcb85ecc9e898370cea0e218fda887"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "sha256": "6cecc835a7b561dd1cfddc4305b7a93f468c3f158a96f11fd702744d0524a77e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "sha256": "86ebdef2dea4361d30b2a1892a5dc33654c5f054428125ee8374d4d1b6f74631"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "sha256": "05081ad429717ed5fa37c4fa5f01d59b73556e909c285b2113b833972f72ad31"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "sha256": "51f285f968e4a469e5e680ed7e40b706fc9f05bea40cc92c57c2214491c7977e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "sha256": "b4875513511a6479b32bc40920a0228c5f22f35b06cf63b7447d2595e98ba03c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "sha256": "f4baf2f3a3fa981a549bab7c7d8c499949769ef97065d3b17932c9ed202c809f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "sha256": "bb2e2e608bb483c54b5c1c835379327257a9a26ed354ecb725099d461ce56c99"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "sha256": "be2c397ab3720ef45b473aee0f56c89072d26526283377f35a44e6d01dc052a3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "sha256": "2157af0debfdf7bae9b7a90dabe8e9bf4f28428ffb918ba17939ae238e83c265"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "sha256": "a82cae6ff83604635fbee571700f880215e90f65046856212a26fc082e63add8"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "sha256": "a78856223576ad7aaf412a95aa4661ef4316521efad635c56c2c978f28e6344b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "sha256": "c581e2e879b7a47a10113cfa38d31de4ab8f47005e0a283d4d381dbef11d4d96"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "sha256": "a6e2ce2aef40d595678c6c44ca9a55e3606650d8d73ff82d795071fbddc61274"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "sha256": "936209258b3ff808c30900488549990b43ef85bed8691552cfc874de7a10e284"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "sha256": "9120051ea099c865376df5ed98ef24eeb06849e9b2cd3191676afabfca9c6f77"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "sha256": "1ebe2afba474abe593feb37335df0eec6fccc42119d2c7ade6755b01d62c20dd"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "sha256": "f8e91da8407f7f9894e1c379dd5124114d536b9c13e0252008291ed81b951e0e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "sha256": "430c8b049bc28aa5345d2be908a618dd22050b96947580a88f91e367550eac1e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "sha256": "26ee5844115271c7917f486bcbe9894722a6bae8f7ead6cad8892a8004a6a7b7"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "sha256": "664db342f374c7403892502feb354686f41cce9dd3c966458e71aa5cf5e7dbec"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "sha256": "7a981ff4616c66afc2fb2b682454bdcde2d6670fb00bef0b0724a67fda6e483c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "sha256": "0b6616b246fa5e0034370569c33848b83e0e2a9289843be99f5ebd9027654abf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "sha256": "0f232bbecfbd7b336e65ad12b6783fc7ccf516d54f757a5ccb2eb165abfce54b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "sha256": "1ed0e18b3b79d288b8bb3c977813bdb5b4f20624b91e8f04ca5b50128177858d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "sha256": "8aa126668356aefbddf02f9ef9cd99f18b7df0d6a163fcfc093a7286982420bf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "sha256": "e0473bb7d788f140c227f4843ef77fd853a8d088c1aed2497effea5be9df2006"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "sha256": "bb32473ec5cfefbc0244aa0ecf70bde48a8cbac40e6f18b239b4abbfb884b5aa"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "sha256": "34a8d4064ab14541834922c2efcf3444147e9c2aa7f51b205284f7b0b88bea93"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "sha256": "ef4a6657e4fa0c12bf94637101cd28322429adf858a8530efe3afe28c7e82ae6"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "sha256": "339163490de9838aa86b06dca3ca084096f1e78ba8ec4af44a011704487f405f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "sha256": "6fe91679540646e97360f5794ca34651fdc65389cd1c60688904cfdf39bd7ad3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "sha256": "ba23060a48165a5078ff8de60e4417f3f1072b5ab5e79e0296b950db19b62db0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "sha256": "e08eb4f5ac29bec6284507e8b795e1d1779833d0261011c3d3b27b05d6c79cf2"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "sha256": "33e8b2e13b3bea2e34743a7ffb4fe5b197ac24f129df5fd093eb5c7949ef6235"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "sha256": "6517aa3c441b36be1172566cb28ab7d0f1b82d53e481f3a3a0edd4e119f1e60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "sha256": "4b6b7743c6a920d4a18011312de2142153a2109357b5fec0849a82c11d3906db"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "sha256": "58f0178cdbee31a5af7cd06cc4d33ac743b6ded170688d9dd3f971741440b63a"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "sha256": "8ce77470e5ba1d9a957b15aef19e8e74cd4a14a2e5c8d46f4843605eb13bfc2f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "sha256": "178c26efdbf32c7ebf18d616e24a66980d51ce24bde4064e4b99d844b89cf41d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "sha256": "eae765236993900adc384f53cb0a471f14c6b85acef9bdac3196abcf3475a60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "sha256": "27969909b97f411877148f4a12a64b6f198f2bd9ba378b6e6f76166c38365cd1"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "sha256": "1ab2c77a0988acda49b3728c66199b7dd9dd1ba6f72d3266fb2fa551476c7e3c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "sha256": "4b94fa82f9f743b405f67d82a8625723380b0c103d29986c8b380a946b56b2ea"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "sha256": "0ac93f7b16fc84d90daee21025e4c9b9917c1d0beaa3eadffb6dfe85f86eb62b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "sha256": "130dc55ee7df430e978a6497460ac3d042c7e864c704521fe1de21d0ae2866c1"
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "sha256": "5b250641e44dc7f0b668df2f8f255f19898eb4cdacf44efa1f284a7e0a03714b"
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "sha256": "c689f50320b9efcc9081a6128c699994708c4770099cb723de7670f4bb2cf19e"
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "sha256": "75f8f4053268d19f7a13fcadc60a565c6575a293166f2e532d68850ca7e4cd95"
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "sha256": "3cf45e1c60b88334527a40d97e830c1f3960fec82a63f59e84c5b765134b6363"
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "sha256": "f4f09c317b315dce0ad865a7af4d5effc17f9005a63f2b2e3eea5b774288745a"
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "sha256": "029826a4fe5afa9316792161304631d7fe65c3a03191bdce23968afb5dc4af5a"
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "sha256": "871f85626f1dda4abc8684e016c9e826d38b93676b23902d740ed310f45f667d"
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "sha256": "705129f2b851617e6020e996601b86a57854dc248ff96a9027c458e158bdd17f"
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "sha256": "bb8daedf9db7c6896a6874b6aa1b2b8c43abe52c0ebca0459f4234dcb08eca08"
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "sha256": "187318cb4441f58b67fe3f9d67a71fd6ab8c8fc387927b22e22b98aebef363e6"
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "sha256": "d3b0c7e66f4386837ffff5912f5b88111b84a89d1210a548ae7dcf2fe91787a0"
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "sha256": "8f0cd4873127d4cb8b9d6a6747902510751a95145b1b111117cee2cdc6e8d9c0"
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "sha256": "7a0768f7138b0a5b1ddf06c90c082c8d9818443e664f2de42888503e48b9c45c"
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "sha256": "9a0e860c6ed354a0a245a719e1772518b58aa3ac2029b22fd995bcb340846649"
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "sha256": "3888cfa94a4808b67dcc108ee62d27d9ee160a032739400a454055345c90000e"
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "sha256": "82ae19e4d9c34ec7cf41d308ed481e0d13fa09ce45f004980a9c035bbc32b616"
+      },
+      {
+        "file": "src/tileops/linear_attention.py",
+        "sha256": "98698b13f3fb9d1c01b030d16be3d2f5a8c05cf02ac287abb8b8ea0672142c9b"
+      },
+      {
+        "file": "workloads/linear_attention/__init__.py",
+        "sha256": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810"
+      },
+      {
+        "file": "workloads/linear_attention/gla.py",
+        "sha256": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b"
+      },
+      {
+        "file": "workloads/linear_attention/input_values.py",
+        "sha256": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959"
+      },
+      {
+        "file": "workloads/linear_attention/gdn.py",
+        "sha256": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c"
+      },
+      {
+        "file": "workloads/linear_attention/deltanet.py",
+        "sha256": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+      }
+    ],
+    "reference_placement_changes": [
+      {
+        "file": "workloads/linear_attention/kda.py",
+        "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+        "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+        "unchanged_ast_after_removing_npu_placement_branch": true,
+        "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+        "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+        "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+        "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+        "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+      }
+    ],
+    "entry_registration": "Final integrated physical32 run required",
+    "shared_numerics_change": "pr-target-drift-v1.json: added FP8 branch only; FP16/BF16 behavior preserved"
+  },
+  {
+    "op": "GLAChunkBwdOp",
+    "snapshot": "base-v9",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_training_bwd.py",
+        "accepted_sha256": "2becdaf7b245ce8de4d84523a2e7b19ea90af408de3c5d54840cdf1154164d3e",
+        "final_sha256": "c294a64c8221e15a82783453c907e24ac2b82c48391dd44a9e0afc848cf2a50b",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_training_fwd.py",
+        "accepted_sha256": "1e47967e48add659791a8daabdeb7705d6c4dc3bf28241f575865bf760985919",
+        "final_sha256": "1e47967e48add659791a8daabdeb7705d6c4dc3bf28241f575865bf760985919",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/gla_chunked.py",
+        "accepted_sha256": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+        "final_sha256": "38bce4b4511332a9ba678a0c04b56cb6dcff422e2ec1959c72e416a3ef5bcd08",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      }
+    ],
+    "unchanged_dependencies": [
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "sha256": "1dd790eef1d362e6d9f3b0e1e1836f587a2cdb094160f790d62ed0d0a352a274"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "sha256": "6770f2978583178e0e33b2c99ae8c29536ee67d6e117a8dc240ad2202981bd76"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "sha256": "fd42e7f8b196ed172a92de95bccaa8d26e1d8e4ae22b0f0d00145ac46fc7ea2e"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "sha256": "1f61c1407f297aef6001a6a0919d2ca69ef086b2c7fc3dd3b23c013847b182fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "sha256": "97b90d8532d49158fee999e7407bfd61f839425502770c8adcc02bbbc1529d84"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "sha256": "c0d48dabe722c1aa34247da09d9474d9458d98126e7ad63235c96f54284e9403"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "sha256": "9bbdb40c6879ce07051c94e6b807ce5dd57ffa07848c87802f51b76c140442fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "sha256": "a758db8e815bb4aca38460f3f9d9e11a84c915974d84ed7e525befe660e67cb7"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "sha256": "546b8052323a2a2e05633e62bce8b2856f4ec1f2754c12b7d8265255d101b034"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "sha256": "9d301029d2540683eec600c33b585448050b98ba9a21a9b03df5cd7b0f089680"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "sha256": "fb1e55d2885301ea70545807ba065df677234d9594ad4573b97f79d286d4a2a0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "sha256": "d8205cc8958cdff3429b1ac657f6ba8742fb159348e1552acda4484cdec4a925"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "sha256": "f92470224936603d104240f91c6f2c86f1dcb85ecc9e898370cea0e218fda887"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "sha256": "6cecc835a7b561dd1cfddc4305b7a93f468c3f158a96f11fd702744d0524a77e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "sha256": "86ebdef2dea4361d30b2a1892a5dc33654c5f054428125ee8374d4d1b6f74631"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "sha256": "05081ad429717ed5fa37c4fa5f01d59b73556e909c285b2113b833972f72ad31"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "sha256": "51f285f968e4a469e5e680ed7e40b706fc9f05bea40cc92c57c2214491c7977e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "sha256": "b4875513511a6479b32bc40920a0228c5f22f35b06cf63b7447d2595e98ba03c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "sha256": "f4baf2f3a3fa981a549bab7c7d8c499949769ef97065d3b17932c9ed202c809f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "sha256": "bb2e2e608bb483c54b5c1c835379327257a9a26ed354ecb725099d461ce56c99"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "sha256": "be2c397ab3720ef45b473aee0f56c89072d26526283377f35a44e6d01dc052a3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "sha256": "2157af0debfdf7bae9b7a90dabe8e9bf4f28428ffb918ba17939ae238e83c265"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "sha256": "a82cae6ff83604635fbee571700f880215e90f65046856212a26fc082e63add8"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "sha256": "a78856223576ad7aaf412a95aa4661ef4316521efad635c56c2c978f28e6344b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "sha256": "c581e2e879b7a47a10113cfa38d31de4ab8f47005e0a283d4d381dbef11d4d96"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "sha256": "a6e2ce2aef40d595678c6c44ca9a55e3606650d8d73ff82d795071fbddc61274"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "sha256": "936209258b3ff808c30900488549990b43ef85bed8691552cfc874de7a10e284"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "sha256": "9120051ea099c865376df5ed98ef24eeb06849e9b2cd3191676afabfca9c6f77"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "sha256": "1ebe2afba474abe593feb37335df0eec6fccc42119d2c7ade6755b01d62c20dd"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "sha256": "f8e91da8407f7f9894e1c379dd5124114d536b9c13e0252008291ed81b951e0e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "sha256": "430c8b049bc28aa5345d2be908a618dd22050b96947580a88f91e367550eac1e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "sha256": "26ee5844115271c7917f486bcbe9894722a6bae8f7ead6cad8892a8004a6a7b7"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "sha256": "664db342f374c7403892502feb354686f41cce9dd3c966458e71aa5cf5e7dbec"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "sha256": "7a981ff4616c66afc2fb2b682454bdcde2d6670fb00bef0b0724a67fda6e483c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "sha256": "0b6616b246fa5e0034370569c33848b83e0e2a9289843be99f5ebd9027654abf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "sha256": "0f232bbecfbd7b336e65ad12b6783fc7ccf516d54f757a5ccb2eb165abfce54b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "sha256": "1ed0e18b3b79d288b8bb3c977813bdb5b4f20624b91e8f04ca5b50128177858d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "sha256": "8aa126668356aefbddf02f9ef9cd99f18b7df0d6a163fcfc093a7286982420bf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "sha256": "e0473bb7d788f140c227f4843ef77fd853a8d088c1aed2497effea5be9df2006"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "sha256": "bb32473ec5cfefbc0244aa0ecf70bde48a8cbac40e6f18b239b4abbfb884b5aa"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "sha256": "34a8d4064ab14541834922c2efcf3444147e9c2aa7f51b205284f7b0b88bea93"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "sha256": "ef4a6657e4fa0c12bf94637101cd28322429adf858a8530efe3afe28c7e82ae6"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "sha256": "339163490de9838aa86b06dca3ca084096f1e78ba8ec4af44a011704487f405f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "sha256": "6fe91679540646e97360f5794ca34651fdc65389cd1c60688904cfdf39bd7ad3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "sha256": "ba23060a48165a5078ff8de60e4417f3f1072b5ab5e79e0296b950db19b62db0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "sha256": "e08eb4f5ac29bec6284507e8b795e1d1779833d0261011c3d3b27b05d6c79cf2"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "sha256": "33e8b2e13b3bea2e34743a7ffb4fe5b197ac24f129df5fd093eb5c7949ef6235"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "sha256": "6517aa3c441b36be1172566cb28ab7d0f1b82d53e481f3a3a0edd4e119f1e60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "sha256": "4b6b7743c6a920d4a18011312de2142153a2109357b5fec0849a82c11d3906db"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "sha256": "58f0178cdbee31a5af7cd06cc4d33ac743b6ded170688d9dd3f971741440b63a"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "sha256": "8ce77470e5ba1d9a957b15aef19e8e74cd4a14a2e5c8d46f4843605eb13bfc2f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "sha256": "178c26efdbf32c7ebf18d616e24a66980d51ce24bde4064e4b99d844b89cf41d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "sha256": "eae765236993900adc384f53cb0a471f14c6b85acef9bdac3196abcf3475a60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "sha256": "27969909b97f411877148f4a12a64b6f198f2bd9ba378b6e6f76166c38365cd1"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "sha256": "1ab2c77a0988acda49b3728c66199b7dd9dd1ba6f72d3266fb2fa551476c7e3c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "sha256": "4b94fa82f9f743b405f67d82a8625723380b0c103d29986c8b380a946b56b2ea"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "sha256": "0ac93f7b16fc84d90daee21025e4c9b9917c1d0beaa3eadffb6dfe85f86eb62b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "sha256": "130dc55ee7df430e978a6497460ac3d042c7e864c704521fe1de21d0ae2866c1"
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "sha256": "5b250641e44dc7f0b668df2f8f255f19898eb4cdacf44efa1f284a7e0a03714b"
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "sha256": "c689f50320b9efcc9081a6128c699994708c4770099cb723de7670f4bb2cf19e"
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "sha256": "75f8f4053268d19f7a13fcadc60a565c6575a293166f2e532d68850ca7e4cd95"
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "sha256": "3cf45e1c60b88334527a40d97e830c1f3960fec82a63f59e84c5b765134b6363"
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "sha256": "f4f09c317b315dce0ad865a7af4d5effc17f9005a63f2b2e3eea5b774288745a"
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "sha256": "029826a4fe5afa9316792161304631d7fe65c3a03191bdce23968afb5dc4af5a"
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "sha256": "871f85626f1dda4abc8684e016c9e826d38b93676b23902d740ed310f45f667d"
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "sha256": "705129f2b851617e6020e996601b86a57854dc248ff96a9027c458e158bdd17f"
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "sha256": "bb8daedf9db7c6896a6874b6aa1b2b8c43abe52c0ebca0459f4234dcb08eca08"
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "sha256": "187318cb4441f58b67fe3f9d67a71fd6ab8c8fc387927b22e22b98aebef363e6"
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "sha256": "d3b0c7e66f4386837ffff5912f5b88111b84a89d1210a548ae7dcf2fe91787a0"
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "sha256": "8f0cd4873127d4cb8b9d6a6747902510751a95145b1b111117cee2cdc6e8d9c0"
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "sha256": "7a0768f7138b0a5b1ddf06c90c082c8d9818443e664f2de42888503e48b9c45c"
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "sha256": "9a0e860c6ed354a0a245a719e1772518b58aa3ac2029b22fd995bcb340846649"
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "sha256": "3888cfa94a4808b67dcc108ee62d27d9ee160a032739400a454055345c90000e"
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "sha256": "82ae19e4d9c34ec7cf41d308ed481e0d13fa09ce45f004980a9c035bbc32b616"
+      },
+      {
+        "file": "src/tileops/linear_attention.py",
+        "sha256": "98698b13f3fb9d1c01b030d16be3d2f5a8c05cf02ac287abb8b8ea0672142c9b"
+      },
+      {
+        "file": "workloads/linear_attention/__init__.py",
+        "sha256": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810"
+      },
+      {
+        "file": "workloads/linear_attention/gla.py",
+        "sha256": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b"
+      },
+      {
+        "file": "workloads/linear_attention/input_values.py",
+        "sha256": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959"
+      },
+      {
+        "file": "workloads/linear_attention/gdn.py",
+        "sha256": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c"
+      },
+      {
+        "file": "workloads/linear_attention/deltanet.py",
+        "sha256": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+      }
+    ],
+    "reference_placement_changes": [
+      {
+        "file": "workloads/linear_attention/kda.py",
+        "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+        "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+        "unchanged_ast_after_removing_npu_placement_branch": true,
+        "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+        "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+        "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+        "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+        "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+      }
+    ],
+    "entry_registration": "Final integrated physical32 run required",
+    "shared_numerics_change": "pr-target-drift-v1.json: added FP8 branch only; FP16/BF16 behavior preserved"
+  },
+  {
+    "op": "DeltaNetRecurrentFwdOp",
+    "snapshot": "base-v10",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_recurrent.py",
+        "accepted_sha256": "a45eb889a546af70ba278316bc9454d96ccd7e836ef70e6e2d723f8ef58dfcad",
+        "final_sha256": "a45eb889a546af70ba278316bc9454d96ccd7e836ef70e6e2d723f8ef58dfcad",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      }
+    ],
+    "unchanged_dependencies": [
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "sha256": "1dd790eef1d362e6d9f3b0e1e1836f587a2cdb094160f790d62ed0d0a352a274"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "sha256": "6770f2978583178e0e33b2c99ae8c29536ee67d6e117a8dc240ad2202981bd76"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "sha256": "fd42e7f8b196ed172a92de95bccaa8d26e1d8e4ae22b0f0d00145ac46fc7ea2e"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "sha256": "1f61c1407f297aef6001a6a0919d2ca69ef086b2c7fc3dd3b23c013847b182fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "sha256": "97b90d8532d49158fee999e7407bfd61f839425502770c8adcc02bbbc1529d84"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "sha256": "c0d48dabe722c1aa34247da09d9474d9458d98126e7ad63235c96f54284e9403"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "sha256": "9bbdb40c6879ce07051c94e6b807ce5dd57ffa07848c87802f51b76c140442fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "sha256": "a758db8e815bb4aca38460f3f9d9e11a84c915974d84ed7e525befe660e67cb7"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "sha256": "546b8052323a2a2e05633e62bce8b2856f4ec1f2754c12b7d8265255d101b034"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "sha256": "9d301029d2540683eec600c33b585448050b98ba9a21a9b03df5cd7b0f089680"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "sha256": "fb1e55d2885301ea70545807ba065df677234d9594ad4573b97f79d286d4a2a0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "sha256": "d8205cc8958cdff3429b1ac657f6ba8742fb159348e1552acda4484cdec4a925"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "sha256": "f92470224936603d104240f91c6f2c86f1dcb85ecc9e898370cea0e218fda887"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "sha256": "6cecc835a7b561dd1cfddc4305b7a93f468c3f158a96f11fd702744d0524a77e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "sha256": "86ebdef2dea4361d30b2a1892a5dc33654c5f054428125ee8374d4d1b6f74631"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "sha256": "05081ad429717ed5fa37c4fa5f01d59b73556e909c285b2113b833972f72ad31"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "sha256": "51f285f968e4a469e5e680ed7e40b706fc9f05bea40cc92c57c2214491c7977e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "sha256": "b4875513511a6479b32bc40920a0228c5f22f35b06cf63b7447d2595e98ba03c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "sha256": "f4baf2f3a3fa981a549bab7c7d8c499949769ef97065d3b17932c9ed202c809f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "sha256": "bb2e2e608bb483c54b5c1c835379327257a9a26ed354ecb725099d461ce56c99"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "sha256": "be2c397ab3720ef45b473aee0f56c89072d26526283377f35a44e6d01dc052a3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "sha256": "2157af0debfdf7bae9b7a90dabe8e9bf4f28428ffb918ba17939ae238e83c265"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "sha256": "a82cae6ff83604635fbee571700f880215e90f65046856212a26fc082e63add8"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "sha256": "a78856223576ad7aaf412a95aa4661ef4316521efad635c56c2c978f28e6344b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "sha256": "c581e2e879b7a47a10113cfa38d31de4ab8f47005e0a283d4d381dbef11d4d96"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "sha256": "a6e2ce2aef40d595678c6c44ca9a55e3606650d8d73ff82d795071fbddc61274"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "sha256": "936209258b3ff808c30900488549990b43ef85bed8691552cfc874de7a10e284"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "sha256": "9120051ea099c865376df5ed98ef24eeb06849e9b2cd3191676afabfca9c6f77"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "sha256": "1ebe2afba474abe593feb37335df0eec6fccc42119d2c7ade6755b01d62c20dd"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "sha256": "f8e91da8407f7f9894e1c379dd5124114d536b9c13e0252008291ed81b951e0e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "sha256": "430c8b049bc28aa5345d2be908a618dd22050b96947580a88f91e367550eac1e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "sha256": "26ee5844115271c7917f486bcbe9894722a6bae8f7ead6cad8892a8004a6a7b7"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "sha256": "664db342f374c7403892502feb354686f41cce9dd3c966458e71aa5cf5e7dbec"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "sha256": "7a981ff4616c66afc2fb2b682454bdcde2d6670fb00bef0b0724a67fda6e483c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "sha256": "0b6616b246fa5e0034370569c33848b83e0e2a9289843be99f5ebd9027654abf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "sha256": "0f232bbecfbd7b336e65ad12b6783fc7ccf516d54f757a5ccb2eb165abfce54b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "sha256": "1ed0e18b3b79d288b8bb3c977813bdb5b4f20624b91e8f04ca5b50128177858d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "sha256": "8aa126668356aefbddf02f9ef9cd99f18b7df0d6a163fcfc093a7286982420bf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "sha256": "e0473bb7d788f140c227f4843ef77fd853a8d088c1aed2497effea5be9df2006"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "sha256": "bb32473ec5cfefbc0244aa0ecf70bde48a8cbac40e6f18b239b4abbfb884b5aa"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "sha256": "34a8d4064ab14541834922c2efcf3444147e9c2aa7f51b205284f7b0b88bea93"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "sha256": "ef4a6657e4fa0c12bf94637101cd28322429adf858a8530efe3afe28c7e82ae6"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "sha256": "339163490de9838aa86b06dca3ca084096f1e78ba8ec4af44a011704487f405f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "sha256": "6fe91679540646e97360f5794ca34651fdc65389cd1c60688904cfdf39bd7ad3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "sha256": "ba23060a48165a5078ff8de60e4417f3f1072b5ab5e79e0296b950db19b62db0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "sha256": "e08eb4f5ac29bec6284507e8b795e1d1779833d0261011c3d3b27b05d6c79cf2"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "sha256": "33e8b2e13b3bea2e34743a7ffb4fe5b197ac24f129df5fd093eb5c7949ef6235"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "sha256": "6517aa3c441b36be1172566cb28ab7d0f1b82d53e481f3a3a0edd4e119f1e60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "sha256": "4b6b7743c6a920d4a18011312de2142153a2109357b5fec0849a82c11d3906db"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "sha256": "58f0178cdbee31a5af7cd06cc4d33ac743b6ded170688d9dd3f971741440b63a"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "sha256": "8ce77470e5ba1d9a957b15aef19e8e74cd4a14a2e5c8d46f4843605eb13bfc2f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "sha256": "178c26efdbf32c7ebf18d616e24a66980d51ce24bde4064e4b99d844b89cf41d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "sha256": "eae765236993900adc384f53cb0a471f14c6b85acef9bdac3196abcf3475a60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "sha256": "27969909b97f411877148f4a12a64b6f198f2bd9ba378b6e6f76166c38365cd1"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "sha256": "1ab2c77a0988acda49b3728c66199b7dd9dd1ba6f72d3266fb2fa551476c7e3c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "sha256": "4b94fa82f9f743b405f67d82a8625723380b0c103d29986c8b380a946b56b2ea"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "sha256": "0ac93f7b16fc84d90daee21025e4c9b9917c1d0beaa3eadffb6dfe85f86eb62b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "sha256": "130dc55ee7df430e978a6497460ac3d042c7e864c704521fe1de21d0ae2866c1"
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "sha256": "5b250641e44dc7f0b668df2f8f255f19898eb4cdacf44efa1f284a7e0a03714b"
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "sha256": "c689f50320b9efcc9081a6128c699994708c4770099cb723de7670f4bb2cf19e"
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "sha256": "75f8f4053268d19f7a13fcadc60a565c6575a293166f2e532d68850ca7e4cd95"
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "sha256": "3cf45e1c60b88334527a40d97e830c1f3960fec82a63f59e84c5b765134b6363"
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "sha256": "f4f09c317b315dce0ad865a7af4d5effc17f9005a63f2b2e3eea5b774288745a"
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "sha256": "029826a4fe5afa9316792161304631d7fe65c3a03191bdce23968afb5dc4af5a"
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "sha256": "871f85626f1dda4abc8684e016c9e826d38b93676b23902d740ed310f45f667d"
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "sha256": "705129f2b851617e6020e996601b86a57854dc248ff96a9027c458e158bdd17f"
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "sha256": "bb8daedf9db7c6896a6874b6aa1b2b8c43abe52c0ebca0459f4234dcb08eca08"
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "sha256": "187318cb4441f58b67fe3f9d67a71fd6ab8c8fc387927b22e22b98aebef363e6"
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "sha256": "d3b0c7e66f4386837ffff5912f5b88111b84a89d1210a548ae7dcf2fe91787a0"
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "sha256": "8f0cd4873127d4cb8b9d6a6747902510751a95145b1b111117cee2cdc6e8d9c0"
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "sha256": "7a0768f7138b0a5b1ddf06c90c082c8d9818443e664f2de42888503e48b9c45c"
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "sha256": "9a0e860c6ed354a0a245a719e1772518b58aa3ac2029b22fd995bcb340846649"
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "sha256": "3888cfa94a4808b67dcc108ee62d27d9ee160a032739400a454055345c90000e"
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "sha256": "82ae19e4d9c34ec7cf41d308ed481e0d13fa09ce45f004980a9c035bbc32b616"
+      },
+      {
+        "file": "src/tileops/linear_attention.py",
+        "sha256": "98698b13f3fb9d1c01b030d16be3d2f5a8c05cf02ac287abb8b8ea0672142c9b"
+      },
+      {
+        "file": "workloads/linear_attention/__init__.py",
+        "sha256": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810"
+      },
+      {
+        "file": "workloads/linear_attention/gla.py",
+        "sha256": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b"
+      },
+      {
+        "file": "workloads/linear_attention/input_values.py",
+        "sha256": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959"
+      },
+      {
+        "file": "workloads/linear_attention/gdn.py",
+        "sha256": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c"
+      },
+      {
+        "file": "workloads/linear_attention/deltanet.py",
+        "sha256": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+      }
+    ],
+    "reference_placement_changes": [
+      {
+        "file": "workloads/linear_attention/kda.py",
+        "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+        "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+        "unchanged_ast_after_removing_npu_placement_branch": true,
+        "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+        "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+        "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+        "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+        "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+      }
+    ],
+    "entry_registration": "Final integrated physical32 run required",
+    "shared_numerics_change": "pr-target-drift-v1.json: added FP8 branch only; FP16/BF16 behavior preserved"
+  },
+  {
+    "op": "DeltaNetFwdOp",
+    "snapshot": "base-v15",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet.py",
+        "accepted_sha256": "24ced51885ed755b35d7baa623227d4aab059b39244fbb6b6db7f0d2c040312c",
+        "final_sha256": "24ced51885ed755b35d7baa623227d4aab059b39244fbb6b6db7f0d2c040312c",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_inference.py",
+        "accepted_sha256": "533a133cbfc1c7e0e43b0389d25d4639a1318526828efbd70ddb58f9da50b75b",
+        "final_sha256": "533a133cbfc1c7e0e43b0389d25d4639a1318526828efbd70ddb58f9da50b75b",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_inference_inverse.py",
+        "accepted_sha256": "ace2e26a59f8c258c3d494e7dd6686934fba3d12595adb675cb998141dfccddb",
+        "final_sha256": "ace2e26a59f8c258c3d494e7dd6686934fba3d12595adb675cb998141dfccddb",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_inference_pack.py",
+        "accepted_sha256": "8833cef93516d1c6fd27277af54a720ce48db3f50b912e1759fb9377786ff1ad",
+        "final_sha256": "8833cef93516d1c6fd27277af54a720ce48db3f50b912e1759fb9377786ff1ad",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_pack.py",
+        "accepted_sha256": "f87271af43938e23f29a96ba922ff091ea7f1a5a08a11211306dc46d6c36369e",
+        "final_sha256": "f87271af43938e23f29a96ba922ff091ea7f1a5a08a11211306dc46d6c36369e",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_output.py",
+        "accepted_sha256": "d34bfbc8444be776eb75bda3ca4c5eb69f070f5706fb61e8e8e19b2f6bfa0c4d",
+        "final_sha256": "d34bfbc8444be776eb75bda3ca4c5eb69f070f5706fb61e8e8e19b2f6bfa0c4d",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_pairs.py",
+        "accepted_sha256": "b6cc16e44ef87a21eb8a52bfec76987d1f21ba70e3870bdc21a97aa6b9f32dbb",
+        "final_sha256": "b6cc16e44ef87a21eb8a52bfec76987d1f21ba70e3870bdc21a97aa6b9f32dbb",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_seeded_states.py",
+        "accepted_sha256": "b0f16db0755db84aa39e203515d79ea9de1b8744e1d36dadee441b6aa38bd172",
+        "final_sha256": "b0f16db0755db84aa39e203515d79ea9de1b8744e1d36dadee441b6aa38bd172",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_chunked.py",
+        "accepted_sha256": "c579bd9059c2008d793af5c56941134f5d48a5d6ce2ddba4908ecf3a1ff2bd76",
+        "final_sha256": "c579bd9059c2008d793af5c56941134f5d48a5d6ce2ddba4908ecf3a1ff2bd76",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_group_scan.py",
+        "accepted_sha256": "30e2a8bf9a2a6e5d72e27f5aaafca2f7d9dd79c792b185020772903d441bf10b",
+        "final_sha256": "30e2a8bf9a2a6e5d72e27f5aaafca2f7d9dd79c792b185020772903d441bf10b",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_scan.py",
+        "accepted_sha256": "1c4a58297ee0cc3d8e1d8e3fb26f27d73bb8a1404b6b712fdad05c388fb8b797",
+        "final_sha256": "1c4a58297ee0cc3d8e1d8e3fb26f27d73bb8a1404b6b712fdad05c388fb8b797",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_inverse.py",
+        "accepted_sha256": "bb812ec94ef5ba97ae693aeaf4e25223c0e542e844438dd35a826b1360cd8f4f",
+        "final_sha256": "bb812ec94ef5ba97ae693aeaf4e25223c0e542e844438dd35a826b1360cd8f4f",
+        "complete_ast_equal": true,
+        "removed_unused_torch_import_only": false
+      }
+    ],
+    "unchanged_dependencies": [
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "sha256": "1dd790eef1d362e6d9f3b0e1e1836f587a2cdb094160f790d62ed0d0a352a274"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "sha256": "6770f2978583178e0e33b2c99ae8c29536ee67d6e117a8dc240ad2202981bd76"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "sha256": "fd42e7f8b196ed172a92de95bccaa8d26e1d8e4ae22b0f0d00145ac46fc7ea2e"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "sha256": "1f61c1407f297aef6001a6a0919d2ca69ef086b2c7fc3dd3b23c013847b182fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "sha256": "97b90d8532d49158fee999e7407bfd61f839425502770c8adcc02bbbc1529d84"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "sha256": "c0d48dabe722c1aa34247da09d9474d9458d98126e7ad63235c96f54284e9403"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "sha256": "9bbdb40c6879ce07051c94e6b807ce5dd57ffa07848c87802f51b76c140442fa"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "sha256": "a758db8e815bb4aca38460f3f9d9e11a84c915974d84ed7e525befe660e67cb7"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "sha256": "546b8052323a2a2e05633e62bce8b2856f4ec1f2754c12b7d8265255d101b034"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "sha256": "9d301029d2540683eec600c33b585448050b98ba9a21a9b03df5cd7b0f089680"
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "sha256": "fb1e55d2885301ea70545807ba065df677234d9594ad4573b97f79d286d4a2a0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "sha256": "d8205cc8958cdff3429b1ac657f6ba8742fb159348e1552acda4484cdec4a925"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "sha256": "f92470224936603d104240f91c6f2c86f1dcb85ecc9e898370cea0e218fda887"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "sha256": "6cecc835a7b561dd1cfddc4305b7a93f468c3f158a96f11fd702744d0524a77e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "sha256": "86ebdef2dea4361d30b2a1892a5dc33654c5f054428125ee8374d4d1b6f74631"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "sha256": "05081ad429717ed5fa37c4fa5f01d59b73556e909c285b2113b833972f72ad31"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "sha256": "51f285f968e4a469e5e680ed7e40b706fc9f05bea40cc92c57c2214491c7977e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "sha256": "b4875513511a6479b32bc40920a0228c5f22f35b06cf63b7447d2595e98ba03c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "sha256": "f4baf2f3a3fa981a549bab7c7d8c499949769ef97065d3b17932c9ed202c809f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "sha256": "bb2e2e608bb483c54b5c1c835379327257a9a26ed354ecb725099d461ce56c99"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "sha256": "be2c397ab3720ef45b473aee0f56c89072d26526283377f35a44e6d01dc052a3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "sha256": "2157af0debfdf7bae9b7a90dabe8e9bf4f28428ffb918ba17939ae238e83c265"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "sha256": "a82cae6ff83604635fbee571700f880215e90f65046856212a26fc082e63add8"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "sha256": "a78856223576ad7aaf412a95aa4661ef4316521efad635c56c2c978f28e6344b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "sha256": "c581e2e879b7a47a10113cfa38d31de4ab8f47005e0a283d4d381dbef11d4d96"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "sha256": "a6e2ce2aef40d595678c6c44ca9a55e3606650d8d73ff82d795071fbddc61274"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "sha256": "936209258b3ff808c30900488549990b43ef85bed8691552cfc874de7a10e284"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "sha256": "9120051ea099c865376df5ed98ef24eeb06849e9b2cd3191676afabfca9c6f77"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "sha256": "1ebe2afba474abe593feb37335df0eec6fccc42119d2c7ade6755b01d62c20dd"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "sha256": "f8e91da8407f7f9894e1c379dd5124114d536b9c13e0252008291ed81b951e0e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "sha256": "430c8b049bc28aa5345d2be908a618dd22050b96947580a88f91e367550eac1e"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "sha256": "26ee5844115271c7917f486bcbe9894722a6bae8f7ead6cad8892a8004a6a7b7"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "sha256": "664db342f374c7403892502feb354686f41cce9dd3c966458e71aa5cf5e7dbec"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "sha256": "7a981ff4616c66afc2fb2b682454bdcde2d6670fb00bef0b0724a67fda6e483c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "sha256": "0b6616b246fa5e0034370569c33848b83e0e2a9289843be99f5ebd9027654abf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "sha256": "0f232bbecfbd7b336e65ad12b6783fc7ccf516d54f757a5ccb2eb165abfce54b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "sha256": "1ed0e18b3b79d288b8bb3c977813bdb5b4f20624b91e8f04ca5b50128177858d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "sha256": "8aa126668356aefbddf02f9ef9cd99f18b7df0d6a163fcfc093a7286982420bf"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "sha256": "e0473bb7d788f140c227f4843ef77fd853a8d088c1aed2497effea5be9df2006"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "sha256": "bb32473ec5cfefbc0244aa0ecf70bde48a8cbac40e6f18b239b4abbfb884b5aa"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "sha256": "34a8d4064ab14541834922c2efcf3444147e9c2aa7f51b205284f7b0b88bea93"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "sha256": "ef4a6657e4fa0c12bf94637101cd28322429adf858a8530efe3afe28c7e82ae6"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "sha256": "339163490de9838aa86b06dca3ca084096f1e78ba8ec4af44a011704487f405f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "sha256": "6fe91679540646e97360f5794ca34651fdc65389cd1c60688904cfdf39bd7ad3"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "sha256": "ba23060a48165a5078ff8de60e4417f3f1072b5ab5e79e0296b950db19b62db0"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "sha256": "e08eb4f5ac29bec6284507e8b795e1d1779833d0261011c3d3b27b05d6c79cf2"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "sha256": "33e8b2e13b3bea2e34743a7ffb4fe5b197ac24f129df5fd093eb5c7949ef6235"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "sha256": "6517aa3c441b36be1172566cb28ab7d0f1b82d53e481f3a3a0edd4e119f1e60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "sha256": "4b6b7743c6a920d4a18011312de2142153a2109357b5fec0849a82c11d3906db"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "sha256": "58f0178cdbee31a5af7cd06cc4d33ac743b6ded170688d9dd3f971741440b63a"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "sha256": "8ce77470e5ba1d9a957b15aef19e8e74cd4a14a2e5c8d46f4843605eb13bfc2f"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "sha256": "178c26efdbf32c7ebf18d616e24a66980d51ce24bde4064e4b99d844b89cf41d"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "sha256": "eae765236993900adc384f53cb0a471f14c6b85acef9bdac3196abcf3475a60b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "sha256": "27969909b97f411877148f4a12a64b6f198f2bd9ba378b6e6f76166c38365cd1"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "sha256": "1ab2c77a0988acda49b3728c66199b7dd9dd1ba6f72d3266fb2fa551476c7e3c"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "sha256": "4b94fa82f9f743b405f67d82a8625723380b0c103d29986c8b380a946b56b2ea"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "sha256": "0ac93f7b16fc84d90daee21025e4c9b9917c1d0beaa3eadffb6dfe85f86eb62b"
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "sha256": "130dc55ee7df430e978a6497460ac3d042c7e864c704521fe1de21d0ae2866c1"
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "sha256": "5b250641e44dc7f0b668df2f8f255f19898eb4cdacf44efa1f284a7e0a03714b"
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "sha256": "c689f50320b9efcc9081a6128c699994708c4770099cb723de7670f4bb2cf19e"
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "sha256": "75f8f4053268d19f7a13fcadc60a565c6575a293166f2e532d68850ca7e4cd95"
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "sha256": "3cf45e1c60b88334527a40d97e830c1f3960fec82a63f59e84c5b765134b6363"
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "sha256": "f4f09c317b315dce0ad865a7af4d5effc17f9005a63f2b2e3eea5b774288745a"
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "sha256": "029826a4fe5afa9316792161304631d7fe65c3a03191bdce23968afb5dc4af5a"
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "sha256": "871f85626f1dda4abc8684e016c9e826d38b93676b23902d740ed310f45f667d"
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "sha256": "705129f2b851617e6020e996601b86a57854dc248ff96a9027c458e158bdd17f"
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "sha256": "bb8daedf9db7c6896a6874b6aa1b2b8c43abe52c0ebca0459f4234dcb08eca08"
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "sha256": "187318cb4441f58b67fe3f9d67a71fd6ab8c8fc387927b22e22b98aebef363e6"
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "sha256": "d3b0c7e66f4386837ffff5912f5b88111b84a89d1210a548ae7dcf2fe91787a0"
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "sha256": "8f0cd4873127d4cb8b9d6a6747902510751a95145b1b111117cee2cdc6e8d9c0"
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "sha256": "7a0768f7138b0a5b1ddf06c90c082c8d9818443e664f2de42888503e48b9c45c"
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "sha256": "9a0e860c6ed354a0a245a719e1772518b58aa3ac2029b22fd995bcb340846649"
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "sha256": "3888cfa94a4808b67dcc108ee62d27d9ee160a032739400a454055345c90000e"
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "sha256": "82ae19e4d9c34ec7cf41d308ed481e0d13fa09ce45f004980a9c035bbc32b616"
+      },
+      {
+        "file": "src/tileops/linear_attention.py",
+        "sha256": "98698b13f3fb9d1c01b030d16be3d2f5a8c05cf02ac287abb8b8ea0672142c9b"
+      },
+      {
+        "file": "workloads/linear_attention/__init__.py",
+        "sha256": "791f7ec9e7da0ee21c110c8d5834829436e58f8ebe0f7b7a17898d312db45810"
+      },
+      {
+        "file": "workloads/linear_attention/gla.py",
+        "sha256": "ba6b973a6d65af734e9492db6ebe7123c67f1278b589f2e66060c540fd5ef11b"
+      },
+      {
+        "file": "workloads/linear_attention/input_values.py",
+        "sha256": "32288d0b7fc9b7bad4ea5270ecd9b14ca05b7b8ad5325537c064fffab35cc959"
+      },
+      {
+        "file": "workloads/linear_attention/gdn.py",
+        "sha256": "cf8dba9acf742663b857d80df210d235a826c0b3ac1aa245f66ec19157f48a9c"
+      },
+      {
+        "file": "workloads/linear_attention/deltanet.py",
+        "sha256": "09d0edbf4c4df7ac4405c5dc44f9395e40d1594878e644a8f218b2171fb1a953"
+      }
+    ],
+    "reference_placement_changes": [
+      {
+        "file": "workloads/linear_attention/kda.py",
+        "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+        "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+        "unchanged_ast_after_removing_npu_placement_branch": true,
+        "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+        "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+        "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+        "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+        "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+      }
+    ],
+    "entry_registration": "Final integrated physical32 run required",
+    "shared_numerics_change": "pr-target-drift-v1.json: added FP8 branch only; FP16/BF16 behavior preserved"
+  }
+]

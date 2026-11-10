@@ -1,0 +1,2305 @@
+[
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[2-64-2-64-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[2-64-2-64-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[2-64-2-64-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[1-128-4-64-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[1-128-4-64-64-64-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[1-128-4-64-64-64-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[2-256-4-64-64-64-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[1-128-2-64-64-16-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[1-64-80-64-64-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd[1-128-2-128-128-32-dtype9-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd_carries_the_initial_state",
+    "markers": [
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd_stays_exact_when_a_chunk_decays_past_the_split_factors",
+    "markers": [
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[2-64-2-64-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[2-64-2-64-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[2-64-2-64-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-128-4-64-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-128-4-64-64-64-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-128-4-64-64-64-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-256-4-64-192-32-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-256-4-128-128-32-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-256-4-128-128-32-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd[1-256-2-64-64-128-dtype9-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd_stays_exact_when_a_chunk_decays_past_the_split_factors",
+    "markers": [
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_chunk_fwd_feeds_bwd[dtype0]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_chunk_fwd_feeds_bwd[dtype1]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_refuses_extents_its_gemms_do_not_tile",
+    "markers": [
+      "smoke",
+      "in_tree_kernels",
+      "cuda_only"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_bwd_refuses_what_99_kb_cannot_hold",
+    "markers": [
+      "in_tree_kernels",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd_reaches_external_target_with_optional_inputs",
+    "markers": [
+      "usefixtures",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd_roofline_counts_packed_states[False]",
+    "markers": [
+      "parametrize",
+      "usefixtures",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_fwd_roofline_counts_packed_states[True]",
+    "markers": [
+      "parametrize",
+      "usefixtures",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-64-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-64-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-128-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-128-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[1024-64-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[1024-64-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[None-dtype0-64]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[None-dtype1-128]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[0.3-dtype0-64]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[0.3-dtype1-128]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_refuses_offsets_99_kb_cannot_hold",
+    "markers": [
+      "in_tree_kernels",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_prefill_stays_finite_when_the_gate_outruns_a_split_exponent[fp16]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_prefill_stays_finite_when_the_gate_outruns_a_split_exponent[bf16]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_prefill_rows_shorter_than_a_whole_chunk_match_fla",
+    "markers": [
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_long_prefill_uses_partitioned_kernel[dtype0-True-1.0]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_long_prefill_uses_partitioned_kernel[dtype1-False-3.0]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_matches_fla[dtype0-128-True-None]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_matches_fla[dtype1-64-False-None]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_matches_fla[dtype2-64-True-0.3]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_steps_match_one_recurrence",
+    "markers": [
+      "in_tree_kernels",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[1-4-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[1-4-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[1-4-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[2-8-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[2-4-128-128-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[2-8-64-64-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[2-8-64-64-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[1-4-16-64-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode[1-4-16-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_value_slice[2-72-64-64-dtype0]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_value_slice[1-4-17-7-dtype1]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[1-4-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[1-4-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[1-4-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[2-8-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[2-4-128-128-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[2-8-64-64-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[2-8-64-64-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[1-4-16-64-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_multi_step[1-4-16-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-8-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-4-128-128-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-8-64-64-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-8-64-64-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-16-64-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-16-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[2-64-2-64-64-32-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "packaging"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[2-64-2-64-64-32-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[2-64-2-64-64-32-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[1-128-4-64-64-32-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[1-128-4-64-64-32-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[1-128-4-64-64-32-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[2-8192-4-64-64-64-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[2-16384-4-64-64-64-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[1-256-2-64-128-128-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd[full-bf16-tuned]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[2-64-2-64-64-32-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[2-64-2-64-64-32-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[2-64-2-64-64-32-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[1-256-16-128-128-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[1-256-16-128-128-64-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[1-128-4-64-64-32-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[1-128-4-64-64-32-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[1-128-4-64-64-32-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[1-256-2-64-64-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_bwd[full-bf16-tuned]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_fwd_reaches_target_with_optional_inputs",
+    "markers": [
+      "usefixtures",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_dense_prefill_matches_fla[89-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "usefixtures",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_dense_prefill_matches_fla[89-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "usefixtures",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_dense_prefill_matches_fla[90-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "usefixtures",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_dense_prefill_matches_fla[90-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "usefixtures",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_dense_prefill_normalizes_q_and_k[89]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_dense_prefill_normalizes_q_and_k[90]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_prefill_packs_ragged_sequences[89]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_prefill_packs_ragged_sequences[90]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_prefill_runs_a_row_that_is_not_a_whole_chunk[89]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_prefill_runs_a_row_that_is_not_a_whole_chunk[90]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_partitioned_prefill_matches_fla",
+    "markers": [
+      "sm90",
+      "smoke",
+      "in_tree_kernels"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_matches_fla[fp16]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "usefixtures",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_matches_fla[bf16]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "usefixtures",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_wide_partitioned_prefill_matches_fla",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_wide_prefill_matches_fla[89]",
+    "markers": [
+      "parametrize",
+      "usefixtures",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_wide_prefill_matches_fla[90]",
+    "markers": [
+      "parametrize",
+      "usefixtures",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[1-4-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[1-4-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[1-4-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[2-8-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[2-4-128-128-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[2-4-128-128-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[2-4-128-128-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[2-8-64-64-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[2-8-64-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[1-4-16-64-dtype9-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode[1-4-16-64-dtype10-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[1-4-64-64-dtype0-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[1-4-64-64-dtype1-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[1-4-64-64-dtype2-False]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[2-8-64-64-dtype3-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[2-4-128-128-dtype4-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[2-4-128-128-dtype5-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[2-4-128-128-dtype6-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[2-8-64-64-dtype7-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[2-8-64-64-dtype8-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[1-4-16-64-dtype9-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_multi_step[1-4-16-64-dtype10-False]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_warp_real_128x128_smoke[dtype0]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90",
+      "in_tree_kernels"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_warp_real_128x128_smoke[dtype1]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90",
+      "in_tree_kernels"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_warp_real_128x128_multi_step_smoke[dtype0]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90",
+      "in_tree_kernels"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_warp_real_128x128_multi_step_smoke[dtype1]",
+    "markers": [
+      "parametrize",
+      "smoke",
+      "sm90",
+      "in_tree_kernels"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_matches_reference[fp16]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_matches_reference[bf16]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_packs_ragged_sequences",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_packs_a_batch_holding_an_empty_sequence",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_packs_sequences_that_fill_their_chunks",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_reads_offsets_a_freed_buffer_left_behind",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_serves_more_value_heads_than_query_heads",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_packs_sequences_of_16_heads[two]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_packs_sequences_of_16_heads[four]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_serves_a_64_wide_state",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_decode_matches_reference[b1]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_decode_matches_reference[b8]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_decode_runs_from_a_zero_state",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_continues_across_calls",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_in_99_kb_of_shared_memory",
+    "markers": [
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_scans_independent_value_tiles",
+    "markers": [
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_fused_prefill_reads_many_offsets_from_global_memory",
+    "markers": [
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_refuses_what_no_kernel_serves[value-major-state]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_refuses_what_no_kernel_serves[value-wider-than-key]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[64-80-166912]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[64-89-101376]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[64-90-232448]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[128-80-166912]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[128-89-101376]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[128-90-232448]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_fused_prefill_in_sm89_shared_memory[64-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_fused_prefill_in_sm89_shared_memory[64-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_fused_prefill_in_sm89_shared_memory[128-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_fused_prefill_in_sm89_shared_memory[128-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[chunk-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[chunk-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm89-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm89-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke",
+      "sm89"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm90-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm90-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_only",
+      "smoke",
+      "sm90"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_matches_reference[grouped-fp16]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_matches_reference[bounded-packed-tail]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_matches_reference[long-grouped]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_matches_reference[bounded-many-sequences]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_graph_replay[unbounded-decode]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_graph",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_graph_replay[unbounded-prefill]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_graph",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_graph_replay[bounded-decode]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_graph",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_graph_replay[bounded-prefill]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "cuda_graph",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_takes_large_softplus_arguments_as_identity",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_decode_reads_dt_bias",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_decode_keeps_state_when_factors_cross_fp32_range",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_bounded_gate_zero_gate_survives_overflowing_rate",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_serves_many_chunk_heads[dense]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_serves_many_chunk_heads[bounded-packed]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_serves_many_chunk_heads[many-sequences]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_gate_modes_and_operands_remain_call_local[1-65-4]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_gate_modes_and_operands_remain_call_local[16-2-16]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_gate_modes_and_operands_remain_call_local[4-1-4]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_decode_continues_from_prefill",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_preserves_each_channel_decay[single-sequence]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_preserves_each_channel_decay[batched-sequences]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_bounded_gate_preserves_tiny_query_contributions[single-sequence]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_bounded_gate_preserves_tiny_query_contributions[batched-sequences]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_bounded_gate_preserves_near_cancelling_contributions[single-sequence]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_bounded_gate_preserves_near_cancelling_contributions[batched-sequences]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_preserves_finite_unnormalized_cancellation",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_preserves_finite_state_cancellation",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_preserves_finite_beta_correction",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_bounded_gate_preserves_single_step_cancellation",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_given_gate_mixes_ordinary_and_strong_chunks[normalized-128-bf16]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_given_gate_mixes_ordinary_and_strong_chunks[unnormalized-64-fp16]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_given_gate_mixes_ordinary_and_strong_chunks[fused-bf16]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_given_gate_mixes_ordinary_and_strong_chunks[fused-fp16]",
+    "markers": [
+      "parametrize",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_strong_decay_sequence_among_ordinary_sequences[dense]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_kda.py::test_kda_prefill_strong_decay_sequence_among_ordinary_sequences[varlen]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "full"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_matches_reference[89-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_matches_reference[89-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_matches_reference[90-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_matches_reference[90-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_continues_an_initial_state[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_continues_an_initial_state[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_carries_a_value_major_state[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_carries_a_value_major_state[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_preserves_finite_strong_decay[partial-subblock]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_preserves_finite_strong_decay[cross-chunk]",
+    "markers": [
+      "parametrize",
+      "cuda_only",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_partitioned_prefill_carries_a_value_major_state",
+    "markers": [
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_runs_a_64_wide_state[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_prefill_runs_a_64_wide_state[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_packs_ragged_sequences_with_grouped_value_heads[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_packs_ragged_sequences_with_grouped_value_heads[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_packs_sequences_of_one_length",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_packs_many_sequences_shorter_than_a_chunk",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_keeps_busy_packed_sequences_whole",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_reads_offsets_rewritten_in_place[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_reads_offsets_rewritten_in_place[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_inverts_a_chunk_of_correlated_keys[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_inverts_a_chunk_of_correlated_keys[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_inverts_correlated_keys_in_the_warp_group_solve",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_fused_prefill_matches_reference[bf16-partial-chunk]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_fused_prefill_matches_reference[fp16-value-major-state]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_fused_prefill_matches_reference[in-kernel-transforms]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_fused_prefill_inverts_correlated_keys_in_float16",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_fused_prefill_keeps_a_fast_decay_finite_in_fp16",
+    "markers": [
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_runs_a_row_that_is_not_a_whole_chunk[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_runs_a_row_that_is_not_a_whole_chunk[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[89-l2norm]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[89-raw-gate]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[89-beta-sigmoid]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[89-beta-sigmoid-negative]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[89-every-transform]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[89-every-transform-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[90-l2norm]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[90-raw-gate]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[90-beta-sigmoid]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[90-beta-sigmoid-negative]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[90-every-transform]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_takes_each_input_transform[90-every-transform-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_sm89_prefill_scans_a_long_sequence_in_narrow_value_tiles[16-columns]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_sm89_prefill_scans_a_long_sequence_in_narrow_value_tiles[32-columns]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_keeps_a_fast_decay_finite_in_fp16[89]",
+    "markers": [
+      "parametrize",
+      "sm89",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_keeps_a_fast_decay_finite_in_fp16[90]",
+    "markers": [
+      "parametrize",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_partitioned_prefill_normalizes_the_key_it_stages",
+    "markers": [
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_partitioned_dense_prefill_matches_reference[from-zero]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_partitioned_dense_prefill_matches_reference[continued]",
+    "markers": [
+      "parametrize",
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_partitioned_prefill_ends_on_a_short_piece",
+    "markers": [
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_partitioned_prefill_splits_only_the_long_packed_sequences",
+    "markers": [
+      "in_tree_kernels",
+      "sm90",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_decode_matches_reference[b1-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_decode_matches_reference[b1-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_decode_matches_reference[b8-fp16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_decode_matches_reference[b8-bf16]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_decode_runs_each_recurrence_flag[v-first]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_decode_runs_each_recurrence_flag[gate-fused]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_decode_runs_each_recurrence_flag[beta-sigmoid-neg]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_decode_runs_each_recurrence_flag[l2norm]",
+    "markers": [
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_decode_groups_value_heads_over_a_64_wide_state",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_dense_decode_propagates_fp32_state",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn.py::test_gdn_contract_reaches_target_builder",
+    "markers": [
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_ascend.py::test_ascend_gla_k128_scores_match_direct_recurrence[dtype0-lengths0]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_ascend.py::test_ascend_gla_k128_scores_match_direct_recurrence[dtype0-lengths1]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_ascend.py::test_ascend_gla_k128_scores_match_direct_recurrence[dtype1-lengths0]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_ascend.py::test_ascend_gla_k128_scores_match_direct_recurrence[dtype1-lengths1]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_training_preserves_fp32_boundaries[dtype0-3-17-19]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_training_preserves_fp32_boundaries[dtype0-32-128-64]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_training_preserves_fp32_boundaries[dtype0-64-64-128]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_training_preserves_fp32_boundaries[dtype1-3-17-19]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_training_preserves_fp32_boundaries[dtype1-32-128-64]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_training_preserves_fp32_boundaries[dtype1-64-64-128]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_initial_gradient_matches_direct_autograd[dtype0-3-17-19]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_initial_gradient_matches_direct_autograd[dtype0-32-64-64]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_initial_gradient_matches_direct_autograd[dtype1-3-17-19]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gla_training_ascend.py::test_ascend_gla_initial_gradient_matches_direct_autograd[dtype1-32-64-64]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet_ascend.py::test_normalized_delta_state_and_tail[129-False-dtype0]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet_ascend.py::test_normalized_delta_state_and_tail[129-False-dtype1]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet_ascend.py::test_normalized_delta_state_and_tail[2049-True-dtype0]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_deltanet_ascend.py::test_normalized_delta_state_and_tail[2049-True-dtype1]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn_ascend.py::test_ascend_gdn_packed_rectangular_transforms[17-19-dtype0]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn_ascend.py::test_ascend_gdn_packed_rectangular_transforms[17-19-dtype1]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn_ascend.py::test_ascend_gdn_packed_rectangular_transforms[128-64-dtype0]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  },
+  {
+    "nodeid": "tests/ops/test_gdn_ascend.py::test_ascend_gdn_packed_rectangular_transforms[128-64-dtype1]",
+    "markers": [
+      "parametrize",
+      "parametrize",
+      "in_tree_kernels",
+      "smoke"
+    ]
+  }
+]
