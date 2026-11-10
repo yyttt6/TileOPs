@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-PILOT_OPERATORS = frozenset({"ReLUFwdOp"})
+PILOT_OPERATORS = frozenset({"ReLUFwdOp", "GEMMINT8W8A8FwdOp"})
 
 
 def plan_for(op_name, source):
