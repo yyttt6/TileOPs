@@ -31,7 +31,9 @@ def comparison_identity(op, case, params):
                 raise ValueError(f'Ambiguous baseline parameter aliases: {old}, {new}')
             params[new] = params.pop(old)
 
-    if op in ('GemmFwdOp', 'BmmFwdOp'):
+    if op == 'ReluFwdOp':
+        op = 'ReLUFwdOp'
+    elif op in ('GemmFwdOp', 'BmmFwdOp'):
         op = {'GemmFwdOp': 'GEMMFwdOp', 'BmmFwdOp': 'BMMFwdOp'}[op]
     elif op == 'GemmINT8W8A8FwdOp':
         op = 'GEMMINT8W8A8FwdOp'
