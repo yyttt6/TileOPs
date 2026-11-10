@@ -78,6 +78,13 @@ def main():
     before = source_fingerprint()
     (a.output / "sources.json").write_text(json.dumps(before, sort_keys=True))
     (a.output / "hardware.json").write_text(json.dumps(hardware))
+    # Compile only reviewed opt-in kernels, under this existing reservation.
+    # Reuse this process to avoid a second import/registry startup.
+    from precompile import PILOT_OPERATORS
+    from precompile import run as precompile
+
+    if a.op in PILOT_OPERATORS:
+        assert precompile(a.source, [a.op], a.output / "precompile.json") == 0
     manifest = load_manifest()
     module = __import__("importlib").import_module(f"tileops.{manifest[a.op]['family']}")
     op_class = getattr(module, a.op)

@@ -44,13 +44,7 @@ class Compilation:
         ``compile_flags`` and ``out_idx`` may be lists. Python's default frozen-dataclass
         hash would walk them and raise on the first unhashable one, so the identity is
         built here, canonicalising containers instead of hashing them as they are.
-
-        The program is identified by the text TileLang itself keys the cache on
-        (``PrimFunc.script(show_meta=True)``, see the library's ``_generate_key``), not by
-        object identity: two calls of the same builder produce equal programs in different
-        objects, and a pass that kept them apart would build the same kernel twice.
         """
-        import hashlib
 
         def canon(value: Any) -> Any:
             if isinstance(value, dict):
@@ -59,16 +53,10 @@ class Compilation:
                 return tuple(canon(v) for v in value)
             return value
 
-        def program_key(program: Any) -> str:
-            script = getattr(program, "script", None)
-            if script is not None:
-                return hashlib.sha256(script(show_meta=True).encode()).hexdigest()
-            # A description may carry a stand-in for the program (a test's sentinel); its
-            # object identity is the only thing to compare then.
-            return f"id:{id(program)}"
-
+        # A PrimFunc carries a TVM object and is unhashable; two descriptions holding the
+        # same object must still share a key, so identity is decided by id().
         return (
-            program_key(self.program),
+            id(self.program),
             canon(self.out_idx),
             canon(self.target),
             canon(self.target_host),
@@ -98,6 +86,7 @@ class Compilation:
             pass_configs=self.pass_configs,
             compile_flags=self.compile_flags,
         )
+
 
 # Sentinel for ``tune_jit_kernel(supply_prog=...)``: inherit the whole-kernel
 # supplier. Distinct from ``None``, which means "no supplier".

@@ -167,34 +167,6 @@ jobs:
           TILELANG_CACHE_KEY="$(python "$CACHE_KEY_SCRIPT" --source "$PWD" --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --verified-toolchain "$RUNNER_TEMP/pr-toolchain.json" --output "$RUNNER_TEMP/pr-cache.json")"
           export TILELANG_CACHE_DIR="/opt/tileops-ci/server2-20261030/cache/tilelang-v1-${TILELANG_CACHE_KEY}"
           mkdir -p "$TILELANG_CACHE_DIR"
-          # Pre-compile the selected operators from the candidate's own tree. This is the
-          # candidate's code, so it runs as its own step and its receipts sit beside the
-          # measurement's; the measurement itself still runs from the trusted harness,
-          # unchanged, and it selects for itself. Compiling needs no device, but the
-          # reservation is taken anyway: importing torch_npu opens /dev/davinci_manager
-          # whether or not a context is created, so "no device access" is not a claim a
-          # process can make about itself. The guard supplies the claim by construction.
-          EVIDENCE="/opt/tileops-ci/server2-20261030/pr-evidence-v010/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          PRECOMPILE="$EVIDENCE-precompile"
-          mkdir -p "$PRECOMPILE"
-          if [[ -f scripts/ci/precompile.py ]]; then
-            python scripts/ci/pr_selection.py --base "$PR_BASE" \
-              --output "$PRECOMPILE/selection.json" > "$PRECOMPILE/selection.log" 2>&1 || true
-            for op in $(python -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["operators"]))' "$PRECOMPILE/selection.json" 2>/dev/null); do
-              npu-guard run --owner "pr/${GITHUB_RUN_ID}/precompile/$op" --wait 1800 --timeout 3600 -- \
-                python scripts/ci/precompile.py --source "$PWD" --op "$op" \
-                --output "$PRECOMPILE/$op.json" \
-                > "$PRECOMPILE/$op.log" 2>&1 || true
-            done
-            # Then prove the ordinary call path reuses what was compiled: pre-compile into a
-            # cache directory of the experiment's own, and make the real call in a fresh
-            # process. Kept to the pilot operator; widening it is a separate question.
-            npu-guard run --owner "pr/${GITHUB_RUN_ID}/precompile-probe" --wait 1800 --timeout 3600 -- \
-              python scripts/ci/precompile_probe.py --source "$PWD" --op ReLUFwdOp \
-              --output "$PRECOMPILE/probe.json" \
-              --cache "$PRECOMPILE/probe-cache" \
-              > "$PRECOMPILE/probe.log" 2>&1 || true
-          fi
           python ci-harness/scripts/ci/pr_performance.py --base "$PR_BASE" --baseline baseline-cache/data/baseline-cache/snapshot.json --output "/opt/tileops-ci/server2-20261030/pr-evidence-v010/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -202,7 +174,6 @@ jobs:
           name: ascend950-pr-performance
           path: |
             /opt/tileops-ci/server2-20261030/pr-evidence-v010/${{ github.run_id }}-${{ github.run_attempt }}
-            /opt/tileops-ci/server2-20261030/pr-evidence-v010/${{ github.run_id }}-${{ github.run_attempt }}-precompile
             ${{ runner.temp }}/pr-toolchain.json
             ${{ runner.temp }}/pr-cache.json
             ${{ runner.temp }}/pr-selection-base.txt

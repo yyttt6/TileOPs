@@ -109,10 +109,9 @@ class AscendReLUKernel(Kernel, UnaryElementwiseFwdInterface):
     def compilations(cls, tensors, params):
         """The one program a ReLU call builds, from the manifest's shape and dtype.
 
-        Reading ``(shape, dtype)`` keeps this independent of any tensor: the manifest
-        declares the shapes and dtypes, and nothing here constructs a kernel, queries a
-        device or launches. It reads exactly the inputs the constructor does, so the
-        program it returns is the one ``forward`` would build.
+        Reading ``(shape, dtype)`` keeps this independent of any tensor: a pre-compilation
+        pass reads only host metadata; the current CI pilot still holds the device reservation --
+        no construction, no device query, no launch.
         """
         shape, dtype_name = tensors["input"]
         dtype = getattr(torch, dtype_name)
