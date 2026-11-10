@@ -33,3 +33,7 @@ torch_npu==2.13.0rc1
 tqdm==4.70.1
 typing_extensions==4.16.0
 z3-solver==4.15.4.0
+
+# FLA 0.5.2 source snapshot: config/ascend950-toolchain.json reference_runtime.
+# Install the sealed reference overlay after this base snapshot; plain PyPI FLA
+# or Triton wheels alone do not reproduce the accepted composite source tree.

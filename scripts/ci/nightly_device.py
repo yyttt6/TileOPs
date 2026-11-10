@@ -71,6 +71,9 @@ def main():
         )
         return
     assert a.op in selected
+    from reference_runtime import initialize_reference_runtime
+
+    initialize_reference_runtime(a.op)
     a.output.mkdir(parents=True, exist_ok=False)
     before = source_fingerprint()
     (a.output / "sources.json").write_text(json.dumps(before, sort_keys=True))

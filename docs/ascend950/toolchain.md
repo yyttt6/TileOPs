@@ -114,3 +114,41 @@ other developers' runtime installations remain separate.
 
 The older `development.md` runtime paragraph is superseded by this contract and
 its machine-readable lock. It must not be used to equate beta and release builds.
+
+## FLA reference runtime v1
+
+PR correctness and nightly use the original FLA reference for DeltaNet/GLA
+inference. This dependency is mandatory even when TileOPs kernels themselves do
+not import FLA. The profile now additionally pins:
+
+| Component | Exact selection |
+| --- | --- |
+| FLA | 0.5.2 source snapshot, complete `fla` tree SHA256 `12bc8a77a6d4ba2f5f12cb61b74ae35fcc3436562814cb0ea5f4044bd2efed60` |
+| Triton distribution metadata | 3.5.0 |
+| Triton Ascend distribution | 3.2.2 |
+| Triton module version | 3.2.0, as shipped in this specific composite overlay |
+| Reference support packages | pybind11 3.0.1, decorator 5.1.1, pandas 2.2.3, python-dateutil 2.9.0.post0, six 1.17.0, pytz/tzdata 2025.2 |
+
+The module/distribution version discrepancy is recorded deliberately. This is the
+exact source/native overlay used for server1 acceptance, not a claim that any
+upstream wheel with those version strings is interchangeable. Full directory and
+single-file hashes are in `config/ascend950-toolchain.json:reference_runtime`.
+The existing torch/TileLang/CANN compiler/runtime fingerprints remain unchanged.
+
+Canonical installation is an independent copy at
+`/opt/tileops-ci/server2-20261030/references/fla-v1/site-packages`.
+`prepare-python.sh` adds that directory to each job venv through
+`00-reference-runtime.pth`; it does not modify the shared Python runtime or any
+baseline environment. Set `ASCEND950_REFERENCE_ROOT` to that directory. On another
+machine copy the sealed reference overlay, then run the metadata-only toolchain
+checker before device use. The FLA source archive SHA is recorded in the lock;
+this source snapshot has no upstream commit identity established by this delivery.
+Do not substitute a guessed commit or an unverified `pip install fla`.
+
+Inside the NPU guard, `nightly_support/reference_runtime.py` initializes the
+pinned Triton adapter's cached runtime root from `ASCEND_RUNTIME_ROOT` (CANN 9.1).
+It restores `ASCEND_HOME_PATH` immediately, so TileOPs still compiles against the
+locked 9.2 SDK. This selects runtime installation metadata only: it does not change
+FLA reference mathematics, tolerances, or any baseline measurement. The adapter's
+own native compiler is included in its tree fingerprint. PR CI and website nightly
+must deploy the same initializer.
