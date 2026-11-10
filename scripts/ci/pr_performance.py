@@ -202,6 +202,7 @@ def main():
                     "pr_performance.py",
                     "baseline_contracts.py",
                     "nightly_device.py",
+                    "precompile.py",
                     "measured_correctness.py",
                     "nightly_support/complete_profile.py",
                 )
