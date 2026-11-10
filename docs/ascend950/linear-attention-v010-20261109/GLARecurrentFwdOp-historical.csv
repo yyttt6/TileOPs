@@ -1,0 +1,17 @@
+case,provider,metric,baseline_ms,candidate_ms,ratio
+serving-b1-h8-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,3.4923559675614038,0.20478609949350357,17.05367686673573
+serving-b1-h8-bfloat16,qualified_local_eager,device_complete_v3,0.026850066666666665,0.005736933333333334,4.680212424756547
+serving-b1-h16-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,3.8195839462180934,0.20110998302698135,18.992512896317283
+serving-b1-h16-bfloat16,qualified_local_eager,device_complete_v3,0.028497733333333334,0.0050652,5.626181262997184
+serving-b1-h32-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,3.4722432494163513,0.18347734585404396,18.924642893943524
+serving-b1-h32-bfloat16,qualified_local_eager,device_complete_v3,0.03182273333333333,0.008491866666666667,3.7474367630203016
+serving-b1-h48-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,3.9507013435165086,0.19707403456171355,20.04678775822875
+serving-b1-h48-bfloat16,qualified_local_eager,device_complete_v3,0.0358026,0.011801866666666667,3.033638746412996
+serving-b1-h64-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,3.9354612740377584,0.20349531744917235,19.339321038778845
+serving-b1-h64-bfloat16,qualified_local_eager,device_complete_v3,0.037572933333333336,0.014813666666666666,2.53636956864157
+serving-b8-h32-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,4.606105387210846,0.19930796697735786,23.110493057882213
+serving-b8-h32-bfloat16,qualified_local_eager,device_complete_v3,0.0692928,0.051136666666666664,1.3550511700671404
+serving-b8-h48-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,5.059201301385959,0.18638934319218,27.143189705698894
+serving-b8-h48-bfloat16,qualified_local_eager,device_complete_v3,0.08825380000000001,0.07550193333333334,1.1688945713531398
+serving-b8-h64-bfloat16,flash-linear-attention-npu,host_roundtrip_with_device_synchronize_mean15,6.088628713041544,0.22013199826081595,27.658989884004225
+serving-b8-h64-bfloat16,qualified_local_eager,device_complete_v3,0.11143773333333333,0.09928906666666666,1.1223565400957205

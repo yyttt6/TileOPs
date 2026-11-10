@@ -91,8 +91,8 @@ where = ["src"]
 tileops = ["**/*.h", "**/*.yaml", "py.typed"]
 
 [tool.codespell]
-# lint: codespell allow: CANN toolkit, vor vector intrinsic, and dout output-gradient identifier.
-ignore-words-list = "nd, te, ist, LOD, offen, NotIn, HSA, cann, dout, vor, ot, bu"
+# lint: codespell allow: CANN toolkit, vor intrinsic, dout gradient, and alog log-decay parameter.
+ignore-words-list = "nd, te, ist, LOD, offen, NotIn, HSA, cann, dout, vor, ot, bu, alog"
 skip = [
     "build",
     "dist",

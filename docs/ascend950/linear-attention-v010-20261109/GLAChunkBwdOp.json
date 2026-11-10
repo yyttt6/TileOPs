@@ -1,0 +1,204 @@
+{
+  "op": "GLAChunkBwdOp",
+  "status": "accepted_isolated_candidate_physical32_v010",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube": 32,
+    "vector": 64
+  },
+  "cases": 8,
+  "passed": 8,
+  "minimum_ratio": 1.0048169642395042,
+  "public_tests": 13,
+  "pr_regression_tests": 10,
+  "pr_regression_breakdown": {
+    "forward_retention": 6,
+    "new_initial_gradient": 4
+  },
+  "early_checks": 12,
+  "strided_checks": 12,
+  "output_guard_checks": 9,
+  "output_guard_regions": 72,
+  "device_windows_audited": 120,
+  "host_samples_audited": 120,
+  "source_snapshot": "base-v9",
+  "receipts": {
+    "linear7-gla-chunk-backward-early-v1": "ba96b370451c8a7d120e3f29bc68f56c92f359d196e3601b3e99dedab647db02",
+    "linear7-gla-chunk-backward-device-v2": "b5639b64d20683c371585fabdd7e8c983d6766b9603e0a8a0c9f896065d23c53",
+    "linear7-gla-chunk-backward-host-v2": "4740c2ab913c296f7c1a7252909df3d7a8d4cf3229b474cd94c7021dcfb42088",
+    "linear7-gla-chunk-backward-public-v2": "e5124d4781bbd3bac716891aa90709d43f30e2ec2c68d71fe584ca5a328a3747",
+    "linear7-gla-chunk-backward-extended-v1": "09331c84882f2067d13e771f6b69f77e43d27424f5026b3ae7b299a16c56f8a5",
+    "linear7-gla-chunk-backward-guards-v1": "847b3e2709633e97b608a0b74ae2adc28db4330b4e5de510e31fa25319118288",
+    "linear7-gla-chunk-backward-regression-v1": "78ffe70656effb309f4e8f20ee46b41adbfb4b424a1f0619453c408072aeab21",
+    "linear7-gla-chunk-backward-tile-probe-v1": "5d01c7674b3cd5a026ac094bc8b3c6066530d45025fa77a7ac0ba14107c54d3b",
+    "linear7-gla-chunk-backward-tile-guards-v1": "6b61cbf7caad6891cf79250b55799fd1a90d2696d3d65a7d03f6943f90fe3143"
+  },
+  "reference": "Original workload FP32 CPU autograd checks all five outputs incl optionalNone; nonzero final state gradient and initial gradient covered; PR regression independentFP64 recurrence autograd",
+  "public_adaptation": "Only extreme-gate original FP64 reference executed CPU on Ascend, numerical operations/assertions unchanged. Original CUDA-sm89 capacity refusal and CUDA-MMA dim_v72 refusal excluded as implementation-specific, not claimed NPU pass. Public source fullSHA asserted.",
+  "additional_historical_constraints": [
+    {
+      "case": "train-2k-float16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 6.4928002000000005,
+      "current_ms": 4.615469733333334,
+      "ratio": 1.4067474331178946
+    },
+    {
+      "case": "train-2k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 6.472695533333333,
+      "current_ms": 4.624309466666666,
+      "ratio": 1.399710720052444
+    },
+    {
+      "case": "train-4k-float16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 13.862691066666667,
+      "current_ms": 9.288267533333332,
+      "ratio": 1.4924948077687084
+    },
+    {
+      "case": "train-4k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 13.8147976,
+      "current_ms": 9.304235333333335,
+      "ratio": 1.4847859179256928
+    },
+    {
+      "case": "train-8k-float16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 31.2319046,
+      "current_ms": 18.55941633333333,
+      "ratio": 1.6828064007544492
+    },
+    {
+      "case": "train-8k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 31.940838399999997,
+      "current_ms": 18.523194333333333,
+      "ratio": 1.7243698805513799
+    },
+    {
+      "case": "train-16k-float16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 77.1308076,
+      "current_ms": 36.48143546666667,
+      "ratio": 2.1142481542557428
+    },
+    {
+      "case": "train-16k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 77.66625486666666,
+      "current_ms": 36.754033666666665,
+      "ratio": 2.1131355423746188
+    }
+  ],
+  "historical_provenance": "Old local36capped32 results retained as additional constraints, not relabelled physical32",
+  "minimum_including_historical_constraints": 1.0048169642395042,
+  "accepted_at": "2026-11-09T11:08:11.724947+00:00",
+  "controlled_performance_audit": {
+    "windows": 90,
+    "results": [
+      {
+        "case": "train-2k-bfloat16",
+        "new_faster_than_both_controls": true,
+        "minimum_target_ratio": 1.0138256256909173,
+        "phases": {
+          "old-before": {
+            "case": "train-2k-bfloat16",
+            "phase": "old-before",
+            "latency_ms": 5.9671172666666665,
+            "stages_us": [
+              895.8674966898369,
+              4609.063987408977,
+              462.9741019409191
+            ]
+          },
+          "new": {
+            "case": "train-2k-bfloat16",
+            "phase": "new",
+            "latency_ms": 4.583218733333333,
+            "stages_us": [
+              895.5080271488517,
+              3482.445312299384,
+              205.98991376201712
+            ]
+          },
+          "old-after": {
+            "case": "train-2k-bfloat16",
+            "phase": "old-after",
+            "latency_ms": 5.964422466666667,
+            "stages_us": [
+              895.3548925910545,
+              4606.805102680268,
+              462.99756879522675
+            ]
+          }
+        }
+      },
+      {
+        "case": "train-2k-float16",
+        "new_faster_than_both_controls": true,
+        "minimum_target_ratio": 1.007281538215847,
+        "phases": {
+          "old-before": {
+            "case": "train-2k-float16",
+            "phase": "old-before",
+            "latency_ms": 5.957955733333334,
+            "stages_us": [
+              895.1116906464117,
+              4599.779313168721,
+              463.79944187367056
+            ]
+          },
+          "new": {
+            "case": "train-2k-float16",
+            "phase": "new",
+            "latency_ms": 4.614922333333333,
+            "stages_us": [
+              895.2264915643599,
+              3510.6971382009838,
+              209.72234360652615
+            ]
+          },
+          "old-after": {
+            "case": "train-2k-float16",
+            "phase": "old-after",
+            "latency_ms": 5.958142266666667,
+            "stages_us": [
+              895.612161314842,
+              4599.9372477649,
+              463.32770476832735
+            ]
+          }
+        }
+      }
+    ],
+    "guard_valid": true
+  },
+  "retained_checks": "base-v8 early12/strided12/DIguards3/PR10 retained through exact factory AST and unchanged geometry audit; new route covered by full8/public13/tileguards6 on base-v9",
+  "original_report": {
+    "path": "reports/linear7-server1-v010-20261109/GLAChunkBwdOp-server1-report.json",
+    "sha256": "1ee0b2d9a9adfe62f8d0d155253647b456bebb9ba1bf73dfc33216cd810181fd"
+  },
+  "comparison_files": [
+    "GLAChunkBwdOp-device.csv",
+    "GLAChunkBwdOp-host.csv",
+    "GLAChunkBwdOp-historical.csv"
+  ],
+  "case_timings": "GLAChunkBwdOp-timings.csv",
+  "historical_source": {
+    "path": "docs/ascend950/dev/linear_attention_local32_20261103/reports/GLAChunkBwdOp.json",
+    "sha256": "75fc0f543edeffc05a24d4cf5d17d52336e373ebf8166573770e50ee51d592f6",
+    "provenance": "Historical local36capped32 and native targets retain original provenance"
+  },
+  "minimum_including_all_retained_constraints": 1.0048169642395042
+}

@@ -167,10 +167,18 @@ def test_ssd_chunk_state_fwd(
 
 
 @pytest.mark.smoke
-def test_ssd_chunk_state_fwd_seq_idx_semantics():
-    """Exercise negative chunk ends and the optional unmasked path."""
-    batch, num_chunks, chunk_len = 1, 2, 64
-    n_heads, d_head, d_state, n_groups = 4, 64, 32, 1
+@pytest.mark.parametrize(
+    "chunk_len, d_state, n_groups, dt_dtype",
+    [
+        pytest.param(64, 32, 1, torch.float32, id="short-chunk"),
+        pytest.param(256, 128, 1, torch.float32, id="paired-heads"),
+        pytest.param(256, 128, 2, torch.float16, id="grouped-narrow-dt"),
+    ],
+)
+def test_ssd_chunk_state_fwd_seq_idx_semantics(chunk_len, d_state, n_groups, dt_dtype):
+    """Exercise negative chunk ends, packed sequence boundaries and unmasked calls."""
+    batch, num_chunks = 1, 2
+    n_heads, d_head = 4, 64
     dtype = torch.float16
     b, c, Q, h, p, n, g = batch, num_chunks, chunk_len, n_heads, d_head, d_state, n_groups
     seq_len = c * Q
@@ -178,12 +186,13 @@ def test_ssd_chunk_state_fwd_seq_idx_semantics():
     x = torch.randn(b, seq_len, h, p, dtype=dtype, device=run_device()) * 0.1
     Bmat = torch.randn(b, seq_len, g, n, dtype=dtype, device=run_device()) * 0.1
     dA_cumsum = -torch.rand(b, h, c, Q, dtype=torch.float32, device=run_device()).cumsum(-1)
-    dt = torch.rand(b, h, c, Q, dtype=torch.float32, device=run_device()) * 0.1 + 0.01
+    dt = torch.rand(b, h, c, Q, dtype=dt_dtype, device=run_device()) * 0.1 + 0.01
 
     # First chunk ends with seq_idx == -1 (whole chunk should zero out).
-    # Second chunk is a normal sequence (seq_idx == 1 throughout).
+    # Second chunk spans two sequences and only the final one contributes.
     seq_idx = torch.ones(b, seq_len, dtype=torch.int32, device=run_device())
     seq_idx[:, :Q] = -1
+    seq_idx[:, Q : Q + Q // 2] = 0
 
     op = SSDChunkStateFwdOp()
     out = op(x, Bmat, dt, dA_cumsum, seq_idx)
@@ -193,7 +202,7 @@ def test_ssd_chunk_state_fwd_seq_idx_semantics():
     compare_outputs(out, ref, workload.verification(x))
 
     # Pin the semantic: chunk 0 (seq_idx == -1 throughout) must be exactly zero;
-    # chunk 1 (seq_idx == 1 throughout) must have non-zero state.
+    # chunk 1 retains contributions from its terminal sequence.
     assert torch.count_nonzero(out[:, 0]) == 0
     assert out[:, 1].abs().max().item() > 0
 

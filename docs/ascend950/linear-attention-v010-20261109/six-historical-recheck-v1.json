@@ -1,0 +1,32 @@
+[
+  {
+    "op": "GLARecurrentFwdOp",
+    "historical_constraint_count": 16,
+    "minimum_historical_ratio": 1.1223565400957205
+  },
+  {
+    "op": "GLAFwdOp",
+    "historical_constraint_count": 22,
+    "minimum_historical_ratio": 0.8103048451973316
+  },
+  {
+    "op": "GLAChunkFwdOp",
+    "historical_constraint_count": 11,
+    "minimum_historical_ratio": 12.820076748418433
+  },
+  {
+    "op": "GLAChunkBwdOp",
+    "historical_constraint_count": 8,
+    "minimum_historical_ratio": 1.399710720052444
+  },
+  {
+    "op": "DeltaNetRecurrentFwdOp",
+    "historical_constraint_count": 40,
+    "minimum_historical_ratio": 2.4524835837731134
+  },
+  {
+    "op": "DeltaNetFwdOp",
+    "historical_constraint_count": 74,
+    "minimum_historical_ratio": 1.0316682921551306
+  }
+]

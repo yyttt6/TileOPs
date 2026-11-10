@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "original_correctness_audits": [
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-public-edges-v15-r2-audit.json",
+      "sha256": "de0baae6dbccca6ddf8fe94eea6174511c1ebc6eee04b6bd0b8a26597a106ea2",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-public-basic-v15-audit.json",
+      "sha256": "7c993baad8342b2eab8be5f4cd8ce64dde5c5225fb38050256e10fbc95267d94",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-public-raw-a-v15-audit.json",
+      "sha256": "93a9c2fe37e561a98e1fdc8525f1ea1e6e6ffc241c058c6e0418070a52867bd0",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-public-raw-b-v15-audit.json",
+      "sha256": "f68ab811f48e5d53be0cafd650176ad89191dea5385466bc9637ddbe9f0b501e",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-public-strong-v15-audit.json",
+      "sha256": "7fe70d8839bf10a629252bdacbea7d9895d430e765828e6d2ecc0d928f968966",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-correlated-audit-v15.json",
+      "sha256": "ac284c18548cb9b95c176d89cf0173b0067001c87d177c8288f6ed82571ff0a2",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-packed-initial-audit-v15.json",
+      "sha256": "816231b2f524ebf3abdcfab995ce5f53170618efe32a38cf926c2c317562a584",
+      "unchanged": true
+    },
+    {
+      "audit": "reports/kda-v010-development-20261109/kda-output-guards-audit-v15.json",
+      "sha256": "1c9fcc4d93adcb7a8b3bec905a70bb1da0728b5a705d46c6f90f72f6152bffd2",
+      "unchanged": true
+    }
+  ],
+  "note": "Correctness readiness status inside original acceptance is a pre-performance phase snapshot; final top-level acceptance and independently replayed performance remain authoritative. Final integrated public tests pending."
+}

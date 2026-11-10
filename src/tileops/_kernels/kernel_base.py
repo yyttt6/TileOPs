@@ -1,5 +1,6 @@
 import contextlib
 import copy
+import dataclasses
 import threading
 import warnings
 from abc import ABC, abstractmethod
@@ -7,11 +8,85 @@ from typing import Any, Callable, ClassVar, Dict, Hashable, Iterator, Optional, 
 
 import torch
 
-__all__ = ["CompiledProgram", "Entry", "Kernel", "KernelInterface"]
+__all__ = ["Compilation", "CompiledProgram", "Entry", "Kernel", "KernelInterface"]
 
 # What ``Op.kernel_for`` stores for one specialization: the identity two
 # builds share to be the same entry, and the thunk that produces it.
 Entry = tuple[Hashable, Callable[[], object]]
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class Compilation:
+    """One program a kernel would compile for a call, with the exact options it compiles under.
+
+    A pre-compilation pass takes these, groups them by the options that decide the produced
+    object, and hands each group to one parallel build. Everything needed to compile lives
+    here, so the pass never has to instantiate a kernel -- which would run device queries and
+    start compiling one program at a time, defeating the point.
+
+    ``program`` is the TileLang ``PrimFunc`` as built. The remaining fields are the arguments
+    ``tilelang.compile`` receives: two descriptions compile to the same object exactly when
+    ``program`` and these agree, so a group is keyed on the whole tuple.
+    """
+
+    program: Any
+    out_idx: Any = -1
+    target: Any = "ascend"
+    target_host: Any = None
+    execution_backend: Any = None
+    pass_configs: Any = None
+    compile_flags: Any = None
+
+    def identity(self) -> tuple:
+        """A hashable key under which two descriptions compile to the same object.
+
+        The fields hold whatever the builder passes: ``pass_configs`` is a dict,
+        ``compile_flags`` and ``out_idx`` may be lists. Python's default frozen-dataclass
+        hash would walk them and raise on the first unhashable one, so the identity is
+        built here, canonicalising containers instead of hashing them as they are.
+        """
+
+        def canon(value: Any) -> Any:
+            if isinstance(value, dict):
+                return tuple(sorted((k, canon(v)) for k, v in value.items()))
+            if isinstance(value, (list, tuple)):
+                return tuple(canon(v) for v in value)
+            return value
+
+        # A PrimFunc carries a TVM object and is unhashable; two descriptions holding the
+        # same object must still share a key, so identity is decided by id().
+        return (
+            id(self.program),
+            canon(self.out_idx),
+            canon(self.target),
+            canon(self.target_host),
+            canon(self.execution_backend),
+            canon(self.pass_configs),
+            canon(self.compile_flags),
+        )
+
+    def __hash__(self) -> int:
+        return hash(self.identity())
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Compilation):
+            return NotImplemented
+        return self.identity() == other.identity()
+
+    def build(self) -> Any:
+        """Compile this description, exactly as the kernel's own builder does."""
+        import tilelang
+
+        return tilelang.compile(
+            self.program,
+            out_idx=self.out_idx,
+            target=self.target,
+            target_host=self.target_host,
+            execution_backend=self.execution_backend,
+            pass_configs=self.pass_configs,
+            compile_flags=self.compile_flags,
+        )
+
 
 # Sentinel for ``tune_jit_kernel(supply_prog=...)``: inherit the whole-kernel
 # supplier. Distinct from ``None``, which means "no supplier".
@@ -240,6 +315,32 @@ class Kernel(ABC):
             if buffer is not None and "int" in str(buffer.dtype):
                 names.append(str(param.name))
         return names
+
+    @classmethod
+    def compilations(cls, tensors: dict, params: dict) -> "Sequence[Compilation]":
+        """The programs this kernel would compile for one manifest call, or nothing.
+
+        *tensors* maps each declared tensor to ``(shape, dtype)`` and *params* holds the
+        call's scalar parameters, both straight from the manifest entry. They are shapes and
+        dtypes, not data: this runs before any input exists and must stay a pure function of
+        them.
+
+        A pre-compilation pass calls this to build every program a call needs before any
+        measurement starts, so the compiles run in parallel on the CPU instead of one at a
+        time on the critical path. The default returns nothing, which means "compile the
+        usual way": a kernel that does not override this keeps its present behaviour exactly,
+        including compiling lazily on the first call.
+
+        Overrides must not instantiate the class. Constructing a kernel runs its device
+        queries and starts a compile, so an implementation that has to build one to answer
+        this question is not eligible -- it should keep the default and stay lazy.
+
+        The returned descriptions must be the same ones the kernel's own builder compiles,
+        with identical compile options. A description whose options differ compiles to an
+        object the later call will not find in the cache, so the work is wasted rather than
+        wrong -- but it is wasted all the same.
+        """
+        return ()
 
     def __init__(self, *args, device_index: "int | None" = None, **kwargs) -> None:
         self.device_index = device_index

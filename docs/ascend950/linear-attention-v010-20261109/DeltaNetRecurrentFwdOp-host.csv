@@ -1,0 +1,9 @@
+case,candidate_ms,provider,baseline_ms,ratio,historical,metric,measurement_id
+serving-b1-h8-bfloat16,0.16474928706884384,sgl-kernel-npu,0.968334668626388,5.877625851101556,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b1-h16-bfloat16,0.1815966951350371,sgl-kernel-npu,1.0492092619339626,5.777689187315662,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b1-h32-bfloat16,0.17715726668636003,sgl-kernel-npu,0.9973065927624702,5.629498644998322,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b1-h48-bfloat16,0.19035864000519118,sgl-kernel-npu,1.1252034145096939,5.910965819460619,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b1-h64-bfloat16,0.19854928056399027,sgl-kernel-npu,0.9777012591560682,4.92422463772648,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b8-h32-bfloat16,0.17304467037320137,sgl-kernel-npu,0.9547573203841845,5.5174037913163225,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b8-h48-bfloat16,0.17551202327013016,sgl-kernel-npu,1.0794599850972493,6.150347793756869,False,host_roundtrip_with_device_synchronize_mean15,
+serving-b8-h64-bfloat16,0.177865382283926,sgl-kernel-npu,1.2136806423465412,6.823591115718887,False,host_roundtrip_with_device_synchronize_mean15,

@@ -84,9 +84,112 @@
       "path": "opp/version.info",
       "sha256": "841279757459d4eabc1c8cfea69d3e1dc0fc9db3eb0c18100294cd5c1301b9e6",
       "root_env": "ASCEND_RUNTIME_ROOT"
+    },
+    {
+      "name": "FLA runtime bisheng",
+      "root_env": "ASCEND_RUNTIME_ROOT",
+      "path": "tools/ccec_compiler/bin/bisheng",
+      "sha256": "1cb33347c991d8ec143c0ba080ca126d9cc84167c4edea3e4953ff5865c5f60a"
+    },
+    {
+      "name": "FLA runtime ascend_toolkit_install.info",
+      "root_env": "ASCEND_RUNTIME_ROOT",
+      "path": "aarch64-linux/ascend_toolkit_install.info",
+      "sha256": "a9b17ef608ebeb70ade09cde1c12a545eb5e8f3e5312f6806ca0d368b0464848"
     }
   ],
   "uncertified_features": [
     "ascend.batch_schedule cross-block barrier dependency"
-  ]
+  ],
+  "reference_runtime": {
+    "profile": "fla-ascend-reference-v1",
+    "fla_version": "0.5.2",
+    "triton_module_version": "3.2.0",
+    "triton_metadata_version": "3.5.0",
+    "root_env": "ASCEND950_REFERENCE_ROOT",
+    "runtime_root_env": "ASCEND_RUNTIME_ROOT",
+    "provenance": "Exact FLA source snapshot and Triton overlay used by server1 linear-attention acceptance; source snapshots rather than assumed interchangeable PyPI builds",
+    "fla_archive_sha256": "d0ccb3f1d42f108ea14f304250a896e41113b0040ffaac00ed2f83933fa453fe",
+    "trees": {
+      "dateutil": {
+        "sha256": "6b15659b88e36ffa5b73a7d0dcc5cbf4e72b90ee78a6c757d131566ed0c97e76",
+        "files": 19
+      },
+      "decorator-5.1.1.dist-info": {
+        "sha256": "6b621127c9566ce900d4a567b30cc9875dbab0e61a603eb39914c5cfc1a766bd",
+        "files": 6
+      },
+      "fla": {
+        "sha256": "12bc8a77a6d4ba2f5f12cb61b74ae35fcc3436562814cb0ea5f4044bd2efed60",
+        "files": 463
+      },
+      "pandas": {
+        "sha256": "d7c7345fa4f3f15068e8ff31ca89f46762193d2958962d870a2e2a8af34913a8",
+        "files": 1924
+      },
+      "pandas-2.2.3.dist-info": {
+        "sha256": "e8a8de8345ffff8ea3b92de034e67e02401f537dc1f26dd9ce822cddc317dac2",
+        "files": 5
+      },
+      "pybind11": {
+        "sha256": "17ac287e6111c12b1a3bc3020e544681bffbf0d02c03ba39a99593819bdc158d",
+        "files": 69
+      },
+      "pybind11-3.0.1.dist-info": {
+        "sha256": "707332193a183ca557476bf7a0ef67fb5ea1bbc79ac5f2e36e0c044f64f538e9",
+        "files": 5
+      },
+      "python_dateutil-2.9.0.post0.dist-info": {
+        "sha256": "9d614bbd43d19d5fde8b72c853b9f0c5d867a88a55671909fa1929efa5e08b78",
+        "files": 6
+      },
+      "pytz": {
+        "sha256": "3e3d77fff46514d976ac80147d058f1e5a1ec3c2288ed4bffb24aac918f3251f",
+        "files": 610
+      },
+      "pytz-2025.2.dist-info": {
+        "sha256": "fe6fea307452398b786b56ddbd3422fcecbb0488a620e6c1b80701ce7e8ec393",
+        "files": 6
+      },
+      "six-1.17.0.dist-info": {
+        "sha256": "a35e12e379d29c20cd8fb709e5015ff40c98156b5b4c56e6605fd20dcf6201df",
+        "files": 5
+      },
+      "triton": {
+        "sha256": "b027f22f27da820340edd612a9f3d1f03098d4f835713f06fa78ffb3de1ebd54",
+        "files": 481
+      },
+      "triton-3.5.0.dist-info": {
+        "sha256": "c4cc8155e7c81c2c2fc8394a5da529be80834952402e1a670726f83f84567f66",
+        "files": 6
+      },
+      "triton_ascend-3.2.2.dist-info": {
+        "sha256": "02b316362a7a4516d2af5ff4c0263cc3216bb315a6c657517eb03cfee15d3b13",
+        "files": 4
+      },
+      "tzdata": {
+        "sha256": "8b72df23d9a2b589e37bfa1b37b44246cd2f2d7827db050da255b1e598fc41fe",
+        "files": 627
+      },
+      "tzdata-2025.2.dist-info": {
+        "sha256": "eb63a23ed4a9ba6cfc0cbbff1f84b38c7dd52ffa9cb8f289fa2f5c2686bf201f",
+        "files": 6
+      }
+    },
+    "files": {
+      "decorator.py": "7a5e5c0048284c4a5140deb9b4ec4684496e7be09c70cbf4c6897e27633039cd",
+      "six.py": "c51c91f703d3d4b3696c923cb5fec213e05e75d9215393befac7f2fa6a3904df"
+    },
+    "packages": {
+      "triton": "3.5.0",
+      "triton-ascend": "3.2.2",
+      "pybind11": "3.0.1",
+      "decorator": "5.1.1",
+      "pandas": "2.2.3",
+      "python-dateutil": "2.9.0.post0",
+      "six": "1.17.0",
+      "pytz": "2025.2",
+      "tzdata": "2025.2"
+    }
+  }
 }

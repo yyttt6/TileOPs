@@ -439,13 +439,26 @@ def _restore(tensors: list, snapshot: list) -> None:
             target.copy_(source)
 
 
+# FP8 comparisons are missing from the operator build this project validates on, so an
+# FP8 input is checked bit for bit instead of through assert_close; the statement is the
+# same one -- no element changed -- and every other dtype keeps the numeric check.
+_BITWISE_DTYPES = frozenset(
+    dtype
+    for dtype in (
+        getattr(torch, "float8_e4m3fn", None),
+        getattr(torch, "float8_e5m2", None),
+    )
+    if dtype is not None
+)
+
+
 def _unchanged(tensors: list, snapshot: list) -> bool:
     try:
         for tensor, source in zip(tensors, snapshot, strict=True):
-            if tensor.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
-                if tensor.dtype != source.dtype or tensor.device != source.device:
+            if tensor.dtype in _BITWISE_DTYPES:
+                if not torch.equal(tensor.view(torch.uint8), source.view(torch.uint8)):
                     return False
-                tensor, source = tensor.view(torch.uint8), source.view(torch.uint8)
+                continue
             if tensor.device.type == "npu" and tensor.dtype.is_complex:
                 # Ascend IsClose lacks complex support. Preserve dtype and exact
                 # comparison semantics on CPU, including the imaginary component.

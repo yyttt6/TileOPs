@@ -1,0 +1,936 @@
+[
+  {
+    "op": "DeltaNetChunkFwdOp",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_pack.py",
+        "sha256": "f87271af43938e23f29a96ba922ff091ea7f1a5a08a11211306dc46d6c36369e",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_output.py",
+        "sha256": "d34bfbc8444be776eb75bda3ca4c5eb69f070f5706fb61e8e8e19b2f6bfa0c4d",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_pairs.py",
+        "sha256": "b6cc16e44ef87a21eb8a52bfec76987d1f21ba70e3870bdc21a97aa6b9f32dbb",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_seeded_states.py",
+        "sha256": "b0f16db0755db84aa39e203515d79ea9de1b8744e1d36dadee441b6aa38bd172",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_chunked.py",
+        "sha256": "c579bd9059c2008d793af5c56941134f5d48a5d6ce2ddba4908ecf3a1ff2bd76",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_group_scan.py",
+        "sha256": "30e2a8bf9a2a6e5d72e27f5aaafca2f7d9dd79c792b185020772903d441bf10b",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_scan.py",
+        "sha256": "1c4a58297ee0cc3d8e1d8e3fb26f27d73bb8a1404b6b712fdad05c388fb8b797",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_training_fwd.py",
+        "sha256": "a06e9754ba1932b6bced987155b3940df044dc356f728b42e2744d2e73889cdc",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_training_bwd.py",
+        "sha256": "4c22a45968b45692776114452cc45a70de3ae0d3ed72f636ef4e53b614bab005",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_inverse.py",
+        "sha256": "bb812ec94ef5ba97ae693aeaf4e25223c0e542e844438dd35a826b1360cd8f4f",
+        "initial_review_preserved": true
+      }
+    ],
+    "wrapper_dependencies": [
+      {
+        "file": "src/tileops/linear_attention.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/_signature_codegen.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/op_base.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/reduction_scan.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_unary_math.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/types.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/attention_indexing.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/sequence_modeling.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/rope.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/norm.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/convolution.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/sampling.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/pool.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/gemm.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/linear_attention.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/mamba.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/quantization.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_binary.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/gemm_bmm.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/transform.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/attention.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/moe.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/fft.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_unary_activation.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_fused_gated.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_generative.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_multi_input.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/reduction.yaml",
+        "same": true
+      }
+    ],
+    "changed_dependencies": [],
+    "interpretation": "Backward implementation evolved after forward acceptance; not a forward dependency. All other computational ASTs match; backward report covers latest backward. Re-audit final PR tree and exercise integrated entrypoints before final delivery."
+  },
+  {
+    "op": "DeltaNetChunkBwdOp",
+    "computational_files": [
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_pack.py",
+        "sha256": "f87271af43938e23f29a96ba922ff091ea7f1a5a08a11211306dc46d6c36369e",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_output.py",
+        "sha256": "d34bfbc8444be776eb75bda3ca4c5eb69f070f5706fb61e8e8e19b2f6bfa0c4d",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_pairs.py",
+        "sha256": "b6cc16e44ef87a21eb8a52bfec76987d1f21ba70e3870bdc21a97aa6b9f32dbb",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_seeded_states.py",
+        "sha256": "b0f16db0755db84aa39e203515d79ea9de1b8744e1d36dadee441b6aa38bd172",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_chunked.py",
+        "sha256": "c579bd9059c2008d793af5c56941134f5d48a5d6ce2ddba4908ecf3a1ff2bd76",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_group_scan.py",
+        "sha256": "30e2a8bf9a2a6e5d72e27f5aaafca2f7d9dd79c792b185020772903d441bf10b",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_scan.py",
+        "sha256": "1c4a58297ee0cc3d8e1d8e3fb26f27d73bb8a1404b6b712fdad05c388fb8b797",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_training_fwd.py",
+        "sha256": "a06e9754ba1932b6bced987155b3940df044dc356f728b42e2744d2e73889cdc",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_training_bwd.py",
+        "sha256": "4c22a45968b45692776114452cc45a70de3ae0d3ed72f636ef4e53b614bab005",
+        "initial_review_preserved": true
+      },
+      {
+        "file": "src/tileops/_kernels/ascend/linear_attention/deltanet_inverse.py",
+        "sha256": "bb812ec94ef5ba97ae693aeaf4e25223c0e542e844438dd35a826b1360cd8f4f",
+        "initial_review_preserved": true
+      }
+    ],
+    "wrapper_dependencies": [
+      {
+        "file": "src/tileops/linear_attention.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/kernel_base.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/_signature_codegen.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/op_base.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_registry.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_dtype_rules.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_expr.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_workload.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_kinds.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_signature.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_plan.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/_values.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/primitives.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_registry.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_protocol.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_errors.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/backend/_dispatch.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_plan.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/chunk_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/call_spec.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/v_tile.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/delta_decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_fused.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/chunk_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_common.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_forward.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gdn/prefill_prepare.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/partition_scan.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/fused_prepare_compute_w_u.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_bwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/dense_decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/autotune.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_forward.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/chunk_fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/prefill_prepare.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/deltanet/compute_w_u_bwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/call_spec.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_partitioned.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_bwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/chunk_fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/dense_prefill_subchunk.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill_partitioned.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/gla/varlen_prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode_program.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/inverse.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/decode.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill_fused.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prefill.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/fused_program.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/chunk_programs.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/prepare_split.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_kernels/linear_attention/kda/gate.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gdn.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/kda.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/deltanet/chunk.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/__init__.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/fwd.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/recurrent.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/_ops/linear_attention/gla/chunk.py",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/reduction_scan.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_unary_math.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/types.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/attention_indexing.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/sequence_modeling.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/rope.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/norm.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/convolution.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/sampling.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/pool.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/gemm.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/linear_attention.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/mamba.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/quantization.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_binary.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/gemm_bmm.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/transform.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/attention.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/moe.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/fft.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_unary_activation.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_fused_gated.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_generative.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/elementwise_multi_input.yaml",
+        "same": true
+      },
+      {
+        "file": "src/tileops/manifest/spec/reduction.yaml",
+        "same": true
+      }
+    ],
+    "changed_dependencies": [],
+    "interpretation": "Backward implementation evolved after forward acceptance; not a forward dependency. All other computational ASTs match; backward report covers latest backward. Re-audit final PR tree and exercise integrated entrypoints before final delivery."
+  }
+]

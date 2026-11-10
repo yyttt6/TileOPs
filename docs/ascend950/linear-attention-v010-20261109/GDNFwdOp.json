@@ -1,0 +1,476 @@
+{
+  "op": "GDNFwdOp",
+  "status": "accepted_isolated_candidate_physical32_v010",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube": 32,
+    "vector": 64
+  },
+  "cases": 278,
+  "passed": 278,
+  "minimum_ratio": 0.8506770094171696,
+  "device_windows_audited": 4170,
+  "host_samples_audited": 4170,
+  "source_snapshot": "base-v16",
+  "final_integration_snapshot": "base-v20",
+  "receipts": {
+    "linear7-gdn-device-b00-v1": {
+      "guard_sha256": "32b138589e9d8156262cf41dbbddf46bd1287a076698eb034c8e40e9e2e91b1f",
+      "source_manifest_sha256": "d13dd3855eedfbc6a9d59d2bac7163e949744cb3eefbd3a2c21855f89cb0f130"
+    },
+    "linear7-gdn-device-b01-v1": {
+      "guard_sha256": "61f8c179aeb2129810ac8664fb550880b5033583c968aab835bb0e2f28ce9d93",
+      "source_manifest_sha256": "e24f2b30ef2608666f42d43ae97d5264825c25513f7f93c68d5a409bbbe8b66d"
+    },
+    "linear7-gdn-device-b02-v1": {
+      "guard_sha256": "a5a38127ad8bd84414adef7be89f93cbf1e40791cea73cdd2f0c74973adba2e0",
+      "source_manifest_sha256": "cf8dda20cc90ee9edf4b9606f2a890450e45d21729a9badb1c724897237275a2"
+    },
+    "linear7-gdn-device-b03-v1": {
+      "guard_sha256": "92338127379d12d5a10ea7523cfd04489d976d49680906660e46544cd511bdd7",
+      "source_manifest_sha256": "818ef1272a06f5600a6b05ffe1539f310139e2290a2d589e8e62a7931c33282f"
+    },
+    "linear7-gdn-device-b04-v1": {
+      "guard_sha256": "0a4b18e5f1b932974c2c1746800f94d9b743926c22e9b4c7acee0c4ce70aef75",
+      "source_manifest_sha256": "46742fd6519eb6a608dedc3f696cfb81e0cc369de9fd88fe7b80484bfa32e125"
+    },
+    "linear7-gdn-device-b05-v1": {
+      "guard_sha256": "092984251fb471365a47c440e51097b7e66100fd6512a43865bc8cbe590fcb6c",
+      "source_manifest_sha256": "3c2c2819212a6d39102927fdf7a2a3e76ff79cc79cdceec6fcc482b5639c9184"
+    },
+    "linear7-gdn-device-b06-v1": {
+      "guard_sha256": "3c16463c4aff6623530876874396c712553a824c6f872c364a2eed68e3c75001",
+      "source_manifest_sha256": "8e387bc2b7d314474b227818fc347a06161e68814b6888ee739d63e0df57dfff"
+    },
+    "linear7-gdn-device-b07-v1": {
+      "guard_sha256": "13b0032a4dff6b854ca634b5f8eb374c6f1f45e2c179a406d36ae8871bac94a9",
+      "source_manifest_sha256": "788c19ff50335309ee3752113c0505f98af871390a94c2a249eb3cfe5bf1411b"
+    },
+    "linear7-gdn-device-b08-v1": {
+      "guard_sha256": "6b6f45c54c7be0bfc4de0f801dc2350bcb3659845e61f9355dbe5887a4ed5685",
+      "source_manifest_sha256": "11865aca63bcf486c64e69dff49aec1042edeee85e38e0acb42c1d99d8d5daf2"
+    },
+    "linear7-gdn-device-b09-v1": {
+      "guard_sha256": "0514290c5d6912d1f19b815e4a14beda977e0d9c3023d2f517b77d912967aa7a",
+      "source_manifest_sha256": "70eb925a3b07202339fe38bf821bcee8ff163e53b50d532576b5ce0d98509942"
+    },
+    "linear7-gdn-device-b10-v1": {
+      "guard_sha256": "49759bd305bfdc980282b2e5a621bdb7ce9f70b13716e0aef35f7440752fc2c2",
+      "source_manifest_sha256": "dc0fa33c901fcc94b90dd4be0b8fc64ed468e011b4eb3ca818d7aefbed9e9c40"
+    },
+    "linear7-gdn-device-b11-v1": {
+      "guard_sha256": "1af8f667ed035050c8493ee44f234297b9d7d5e3b8855b21ad94cc6e71abdc67",
+      "source_manifest_sha256": "0e14fdec385cc7094e58cb61eaccdc8ee478b1e47d6d1e1de56751285c48b5b6"
+    },
+    "linear7-gdn-device-b12-v1": {
+      "guard_sha256": "1b10271e5797f8e7197f8589cb2b11192293c772b2e21b20dd04d3895421ab3a",
+      "source_manifest_sha256": "2ae48ecf2744ea6cb78c1de654179123226d9a0f26cb2035db31743fccccf131"
+    },
+    "linear7-gdn-device-b13-v1": {
+      "guard_sha256": "f76cccd40359eafed6c88f78d6b4edbce75f2734511d7a4046378bd5a1e54cba",
+      "source_manifest_sha256": "104753fbd8a192db41546c04ee3d7a400d8e8715a5feee36703733513541b5a1"
+    },
+    "linear7-gdn-device-b14-v1": {
+      "guard_sha256": "024ab909f02d0451c3cdbfae0c8567b62ff46b33711716002beb14f69ac60889",
+      "source_manifest_sha256": "83d59101a8e825a1bcbebc964eca050ef1bcaa2af0c1be919164981883c8b90b"
+    },
+    "linear7-gdn-device-b15-v1": {
+      "guard_sha256": "063b549a62cc43b1dc2eb83f0db5b0456960117420f1c4da66fac718e960d77a",
+      "source_manifest_sha256": "bd721af41ed7c2a04de3ae747e718a29b189f2d0b67c782e63c9d2c182a74811"
+    },
+    "linear7-gdn-device-b16-v1": {
+      "guard_sha256": "7e167760e8d6295da7ffd600c24fc1e8b791fbf5f4af390049fc04de9f9fb5eb",
+      "source_manifest_sha256": "1ae2d681340ac90f3b5e5ac3ff7ee5b3afa083bdd5f3bc689df774401c46c30b"
+    },
+    "linear7-gdn-device-b17-v1": {
+      "guard_sha256": "3838a3e3234b68b3694edea22fd6b5efed226b933c6b430503ce05bfafc0716f",
+      "source_manifest_sha256": "df7a92f5b149e025530d357e840f1bf074c8f969884f5062fe1e694113b666ea"
+    },
+    "linear7-gdn-device-b18-v1": {
+      "guard_sha256": "c3ce7c853f298fc006c1cb15c07a63f678e3d05e3444ab0f5bb4c421b806e296",
+      "source_manifest_sha256": "b2611eca10a6be5827757546a81a6161c9853896c6944ca4c1eaf49cc9f7b49c"
+    },
+    "linear7-gdn-device-b19-v1": {
+      "guard_sha256": "29a96bb47f2afdec1b2b70b475dc8319a6fbca1c4bd5f3240db4888eee6af4c3",
+      "source_manifest_sha256": "c4ca5492876950b2ad498d3e8a60cdbd884ab29d03925d363eb3a737ed0d870c"
+    },
+    "linear7-gdn-device-b20-v1": {
+      "guard_sha256": "759bfd60b3f529540698962311d23ea11c0bc1ecd46aa984ed737e8224937fd4",
+      "source_manifest_sha256": "927c2d51bff6ec56a225562831cdc925a790512dccd1872d7e1e8e9abf18a106"
+    },
+    "linear7-gdn-device-b21-v1": {
+      "guard_sha256": "e4001daaa8c6a77730665b56d21dd0646eda0b6765824e4a3d26c66c52e46341",
+      "source_manifest_sha256": "2ac98e32c62fd0f9a1c3bf020aa4a787259c0580634b8c775e3e63ab0c3e7584"
+    },
+    "linear7-gdn-device-b22-v1": {
+      "guard_sha256": "516b3d860e270e5940644ccc6de5d2cd2cb7076ed1e75fd778ca9be8d9d59273",
+      "source_manifest_sha256": "c98943141cdefb6355fa95c7820ec7c263bf818286b3d5b5c664b50ef55be672"
+    },
+    "linear7-gdn-device-b23-v1": {
+      "guard_sha256": "b44a021f07af05422f768d54ae49d7ef21429ee143bf332eb8d48c9e22f58b04",
+      "source_manifest_sha256": "f0888cc85a2c9aebafd02a7b887f19075d7a876ddbc9c276eb5f876fda19c3f6"
+    },
+    "linear7-gdn-host-b00-v1": {
+      "guard_sha256": "b1cab8f6a4ea3039261458eeb0fa6d2e5e4d915632d8ec33470f4517cf0bf331",
+      "source_manifest_sha256": "a605b1e82463ac7d6c117363d1910f65e29e858a093290f51a4ca3bd26e88bfb"
+    },
+    "linear7-gdn-host-b01-v1": {
+      "guard_sha256": "fb6d2c58399968536abd50b00e5c446460d0f57e2776e4fc2c952bc3e71db283",
+      "source_manifest_sha256": "815280c5b321e7c7ac734851bb811462a4e06fcb5c507020df98540032d17318"
+    },
+    "linear7-gdn-host-b02-v1": {
+      "guard_sha256": "a73cc80ba14486214c33022bb00af758959ccd758f11203a9221b7c2d189fcae",
+      "source_manifest_sha256": "f91370c5ba9444d658375634c402a547c95b98e3e855c36f3fb58805c8feaa8f"
+    },
+    "linear7-gdn-host-b03-v1": {
+      "guard_sha256": "1c6d932684f109cb6e8bdb7b1d51936e3dee495ca1aeb32acb2aa49ccfb0aaee",
+      "source_manifest_sha256": "1c47b9808517bea4cc38fb01a578cc1fe8235e337ee3c8b6e940cebc50abf11b"
+    },
+    "linear7-gdn-host-b04-v2": {
+      "guard_sha256": "088a5455b18ca84a842bfd00419b37ea551086f1170083575d231cad8be6e2fe",
+      "source_manifest_sha256": "e64d5806c92ecbd02a3e09749af9388c87140e1981d1435e00395a5aaa3f2ca3"
+    },
+    "linear7-gdn-host-b05-v1": {
+      "guard_sha256": "eda5213943c5d8667359d4e0ade097b95694813854c4f28be15a1519e8be30f4",
+      "source_manifest_sha256": "e46e80339d1fdecb4bb8e8c413d80632ecd723ec7823d658be0af0bc3228311e"
+    },
+    "linear7-gdn-host-b06-v1": {
+      "guard_sha256": "94443ad667f638a6e7b6474911b722035b0f198cb4469f74d832ab25987cc45a",
+      "source_manifest_sha256": "e7484d64743091a2e2445583a9ff1a0191f07e36f9a4c29057ba548e46be4bfd"
+    },
+    "linear7-gdn-host-b07-v1": {
+      "guard_sha256": "54fd1d087736ef496eb145a2b795e53b4fb1946f0b881b521e0b447d5339556a",
+      "source_manifest_sha256": "c65d38494a45d9d3ce84ac90bbb7c7feb006e2a6e9e12895c04d4c739babf602"
+    },
+    "linear7-gdn-host-b08-v1": {
+      "guard_sha256": "3b90d603ee4b1080e36e90fba5fce06ed3fca96f1cc4a8594cc20fec303f9b84",
+      "source_manifest_sha256": "e104b05769a0a2fe36b85d3e440634114beb2fa9ce9a2b1719605fb4c7749999"
+    },
+    "linear7-gdn-host-b09-v1": {
+      "guard_sha256": "677023e29f69ea0e73491fc65ed679eaebb3e0c434124cd2bea3f81490ebadd2",
+      "source_manifest_sha256": "cb1903572b89b56022d1083d8850228820a5087684859c39b527aae775ef60c0"
+    },
+    "linear7-gdn-host-b10-v1": {
+      "guard_sha256": "40a9efbdcdf3cb73b686dde02304dbe29fc3c642001b3ed117af03798f490011",
+      "source_manifest_sha256": "3bd785d0e8151aa9e40ab89ffdd135cbcb5cb33b45550621e9aa3b75ac5710d4"
+    },
+    "linear7-gdn-host-b11-v1": {
+      "guard_sha256": "67bedb499da8800f68326cd59a45b84d485fcbe1621a4a3e969fb46da31a3ca9",
+      "source_manifest_sha256": "04db7f1b341002b4ca06e6782e60b68bf489fda142584d1087bc30c9cfc329e0"
+    },
+    "linear7-gdn-host-b12-v1": {
+      "guard_sha256": "b037f0ec74762daef8afe270d074170bec73845df61d6583ebc878f1ebbbd1a7",
+      "source_manifest_sha256": "b32f1125c5a32e2d4da8ada672f808e52cc4a5dfa4869ae5cd9f9ddd850beda7"
+    },
+    "linear7-gdn-host-b13-v1": {
+      "guard_sha256": "e19cb6ac90d1a466d7f5d1ce7b046bcac32f37c8181bead74cfd44b0603dc0a4",
+      "source_manifest_sha256": "a7387bcbb036e1bbc404733f9afb9cf9bb6a990ef288e7eaf5ddbd3420478e8b"
+    },
+    "linear7-gdn-host-b14-v1": {
+      "guard_sha256": "f97d9f086f580f2df79fad0ceab878e5602668acfded649fa7786deba6a39ea3",
+      "source_manifest_sha256": "4370d9b1a5599a965a78440b8374ecfb934f9bded2ad304d6fddc5125cd53c65"
+    },
+    "linear7-gdn-host-b15-v1": {
+      "guard_sha256": "11331764723826e9a54a5fe2cc84a1a6a55c2876874fab0d8680b7545ff9ebc1",
+      "source_manifest_sha256": "77feb6b02b4fd5a34bff8830ba0bc00ad1c4b0ce9b9a60968275b4dfd754599e"
+    },
+    "linear7-gdn-host-b16-v1": {
+      "guard_sha256": "3dbb0984fa90ee51e9b87dc7ce0230655c8f056c44d64624c056438ffe741078",
+      "source_manifest_sha256": "7d61381db0029e639ea70837141bd3b523625836b21be54212d2b92f832097dd"
+    },
+    "linear7-gdn-host-b17-v1": {
+      "guard_sha256": "5484cdff47eeb338851e01e132a0308b96f68b4d9677e0e445a7eebffc9fa343",
+      "source_manifest_sha256": "56aa8a3342b65ea2d3cced73be37534d2b4123b9d58c9f447d6f8334cec1084a"
+    },
+    "linear7-gdn-host-b18-v1": {
+      "guard_sha256": "2c87239d78259d4229232716747e60f4accbf95ed0ba325ccdaddfa15f98c208",
+      "source_manifest_sha256": "441f05545da6642768ff8c51a03ebdb83a2c9dccb90bfdaf09d1ac4ff0062683"
+    },
+    "linear7-gdn-host-b19-v1": {
+      "guard_sha256": "bee26495c517bf9d752b7ce9d47c39913c4d69b715763c53e97d67601d71d552",
+      "source_manifest_sha256": "a58390b301b1fc206e1fda4589b8c6849222b9f114ef6b011874602315226b5e"
+    },
+    "linear7-gdn-host-b20-v1": {
+      "guard_sha256": "d47b1c40a4bc252ff198b70d14ac3f99097aa4bdc2a7076fddc5fdbfd4594df7",
+      "source_manifest_sha256": "4376565fff213056a803e0a210b387a57f9bfc89c783fa66fcedb9737e19678b"
+    },
+    "linear7-gdn-host-b21-v1": {
+      "guard_sha256": "a9bfb312b32c7cfcbb6f107ded1b603b66654f43ba1cfb9a55f9ce8ba9449f1b",
+      "source_manifest_sha256": "32e353f674635daf3355bd92a71a4851fb56c905f34e3009f4891ff5f6e680cb"
+    },
+    "linear7-gdn-host-b22-v1": {
+      "guard_sha256": "ef0853b0106e8948fce229d149be6a42042c1792843f4112df20624c75b1558b",
+      "source_manifest_sha256": "2f530984a3742cc5053f1666ae79e76580bcca174a26c5d4300ddd81a278559b"
+    },
+    "linear7-gdn-host-b23-v1": {
+      "guard_sha256": "7d426063fa3df6c20afc247a35f1efa598e5d1a55021b03b437d72dfa1b35188",
+      "source_manifest_sha256": "00f1b90664f6d79131d32d53ee978072830315a343f7356b50c9b3377c5c70a3"
+    },
+    "linear7-gdn-extended-v1": {
+      "guard_sha256": "465aeef344fb57a9477b949a8949daa51560422932da2e3be13374e7efc43c96",
+      "source_manifest_sha256": "6c09f61d93670498c26bac655d02a08737a0a1e3dd0786ef79282ab9e50af2c1"
+    },
+    "linear7-gdn-public-v1": {
+      "guard_sha256": "a1d39a9c5d7fe36002fc385f4468cb95a6dcf630a78c23af7a78fdfd401e7fd1",
+      "source_manifest_sha256": "1e1ed91f980ab26bcb3b93008c850dc3f14e2dd4195030045b6e4fb31f33386c"
+    },
+    "linear7-gdn-public-counterparts-v1": {
+      "guard_sha256": "64c0c1f7b9a31c27382fb683cedb7b20a9ed72522690fef9321b720c719bb80d",
+      "source_manifest_sha256": "07924c7497f4027f2e633bcdec8f3435fd94f2dc90b7c7632caaf62d54db4187"
+    },
+    "linear7-gdn-rectangular-v1": {
+      "guard_sha256": "993be996e7fbce7b03d1be1b82babf42470fb0f9c5d20f61d7d2623d7ed32f8f",
+      "source_manifest_sha256": "cf0219764ed22993cf47c282dc4aadc61d2f165cbf651071a2e03053fdee24c5"
+    },
+    "linear7-gdn-recurrent-guards-v1": {
+      "guard_sha256": "da24c7a6d580d97d02cb33d408c703ae593bb5c9ff42722bd496473e2c746c1c",
+      "source_manifest_sha256": "f2e6670a97c8f75e3cf442f9214ba239eb53ac1f43a36ce2145d5bd9074ac71f"
+    },
+    "linear7-gdn-vector-guards-v1": {
+      "guard_sha256": "268ffbbfc4dc4a63e57281703d38b57d89e1671e63670e4c98d96e110fb1b4a6",
+      "source_manifest_sha256": "e8902598265505e15f7f72c563851ca73a4ed6b4f81fcdb2f9c7af2ea189b09d"
+    },
+    "linear7-integrated-public-v4": {
+      "guard_sha256": "7a4ba13da28338feba7fdd9747cf72fafb953cec80eca2a3a6b8198f9be781dc",
+      "source_manifest_sha256": "392a1950cdcb60a7681f7f9b361cbbff547cb45fe9bb52c600a86bc7804660a2"
+    },
+    "linear7-integrated-compile-v2": {
+      "guard_sha256": "53860f914247d1e1aafa191eff33d18e04e128d1d65445964910e2ca411b4052",
+      "source_manifest_sha256": "f9bb63aad8c3fdf40baedfd6be82f65dc7dd34993f1d4b9b2f3abcfc2319ec79"
+    },
+    "linear7-kda-reference-public-v1": {
+      "guard_sha256": "31d4231f2a4037cb29d1fe7187e6a61b27b6d851c3ee7c815d1a1fc01c1242a8",
+      "source_manifest_sha256": "da20b51db301e7aa795584e71d06af54e66a0293fabeb291139e80fe2d4ee8e2"
+    }
+  },
+  "public_tests": 11,
+  "public_architecture_skips": [
+    {
+      "name": "test_gdn_dense_prefill_matches_reference[89-fp16]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_dense_prefill_matches_reference[89-bf16]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_dense_prefill_matches_reference[90-fp16]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_dense_prefill_matches_reference[90-bf16]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_dense_prefill_continues_an_initial_state[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_dense_prefill_continues_an_initial_state[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_dense_prefill_carries_a_value_major_state[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_dense_prefill_carries_a_value_major_state[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_partitioned_prefill_carries_a_value_major_state",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_dense_prefill_runs_a_64_wide_state[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_dense_prefill_runs_a_64_wide_state[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_packs_ragged_sequences_with_grouped_value_heads[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_packs_ragged_sequences_with_grouped_value_heads[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_packs_sequences_of_one_length",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_packs_many_sequences_shorter_than_a_chunk",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_keeps_busy_packed_sequences_whole",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_reads_offsets_rewritten_in_place[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_reads_offsets_rewritten_in_place[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_inverts_a_chunk_of_correlated_keys[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_inverts_a_chunk_of_correlated_keys[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_inverts_correlated_keys_in_the_warp_group_solve",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_fused_prefill_matches_reference[bf16-partial-chunk]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_fused_prefill_matches_reference[fp16-value-major-state]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_fused_prefill_matches_reference[in-kernel-transforms]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_fused_prefill_inverts_correlated_keys_in_float16",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_fused_prefill_keeps_a_fast_decay_finite_in_fp16",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_runs_a_row_that_is_not_a_whole_chunk[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_runs_a_row_that_is_not_a_whole_chunk[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[89-l2norm]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[89-raw-gate]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[89-beta-sigmoid]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[89-beta-sigmoid-negative]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[89-every-transform]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[89-every-transform-fp16]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[90-l2norm]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[90-raw-gate]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[90-beta-sigmoid]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[90-beta-sigmoid-negative]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[90-every-transform]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_prefill_takes_each_input_transform[90-every-transform-fp16]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_sm89_prefill_scans_a_long_sequence_in_narrow_value_tiles[16-columns]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_sm89_prefill_scans_a_long_sequence_in_narrow_value_tiles[32-columns]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_keeps_a_fast_decay_finite_in_fp16[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_gdn_prefill_keeps_a_fast_decay_finite_in_fp16[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_partitioned_prefill_normalizes_the_key_it_stages",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_partitioned_dense_prefill_matches_reference[from-zero]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_partitioned_dense_prefill_matches_reference[continued]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_partitioned_prefill_ends_on_a_short_piece",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_gdn_partitioned_prefill_splits_only_the_long_packed_sequences",
+      "reason": "needs compute capability 9.x"
+    }
+  ],
+  "public_collection_evidence": "/root/dyq/workspace/reports/linear7-server1-v010-20261109/evidence/linear7-gdn-public-v1",
+  "public_counterparts": 15,
+  "extended_checks": 60,
+  "rectangular_checks": 4,
+  "output_guard_checks": 22,
+  "output_guard_regions": 112,
+  "new_pr_regression_tests": 4,
+  "integrated_compile_tests": 30,
+  "reference": "Unchanged current workload independent CPU reference; original gated_verification; historical native constraints retained. Historical FLA qualifications remain historical, not a fresh FLA rerun.",
+  "historical_provenance": "Local36capped32 targets remain labelled as historical local targets; new measurements are server1 physical32.",
+  "excluded_receipts": [
+    "linear7-gdn-host-b04-v1: guard78 visibility_lost; workload success does not validate performance; replaced by valid v2"
+  ],
+  "source_format_proof": "gdn-final-format-source-audit-v1.json",
+  "accepted_at": "2026-11-09T19:07:40.755122+00:00",
+  "original_report": {
+    "path": "reports/linear7-server1-v010-20261109/GDNFwdOp-server1-report.json",
+    "sha256": "d31dd756fc31a5cffac6a1c33f814aa8ba931d821f7b87f7f6bf42b4d5611a68"
+  },
+  "comparison_files": [
+    "GDNFwdOp-device.csv",
+    "GDNFwdOp-host.csv",
+    "GDNFwdOp-historical.csv"
+  ],
+  "case_timings": "GDNFwdOp-timings.csv",
+  "historical_source": {
+    "path": "docs/ascend950/dev/linear_attention_local32_20261103/reports/GDNFwdOp.json",
+    "sha256": "543e7bd4a8bcaa14bd2073a4c25e2e74b1139f5e449fd94180ee9d242adbcff2",
+    "provenance": "Historical local36capped32 and native targets retain original provenance"
+  },
+  "minimum_including_all_retained_constraints": 0.8506770094171696
+}

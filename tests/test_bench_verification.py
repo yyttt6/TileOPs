@@ -10,43 +10,6 @@ from workloads.numerics import Exact
 pytestmark = pytest.mark.smoke
 
 
-@pytest.mark.parametrize("dtype", [torch.float8_e4m3fn, torch.float8_e5m2])
-def test_fp8_input_preservation_checks_storage_including_nan(dtype):
-    from workloads.numerics import _unchanged
-
-    source = torch.tensor([0.0, -0.0, 1.0, float("nan")]).to(dtype)
-    actual = source.clone()
-    assert _unchanged([actual], [source])
-    actual.view(torch.uint8)[1] = 0
-    assert not _unchanged([actual], [source])
-    actual = source.clone()
-    actual.view(torch.uint8)[2] = 0
-    assert not _unchanged([actual], [source])
-
-
-@pytest.mark.parametrize("dtype", [torch.float8_e4m3fn, torch.float8_e5m2])
-@pytest.mark.parametrize("scaled", [False, True])
-def test_fp8_paged_gather_reference_crosses_fragmented_pages(dtype, scaled):
-    from workloads.attention.paged_cache_gather import PagedKVCacheGatherWorkload
-
-    workload = PagedKVCacheGatherWorkload([3, 1], (2,), 2, dtype)
-    cache = torch.arange(12).reshape(3, 2, 2).to(dtype)
-    dst = torch.empty((4, 2), dtype=torch.float16 if scaled else dtype)
-    scale = torch.tensor([1.25]) if scaled else None
-    actual = workload.ref_program(
-        cache,
-        torch.tensor([[2, 0], [1, 2]]),
-        torch.tensor([0, 3, 4]),
-        torch.tensor([1, 0]),
-        scale,
-        dst,
-    )
-    expected = cache.float().flatten(0, 1)[[5, 0, 1, 2]]
-    if scaled:
-        expected *= scale
-    torch.testing.assert_close(actual.float(), expected.to(dst.dtype).float(), rtol=0, atol=0)
-
-
 def _workload():
     return SimpleNamespace(
         gen_inputs=lambda: (torch.ones(1),),
@@ -191,3 +154,70 @@ def test_flashinfer_low_latency_refuses_a_non_cuda_device_before_reading_arch(mo
     )
     reason = bench_gemm._flashinfer_fp8_per_tensor_unsupported_reason(torch.device("cpu"), 32, 128)
     assert "runs on cuda" in reason
+
+
+@pytest.mark.skipif(not hasattr(torch, "float8_e4m3fn"), reason="torch predates float8")
+def test_an_fp8_input_is_preserved_bit_for_bit():
+    """FP8 has no isclose on the operator build, so this path must not reach for it."""
+    from workloads.numerics import _unchanged
+
+    source = torch.tensor([1.0, -2.0, 0.5, float("nan")], dtype=torch.float8_e4m3fn)
+    same = source.clone()
+    assert _unchanged([same], [source])
+
+
+@pytest.mark.skipif(not hasattr(torch, "float8_e4m3fn"), reason="torch predates float8")
+def test_an_fp8_input_change_is_caught():
+    """A single flipped byte has to fail even where assert_close cannot run."""
+    from workloads.numerics import _unchanged
+
+    source = torch.tensor([1.0, -2.0, 0.5, 3.0], dtype=torch.float8_e4m3fn)
+    changed = source.clone()
+    changed[2] = 4.0
+    assert not _unchanged([changed], [source])
+
+
+def test_a_non_fp8_input_keeps_the_numeric_check():
+    from workloads.numerics import _unchanged
+
+    source = torch.tensor([1.0, float("nan")])
+    assert _unchanged([source.clone()], [source])
+    assert not _unchanged([source + 1.0], [source])
+
+@pytest.mark.parametrize("dtype", [torch.float8_e4m3fn, torch.float8_e5m2])
+def test_fp8_input_preservation_checks_storage_including_nan(dtype):
+    from workloads.numerics import _unchanged
+
+    source = torch.tensor([0.0, -0.0, 1.0, float("nan")]).to(dtype)
+    actual = source.clone()
+    assert _unchanged([actual], [source])
+    actual.view(torch.uint8)[1] = 0
+    assert not _unchanged([actual], [source])
+    actual = source.clone()
+    actual.view(torch.uint8)[2] = 0
+    assert not _unchanged([actual], [source])
+
+
+@pytest.mark.parametrize("dtype", [torch.float8_e4m3fn, torch.float8_e5m2])
+@pytest.mark.parametrize("scaled", [False, True])
+def test_fp8_paged_gather_reference_crosses_fragmented_pages(dtype, scaled):
+    from workloads.attention.paged_cache_gather import PagedKVCacheGatherWorkload
+
+    workload = PagedKVCacheGatherWorkload([3, 1], (2,), 2, dtype)
+    cache = torch.arange(12).reshape(3, 2, 2).to(dtype)
+    dst = torch.empty((4, 2), dtype=torch.float16 if scaled else dtype)
+    scale = torch.tensor([1.25]) if scaled else None
+    actual = workload.ref_program(
+        cache,
+        torch.tensor([[2, 0], [1, 2]]),
+        torch.tensor([0, 3, 4]),
+        torch.tensor([1, 0]),
+        scale,
+        dst,
+    )
+    expected = cache.float().flatten(0, 1)[[5, 0, 1, 2]]
+    if scaled:
+        expected *= scale
+    torch.testing.assert_close(actual.float(), expected.to(dst.dtype).float(), rtol=0, atol=0)
+
+

@@ -31,8 +31,10 @@ def comparison_identity(op, case, params):
                 raise ValueError(f'Ambiguous baseline parameter aliases: {old}, {new}')
             params[new] = params.pop(old)
 
-    if op == 'GemmFwdOp':
-        op = 'GEMMFwdOp'
+    if op == 'ReluFwdOp':
+        op = 'ReLUFwdOp'
+    elif op in ('GemmFwdOp', 'BmmFwdOp'):
+        op = {'GemmFwdOp': 'GEMMFwdOp', 'BmmFwdOp': 'BMMFwdOp'}[op]
     elif op == 'GemmINT8W8A8FwdOp':
         op = 'GEMMINT8W8A8FwdOp'
         rename('scale_a', 'a_scale')
@@ -41,6 +43,16 @@ def comparison_identity(op, case, params):
         op = 'GroupedGEMMFwdOp'
         for old, new in [('output', 'd'), ('transpose_a', 'trans_a'), ('transpose_b', 'trans_b')]:
             rename(old, new)
+    elif op == 'GemmW4A8FwdOp':
+        op = 'GEMMW4A8FwdOp'
+        rename('output', 'd')
+    elif op == 'GemmW4A16FwdOp':
+        op = 'GEMMW4A16FwdOp'
+        rename('output', 'd')
+    elif op == 'GemmFP8FwdOp':
+        op = 'GEMMFP8FwdOp'
+        rename('scale_a', 'a_scale')
+        rename('scale_b', 'b_scale')
     elif op == 'FP8QuantFwdOp':
         op = 'FP8QuantPerTokenGroupFwdOp'
         for old, new in [('input_tensor', 'x'), ('output_tensor', 'q'), ('scale_tensor', 'scale')]:
@@ -58,6 +70,10 @@ def comparison_identity(op, case, params):
                 'llama-8b-ffn-prefill-bfloat16': 'llama-8b-prefill-tanh-bfloat16',
                 'llama-8b-ffn-decode-bfloat16': 'llama-8b-decode-tanh-bfloat16',
             }.get(case, case)
+    if op == 'MoEGroupedGemmFP8FwdOp':
+        op = 'MoEGroupedGEMMFP8FwdOp'
+    if op == 'SSDChunkStateFwdOp':
+        rename('Bmat', 'B')
     if op == 'MergeAttentionStatesFwdOp':
         # The old public interface used natural-log LSE; absence never means log2.
         params.setdefault('lse_base', 'e')
