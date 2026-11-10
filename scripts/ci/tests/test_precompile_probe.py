@@ -8,6 +8,8 @@ import pytest
 
 from scripts.ci import precompile_probe as probe
 
+pytestmark = pytest.mark.smoke
+
 
 def valid_stages():
     return {
