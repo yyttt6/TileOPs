@@ -54,3 +54,29 @@ head as the second parent. Incremental selection compares against the first
 parent actually merged, not the possibly stale event payload base. Explicit
 manual performance runs retain their specified base behavior. Both the resolved
 base and cache identity are preserved with the run artifacts.
+
+### Pre-compilation
+
+`scripts/ci/precompile.py` builds the programs a changed operator's cases will need
+before the measurement step starts, using each kernel's `compilations()` — a pure
+function of the manifest's `(shape, dtype)` and scalar parameters, so nothing is
+instantiated, no input is generated and no preprocessing runs. The default returns
+nothing, which keeps an operator that does not opt in compiling lazily exactly as before.
+
+The step is the candidate's own code, so it runs before the measurement step and writes
+its receipts beside the measurement's; the measurement step itself still runs the trusted
+harness from the base branch. `scripts/ci/pr_selection.py` takes the operator list from
+that harness's selection rather than reimplementing it.
+
+A pass that would touch the device cannot be identified from inside its own process —
+`import torch_npu` opens `/dev/davinci_manager` while leaving `torch.npu.is_initialized()`
+false — so the pass and its probe run under `npu-guard`, which supplies that guarantee by
+construction.
+
+**A hit is reported as an absence of compiler launches, not as disk state.** Removing an
+entry and rebuilding it produces the same files, so entry counts cannot distinguish a
+reuse from a rebuild; `precompile.py` counts device-compiler subprocesses and writes the
+count on every exit path. `scripts/ci/precompile_probe.py` runs the full claim — enumerate,
+pre-compile into a directory it owns, then build and call the operator in a fresh process —
+and records each check. Its cache directory is separate from the shared namespace on
+purpose: a warm shared cache cannot demonstrate a compile.

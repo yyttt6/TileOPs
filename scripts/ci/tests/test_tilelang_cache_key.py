@@ -182,7 +182,7 @@ def test_workflow_cache_setup_supports_old_revisions_and_fails_closed(
     )
     body = body[
         body.index("CACHE_KEY_SCRIPT=") : body.index(
-            "python ci-harness/scripts/ci/pr_performance.py"
+            "# Pre-compile the selected operators"
         )
     ]
     body = body.replace("/opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json", str(lock))

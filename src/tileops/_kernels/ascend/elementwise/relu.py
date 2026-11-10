@@ -7,7 +7,7 @@ import torch
 
 import tileops.backend._registry
 from tileops._kernels.elementwise.call_spec import UnaryElementwiseFwdInterface
-from tileops._kernels.kernel_base import Kernel
+from tileops._kernels.kernel_base import Compilation, Kernel
 
 try:
     import tilelang
@@ -47,8 +47,8 @@ if T is not None:
                 for i in T.Parallel(width):
                     y[i] = T.if_then_else(x[i] < 0, T.cast(0, dtype), x[i])
 
-    @functools.lru_cache(maxsize=256)
-    def build(n, dtype, floating, tile=16384, blocks=64, stages=3):
+    def program(n, dtype, floating, tile=16384, blocks=64, stages=3):
+        """The compiled-shape program for one call; the only place its DSL is written."""
         full, tail = divmod(n, tile)
         grid = min(blocks, full) if full else 1
         padded_tail = (tail + 255) // 256 * 256
@@ -75,7 +75,23 @@ if T is not None:
                         _body(xt, yt, padded_tail, dtype, floating)
                         T.copy(yt[:tail], Y[full * tile : n], l2_cache_ctrl=0)
 
-        return tilelang.compile(main, target="ascend", out_idx=-1)
+        return main
+
+    @functools.lru_cache(maxsize=256)
+    def build(n, dtype, floating, tile=16384, blocks=64, stages=3):
+        return tilelang.compile(
+            program(n, dtype, floating, tile, blocks, stages), target="ascend", out_idx=-1
+        )
+
+    def _tile(n_total, dtype):
+        """The tile and stage count one call runs with, by its length and element width."""
+        tile = 16384 if dtype.itemsize <= 2 else 8192 if dtype.itemsize == 4 else 4096
+        stages = 3
+        while (
+            2 * tile * stages + 2 * ((n_total % tile + 255) // 256 * 256)
+        ) * dtype.itemsize > 248 * 1024:
+            tile //= 2
+        return tile, stages
 
 
 class AscendReLUKernel(Kernel, UnaryElementwiseFwdInterface):
@@ -88,6 +104,50 @@ class AscendReLUKernel(Kernel, UnaryElementwiseFwdInterface):
     @classmethod
     def entry_for(cls, call):
         return call, lambda: cls(call.n_total, call.dtype)
+
+    @classmethod
+    def compilations(cls, tensors, params):
+        """The one program a ReLU call builds, from the manifest's shape and dtype.
+
+        Reading ``(shape, dtype)`` keeps this independent of any tensor: the manifest
+        declares the shapes and dtypes, and nothing here constructs a kernel, queries a
+        device or launches. It reads exactly the inputs the constructor does, so the
+        program it returns is the one ``forward`` would build.
+        """
+        shape, dtype_name = tensors["input"]
+        dtype = getattr(torch, dtype_name)
+        n_total = 1
+        for extent in shape:
+            n_total *= extent
+        if T is None or not n_total or not cls._serves(dtype):
+            return ()
+        storage = str(
+            (torch.int32 if dtype == torch.float32 else torch.int16)
+            if dtype.is_floating_point
+            else dtype
+        ).split(".")[-1]
+        floating = str(dtype).split(".")[-1] if dtype.is_floating_point else ""
+        tile, stages = _tile(n_total, dtype)
+        return (
+            Compilation(
+                program(n_total, storage, floating, tile, 64, stages),
+                out_idx=-1,
+                target="ascend",
+            ),
+        )
+
+    @staticmethod
+    def _serves(dtype):
+        return dtype in (
+            torch.float16,
+            torch.bfloat16,
+            torch.float32,
+            torch.int8,
+            torch.uint8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+        )
 
     def __init__(self, n_total, dtype):
         super().__init__()
@@ -111,12 +171,7 @@ class AscendReLUKernel(Kernel, UnaryElementwiseFwdInterface):
             else dtype
         )
         if n_total:
-            tile = 16384 if dtype.itemsize <= 2 else 8192 if dtype.itemsize == 4 else 4096
-            stages = 3
-            while (
-                2 * tile * stages + 2 * ((n_total % tile + 255) // 256 * 256)
-            ) * dtype.itemsize > 248 * 1024:
-                tile //= 2
+            tile, stages = _tile(n_total, dtype)
             self.compiled = build(
                 n_total,
                 str(self.storage_dtype).split(".")[-1],
