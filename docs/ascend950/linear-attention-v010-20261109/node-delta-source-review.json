@@ -1,0 +1,7 @@
+{
+  "unchanged": true,
+  "target_commit": "65f2bb8476836f8b0515ec1a6da087c9f78db3f1",
+  "target_tree": "ba2a9c9ede23c7ae9a8e7d0570d8790eb6ab805b",
+  "source_manifest_sha256": "35fd52d3f229443dbc0da27aa49b1013d2c059aaa7f0d785349ee5e699e82fe1",
+  "scope": "Canonical test_node_delta.py, exact target archive plus final candidate overlay, NPU collection"
+}

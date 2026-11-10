@@ -36,3 +36,21 @@ For existing PRs, dispatch Ascend 950 with mode=performance and revision=the cur
 CI fixes when the PR branch predates them.
 Normal PR events run against GitHub's merge revision; manual runs are identified
 by their exact commit and are not a substitute for resolving merge conflicts.
+
+### Persistent compilation cache and merge-base selection
+
+PR performance and the official nightly share the server2 cache namespace
+`cache/tilelang-v1-<identity>`. `scripts/ci/tilelang_cache_key.py` requires a clean
+tracked source tree and a successful canonical toolchain report. It hashes the
+Git tree, toolchain lock and verified compiler/header/library fingerprints. Run
+IDs, checkout paths and commit messages do not affect the namespace; changed
+source trees or toolchains do. TileLang still keys individual programs and their
+compile options within that directory. This reuses binaries, not correctness or
+performance results. Cache identity design and initial CPU tests are adapted
+from PR #97; parallel precompilation is a separate rollout.
+
+For pull-request events, the tested commit must have two parents, with the PR
+head as the second parent. Incremental selection compares against the first
+parent actually merged, not the possibly stale event payload base. Explicit
+manual performance runs retain their specified base behavior. Both the resolved
+base and cache identity are preserved with the run artifacts.

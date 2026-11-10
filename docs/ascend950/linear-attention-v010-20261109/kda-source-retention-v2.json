@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/kda.py",
+      "accepted_KDA_v15_sha256": "257c2ee90a6fd8db4ab5a6ac584dfba86fbceb9b14349aaa604d1776ebc78b68",
+      "current_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/kda_chunked.py",
+      "accepted_KDA_v15_sha256": "dc763fff80acf76ffc53a9b10623792cbe64b4e9a297062bfca7e3b7aabdb7fe",
+      "current_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/kda_gate.py",
+      "accepted_KDA_v15_sha256": "b2e9a878ccb97dd0235bd683bbcf3efc700cccc144c41b09ee2edfa8b906a1f2",
+      "current_equal": true
+    }
+  ],
+  "scope": "Three production files byte-identical; initializer integration and final entry tests pending"
+}

@@ -1,0 +1,147 @@
+{
+  "op": "GLAFwdOp",
+  "status": "accepted_isolated_candidate_physical32_v010",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube": 32,
+    "vector": 64
+  },
+  "cases": 12,
+  "passed": 12,
+  "minimum_ratio": 8.092202710994608,
+  "public_tests": 3,
+  "extended_checks": 53,
+  "output_guard_checks": 2,
+  "device_windows_audited": 180,
+  "host_samples_audited": 180,
+  "source_snapshot": "base-v5",
+  "receipts": {
+    "linear7-gla-forward-full-device-v8": "b16e173f8535cf1c7f300842f7fad792c6fa25c434fe032d1560dda6e29b1058",
+    "linear7-gla-forward-full-host-v8": "075513acbe539222537a764c29ce9bdc4f701fb887568f7e52de1c42e3e3918e",
+    "linear7-gla-forward-public-v8": "42560c20607cc7aa6f01f2983630c7899eb6a2fed5644f698c0fc2ac454df0dc",
+    "linear7-gla-forward-extended-general-v8": "33a9ce4e704b5c6e4e42806059930c9fb741eca68fc54e6dab14aad99ccd9b5c",
+    "linear7-gla-forward-extended-float16-v8": "e63a7e6b53d292b0b3a6f89c55227801175836da7b0f1283a72a3de004423856",
+    "linear7-gla-forward-extended-bfloat16-v8": "9af3994454bceefc138c08a408144897421f451cf620072b9974e99e0c534ef7"
+  },
+  "reference": "Independent preserved CPUFP64 recurrence with original current manifest verifier; FLA CPU unsupported, original public selected3 unchanged; CUDA-only-specific tests not claimed NPU passes",
+  "baseline": "Published qualified physical32 same-contract device rows plus historical admitted host targets; old local eager timings retained only as diagnostic, not substituted for physical32 baseline",
+  "accepted_at": "2026-11-09T10:14:10.371258+00:00",
+  "additional_historical_local_constraints": {
+    "scope": "Additional historical numerical constraints only; baseline measured on local36capped32, not relabelled as physical32 baseline",
+    "rows": [
+      {
+        "case": "decode-b1-d64-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.005696066666666667,
+        "current_server1_tileops_ms": 0.003407,
+        "ratio": 1.6718716368261424
+      },
+      {
+        "case": "decode-b8-d128-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.018055733333333334,
+        "current_server1_tileops_ms": 0.021648933333333335,
+        "ratio": 0.8340241551546804
+      },
+      {
+        "case": "decode-first-token-float16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.010545533333333332,
+        "current_server1_tileops_ms": 0.0095526,
+        "ratio": 1.1039437779592292
+      },
+      {
+        "case": "prefill-2k-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.17494353333333332,
+        "current_server1_tileops_ms": 0.18805360000000002,
+        "ratio": 0.9302854788918336
+      },
+      {
+        "case": "prefill-4k-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.3167678666666666,
+        "current_server1_tileops_ms": 0.358619,
+        "ratio": 0.8832991745185464
+      },
+      {
+        "case": "prefill-8k-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.5862622,
+        "current_server1_tileops_ms": 0.7235081999999999,
+        "ratio": 0.8103048451973316
+      },
+      {
+        "case": "prefill-16k-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 1.3046704,
+        "current_server1_tileops_ms": 1.4785031333333334,
+        "ratio": 0.882426537073735
+      },
+      {
+        "case": "varlen-4x1k-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.2115412,
+        "current_server1_tileops_ms": 0.18032053333333334,
+        "ratio": 1.1731398309972465
+      },
+      {
+        "case": "varlen-ragged-float16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 15.5501164,
+        "current_server1_tileops_ms": 0.911003,
+        "ratio": 17.06922633624697
+      },
+      {
+        "case": "prefill-3000-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.2352256,
+        "current_server1_tileops_ms": 0.28274746666666667,
+        "ratio": 0.8319282318356168
+      },
+      {
+        "case": "gla-short-continuation-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.1183974,
+        "current_server1_tileops_ms": 0.07562853333333334,
+        "ratio": 1.56551231105015
+      },
+      {
+        "case": "gla-continue-b4-bfloat16",
+        "provider": "qualified_local_eager",
+        "historical_local_limited32_baseline_ms": 0.37941953333333334,
+        "current_server1_tileops_ms": 0.23481253333333332,
+        "ratio": 1.6158402106872207
+      }
+    ],
+    "passed": true
+  },
+  "minimum_including_historical_local_thresholds": 0.8103048451973316,
+  "additional_pr_regression": {
+    "passed": 4,
+    "source_sha256": "9403d951646860be8b21c2a35c39e83cbfe3d16f2669903fd6d4e8981d7ffb91",
+    "guard_valid": true,
+    "script_adapter": "Explicit originalproject conftestplugin, unchangedregressiontestsource, NPUroute"
+  },
+  "toolchain_reverified": {
+    "path": "linear7-toolchain-v1.json",
+    "sha256": "d463879c4bd276c75f799d1c671b2296131d4eea98ce3ab1548edb0b19da28be",
+    "status": "passed"
+  },
+  "original_report": {
+    "path": "reports/linear7-server1-v010-20261109/GLAFwdOp-server1-report.json",
+    "sha256": "dbc1a36992734eb6639bea653d503abdca56fa5fdf61e6a316b9b76cac9654fc"
+  },
+  "comparison_files": [
+    "GLAFwdOp-device.csv",
+    "GLAFwdOp-host.csv",
+    "GLAFwdOp-historical.csv"
+  ],
+  "case_timings": "GLAFwdOp-timings.csv",
+  "historical_source": {
+    "path": "docs/ascend950/dev/linear_attention_local32_20261103/reports/GLAFwdOp.json",
+    "sha256": "bfd92db1a39d55fd7886aa085000ca14c3a7a61df6938e6caa570e00b0dd2572",
+    "provenance": "Historical local36capped32 and native targets retain original provenance"
+  },
+  "minimum_including_all_retained_constraints": 0.8103048451973316
+}

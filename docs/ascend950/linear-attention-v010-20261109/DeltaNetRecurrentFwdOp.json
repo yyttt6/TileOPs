@@ -1,0 +1,369 @@
+{
+  "op": "DeltaNetRecurrentFwdOp",
+  "status": "accepted_isolated_candidate_physical32_v010",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube": 32,
+    "vector": 64
+  },
+  "cases": 8,
+  "passed": 8,
+  "minimum_ratio": 2.6250627778001587,
+  "public_tests": 22,
+  "extended_checks": 36,
+  "output_guard_checks": 6,
+  "output_guard_regions": 24,
+  "device_windows_audited": 120,
+  "host_samples_audited": 120,
+  "source_snapshot": "base-v10",
+  "receipts": {
+    "linear7-delta-recurrent-device-v1": "6882f7939bc5ed47cc034d4f371dc30d119219624f0f758bd580d66bbac20c20",
+    "linear7-delta-recurrent-host-v1": "b9534f344ebe73519f7eae92dab2c9ea06f12a013cfeb78c4e579be290a3a3e9",
+    "linear7-delta-recurrent-public-v1": "a54b34598f9e6def8a8213f403ea066a7a3cf7474e8a1a5f31f57e7a648d1d12",
+    "linear7-delta-recurrent-extended-v1": "6e71e5753c352e67b1b1beeec3e663295425482eae2a79d39a6c4ab5ec3232cd",
+    "linear7-delta-recurrent-guards-v1": "8ee21f7748e1f45ffec3fb8bbee9171b1dad62c73f5887fd238b5b56aa9b81df"
+  },
+  "reference": "Original independent CPU FP32 delta update, original 2-output verification; public22 unchanged. Strides/arbitrarywidths/beta0,1,.3, functionalstate and input preservation covered; output guards smalltail and largegrid across3dtypes",
+  "public_exclusions": "CUDA-only DeltaNetFwd test with decode name and raw CUDA warp implementation tests excluded, not claimed recurrent NPU passes",
+  "additional_historical_constraints": [
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.03209226666666667,
+      "current_ms": 0.007800333333333333,
+      "ratio": 4.114217341139268
+    },
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 0.968334668626388,
+      "current_ms": 0.16474928706884384,
+      "ratio": 5.877625851101556
+    },
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.030670133333333335,
+      "current_ms": 0.007800333333333333,
+      "ratio": 3.9319003461390545
+    },
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.04733713333333333,
+      "current_ms": 0.007800333333333333,
+      "ratio": 6.068603905815991
+    },
+    {
+      "case": "serving-b1-h8-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.03195273333333333,
+      "current_ms": 0.007800333333333333,
+      "ratio": 4.096329216700141
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.03341626666666667,
+      "current_ms": 0.0071198,
+      "ratio": 4.693427718007061
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.0492092619339626,
+      "current_ms": 0.1815966951350371,
+      "ratio": 5.777689187315662
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.0319738,
+      "current_ms": 0.0071198,
+      "ratio": 4.490828394056012
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.05537433333333334,
+      "current_ms": 0.0071198,
+      "ratio": 7.777512476942237
+    },
+    {
+      "case": "serving-b1-h16-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.03488546666666667,
+      "current_ms": 0.0071198,
+      "ratio": 4.899781829077597
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.0347342,
+      "current_ms": 0.0058871999999999996,
+      "ratio": 5.899952439190108
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 0.9973065927624702,
+      "current_ms": 0.17715726668636003,
+      "ratio": 5.629498644998322
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.033712933333333334,
+      "current_ms": 0.0058871999999999996,
+      "ratio": 5.7264800471078505
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.07123086666666667,
+      "current_ms": 0.0058871999999999996,
+      "ratio": 12.099277528649727
+    },
+    {
+      "case": "serving-b1-h32-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.039532,
+      "current_ms": 0.0058871999999999996,
+      "ratio": 6.714906916700639
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.03709186666666667,
+      "current_ms": 0.009789133333333333,
+      "ratio": 3.78908585710686
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.1252034145096939,
+      "current_ms": 0.19035864000519118,
+      "ratio": 5.910965819460619
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.035281400000000004,
+      "current_ms": 0.009789133333333333,
+      "ratio": 3.6041392836955266
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.08773846666666665,
+      "current_ms": 0.009789133333333333,
+      "ratio": 8.962843152611399
+    },
+    {
+      "case": "serving-b1-h48-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.044485666666666666,
+      "current_ms": 0.009789133333333333,
+      "ratio": 4.544392762042264
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.04091073333333333,
+      "current_ms": 0.008840866666666667,
+      "ratio": 4.627457338270003
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 0.9777012591560682,
+      "current_ms": 0.19854928056399027,
+      "ratio": 4.92422463772648
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.03845066666666666,
+      "current_ms": 0.008840866666666667,
+      "ratio": 4.349196534276428
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.07597033333333333,
+      "current_ms": 0.008840866666666667,
+      "ratio": 8.593086650630028
+    },
+    {
+      "case": "serving-b1-h64-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.0477478,
+      "current_ms": 0.008840866666666667,
+      "ratio": 5.400805350908281
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.16318286666666668,
+      "current_ms": 0.026416533333333332,
+      "ratio": 6.1773005794351015
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.08105386666666667,
+      "current_ms": 0.026416533333333332,
+      "ratio": 3.068300660192607
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 0.9547573203841845,
+      "current_ms": 0.17304467037320137,
+      "ratio": 5.5174037913163225
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.17428526666666666,
+      "current_ms": 0.026416533333333332,
+      "ratio": 6.597582826916477
+    },
+    {
+      "case": "serving-b8-h32-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.081869,
+      "current_ms": 0.026416533333333332,
+      "ratio": 3.0991575982717894
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.0794599850972493,
+      "current_ms": 0.17551202327013016,
+      "ratio": 6.150347793756869
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.10611353333333334,
+      "current_ms": 0.03824706666666666,
+      "ratio": 2.774422787978512
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.17848979999999998,
+      "current_ms": 0.03824706666666666,
+      "ratio": 4.666757886443579
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.21825286666666666,
+      "current_ms": 0.03824706666666666,
+      "ratio": 5.706394913073944
+    },
+    {
+      "case": "serving-b8-h48-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.10136646666666665,
+      "current_ms": 0.03824706666666666,
+      "ratio": 2.650306951644222
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.2136806423465412,
+      "current_ms": 0.177865382283926,
+      "ratio": 6.823591115718887
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.13150566666666666,
+      "current_ms": 0.049646,
+      "ratio": 2.6488673139158574
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.19768639999999998,
+      "current_ms": 0.049646,
+      "ratio": 3.9819199935543645
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.2918118,
+      "current_ms": 0.049646,
+      "ratio": 5.87785118639971
+    },
+    {
+      "case": "serving-b8-h64-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.121756,
+      "current_ms": 0.049646,
+      "ratio": 2.4524835837731134
+    }
+  ],
+  "historical_provenance": "Historical target values retain original providers/metrics; local-eager targets were local36capped32, native provenance remains as in frozen report. Not relabelled physical32. Device-profile targets compare to current full device, host targets only to independent host.",
+  "minimum_including_historical_constraints": 2.4524835837731134,
+  "accepted_at": "2026-11-09T11:18:45.882717+00:00",
+  "original_report": {
+    "path": "reports/linear7-server1-v010-20261109/DeltaNetRecurrentFwdOp-server1-report.json",
+    "sha256": "153b551d83f88399d6fd43497f427ef71fff5faa0d23bef9d2377cd6c778fd23"
+  },
+  "comparison_files": [
+    "DeltaNetRecurrentFwdOp-device.csv",
+    "DeltaNetRecurrentFwdOp-host.csv",
+    "DeltaNetRecurrentFwdOp-historical.csv"
+  ],
+  "case_timings": "DeltaNetRecurrentFwdOp-timings.csv",
+  "historical_source": {
+    "path": "docs/ascend950/dev/linear_attention_local32_20261103/reports/DeltaNetRecurrentFwdOp.json",
+    "sha256": "96e2c9f73182d1334f0739afe1f73dd8eacd854f83dac3ca54ae035a26a92731",
+    "provenance": "Historical local36capped32 and native targets retain original provenance"
+  },
+  "minimum_including_all_retained_constraints": 2.4524835837731134
+}

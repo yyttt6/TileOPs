@@ -1,0 +1,45 @@
+{"nodeid": "tests/ops/test_gla.py::test_gla_refuses_extents_its_gemms_do_not_tile", "markers": ["smoke", "in_tree_kernels", "cuda_only"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-64-fp16]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-64-bf16]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-128-fp16]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[128-128-bf16]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[1024-64-fp16]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_prefill_matches_fla[1024-64-bf16]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[None-dtype0-64]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[None-dtype1-128]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[0.3-dtype0-64]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_packed_varlen_matches_fla[0.3-dtype1-128]", "markers": ["parametrize", "parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_prefill_stays_finite_when_the_gate_outruns_a_split_exponent[fp16]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_prefill_stays_finite_when_the_gate_outruns_a_split_exponent[bf16]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_prefill_rows_shorter_than_a_whole_chunk_match_fla", "markers": ["in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_long_prefill_uses_partitioned_kernel[dtype0-True-1.0]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_long_prefill_uses_partitioned_kernel[dtype1-False-3.0]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_matches_fla[dtype0-128-True-None]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_matches_fla[dtype1-64-False-None]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_matches_fla[dtype2-64-True-0.3]", "markers": ["parametrize", "in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_dense_decode_steps_match_one_recurrence", "markers": ["in_tree_kernels", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-64-64-dtype0-False]", "markers": ["parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-64-64-dtype1-False]", "markers": ["parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-64-64-dtype2-False]", "markers": ["parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-8-64-64-dtype3-False]", "markers": ["parametrize", "cuda_only", "full"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-4-128-128-dtype4-False]", "markers": ["parametrize", "cuda_only", "full"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-8-64-64-dtype5-False]", "markers": ["parametrize", "cuda_only", "full"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[2-8-64-64-dtype6-False]", "markers": ["parametrize", "cuda_only", "full"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-16-64-dtype7-False]", "markers": ["parametrize", "cuda_only", "full"]}
+{"nodeid": "tests/ops/test_gla.py::test_gla_decode_vs_fla[1-4-16-64-dtype8-False]", "markers": ["parametrize", "cuda_only", "full"]}
+{"nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_matches_fla[fp16]", "markers": ["parametrize", "cuda_only", "usefixtures", "smoke"]}
+{"nodeid": "tests/ops/test_deltanet.py::test_deltanet_decode_matches_fla[bf16]", "markers": ["parametrize", "cuda_only", "usefixtures", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[64-80-166912]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[64-89-101376]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[64-90-232448]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[128-80-166912]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[128-89-101376]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_raw_gate_prefill_uses_chunk_path[128-90-232448]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[chunk-fp16]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[chunk-bf16]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm89-fp16]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke", "sm89", "skip"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm89-bf16]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke", "sm89", "skip"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm90-fp16]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke", "sm90", "skip"]}
+{"nodeid": "tests/ops/test_kda.py::test_kda_prefill_correlated_keys[fused-sm90-bf16]", "markers": ["parametrize", "parametrize", "cuda_only", "smoke", "sm90", "skip"]}
+{"nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_preserves_finite_strong_decay[partial-subblock]", "markers": ["parametrize", "cuda_only", "sm89", "skip", "smoke"]}
+{"nodeid": "tests/ops/test_gdn.py::test_gdn_prefill_preserves_finite_strong_decay[cross-chunk]", "markers": ["parametrize", "cuda_only", "sm89", "skip", "smoke"]}
