@@ -1,0 +1,424 @@
+{
+  "op": "DeltaNetChunkBwdOp",
+  "status": "accepted_isolated_candidate_against_qualified_remote_targets",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube_core_num": 32,
+    "vector_core_num": 64
+  },
+  "manifest_cases": 9,
+  "independent_cpu_cases": 9,
+  "cpu_outputs_per_case": 4,
+  "original_checked_outputs": 4,
+  "profile_windows_replayed": 270,
+  "separate_host_measurement_cases": 9,
+  "public_tests": 10,
+  "compile_tests": 3,
+  "extended_checks": 10,
+  "guarded_input_buffers": 100,
+  "minimum_ratio": 0.8211629400074758,
+  "comparisons": [
+    {
+      "case": "train-2k-float16",
+      "device_tileops_ms": 0.34889686666666664,
+      "host_tileops_ms": 4.0067993104457855,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 20.717434741460373,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 7.005748960005901,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 28.567771365245182,
+          "ratio": 7.129823370681076
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 7.228813333333333,
+          "ratio": 20.71905489549634
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 5.375168666666667,
+          "ratio": 15.40618211341537
+        }
+      ],
+      "minimum_ratio": 7.005748960005901,
+      "passed": true,
+      "generated_source_sha256": "41ccc5c742b25d41a12547288dfe772ba3985276cfe9fb2546882793850f5d77"
+    },
+    {
+      "case": "train-2k-bfloat16",
+      "device_tileops_ms": 0.34908906666666667,
+      "host_tileops_ms": 3.097397368401289,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 20.700500502641543,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 9.9594404775353,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 29.41273134201765,
+          "ratio": 9.49595025878095
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 7.232269666666667,
+          "ratio": 20.7175484919226
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 2.222594768555723
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 5.377188,
+          "ratio": 15.403484421167779
+        }
+      ],
+      "minimum_ratio": 2.222594768555723,
+      "passed": true,
+      "generated_source_sha256": "3e7ea56207722be4355acd950aa5cd773412d65bf168f89c4efe53e3cd5fdc67"
+    },
+    {
+      "case": "train-4k-float16",
+      "device_tileops_ms": 0.5069267333333334,
+      "host_tileops_ms": 3.1437985909481845,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 30.41494477637202,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 19.817488164992426,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 56.83132798100511,
+          "ratio": 18.077280187298676
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 15.420655,
+          "ratio": 30.41988908061796
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 11.746623133333333,
+          "ratio": 23.172230543243526
+        }
+      ],
+      "minimum_ratio": 18.077280187298676,
+      "passed": true,
+      "generated_source_sha256": "9757b5126d836fa8ef88ae783955bb4a733e635f0a51219a5bed6609fbe6af6e"
+    },
+    {
+      "case": "train-4k-bfloat16",
+      "device_tileops_ms": 0.5038226666666666,
+      "host_tileops_ms": 6.953870660314958,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 30.648622134243002,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 9.492726836744843,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 56.46841802323858,
+          "ratio": 8.120429726353436
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 15.413508533333333,
+          "ratio": 30.593122447845406
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 2.9160281262984067
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 11.706613533333334,
+          "ratio": 23.23558328724128
+        }
+      ],
+      "minimum_ratio": 2.9160281262984067,
+      "passed": true,
+      "generated_source_sha256": "97723f863844e96ea8146bf91c9397ebac83e6375a4b869c6f4bf6e2f90ba9e7"
+    },
+    {
+      "case": "train-8k-float16",
+      "device_tileops_ms": 0.8273527333333333,
+      "host_tileops_ms": 8.500510019560656,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 41.47725488467596,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 14.316391176917833,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 112.98612269262473,
+          "ratio": 13.29168749082474
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 34.290287666666664,
+          "ratio": 41.44579003022572
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 27.163119133333332,
+          "ratio": 32.83136447001928
+        }
+      ],
+      "minimum_ratio": 13.29168749082474,
+      "passed": true,
+      "generated_source_sha256": "33a51c3b7ec099971b57d11b449bc2b53a15614ae6eb4a7e5cce97245c2977ac"
+    },
+    {
+      "case": "train-8k-bfloat16",
+      "device_tileops_ms": 0.8203701999999999,
+      "host_tileops_ms": 3.976275399327278,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 41.74843690486726,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 29.607394729347895,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 113.27587592725952,
+          "ratio": 28.487935203488163
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 34.276310333333335,
+          "ratio": 41.78151562956984
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 3.483543486424381
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 27.038353933333333,
+          "ratio": 32.958722700231355
+        }
+      ],
+      "minimum_ratio": 3.483543486424381,
+      "passed": true,
+      "generated_source_sha256": "2eb46bdbe8e2135183d6544a44c7d2c8e2a3769485331c3f6374b4aa4ca1120b"
+    },
+    {
+      "case": "train-16k-float16",
+      "device_tileops_ms": 1.6002866666666666,
+      "host_tileops_ms": 4.4120425668855505,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 55.13885333044496,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 53.9580378916994,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 229.5188732755681,
+          "ratio": 52.02100156472082
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 87.99607273333334,
+          "ratio": 54.98769349658186
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 73.6449982,
+          "ratio": 46.01987864674246
+        }
+      ],
+      "minimum_ratio": 46.01987864674246,
+      "passed": true,
+      "generated_source_sha256": "a0ac5e4a9f33dd021f034529886932be029f29815d67300638c329c911309693"
+    },
+    {
+      "case": "train-16k-bfloat16",
+      "device_tileops_ms": 1.6019535333333335,
+      "host_tileops_ms": 6.639622710645199,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 55.161408135724955,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 34.44455567025376,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 221.56891726578274,
+          "ratio": 33.370708987808136
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 88.03761686666665,
+          "ratio": 54.95641105362064
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 3.4897827456751447
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 73.58720393333334,
+          "ratio": 45.93591661813911
+        }
+      ],
+      "minimum_ratio": 3.4897827456751447,
+      "passed": true,
+      "generated_source_sha256": "a747df588ff97add1d4ae2d0f01663e678bad71becd02ef065d0df13deb22c44"
+    },
+    {
+      "case": "deltanet-1.3b-train-bfloat16",
+      "device_tileops_ms": 0.2614614666666667,
+      "host_tileops_ms": 7.046662053714196,
+      "targets": [
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 4.6855827321400065,
+          "metric": "full_device_profile"
+        },
+        {
+          "library": "current-qualified-four-gradient-eager",
+          "ratio": 0.9594497259784183,
+          "metric": "independent_host_roundtrip"
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_independent_host",
+          "latency_ms": 6.357069282482068,
+          "ratio": 0.9021390885534728
+        },
+        {
+          "library": "retained-v1-qualified-four-gradient-eager",
+          "metric": "retained_v1_full_device",
+          "latency_ms": 1.2277282666666667,
+          "ratio": 4.695637496105226
+        },
+        {
+          "library": "flash-linear-attention-npu",
+          "server": "server1",
+          "metric": "retained_historical_device_numeric_constraint",
+          "ratio": 0.8211629400074758
+        },
+        {
+          "library": "retained-v010-torch-eager",
+          "metric": "retained_verified_full_device",
+          "latency_ms": 0.8434684666666666,
+          "ratio": 3.2259761922853127
+        }
+      ],
+      "minimum_ratio": 0.8211629400074758,
+      "passed": true,
+      "generated_source_sha256": "7287dbe33e914134ba7ee601a470995728bcd45c86a0bcc0e62e69dabf3244cd"
+    }
+  ],
+  "source_snapshot": "integration-base-delta-chunk-bwd-reverse-v1",
+  "delivery": {
+    "shared_source_changed": false,
+    "changed_files": [
+      "src/tileops/_kernels/ascend/linear_attention/__init__.py",
+      "src/tileops/_kernels/ascend/linear_attention/deltanet_training_bwd.py"
+    ],
+    "patch": "delta-chunk-backward-integration-v2.patch",
+    "patch_sha256": "62d4bedff62c78f04f9745c6c384a9f438290e5461b60b22602094d81b8fd738",
+    "backward": "Backward registration enabled; zero-width padding copies bypassed and reverse scan input preparation fused, preserving cast points. Forward sources unchanged."
+  },
+  "reference_disposition": "Original v010 four-gradient reference preserved, with enable_grad around framework no_grad invocation. Independent FP64 CPU verifies all four outputs. Pure NPU autograd reference independently qualified and measured in separate host mean15 and complete FFTS+AICPU device processes. Nine retained v010 eager profiles audited across 135 windows and retained as constraints.",
+  "native_disposition": "5legacy numericconstraints retained;5correctnessreceipts SHAauthenticated, paramsS->h equivalent;oldnative rawprofilesnotretained,notretroactivelyqualifiedraw/currentcontract.",
+  "evidence": {
+    "delta-chunk-bwd-initial-audit-v3.json": "60db9547f076c9e68dfee6f638d9cae023d1321a8522bf8fda1d0ba5a65335a1",
+    "delta-chunk-bwd-initial-detailed-audit-v3.json": "70de22863e5a53214f09d508d0c15e6040cb16a2d7eec54e4fb045c54b46b92f",
+    "delta-chunk-bwd-measurement-audit-v2.json": "994050a8c58ee282377191b73190518dc64dce1d3e5e61329eb23d0a2bce17ff",
+    "delta-chunk-bwd-public-compile-audit-v2.json": "9b7b8139fa1a86420af0fb9495e919bf6f8b8201d076caeaf49cc3a1ce8596c5",
+    "delta-chunk-bwd-extended-audit-v2.json": "5d36e7f19500f27bbeff8005dff581fd351a8519a9cb5a832b05233c57b6a823",
+    "delta-chunk-bwd-final-source-audit-v2.json": "7e77c4277c71d655ad6134f1fc310ca2e4e46350185c7545ed80513b713cc55c",
+    "delta-chunk-backward-delivery-review-v2.json": "aedf1abbc9350c660188d4fdbbea9ea63a3c21070ae1f8ccb03fa8a583c8af59",
+    "delta-chunk-bwd-native-receipt-review-v1.json": "5055de90088d49809436951aa8209bc922e847a6466b304a3a7757cc12537db8",
+    "delta-chunk-integrated-migration-audit-v1.json": "d435a68425b1b6b4418ab9fc05f58d04b18df0fee4a02338e08e7703f4548677",
+    "delta-chunk-bwd-retained-eager-raw-audit-v1.json": "c1ecdb485dc394cb2940ac4110bf27381201e8ea270fb3f51e86afc09497c26c"
+  },
+  "accepted_at": "2026-11-07T17:44:09.922959+00:00",
+  "original_report": {
+    "path": "reports/v010-static-adaptation-20261106/DeltaNetChunkBwdOp-server1-report.json",
+    "sha256": "4f04abb22e48ee418abe039011e785d9e00b75d6f5a8a24994a86a9706eaa69a"
+  }
+}

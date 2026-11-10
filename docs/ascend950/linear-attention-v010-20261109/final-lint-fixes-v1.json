@@ -1,0 +1,9 @@
+{
+  "gla_training_bwd": {
+    "before": "2becdaf7b245ce8de4d84523a2e7b19ea90af408de3c5d54840cdf1154164d3e",
+    "after": "c294a64c8221e15a82783453c907e24ac2b82c48391dd44a9e0afc848cf2a50b",
+    "full_ast_equal": true
+  },
+  "codespell": "Add technical parameter alog to existing ignore list; no kernel rename",
+  "unrelated_full_tree_findings": "int8 native/idiom/name, target formatting, normalization report generic-api-key alerts retained, outside this change"
+}

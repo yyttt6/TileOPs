@@ -1,0 +1,30 @@
+{
+  "backup": "/root/dyq/workspace/reports/linear7-server1-v010-20261109/pr-tests-before-layering-v1",
+  "moved": [
+    {
+      "helper": "gla_diagonal_inputs",
+      "moved_ast": "3eb2a7dbd09f3a72f021dab7e7bc9028ded92301e9f1d388ae4cbc094125cc8e"
+    },
+    {
+      "helper": "gla_training_inputs",
+      "moved_ast": "06b0e8056a76ff7ee71ea682041d4f852a0adf1b7ccb4fd77726a194a098e807"
+    },
+    {
+      "helper": "gla_training_reference",
+      "moved_ast": "5fc9195da250f9cfafbbf0826630b1a81bea4ed4fb278f16aaefef0b13cf24a1"
+    },
+    {
+      "helper": "gla_gradient_case",
+      "moved_ast": "8044fb56754a05a1310343c1c2f9e1a901d760586c403bfe4f4e0fe5f29ffaf7"
+    },
+    {
+      "helper": "delta_normalized_case",
+      "moved_ast": "a211cc62e334d538178f0acea5901ff6960cb313cc4889ccfaedb114c6011176"
+    },
+    {
+      "helper": "gdn_packed_rectangular_case",
+      "moved_ast": "6ac52859cb3018d461a1c9efcbd362ed25393c07995b3bbd689ec5941d04de7c"
+    }
+  ],
+  "scope": "Test-only input/reference extraction, same seeds, shapes, math and original verification; integrated physical32 rerun required"
+}

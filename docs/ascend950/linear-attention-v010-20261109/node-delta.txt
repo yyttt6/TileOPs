@@ -1,0 +1,13 @@
+Base: baseline (merge base 65f2bb847)
+
+File                                     Base    HEAD    Delta
+--------------------------------------------------------------
+tests/ops/test_deltanet_ascend.py         new       4    (new)
+tests/ops/test_gdn_ascend.py              new       4    (new)
+tests/ops/test_gla.py                      51      50       -1
+tests/ops/test_gla_ascend.py              new       4    (new)
+tests/ops/test_gla_training_ascend.py     new      10    (new)
+--------------------------------------------------------------
+TOTAL                                      51      72      +21
+
+Growth: +41.2%
