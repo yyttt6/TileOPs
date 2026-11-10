@@ -95,3 +95,17 @@ def test_relu_spelling_alias_keeps_exact_case_and_mutation_contract():
     assert old != comparison_identity("ReLUFwdOp", "decode", {**params, "inplace": True})
     assert old != comparison_identity("ReLUFwdOp", "prefill", params)
     assert old != comparison_identity("ReLUFwdOp", "decode", {**params, "input": [[2, 4096], "bfloat16"]})
+
+
+def test_moe_fp8_and_ssd_aliases_preserve_layout_and_tensor_roles():
+    from scripts.ci.baseline_contracts import comparison_identity as key
+
+    fp8 = {"a": [[8, 128, 64], "float8_e4m3fn"], "layout": {"masked": {"max_m": 128}}}
+    assert key("MoEGroupedGemmFP8FwdOp", "case", fp8) == key("MoEGroupedGEMMFP8FwdOp", "case", fp8)
+    assert key("MoEGroupedGemmFP8FwdOp", "case", fp8) != key("MoEGroupedGEMMFP8FwdOp", "case", {**fp8, "layout": {"masked": {"max_m": 64}}})
+    old = {"Bmat": [[1, 256, 1, 128], "float16"], "dt": [[1, 48, 1, 256], "float32"]}
+    new = {"B": old["Bmat"], "dt": old["dt"]}
+    assert key("SSDChunkStateFwdOp", "case", old) == key("SSDChunkStateFwdOp", "case", new)
+    assert key("SSDChunkStateFwdOp", "case", old) != key("SSDChunkStateFwdOp", "case", {**new, "dt": [[1, 48, 1, 256], "float16"]})
+    with pytest.raises(ValueError, match="Ambiguous"):
+        key("SSDChunkStateFwdOp", "case", {**new, "Bmat": old["Bmat"]})
