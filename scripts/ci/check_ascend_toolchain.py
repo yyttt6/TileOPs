@@ -12,6 +12,17 @@ import sys
 from pathlib import Path
 
 
+def tree_digest(root):
+    """Fingerprint source/native assets without importing any device packages."""
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+            continue
+        digest.update(str(path.relative_to(root)).encode())
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -70,6 +81,23 @@ def main():
                 errors.append(f"{key}: binary/header fingerprint differs from {lock['profile']}")
         except (OSError, RuntimeError, metadata.PackageNotFoundError) as exc:
             errors.append(f"{key}: {exc}")
+    if reference := lock.get("reference_runtime"):
+        root = os.environ.get(reference["root_env"])
+        observed["reference_runtime"] = {"profile": reference["profile"], "root": root, "trees": {}}
+        if not root:
+            errors.append(f"{reference['root_env']} is unset")
+        else:
+            for name, expected in reference["trees"].items():
+                path = Path(root) / name
+                actual = tree_digest(path) if path.is_dir() else None
+                observed["reference_runtime"]["trees"][name] = actual
+                if actual != expected["sha256"]:
+                    errors.append(f"Reference runtime {name}: pinned tree fingerprint differs")
+            for name, expected in reference.get("files", {}).items():
+                path = Path(root) / name
+                actual = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+                if actual != expected:
+                    errors.append(f"Reference runtime {name}: pinned file fingerprint differs")
     observed["status"] = "failed" if errors else "passed"
     observed["errors"] = errors
     if args.output:
