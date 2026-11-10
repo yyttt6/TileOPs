@@ -6,16 +6,7 @@
   "packages": {
     "torch": "2.13.0+cpu",
     "torch-npu": "2.13.0rc1",
-    "tilelang": "0.1.15",
-    "triton": "3.5.0",
-    "triton-ascend": "3.2.2",
-    "pybind11": "3.0.1",
-    "decorator": "5.1.1",
-    "pandas": "2.2.3",
-    "python-dateutil": "2.9.0.post0",
-    "six": "1.17.0",
-    "pytz": "2025.2",
-    "tzdata": "2025.2"
+    "tilelang": "0.1.15"
   },
   "cxx_version": "12.3.0",
   "compiler_sdk": "CANN9.2.0 release (not beta)",
@@ -188,6 +179,17 @@
     "files": {
       "decorator.py": "7a5e5c0048284c4a5140deb9b4ec4684496e7be09c70cbf4c6897e27633039cd",
       "six.py": "c51c91f703d3d4b3696c923cb5fec213e05e75d9215393befac7f2fa6a3904df"
+    },
+    "packages": {
+      "triton": "3.5.0",
+      "triton-ascend": "3.2.2",
+      "pybind11": "3.0.1",
+      "decorator": "5.1.1",
+      "pandas": "2.2.3",
+      "python-dateutil": "2.9.0.post0",
+      "six": "1.17.0",
+      "pytz": "2025.2",
+      "tzdata": "2025.2"
     }
   }
 }

@@ -87,6 +87,14 @@ def main():
         if not root:
             errors.append(f"{reference['root_env']} is unset")
         else:
+            installed = {
+                dist.metadata["Name"].lower().replace("_", "-"): dist.version
+                for dist in metadata.distributions(path=[root])
+            }
+            observed["reference_runtime"]["packages"] = installed
+            for name, expected in reference["packages"].items():
+                if installed.get(name) != expected:
+                    errors.append(f"Reference {name}: expected {expected}, found {installed.get(name)}")
             for name, expected in reference["trees"].items():
                 path = Path(root) / name
                 actual = tree_digest(path) if path.is_dir() else None
