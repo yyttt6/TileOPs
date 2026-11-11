@@ -180,11 +180,9 @@ def test_workflow_cache_setup_supports_old_revisions_and_fails_closed(
     body = next(
         s["run"] for s in steps if s.get("name", "").startswith("Changed operator performance")
     )
-    body = body[
-        body.index("CACHE_KEY_SCRIPT=") : body.index(
-            "python ci-harness/scripts/ci/pr_performance.py"
-        )
-    ]
+    # Test cache setup independently of how the subsequent harness is invoked.
+    cache_end = 'mkdir -p "$TILELANG_CACHE_DIR"'
+    body = body[body.index("CACHE_KEY_SCRIPT=") : body.index(cache_end) + len(cache_end)]
     body = body.replace("/opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json", str(lock))
     cache_root = tmp_path / "cache"
     body = body.replace("/opt/tileops-ci/server2-20261030/cache", str(cache_root))
