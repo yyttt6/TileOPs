@@ -50,6 +50,8 @@ def main():
                         "--tileops-device=cpu",
                         "scripts/ci/tests",
                         "tests/test_validate_manifest.py",
+                        "tests/test_manifest_generators.py",
+                        "tests/test_manifest_workload.py",
                         "tests/test_check_bench_coverage.py",
                         "tests/test_target_conformance.py",
                         "tests/test_ascend_toolchain.py",

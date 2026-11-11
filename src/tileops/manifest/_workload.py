@@ -56,6 +56,7 @@ from tileops.manifest.primitives import (
     PRIMITIVES,
     RANDOM_GENERATORS,
     WORKLOAD_SEED,
+    _causal_topk_value_bounds,
 )
 
 __all__ = ["Call", "CallView", "RowError", "TensorSpec", "check_workloads", "instantiate"]
@@ -394,6 +395,10 @@ def instantiate(plan: EntryPlan, row: dict, dtype_case: dict, *, metadata: bool 
     With `metadata=False`, describe tensor shapes and dtypes without generating or
     validating their contents. Shape refinements and inference are still checked.
     """
+    return _instantiate(plan, row, dtype_case, metadata=metadata)
+
+
+def _instantiate(plan, row, dtype_case, *, metadata=True, validate_only=False):
     sig = plan.sig
     scope = {}
     for key, value in row.items():
@@ -439,6 +444,7 @@ def instantiate(plan: EntryPlan, row: dict, dtype_case: dict, *, metadata: bool 
             raise RowError(f"dtype assignment {assignment} is not a row of dtype_combos")
 
     generated, nodes, shapes = {}, {}, {}
+    described = set()
     lets = dict(b.lets)
     waiting = list(b.generators)
     while True:
@@ -453,7 +459,11 @@ def instantiate(plan: EntryPlan, row: dict, dtype_case: dict, *, metadata: bool 
         ]
         for t in ready:
             waiting.remove(t)
-            generated[t], shapes[t] = _generate(sig, t, b, scope, metadata=metadata)
+            if validate_only and _can_validate_without_values(sig, t, b, scope):
+                described.add(t)
+            generated[t], shapes[t] = _generate(
+                sig, t, b, scope, metadata=metadata and t not in described
+            )
             nodes[t] = b.shapes[t]
         _apply(sig, unification(nodes, set(scope), {}), nodes, shapes, scope, {})
         if set(scope) == known and not ready:
@@ -474,6 +484,8 @@ def instantiate(plan: EntryPlan, row: dict, dtype_case: dict, *, metadata: bool 
             shape, _dtype_value(b.dtypes[t.name], scope), generated.get(t.name), t.cpu
         )
     for t, calls in b.requires.items() if metadata else ():
+        if t in described:
+            continue  # Every content predicate was proved before omitting generation.
         for call, text in zip(calls, sig.call_tensors[t].requires, strict=False):
             args = [
                 _evaluate(sig, a, {**scope, **generated}, f"tensor {t!r} requires")
@@ -505,6 +517,39 @@ def instantiate(plan: EntryPlan, row: dict, dtype_case: dict, *, metadata: bool 
         if n in sig.params or (n in sig.forall and n not in values) or n in b.lets
     }
     return Call(case_id, {p: scope[p] for p in sig.params}, specs, indices, sig)
+
+
+def _can_validate_without_values(sig, t, b, scope):
+    """Prove this generator's dtype and all content requirements, or fall back.
+
+    Only the audited causal-top-k generator has a proof today. This is used by
+    manifest validation, never by the public input materialization API. Unknown
+    predicates, tighter bounds, and consumers of tensor values retain full checks.
+    """
+    if callee(parse(sig.call_tensors[t].values).func) != "causal_topk_indices":
+        return False
+    expressions = [*b.lets.values(), *b.rules, *b.shapes.values(), *b.dtypes.values()]
+    expressions += [a for args in b.generators.values() for a in args]
+    expressions += [a for calls in b.requires.values() for c in calls for a in c.args]
+    if any(t in names(e) for e in expressions):
+        return False
+    args = [_evaluate(sig, a, scope, f"tensor {t!r} values") for a in b.generators[t]]
+    if not all(is_integer(a) for a in args):
+        return False
+    try:
+        lo, hi = _causal_topk_value_bounds(*args)
+    except ValueError as exc:
+        raise RowError(f"tensor {t!r}: {exc}") from None
+    bound = _METADATA_RANGES.get(_dtype_value(b.dtypes[t], scope))
+    if bound is None or not -bound <= lo <= hi < bound:
+        return False
+    for call in b.requires.get(t, []):
+        if callee(call.func) != "in_range" or any(not names(a) <= set(scope) for a in call.args):
+            return False
+        limits = [_evaluate(sig, a, scope, f"tensor {t!r} requires") for a in call.args]
+        if len(limits) != 2 or not (limits[0] <= lo and hi < limits[1]):
+            return False
+    return True
 
 
 def _generate(
@@ -731,7 +776,7 @@ def check_workloads(name: str, entry: dict, adts: dict) -> list[str]:
             continue
         for case in row.get("dtype_cases", [{}]):
             try:
-                call = instantiate(plan, row, case)
+                call = _instantiate(plan, row, case, validate_only=True)
                 call.arguments(dict.fromkeys(sig.ctor_tensors))
             except (RowError, KeyError, TypeError, ValueError) as exc:
                 errors.append(f"row {row['label']!r} {case}: {exc}")

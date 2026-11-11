@@ -180,3 +180,31 @@ def test_sampling_chain_ids_allow_more_drafts_than_vocabulary():
 )
 def test_range_predicate_checks_nested_metadata(values, expected):
     assert PREDICATES["in_range"](values, 0, 4) is expected
+
+
+def test_causal_topk_generator_domain_shape_visibility_uniqueness_and_padding():
+    from itertools import product
+
+    generate = GENERATORS["causal_topk_indices"]
+    for seed, batch, seq, heads, k, extent, start, stride in product(
+        (0, 7), (1, 2), (1, 4), (1, 2), (1, 3, 8), (1, 5), (0, 4), (1, 3)
+    ):
+        values = generate(random.Random(seed), batch, seq, heads, k, extent, start, stride)
+        assert len(values) == batch
+        for tokens in values:
+            assert len(tokens) == seq
+            for t, rows in enumerate(tokens):
+                assert len(rows) == heads
+                visible = min(max(1, (t + start) // stride), extent)
+                count = min(k, visible)
+                for row in rows:
+                    assert len(row) == k
+                    assert all(type(v) is int and 0 <= v <= extent for v in row)
+                    assert len(set(row[:count])) == count
+                    assert all(v < visible for v in row[:count])
+                    assert row[count:] == [extent] * (k - count)
+    for i in range(7):
+        args = [1, 1, 1, 1, 1, 0, 1]
+        args[i] = -1 if i == 5 else 0
+        with pytest.raises(ValueError):
+            generate(random.Random(0), *args)

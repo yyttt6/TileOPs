@@ -408,12 +408,18 @@ def sample_indices(rng, n, hi):
     return rng.sample(range(hi), n)
 
 
-def causal_topk_indices(rng, batch, seq, heads_kv, k, extent, start, stride):
-    """Per token and head, up to `k` distinct keys it can see, padded with `extent`."""
+def _causal_topk_value_bounds(batch, seq, heads_kv, k, extent, start, stride):
+    """Validate the domain and bound every emitted integer, including padding."""
     if min(batch, seq, heads_kv, k, extent, stride) <= 0 or start < 0:
         raise ValueError(
             "causal_topk_indices needs positive B, S, H_kv, K, E, stride and start >= 0"
         )
+    return 0, extent  # inclusive; sampled keys are smaller, padding equals extent
+
+
+def causal_topk_indices(rng, batch, seq, heads_kv, k, extent, start, stride):
+    """Per token and head, up to `k` distinct keys it can see, padded with `extent`."""
+    _causal_topk_value_bounds(batch, seq, heads_kv, k, extent, start, stride)
     rows = []
     for _ in range(batch):
         per_token = []
