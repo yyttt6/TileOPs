@@ -5,6 +5,7 @@ import dataclasses
 import hashlib
 import importlib
 import json
+import os
 import re
 import signal
 import sys
@@ -50,7 +51,7 @@ def runtime_versions(get_version):
     return result
 
 
-def benchmark_case(case, implementations, timer, *, name, verify_only=False):
+def benchmark_case(case, implementations, timer, *, name, verify_only=False, golden_cache=None):
     """Verify every implementation fully, then measure through the same timer.
 
     Baseline adapters provide the existing benchmarks.api.Implementation contract.
@@ -66,26 +67,39 @@ def benchmark_case(case, implementations, timer, *, name, verify_only=False):
             raise ValueError(f"{tag}: not comparable: {impl.noncomparable_reason}")
         args = case.inputs if impl.args is None else impl.args
         requests[tag] = Request(impl.run, args, impl.reset, preserve_inputs=True)
-    checks = verify(case.reference, case.inputs, evidence=case.verification, requests=requests)
-    for tag, result in checks.items():
-        if (
-            result.checked_outputs <= 0
-            or result.checked_outputs != result.total_outputs
-            or result.unchecked_reason
-        ):
-            raise AssertionError(f"{tag}: incomplete correctness coverage: {result}")
-    results = {}
-    for tag, impl in implementations.items():
-        result = {"correctness": dataclasses.asdict(checks[tag])}
-        if not verify_only:
-            args = case.inputs if impl.args is None else impl.args
-            result["measurement"] = timer.measure(
-                impl.run, args, reset=impl.reset, name=f"{name}/{tag}"
-            )
-            # A complete preservation check, including changes outside a digest prefix.
-            check_inputs_preserved(requests[tag], case.inputs)
-        results[tag] = result
-    return results
+    try:
+        checks = verify(
+            golden_cache.wrap(case.reference)
+            if golden_cache is not None and case.reference is not None
+            else case.reference,
+            case.inputs,
+            evidence=case.verification,
+            requests=requests,
+        )
+        for tag, result in checks.items():
+            if (
+                result.checked_outputs <= 0
+                or result.checked_outputs != result.total_outputs
+                or result.unchecked_reason
+            ):
+                raise AssertionError(f"{tag}: incomplete correctness coverage: {result}")
+        results = {}
+        for tag, impl in implementations.items():
+            result = {"correctness": dataclasses.asdict(checks[tag])}
+            if not verify_only:
+                args = case.inputs if impl.args is None else impl.args
+                result["measurement"] = timer.measure(
+                    impl.run, args, reset=impl.reset, name=f"{name}/{tag}"
+                )
+                # A complete preservation check, including changes outside a digest prefix.
+                check_inputs_preserved(requests[tag], case.inputs)
+            results[tag] = result
+        if golden_cache is not None:
+            golden_cache.commit()
+        return results
+    finally:
+        if golden_cache is not None:
+            golden_cache.discard()
 
 
 def main(argv=None):
@@ -133,6 +147,14 @@ def main(argv=None):
     device_name = torch.npu.get_device_name(0)
     if "Ascend950" not in device_name:
         raise RuntimeError(f"This protocol requires Ascend 950, got {device_name}")
+    golden_identity = None
+    if os.environ.get("ASCEND950_GOLDEN_CACHE_DIR"):
+        from scripts.ci.golden_cache import contract_identity
+
+        try:
+            golden_identity = contract_identity(ROOT)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(f"Golden cache disabled: {exc}", flush=True)
     manifest = load_manifest()
     supported = set(registered_coverage()["operators"])
     selected = sorted(supported) if args.op == ["all"] else args.op
@@ -190,7 +212,12 @@ def main(argv=None):
                         )
                         torch.manual_seed(seed)
                         row["seed"] = seed
+                        golden = None
                         try:
+                            if golden_identity is not None:
+                                from scripts.ci.golden_cache import for_case
+
+                                golden = for_case(ROOT, op_name, case.id, golden_identity)
                             op = op_class(**case.arguments)
                             implementations = {"tileops": entry(op_name).binder(op, case)}
                             if args.include_reference:
@@ -206,12 +233,15 @@ def main(argv=None):
                                 timer,
                                 name=f"{op_name}/{index:04d}",
                                 verify_only=args.verify_only,
+                                golden_cache=golden,
                             )
                             row["status"] = "verified" if args.verify_only else "measured"
                             passed += 1
                         except Exception:
                             row.update(status="failed", error=traceback.format_exc())
                             failed += 1
+                        if golden is not None:
+                            row["golden_cache"] = golden.events
                         output.write(json.dumps(row, default=str) + "\n")
                         output.flush()
                         print(f"{op_name} {case.id}: {row['status']}", flush=True)
