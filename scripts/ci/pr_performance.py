@@ -53,6 +53,17 @@ def matching_baselines(baseline, op, case, params):
 
 
 def select(root, base):
+    # An old PR tree can lag behind the target branch. A two-tree diff would
+    # count target-only changes as PR changes and may select the entire library.
+    target_base = subprocess.check_output(
+        ["git", "rev-parse", f"{base}^{{commit}}"], cwd=root, text=True
+    ).strip()
+    bases = subprocess.check_output(
+        ["git", "merge-base", "--all", target_base, "HEAD"], cwd=root, text=True
+    ).splitlines()
+    if len(bases) != 1:
+        raise ValueError("Selection requires one unambiguous merge base")
+    base = bases[0]
     changed = subprocess.check_output(
         ["git", "diff", "--name-only", base, "HEAD"], cwd=root, text=True
     ).splitlines()
@@ -123,7 +134,11 @@ def select(root, base):
         reasons[path] = sorted(ops)
     for family, ops in families.items():
         selected.update(ops if family in shared_families else (direct.get(family) or ops))
-    return dict(changed=changed, operators=sorted(selected), reasons=reasons)
+    return dict(
+        changed=changed, operators=sorted(selected), reasons=reasons,
+        target_base=target_base, comparison_base=base,
+        target_is_ancestor=base == target_base,
+    )
 
 
 def affected_composites(selected, registered):
