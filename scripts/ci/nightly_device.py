@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -88,6 +89,14 @@ def main():
     manifest = load_manifest()
     module = __import__("importlib").import_module(f"tileops.{manifest[a.op]['family']}")
     op_class = getattr(module, a.op)
+    golden_identity = None
+    if os.environ.get("ASCEND950_GOLDEN_CACHE_DIR"):
+        from golden_cache import contract_identity
+
+        try:
+            golden_identity = contract_identity(a.source)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(f"Golden cache disabled: {exc}", flush=True)
     count = failed = 0
     started = time.monotonic()
     with (a.output / "results.jsonl").open("x") as stream:
@@ -96,6 +105,7 @@ def main():
                 op=a.op, case_id=case.id, params=case.params, family=manifest[a.op]["family"]
             )
             begin = time.monotonic()
+            golden = None
             try:
                 seed = int.from_bytes(
                     hashlib.sha256(f"{a.op}::{case.id}".encode()).digest()[:4], "little"
@@ -108,6 +118,10 @@ def main():
                 if a.verify_measured_output:
                     from measured_correctness import measure_and_verify
 
+                    if golden_identity is not None:
+                        from golden_cache import for_case
+
+                        golden = for_case(a.source, a.op, case.id, golden_identity)
                     correctness, measurement = measure_and_verify(
                         case,
                         impl,
@@ -115,6 +129,7 @@ def main():
                             torch, torch_npu, run, args, 3, 15, reset=reset
                         ),
                         expected_calls=1 + 3 + 15,
+                        golden_cache=golden,
                     )
                 else:
                     checks = benchmark_case(
@@ -140,6 +155,8 @@ def main():
             except Exception:
                 row.update(status="failed", error=__import__("traceback").format_exc())
                 failed += 1
+            if golden is not None:
+                row["golden_cache"] = golden.events
             row["wall_seconds"] = time.monotonic() - begin
             stream.write(json.dumps(row, default=str) + "\n")
             stream.flush()

@@ -151,6 +151,9 @@ jobs:
           source /opt/tileops-ci/server2-20261030/config/prepare-python.sh "$PWD"
           source /opt/tileops-ci/server2-20261030/config/toolchain-v1.env.sh
           export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
+          export ASCEND950_GOLDEN_CACHE_DIR=/opt/tileops-ci/golden-reference-v1
+          export ASCEND950_GOLDEN_CACHE_MAX_BYTES=274877906944
+          export ASCEND950_GOLDEN_CACHE_MIN_FREE_BYTES=214748364800
           TORCH_DEVICE_BACKEND_AUTOLOAD=0 python /opt/tileops-ci/server2-20261030/config/check-toolchain-v1.py --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --output "$RUNNER_TEMP/pr-toolchain.json"
           # PR events test a synthetic merge. Its first parent is the base actually
           # tested, which may be newer than the event payload's base SHA.
