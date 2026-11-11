@@ -161,36 +161,50 @@ def make_fused_topk(
                             sel[j] = my_scores[j]
 
                     if grouped:
-                        local_best1 = T.alloc_local([num_expert_group], "float32")
-                        local_best2 = T.alloc_local([num_expert_group], "float32")
                         group_score = T.alloc_local([num_expert_group], "float32")
-                        for gidx in T.unroll(num_expert_group):
-                            local_best1[gidx] = _NEG
-                            local_best2[gidx] = _NEG
-                        for j in T.unroll(elems_per_thread):
+                        if group_size == _WARP_LANES:
+                            # A group is one slot, so a lane holds one score per group.
                             for gidx in T.unroll(num_expert_group):
-                                if group_of(j, lane_id) == gidx:
-                                    if with_bias:
-                                        local_best2[gidx] = T.max(
-                                            local_best2[gidx],
-                                            T.min(local_best1[gidx], sel[j]),
-                                        )
-                                    local_best1[gidx] = T.max(local_best1[gidx], sel[j])
-                        for gidx in T.unroll(num_expert_group):
-                            gbest1 = T.warp_reduce_max(local_best1[gidx])
-                            if with_bias:
-                                dup = T.warp_reduce_sum(
-                                    T.if_then_else(local_best1[gidx] == gbest1, 1, 0)
-                                )
-                                cand = T.if_then_else(
-                                    local_best1[gidx] < gbest1,
-                                    local_best1[gidx],
-                                    local_best2[gidx],
-                                )
-                                second = T.if_then_else(dup >= 2, gbest1, T.warp_reduce_max(cand))
-                                group_score[gidx] = gbest1 + second
-                            else:
-                                group_score[gidx] = gbest1
+                                gbest1 = T.warp_reduce_max(sel[gidx])
+                                if with_bias:
+                                    dup = T.warp_reduce_sum(
+                                        T.if_then_else(sel[gidx] == gbest1, 1, 0)
+                                    )
+                                    cand = T.if_then_else(sel[gidx] < gbest1, sel[gidx], _NEG)
+                                    second = T.if_then_else(dup >= 2, gbest1, T.warp_reduce_max(cand))
+                                    group_score[gidx] = gbest1 + second
+                                else:
+                                    group_score[gidx] = gbest1
+                        else:
+                            local_best1 = T.alloc_local([num_expert_group], "float32")
+                            local_best2 = T.alloc_local([num_expert_group], "float32")
+                            for gidx in T.unroll(num_expert_group):
+                                local_best1[gidx] = _NEG
+                                local_best2[gidx] = _NEG
+                            for j in T.unroll(elems_per_thread):
+                                for gidx in T.unroll(num_expert_group):
+                                    if group_of(j, lane_id) == gidx:
+                                        if with_bias:
+                                            local_best2[gidx] = T.max(
+                                                local_best2[gidx],
+                                                T.min(local_best1[gidx], sel[j]),
+                                            )
+                                        local_best1[gidx] = T.max(local_best1[gidx], sel[j])
+                            for gidx in T.unroll(num_expert_group):
+                                gbest1 = T.warp_reduce_max(local_best1[gidx])
+                                if with_bias:
+                                    dup = T.warp_reduce_sum(
+                                        T.if_then_else(local_best1[gidx] == gbest1, 1, 0)
+                                    )
+                                    cand = T.if_then_else(
+                                        local_best1[gidx] < gbest1,
+                                        local_best1[gidx],
+                                        local_best2[gidx],
+                                    )
+                                    second = T.if_then_else(dup >= 2, gbest1, T.warp_reduce_max(cand))
+                                    group_score[gidx] = gbest1 + second
+                                else:
+                                    group_score[gidx] = gbest1
                         kept = T.alloc_local([num_expert_group], "int32")
                         for gidx in T.unroll(num_expert_group):
                             kept[gidx] = 0
@@ -213,45 +227,46 @@ def make_fused_topk(
 
                     local_max = T.alloc_var(T.float32)
                     local_idx = T.alloc_var(T.int32)
-                    local_orig = T.alloc_var(T.float32)
 
+                    # The winner's own score is its biased value minus the bias.
+                    sel_vals = T.alloc_local([top_k], "float32")
+                    idx_vals = T.alloc_local([top_k], "int32")
+                    orig = T.alloc_var(T.float32)
                     if renormalize:
-                        sel_vals = T.alloc_local([top_k], "float32")
                         sel_sum = T.alloc_var(T.float32)
                         sel_sum = T.float32(0)
 
                     for k in T.serial(top_k):
                         local_max = _NEG
                         local_idx = T.int32(-1)
-                        local_orig = T.float32(0)
                         for j in T.serial(elems_per_thread):
                             if sel[j] > local_max:
                                 local_max = sel[j]
                                 local_idx = j * _WARP_LANES + lane_id
-                                local_orig = my_scores[j]
 
                         l_best_val = T.warp_reduce_max(local_max)
                         idx_cand = T.if_then_else(local_max == l_best_val, local_idx, experts)
                         l_best_idx = T.warp_reduce_min(idx_cand)
-                        orig_cand = T.if_then_else(
-                            T.if_then_else(local_max == l_best_val, local_idx, -1) == l_best_idx,
-                            local_orig,
-                            _NEG,
-                        )
-                        l_best_orig = T.warp_reduce_max(orig_cand)
 
                         if lane_id == 0:
                             i_ub[warp_id, k] = l_best_idx
-                            if renormalize:
-                                sel_vals[k] = l_best_orig
-                                sel_sum = sel_sum + l_best_orig
-                            else:
-                                w_ub[warp_id, k] = l_best_orig * inv_row_sum
+                        sel_vals[k] = l_best_val
+                        idx_vals[k] = l_best_idx
 
                         for j in T.serial(elems_per_thread):
                             if j * _WARP_LANES + lane_id == l_best_idx:
                                 sel[j] = _NEG
-                                my_scores[j] = _NEG
+
+                    if lane_id == 0:
+                        for k in T.serial(top_k):
+                            orig = sel_vals[k]
+                            if with_bias:
+                                orig = orig - bias_ub[idx_vals[k]]
+                            if renormalize:
+                                sel_vals[k] = orig
+                                sel_sum = sel_sum + orig
+                            else:
+                                w_ub[warp_id, k] = orig * inv_row_sum
 
                     if renormalize:
                         inv_sel_sum = T.alloc_var(T.float32)
