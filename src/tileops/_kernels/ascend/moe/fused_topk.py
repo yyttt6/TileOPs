@@ -123,9 +123,11 @@ def make_fused_topk(
                     for j in T.serial(elems_per_thread):
                         my_scores[j] = T.cast(x_ub[warp_id, j * _WARP_LANES + lane_id], "float32")
 
+                    l_max = T.alloc_var(T.float32)
+                    l_sum = T.alloc_var(T.float32)
+                    l_max = _NEG
+                    l_sum = T.float32(0)
                     if scoring_func == "softmax":
-                        l_max = T.alloc_var(T.float32)
-                        l_max = _NEG
                         for j in T.serial(elems_per_thread):
                             l_max = T.max(l_max, my_scores[j])
                         l_max = T.warp_reduce_max(l_max)
@@ -133,8 +135,6 @@ def make_fused_topk(
                             for j in T.serial(elems_per_thread):
                                 my_scores[j] = T.exp(my_scores[j] - l_max)
                         else:
-                            l_sum = T.alloc_var(T.float32)
-                            l_sum = T.float32(0)
                             for j in T.serial(elems_per_thread):
                                 val = T.exp(my_scores[j] - l_max)
                                 my_scores[j] = val
@@ -228,11 +228,10 @@ def make_fused_topk(
                     local_max = T.alloc_var(T.float32)
                     local_idx = T.alloc_var(T.int32)
 
-                    # The winner's own score is its biased value minus the bias.
-                    sel_vals = T.alloc_local([top_k], "float32")
                     idx_vals = T.alloc_local([top_k], "int32")
                     orig = T.alloc_var(T.float32)
                     if renormalize:
+                        sel_vals = T.alloc_local([top_k], "float32")
                         sel_sum = T.alloc_var(T.float32)
                         sel_sum = T.float32(0)
 
@@ -250,33 +249,58 @@ def make_fused_topk(
 
                         if lane_id == 0:
                             i_ub[warp_id, k] = l_best_idx
-                        sel_vals[k] = l_best_val
                         idx_vals[k] = l_best_idx
 
                         for j in T.serial(elems_per_thread):
                             if j * _WARP_LANES + lane_id == l_best_idx:
                                 sel[j] = _NEG
 
-                    if lane_id == 0:
-                        for k in T.serial(top_k):
-                            orig = sel_vals[k]
-                            if with_bias:
-                                orig = orig - bias_ub[idx_vals[k]]
-                            if renormalize:
-                                sel_vals[k] = orig
-                                sel_sum = sel_sum + orig
+                    # The weights are the unbiased scores of the winners. Recomputing
+                    # them from the logits keeps that exact for any finite bias, where
+                    # subtracting the bias back out would round the score away. Lane k
+                    # recomputes rank k, so the ranks are scored in parallel.
+                    if top_k <= _WARP_LANES:
+                        orig = T.float32(0)
+                        if lane_id < top_k:
+                            logit = T.cast(x_ub[warp_id, idx_vals[lane_id]], "float32")
+                            if scoring_func == "softmax":
+                                orig = T.exp(logit - l_max)
                             else:
-                                w_ub[warp_id, k] = orig * inv_row_sum
-
-                    if renormalize:
-                        inv_sel_sum = T.alloc_var(T.float32)
-                        if scaled:
-                            inv_sel_sum = T.float32(routed_scaling_factor) / sel_sum
+                                orig = T.float32(1) / (T.float32(1) + T.exp(-logit))
+                        if renormalize:
+                            sel_sum = T.warp_reduce_sum(orig)
+                            if scaled:
+                                inv_sel_sum = T.float32(routed_scaling_factor) / sel_sum
+                            else:
+                                inv_sel_sum = T.float32(1) / sel_sum
+                            if lane_id < top_k:
+                                w_ub[warp_id, lane_id] = orig * inv_sel_sum
                         else:
-                            inv_sel_sum = T.float32(1) / sel_sum
+                            if lane_id < top_k:
+                                w_ub[warp_id, lane_id] = orig * inv_row_sum
+                    else:
                         if lane_id == 0:
                             for k in T.serial(top_k):
-                                w_ub[warp_id, k] = sel_vals[k] * inv_sel_sum
+                                logit = T.cast(x_ub[warp_id, idx_vals[k]], "float32")
+                                if scoring_func == "softmax":
+                                    orig = T.exp(logit - l_max)
+                                else:
+                                    orig = T.float32(1) / (T.float32(1) + T.exp(-logit))
+                                if renormalize:
+                                    sel_vals[k] = orig
+                                    sel_sum = sel_sum + orig
+                                else:
+                                    w_ub[warp_id, k] = orig * inv_row_sum
+
+                        if renormalize:
+                            inv_sel_sum = T.alloc_var(T.float32)
+                            if scaled:
+                                inv_sel_sum = T.float32(routed_scaling_factor) / sel_sum
+                            else:
+                                inv_sel_sum = T.float32(1) / sel_sum
+                            if lane_id == 0:
+                                for k in T.serial(top_k):
+                                    w_ub[warp_id, k] = sel_vals[k] * inv_sel_sum
 
                 T.copy(w_ub, weights_gm[token_base : token_base + tokens_per_block, :])
                 T.copy(i_ub, ids_gm[token_base : token_base + tokens_per_block, :])

@@ -92,3 +92,34 @@ def test_public_ascend_fused_topk(case):
     got = built(*inputs)
     assert got[0].dtype is torch.float32 and got[1].dtype is torch.int32
     compare_outputs(got, workload.ref_program(*inputs), workload.verification(*inputs))
+
+
+@pytest.mark.smoke
+def test_a_huge_finite_bias_keeps_the_weights_unbiased():
+    """The bias steers selection only; the weights stay the unbiased scores.
+
+    A bias near the float32 rounding step is the case where recovering the score
+    by subtracting the bias back out loses it entirely.
+    """
+    if torch.device(run_device()).type != "npu" or not run_device_available():
+        pytest.skip("requires an Ascend NPU and --tileops-device=npu")
+    call = dataclasses.replace(
+        _request(_cases()[0]),
+        num_tokens=4,
+        num_experts=256,
+        top_k=8,
+        dtype=torch.float32,
+        renormalize=True,
+        with_correction_bias=True,
+        num_expert_group=8,
+        topk_group=4,
+        routed_scaling_factor=2.5,
+    )
+    logits = torch.zeros(4, 256, dtype=torch.float32, device=run_device())
+    bias = torch.full((256,), 16777216.0, dtype=torch.float32, device=run_device())
+    bias[3] = 33554432.0
+    weights, ids = _KERNEL(call)(logits, bias)
+    assert ids[0, 0].item() == 3
+    # Every logit is zero, so every sigmoid score is 0.5 and the renormalized
+    # weights are uniform regardless of how large the bias was.
+    assert torch.allclose(weights, torch.full_like(weights, 2.5 / 8), atol=1e-6)
