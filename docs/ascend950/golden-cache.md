@@ -1,6 +1,6 @@
 # Golden reference output cache
 
-Nightly and PR performance CI share `/opt/tileops-ci/golden-reference-v1`.
+Nightly, PR performance CI and manually dispatched correctness/regression CI share `/opt/tileops-ci/golden-reference-v1`.
 `golden_cache_policy.json` classifies all 206 manifest operators: 2 high, 47 medium,
 157 off. Both high and medium attempt cache lookup; off keeps online reference
 execution. This policy does not enable missing Ascend implementations or certify

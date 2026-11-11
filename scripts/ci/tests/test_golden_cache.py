@@ -171,3 +171,36 @@ def test_policy_complete():
     assert set(p["operators"]) == set(load_manifest())
     assert len(p["operators"]) == 206
     assert sum(v in {"high", "medium"} for v in p["operators"].values()) == 49
+
+
+def test_manual_correctness_cache_and_wrong_output(tmp_path):
+    from benchmarks.api import Implementation
+    from benchmarks.ascend.runner import benchmark_case
+
+    calls = []
+
+    def ref(x):
+        calls.append(1)
+        return x * 2
+
+    case = SimpleNamespace(inputs=(torch.ones(2),), reference=ref, verification=Exact())
+    for _ in range(2):
+        benchmark_case(
+            case,
+            {"tileops": Implementation(lambda x: x * 2)},
+            None,
+            name="case",
+            verify_only=True,
+            golden_cache=cache(tmp_path),
+        )
+    assert len(calls) == 1
+    with pytest.raises(AssertionError):
+        benchmark_case(
+            case,
+            {"tileops": Implementation(lambda x: x * 3)},
+            None,
+            name="case",
+            verify_only=True,
+            golden_cache=cache(tmp_path),
+        )
+    assert len(calls) == 1
