@@ -509,3 +509,24 @@ def test_check_workloads(name, entry, message):
         assert errors == []
     else:
         assert any(message in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        ([], True),
+        ([[], [[]]], True),
+        (-8, True),
+        (7, True),
+        (-9, False),
+        (8, False),
+        ([[0, -8], [7]], True),
+        ([[0], [True]], False),
+        ([[0], [1.0]], False),
+        ([[0], [None]], False),
+    ],
+)
+def test_generated_metadata_integer_bounds(values, expected):
+    from tileops.manifest._workload import _within
+
+    assert _within(values, 8) is expected

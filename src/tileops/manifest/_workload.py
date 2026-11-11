@@ -278,9 +278,17 @@ def _dtype_value(node: ast.expr, scope: dict):
 
 
 def _within(values, bound: int) -> bool:
-    if isinstance(values, list):
-        return all(_within(v, bound) for v in values)
-    return is_integer(values) and -bound <= values < bound
+    if not isinstance(values, list):
+        return is_integer(values) and -bound <= values < bound
+    # Generated sparse metadata has millions of scalar leaves. Recurse only at
+    # list boundaries rather than creating a Python call for every integer.
+    for value in values:
+        if isinstance(value, list):
+            if not _within(value, bound):
+                return False
+        elif not (is_integer(value) and -bound <= value < bound):
+            return False
+    return True
 
 
 def _point(sig: Signature, scope: dict, some: set[str]) -> dict:

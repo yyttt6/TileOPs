@@ -11,6 +11,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -115,11 +116,17 @@ def main():
                 "--",
                 *command,
             ]
+        started = time.monotonic()
         with (output / f"{name}.log").open("x") as log:
             result = subprocess.run(
                 command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT
             )
-        step = {"name": name, "command": command, "exit_code": result.returncode}
+        step = {
+            "name": name,
+            "command": command,
+            "exit_code": result.returncode,
+            "wall_seconds": time.monotonic() - started,
+        }
         if name in {"contracts", "benchmark-contracts"} and result.returncode == 0:
             import xml.etree.ElementTree as ET
 
@@ -142,7 +149,7 @@ def main():
         if step["exit_code"]:
             receipt["status"] = "failed"
         (output / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
-        print(f"{name}: exit {step['exit_code']}", flush=True)
+        print(f"{name}: exit {step['exit_code']}, {step['wall_seconds']:.3f}s", flush=True)
         if step["exit_code"]:
             return step["exit_code"]
     return 0

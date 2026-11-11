@@ -164,3 +164,19 @@ def test_sampling_chain_ids_allow_more_drafts_than_vocabulary():
     assert len(rows) == 4 and all(len(row) == 600 for row in rows)
     assert all(0 <= token < 64 for row in rows for token in row)
     assert any(len(set(row)) < len(row) for row in rows)
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        ([], True),
+        ([[], [[]]], True),
+        (0, True),
+        (-1, False),
+        ([[0, 3], [1, [2]]], True),
+        ([[0], [4]], False),
+        ([[0], [-1]], False),
+    ],
+)
+def test_range_predicate_checks_nested_metadata(values, expected):
+    assert PREDICATES["in_range"](values, 0, 4) is expected
