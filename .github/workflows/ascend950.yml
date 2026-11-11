@@ -27,6 +27,9 @@ jobs:
   sources:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      performance_required: ${{ steps.selection.outputs.performance_required }}
+      archive_digest: ${{ steps.package.outputs.archive_digest }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,7 +47,24 @@ jobs:
           ref: 8cc05d7b4d1bfb4f07ed9109d8e6ea71f0791c65
           path: baseline-cache
           persist-credentials: false
+      - name: Select affected operators without a device
+        id: selection
+        if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'performance')
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950-v0.1.0' }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          SELECTOR=ci-harness/scripts/ci/early_selection.py
+          if [[ ! -f "$SELECTOR" ]]; then SELECTOR=scripts/ci/early_selection.py; fi
+          python "$SELECTOR" --source "$PWD" --base "$PR_BASE" --pr-head "$PR_HEAD" --output "$RUNNER_TEMP/operator-selection.json" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: steps.selection.outcome == 'success'
+        with:
+          name: ascend950-operator-selection
+          path: ${{ runner.temp }}/operator-selection.json
+          if-no-files-found: error
       - name: Package exact sources for isolated runners
+        id: package
         run: |
           echo "f0b3227010d03c4ae9781d50272cf00d433b979a6909b5b10e5a4bcc113919ea  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
           mkdir -p "$RUNNER_TEMP/ci-sources"
@@ -56,6 +76,7 @@ jobs:
           git -C baseline-cache archive --format=tar.gz HEAD data/baseline-cache > "$RUNNER_TEMP/ci-sources/baseline.tar.gz"
           cd "$RUNNER_TEMP/ci-sources"
           sha256sum source.commit source.tar.gz harness.tar.gz baseline.tar.gz > SHA256SUMS
+          echo "archive_digest=$(sha256sum SHA256SUMS | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: ascend950-sources
@@ -74,21 +95,69 @@ jobs:
       TORCH_EXTENSIONS_DIR: /opt/tileops-ci/server2-20261030/cache/v010-cpu-extensions
       TRITON_CACHE_DIR: /opt/tileops-ci/server2-20261030/cache/v010-cpu-triton
     steps:
+      - name: Restore checksum-verified source archives from this host
+        id: archive-cache
+        env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          CACHE_ROOT: /opt/tileops-ci/server2-20261030/cache/source-archives-v1
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re
+          hit = False
+          try:
+              digest = os.environ["ARCHIVE_DIGEST"]
+              if not re.fullmatch(r"[0-9a-f]{64}", digest): raise ValueError("Invalid manifest digest")
+              entry = pathlib.Path(os.environ["CACHE_ROOT"]) / digest
+              manifest = (entry / "SHA256SUMS").read_bytes()
+              if hashlib.sha256(manifest).hexdigest() != digest: raise ValueError("Manifest checksum mismatch")
+              entries = [line.split() for line in manifest.decode().splitlines()]
+              expected = {"source.commit", "source.tar.gz", "harness.tar.gz", "baseline.tar.gz"}
+              if len(entries) != 4 or any(len(e) != 2 for e in entries) or {e[1] for e in entries} != expected:
+                  raise ValueError("Unexpected archive members")
+              payload = {name: (entry / name).read_bytes() for _, name in entries}
+              if any(hashlib.sha256(payload[name]).hexdigest() != sha for sha, name in entries):
+                  raise ValueError("Archive checksum mismatch")
+              destination = pathlib.Path(os.environ["ARCHIVES"])
+              destination.mkdir(parents=True, exist_ok=True)
+              for name, content in {**payload, "SHA256SUMS": manifest}.items():
+                  (destination / name).write_bytes(content)
+              hit = True
+          except (OSError, ValueError, UnicodeError) as exc:
+              print(f"Source archive cache miss: {exc}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"hit={str(hit).lower()}\n")
+          PY
       - uses: actions/download-artifact@v4
+        if: steps.archive-cache.outputs.hit != 'true'
         with:
           name: ascend950-sources
           path: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
       - name: Unpack verified sources
         env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
           ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           DESTINATION: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           cd "$ARCHIVES"
+          echo "$ARCHIVE_DIGEST  SHA256SUMS" | sha256sum --check
           sha256sum --check SHA256SUMS
           mkdir -p "$DESTINATION"
           tar --no-same-owner -xzf source.tar.gz -C "$DESTINATION"
           test "$(git -C "$DESTINATION" rev-parse HEAD)" = "$(cat source.commit)"
           test -z "$(git -C "$DESTINATION" status --porcelain)"
+          mkdir -p "$DESTINATION/ci-harness"
+          tar --no-same-owner -xzf harness.tar.gz -C "$DESTINATION/ci-harness"
+      - name: Publish verified archives to this host cache
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        run: |
+          CACHE_HELPER=ci-harness/scripts/ci/artifact_cache.py
+          if [[ ! -f "$CACHE_HELPER" ]]; then CACHE_HELPER=scripts/ci/artifact_cache.py; fi
+          python "$CACHE_HELPER" --archives "$ARCHIVES" --cache-root /opt/tileops-ci/server2-20261030/cache/source-archives-v1 --digest "$ARCHIVE_DIGEST"
       - name: Check canonical compiler profile without device initialization
         working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
@@ -114,21 +183,57 @@ jobs:
           name: ascend950-toolchain-cpu
           path: ${{ runner.temp }}/toolchain-cpu.json
   pr-performance:
-    needs: preflight
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'performance')
+    needs: [sources, preflight]
+    if: needs.sources.outputs.performance_required == 'true' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'performance'))
     runs-on: [self-hosted, tileops-npu-server2, ascend950-32core]
     timeout-minutes: 720
     steps:
+      - name: Restore checksum-verified source archives from this host
+        id: archive-cache
+        env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          CACHE_ROOT: /opt/tileops-ci/server2-20261030/cache/source-archives-v1
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re
+          hit = False
+          try:
+              digest = os.environ["ARCHIVE_DIGEST"]
+              if not re.fullmatch(r"[0-9a-f]{64}", digest): raise ValueError("Invalid manifest digest")
+              entry = pathlib.Path(os.environ["CACHE_ROOT"]) / digest
+              manifest = (entry / "SHA256SUMS").read_bytes()
+              if hashlib.sha256(manifest).hexdigest() != digest: raise ValueError("Manifest checksum mismatch")
+              entries = [line.split() for line in manifest.decode().splitlines()]
+              expected = {"source.commit", "source.tar.gz", "harness.tar.gz", "baseline.tar.gz"}
+              if len(entries) != 4 or any(len(e) != 2 for e in entries) or {e[1] for e in entries} != expected:
+                  raise ValueError("Unexpected archive members")
+              payload = {name: (entry / name).read_bytes() for _, name in entries}
+              if any(hashlib.sha256(payload[name]).hexdigest() != sha for sha, name in entries):
+                  raise ValueError("Archive checksum mismatch")
+              destination = pathlib.Path(os.environ["ARCHIVES"])
+              destination.mkdir(parents=True, exist_ok=True)
+              for name, content in {**payload, "SHA256SUMS": manifest}.items():
+                  (destination / name).write_bytes(content)
+              hit = True
+          except (OSError, ValueError, UnicodeError) as exc:
+              print(f"Source archive cache miss: {exc}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"hit={str(hit).lower()}\n")
+          PY
       - uses: actions/download-artifact@v4
+        if: steps.archive-cache.outputs.hit != 'true'
         with:
           name: ascend950-sources
           path: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
       - name: Unpack verified sources
         env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
           ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           DESTINATION: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           cd "$ARCHIVES"
+          echo "$ARCHIVE_DIGEST  SHA256SUMS" | sha256sum --check
           sha256sum --check SHA256SUMS
           mkdir -p "$DESTINATION"
           tar --no-same-owner -xzf source.tar.gz -C "$DESTINATION"
@@ -137,6 +242,16 @@ jobs:
           mkdir -p "$DESTINATION/ci-harness" "$DESTINATION/baseline-cache"
           tar --no-same-owner -xzf harness.tar.gz -C "$DESTINATION/ci-harness"
           tar --no-same-owner -xzf baseline.tar.gz -C "$DESTINATION/baseline-cache"
+      - name: Publish verified archives to this host cache
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        run: |
+          CACHE_HELPER=ci-harness/scripts/ci/artifact_cache.py
+          if [[ ! -f "$CACHE_HELPER" ]]; then CACHE_HELPER=scripts/ci/artifact_cache.py; fi
+          python "$CACHE_HELPER" --archives "$ARCHIVES" --cache-root /opt/tileops-ci/server2-20261030/cache/source-archives-v1 --digest "$ARCHIVE_DIGEST"
       - name: Verify published baseline snapshot
         working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
@@ -179,7 +294,7 @@ jobs:
             ${{ runner.temp }}/pr-selection-base.txt
           retention-days: 90
   device:
-    needs: preflight
+    needs: [sources, preflight]
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'cpu' && inputs.mode != 'performance')
     runs-on: [self-hosted, tileops-npu-server2, ascend950-32core]
     timeout-minutes: 180
@@ -187,21 +302,69 @@ jobs:
       group: ascend950-device
       cancel-in-progress: false
     steps:
+      - name: Restore checksum-verified source archives from this host
+        id: archive-cache
+        env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          CACHE_ROOT: /opt/tileops-ci/server2-20261030/cache/source-archives-v1
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, re
+          hit = False
+          try:
+              digest = os.environ["ARCHIVE_DIGEST"]
+              if not re.fullmatch(r"[0-9a-f]{64}", digest): raise ValueError("Invalid manifest digest")
+              entry = pathlib.Path(os.environ["CACHE_ROOT"]) / digest
+              manifest = (entry / "SHA256SUMS").read_bytes()
+              if hashlib.sha256(manifest).hexdigest() != digest: raise ValueError("Manifest checksum mismatch")
+              entries = [line.split() for line in manifest.decode().splitlines()]
+              expected = {"source.commit", "source.tar.gz", "harness.tar.gz", "baseline.tar.gz"}
+              if len(entries) != 4 or any(len(e) != 2 for e in entries) or {e[1] for e in entries} != expected:
+                  raise ValueError("Unexpected archive members")
+              payload = {name: (entry / name).read_bytes() for _, name in entries}
+              if any(hashlib.sha256(payload[name]).hexdigest() != sha for sha, name in entries):
+                  raise ValueError("Archive checksum mismatch")
+              destination = pathlib.Path(os.environ["ARCHIVES"])
+              destination.mkdir(parents=True, exist_ok=True)
+              for name, content in {**payload, "SHA256SUMS": manifest}.items():
+                  (destination / name).write_bytes(content)
+              hit = True
+          except (OSError, ValueError, UnicodeError) as exc:
+              print(f"Source archive cache miss: {exc}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"hit={str(hit).lower()}\n")
+          PY
       - uses: actions/download-artifact@v4
+        if: steps.archive-cache.outputs.hit != 'true'
         with:
           name: ascend950-sources
           path: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
       - name: Unpack verified sources
         env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
           ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           DESTINATION: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           cd "$ARCHIVES"
+          echo "$ARCHIVE_DIGEST  SHA256SUMS" | sha256sum --check
           sha256sum --check SHA256SUMS
           mkdir -p "$DESTINATION"
           tar --no-same-owner -xzf source.tar.gz -C "$DESTINATION"
           test "$(git -C "$DESTINATION" rev-parse HEAD)" = "$(cat source.commit)"
           test -z "$(git -C "$DESTINATION" status --porcelain)"
+          mkdir -p "$DESTINATION/ci-harness"
+          tar --no-same-owner -xzf harness.tar.gz -C "$DESTINATION/ci-harness"
+      - name: Publish verified archives to this host cache
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        env:
+          ARCHIVE_DIGEST: ${{ needs.sources.outputs.archive_digest }}
+          ARCHIVES: ${{ runner.temp }}/ci-archives-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        run: |
+          CACHE_HELPER=ci-harness/scripts/ci/artifact_cache.py
+          if [[ ! -f "$CACHE_HELPER" ]]; then CACHE_HELPER=scripts/ci/artifact_cache.py; fi
+          python "$CACHE_HELPER" --archives "$ARCHIVES" --cache-root /opt/tileops-ci/server2-20261030/cache/source-archives-v1 --digest "$ARCHIVE_DIGEST"
       - name: Correctness under the host NPU reservation
         env:
           CI_MODE: ${{ inputs.mode || 'regression' }}
