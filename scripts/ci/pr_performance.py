@@ -202,7 +202,10 @@ def main():
                     "pr_performance.py",
                     "baseline_contracts.py",
                     "nightly_device.py",
+                    "precompile.py",
                     "measured_correctness.py",
+                    "golden_cache.py",
+                    "golden_cache_policy.json",
                     "nightly_support/complete_profile.py",
                 )
             },

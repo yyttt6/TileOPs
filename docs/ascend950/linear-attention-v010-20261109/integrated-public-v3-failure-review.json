@@ -1,0 +1,18 @@
+{
+  "failed": [
+    "test_kda_decode_runs_from_a_zero_state",
+    "test_kda_raw_gate_decode_keeps_state_when_factors_cross_fp32_range",
+    "test_kda_bounded_gate_zero_gate_survives_overflowing_rate",
+    "test_kda_bounded_gate_preserves_tiny_query_contributions[single-sequence]",
+    "test_kda_bounded_gate_preserves_tiny_query_contributions[batched-sequences]",
+    "test_kda_bounded_gate_preserves_near_cancelling_contributions[single-sequence]",
+    "test_kda_bounded_gate_preserves_near_cancelling_contributions[batched-sequences]",
+    "test_kda_raw_gate_preserves_finite_unnormalized_cancellation",
+    "test_kda_raw_gate_preserves_finite_state_cancellation",
+    "test_kda_raw_gate_preserves_finite_beta_correction",
+    "test_kda_bounded_gate_preserves_single_step_cancellation"
+  ],
+  "passed": 156,
+  "skipped": 84,
+  "failure_scope": "11KDA only:9FP64NPUmatmul +2FP64extreme reference arithmetic. All22newregressions passed. Production unchanged; CPU-reference placement correction under validation."
+}

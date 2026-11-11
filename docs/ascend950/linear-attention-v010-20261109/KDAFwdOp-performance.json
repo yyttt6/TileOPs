@@ -1,0 +1,1450 @@
+{
+  "status": "performance audit completed; source delivery review separate",
+  "cases": 57,
+  "passed": 57,
+  "device_windows": 855,
+  "independent_host_samples": 345,
+  "constraints": 91,
+  "minimum_ratio": 0.9018163080664011,
+  "rows": [
+    {
+      "case": "kda-tp1-4x1024-bfloat16",
+      "minimum_ratio": 1.6248268120348306,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-4x1024-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 5.686468041191499,
+          "candidate_ms": 3.4997379407286644,
+          "ratio": 1.6248268120348306,
+          "passed": true,
+          "task_id": "746be387ebd2102d0ae8",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-4x1024-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 20.1158944,
+          "candidate_ms": 3.315247466666667,
+          "ratio": 6.067690150511035,
+          "passed": true,
+          "task_id": "cadba955b31d82afaf10",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-4x1024-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 28.107171909262735,
+          "candidate_ms": 3.4997379407286644,
+          "ratio": 8.031221875832985,
+          "passed": true,
+          "task_id": "64fa4a566612a7e47794",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-4x1024-float16",
+      "minimum_ratio": 8.353514010349455,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-4x1024-float16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 29.022525406132143,
+          "candidate_ms": 3.474289427200953,
+          "ratio": 8.353514010349455,
+          "passed": true,
+          "task_id": "29058bafab1dd045c34a",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-4x8192-bfloat16",
+      "minimum_ratio": 1.1364964653134788,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-4x8192-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 30.652749973038834,
+          "candidate_ms": 26.97126731897394,
+          "ratio": 1.1364964653134788,
+          "passed": true,
+          "task_id": "ae4dcf160fcb53ef2864",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-4x8192-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 160.3874524,
+          "candidate_ms": 26.569482333333333,
+          "ratio": 6.036529066988345,
+          "passed": true,
+          "task_id": "da32aa32330e42be6314",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-4x8192-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 50.48650400713086,
+          "candidate_ms": 26.97126731897394,
+          "ratio": 1.8718625050152633,
+          "passed": true,
+          "task_id": "e1af94818c4b21c5a983",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-decode-b1-bfloat16",
+      "minimum_ratio": 5.032389879631321,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-decode-b1-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.025698066666666665,
+          "candidate_ms": 0.005106533333333334,
+          "ratio": 5.032389879631321,
+          "passed": true,
+          "task_id": "1b13f732539cead3d76c",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-decode-b1-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 1.7948140390217304,
+          "candidate_ms": 0.2320847474038601,
+          "ratio": 7.733442456252852,
+          "passed": true,
+          "task_id": "30463b3f8e99a665f8e3",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-decode-b1-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.04074353333333333,
+          "candidate_ms": 0.005106533333333334,
+          "ratio": 7.978707015848976,
+          "passed": true,
+          "task_id": "42965e4146dd7a7ce887",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-decode-b64-bfloat16",
+      "minimum_ratio": 4.447834830513361,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-decode-b64-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 2.6938154051701226,
+          "candidate_ms": 0.25593796744942665,
+          "ratio": 10.525266852806514,
+          "passed": true,
+          "task_id": "1ace92448b32975e1607",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-decode-b64-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.5194623333333334,
+          "candidate_ms": 0.11678993333333333,
+          "ratio": 4.447834830513361,
+          "passed": true,
+          "task_id": "e7fadb776a0ce2d73d98",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-raw-gate-4096-bfloat16",
+      "minimum_ratio": 4.911793149328866,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-raw-gate-4096-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 20.2628734,
+          "candidate_ms": 4.125351533333333,
+          "ratio": 4.911793149328866,
+          "passed": true,
+          "task_id": "89ffbdb14773df274f8a",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-raw-gate-decode-b8-bfloat16",
+      "minimum_ratio": 22.53055128390924,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-raw-gate-decode-b8-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.414107026487995,
+          "candidate_ms": 0.018379799999999998,
+          "ratio": 22.53055128390924,
+          "passed": true,
+          "archive_sha256": "f17910988086ff70214a147f6bc14983246c6203f985c7a4150f0b232fbff028"
+        }
+      ]
+    },
+    {
+      "case": "kda-bounded-packed-bfloat16",
+      "minimum_ratio": 205.80407022094505,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-bounded-packed-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 13.578540945037512,
+          "candidate_ms": 0.065978,
+          "ratio": 205.80407022094505,
+          "passed": true,
+          "archive_sha256": "eb08908a684df9092a5e388cedb0af62e11d93922d5058d86ec78cc71e490593"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp1-s1024-bfloat16",
+      "minimum_ratio": 115.90683636234405,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp1-s1024-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 119.55395314819914,
+          "candidate_ms": 1.0314659333333334,
+          "ratio": 115.90683636234405,
+          "passed": true,
+          "archive_sha256": "a29f4581b4dae09e8518deeb967027ed4d3f250ba526d2770229d1bf804679e8"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp1-s16384-bfloat16",
+      "minimum_ratio": 117.89597663726502,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp1-s16384-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 1947.208580722747,
+          "candidate_ms": 16.516327666666665,
+          "ratio": 117.89597663726502,
+          "passed": true,
+          "archive_sha256": "82676d5e1c93752431f4954887a899cd8df571fd925e74e8c4c37c1677b022c6"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp2-s4096-bfloat16",
+      "minimum_ratio": 187.36362095388222,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp2-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 383.9411102772409,
+          "candidate_ms": 2.0491764,
+          "ratio": 187.36362095388222,
+          "passed": true,
+          "archive_sha256": "39defb1596fa9b8452fe6cfdeb55587954232855c804a5c232d80ff9444b6782"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp2-s32768-bfloat16",
+      "minimum_ratio": 190.7975297990685,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp2-s32768-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 3134.9757683672806,
+          "candidate_ms": 16.430903333333333,
+          "ratio": 190.7975297990685,
+          "passed": true,
+          "archive_sha256": "f93864012f6e851576d5af53a8eaa55bf42228aa2f815ee47e52b54ccea94912"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp4-s4096-bfloat16",
+      "minimum_ratio": 266.1791225990132,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp4-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 318.54454138791715,
+          "candidate_ms": 1.19673,
+          "ratio": 266.1791225990132,
+          "passed": true,
+          "archive_sha256": "7eecc9c95f061128ed31cd29c0d36ece6026f5f7fefd3d7281a7c5efcb527f7e"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp4-s65536-bfloat16",
+      "minimum_ratio": 257.9317946106083,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp4-s65536-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 4980.794086455226,
+          "candidate_ms": 19.3105084,
+          "ratio": 257.9317946106083,
+          "passed": true,
+          "archive_sha256": "b976fcb63fcf2792f4b18a114f011962c3b57942e3a8ca99a59504281cf9ca90"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp8-s4096-bfloat16",
+      "minimum_ratio": 361.7311878302732,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp8-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 283.43640145741233,
+          "candidate_ms": 0.7835553333333334,
+          "ratio": 361.7311878302732,
+          "passed": true,
+          "archive_sha256": "97374003a08b0fa685ea750bfae92b4f0c8218d4b7ec473bd11dfdf463e22273"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp8-s131072-bfloat16",
+      "minimum_ratio": 350.9223361303348,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp8-s131072-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 8847.45033571535,
+          "candidate_ms": 25.211989733333333,
+          "ratio": 350.9223361303348,
+          "passed": true,
+          "archive_sha256": "f5819abf46d362df37778ee4e6859b59e4909aab20920fa540595d402545117d"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp1-mixed8k-bfloat16",
+      "minimum_ratio": 113.63499221593206,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp1-mixed8k-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 913.5151645033073,
+          "candidate_ms": 8.039030466666667,
+          "ratio": 113.63499221593206,
+          "passed": true,
+          "archive_sha256": "200a515c53821e81c0d457acf888e7d056893b1bd3ea84ff82723772bc028dc3"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp8-4x8192-bfloat16",
+      "minimum_ratio": 187.09784873292529,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp8-4x8192-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 766.4932115821309,
+          "candidate_ms": 4.096750533333333,
+          "ratio": 187.09784873292529,
+          "passed": true,
+          "archive_sha256": "98cc2df20b89980708e38fd882d469f3c17f684d9ac768a72742fc22c28d0f97"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp8-cont256-bfloat16",
+      "minimum_ratio": 213.96492413287046,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp8-cont256-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 17.150030414319893,
+          "candidate_ms": 0.08015346666666666,
+          "ratio": 213.96492413287046,
+          "passed": true,
+          "archive_sha256": "2201a5823a0c2a38c9691f1a63ff8ca4f3ecc077bbb04b86ca37d473d1f63d47"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp8-cont4096-bfloat16",
+      "minimum_ratio": 346.4028560785933,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp8-cont4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 274.75210414748994,
+          "candidate_ms": 0.7931577333333333,
+          "ratio": 346.4028560785933,
+          "passed": true,
+          "archive_sha256": "643d2e62254d2d0d75280b4f842da1c879e82c170631538d732898905712eb6c"
+        }
+      ]
+    },
+    {
+      "case": "kl48-tp8-b32-s256-bfloat16",
+      "minimum_ratio": 59.830287927844644,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kl48-tp8-b32-s256-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 61.32613287712972,
+          "candidate_ms": 1.0250014666666667,
+          "ratio": 59.830287927844644,
+          "passed": true,
+          "archive_sha256": "32759dfa4f30d30d43af86c82e1b354eded3ea570606f0f0d00b6d339e9d6dac"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp1-s1024-bfloat16",
+      "minimum_ratio": 62.18794900593776,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp1-s1024-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 203.78004173788244,
+          "candidate_ms": 3.2768413333333335,
+          "ratio": 62.18794900593776,
+          "passed": true,
+          "archive_sha256": "61738f3b9b307a6115b8baebbd7624fb14c08b7435f4ea787c65f2a496683212"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp1-s4096-bfloat16",
+      "minimum_ratio": 62.706510529812036,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp1-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 825.2342581737105,
+          "candidate_ms": 13.1602644,
+          "ratio": 62.706510529812036,
+          "passed": true,
+          "archive_sha256": "06ea3c00601bedb084033c64a0026b583fb0de7825ae9ca6742b25927c341553"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp1-s16384-bfloat16",
+      "minimum_ratio": 62.45798976248827,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp1-s16384-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 3290.8895078647083,
+          "candidate_ms": 52.6896482,
+          "ratio": 62.45798976248827,
+          "passed": true,
+          "archive_sha256": "ff18766db49edcb8eb9b3fdafa7c58f86c91b2e64abd8d987a58726dd9aa99ad"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp2-s4096-bfloat16",
+      "minimum_ratio": 88.0796403560108,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp2-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 575.4581952353795,
+          "candidate_ms": 6.533384933333333,
+          "ratio": 88.0796403560108,
+          "passed": true,
+          "archive_sha256": "b3cc68ba7eeb40cc4e87e52fb1faffa14e799b7bb0d2a1e1debd5c9b94db1695"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp2-s32768-bfloat16",
+      "minimum_ratio": 88.77219497412018,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp2-s32768-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 4641.897714189818,
+          "candidate_ms": 52.28999593333333,
+          "ratio": 88.77219497412018,
+          "passed": true,
+          "archive_sha256": "5d8682fdc3e9049cbeb14edac20fee6bc5e188c7d0f68c90a1c53ba3ddb9711c"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp4-s4096-bfloat16",
+      "minimum_ratio": 129.88353797277622,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp4-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 446.8185500954575,
+          "candidate_ms": 3.4401476666666664,
+          "ratio": 129.88353797277622,
+          "passed": true,
+          "archive_sha256": "38ed5009275b7ae25e2a922ad5137c49dc414d61f7f2c40f2159998e679309f2"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp4-s65536-bfloat16",
+      "minimum_ratio": 128.0117834871163,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp4-s65536-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 7062.643409260791,
+          "candidate_ms": 55.1718226,
+          "ratio": 128.0117834871163,
+          "passed": true,
+          "archive_sha256": "809f148d1c087c417fa90e681092b6834023126dca67b354df587622c75b50e9"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp8-s4096-bfloat16",
+      "minimum_ratio": 214.1547425826836,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp8-s4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 363.5506043685446,
+          "candidate_ms": 1.6976070666666667,
+          "ratio": 214.1547425826836,
+          "passed": true,
+          "archive_sha256": "511696d9310af4bf00eade66ad61b82c96093e4007f9680c875459abbc6fe40d"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp8-s131072-bfloat16",
+      "minimum_ratio": 207.68825341434157,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp8-s131072-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 11366.543490869974,
+          "candidate_ms": 54.72887033333333,
+          "ratio": 207.68825341434157,
+          "passed": true,
+          "archive_sha256": "c246c43b57acbdb4d8ee17d584d71179fb92c1fb7d3a9d8f0ffcde79cbedb575"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp1-mixed8k-bfloat16",
+      "minimum_ratio": 61.07237709254241,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp1-mixed8k-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 1569.0312655650957,
+          "candidate_ms": 25.691341,
+          "ratio": 61.07237709254241,
+          "passed": true,
+          "archive_sha256": "54d570f5ba103a6044b0e4230dadc633a774094eb712e292aeaf06dc1e5d5219"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp8-4x8192-bfloat16",
+      "minimum_ratio": 90.64594748417309,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp8-4x8192-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 1165.1520710172313,
+          "candidate_ms": 12.853879333333333,
+          "ratio": 90.64594748417309,
+          "passed": true,
+          "archive_sha256": "aa3a330bdd9ca62bddadeabe04e59ffc16601c50b792dc01c1c7fba9da8bc246"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp8-cont256-bfloat16",
+      "minimum_ratio": 159.52020540925935,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp8-cont256-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 22.043320853839223,
+          "candidate_ms": 0.13818513333333332,
+          "ratio": 159.52020540925935,
+          "passed": true,
+          "archive_sha256": "49c68e0de6f615efafef8ddb5ee9cb8e428ce2b7f111c503e912fb4f65f2efd4"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp8-cont4096-bfloat16",
+      "minimum_ratio": 211.03690532224257,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp8-cont4096-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 360.1386293248783,
+          "candidate_ms": 1.7065196666666667,
+          "ratio": 211.03690532224257,
+          "passed": true,
+          "archive_sha256": "a807453d971be8534c2e05f92c7d0b2e1e3ea1120843389f58ef42b452ac297f"
+        }
+      ]
+    },
+    {
+      "case": "kimi-k3-tp8-b32-s256-bfloat16",
+      "minimum_ratio": 39.15931766639145,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kimi-k3-tp8-b32-s256-bfloat16",
+          "backend": "torch-eager",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 132.08554543640483,
+          "candidate_ms": 3.3730298,
+          "ratio": 39.15931766639145,
+          "passed": true,
+          "archive_sha256": "c67e75bfe9cc32258691322391082960030bc746e0c0f4572a54c44962f84459"
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-4096-bfloat16",
+      "minimum_ratio": 5.886467875668691,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-4096-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 20.068921333333332,
+          "candidate_ms": 3.4093316666666666,
+          "ratio": 5.886467875668691,
+          "passed": true,
+          "task_id": "65e90d7d8304708b81bb",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-4096-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 30.824205310394365,
+          "candidate_ms": 3.579160043348869,
+          "ratio": 8.612133835052948,
+          "passed": true,
+          "task_id": "f805ce2039e401a541c0",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-16384-bfloat16",
+      "minimum_ratio": 2.6677355308545354,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-16384-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 80.30264826666667,
+          "candidate_ms": 13.6424918,
+          "ratio": 5.886215615439598,
+          "passed": true,
+          "task_id": "36e767b41f1e0f1d1265",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-16384-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 36.85401404897372,
+          "candidate_ms": 13.814717996865511,
+          "ratio": 2.6677355308545354,
+          "passed": true,
+          "task_id": "f796c7047ca23d1606dc",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-65536-bfloat16",
+      "minimum_ratio": 0.9018163080664011,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-65536-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 49.54517061511675,
+          "candidate_ms": 54.9393154370288,
+          "ratio": 0.9018163080664011,
+          "passed": true,
+          "task_id": "d9e1dbc4053c9997d8a5",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-65536-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 321.0628825333334,
+          "candidate_ms": 54.757361,
+          "ratio": 5.8633739221532855,
+          "passed": true,
+          "task_id": "7655c665921a9b3d2b5d",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-65536-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 76.81339674939711,
+          "candidate_ms": 54.9393154370288,
+          "ratio": 1.3981498702407438,
+          "passed": true,
+          "task_id": "cd66674f1e22f45517f0",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp2-4096-bfloat16",
+      "minimum_ratio": 2.362550941735141,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp2-4096-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 4.397384698192279,
+          "candidate_ms": 1.861286722123623,
+          "ratio": 2.362550941735141,
+          "passed": true,
+          "task_id": "a857c8af0dea1ba6938a",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp2-4096-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 19.5392394,
+          "candidate_ms": 1.6839891333333332,
+          "ratio": 11.602948625519634,
+          "passed": true,
+          "task_id": "174bf2bd5786f2546df6",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp2-4096-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 28.120326685408752,
+          "candidate_ms": 1.861286722123623,
+          "ratio": 15.108003700432059,
+          "passed": true,
+          "task_id": "05044bb5a2b82f0d9dd0",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp2-16384-bfloat16",
+      "minimum_ratio": 4.30673583541798,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp2-16384-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 78.36698413333335,
+          "candidate_ms": 6.754741133333334,
+          "ratio": 11.601774603412634,
+          "passed": true,
+          "task_id": "e63714275bd2cf26a20d",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp2-16384-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 29.882705956697464,
+          "candidate_ms": 6.938597373664379,
+          "ratio": 4.30673583541798,
+          "passed": true,
+          "task_id": "c1c11fd40707efcd3858",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp2-65536-bfloat16",
+      "minimum_ratio": 1.7675848908906326,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp2-65536-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 48.24476599072417,
+          "candidate_ms": 27.29417197406292,
+          "ratio": 1.7675848908906326,
+          "passed": true,
+          "task_id": "2dc999181581449c6ad7",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp2-65536-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 313.5373368666667,
+          "candidate_ms": 27.125162133333333,
+          "ratio": 11.558911070299914,
+          "passed": true,
+          "task_id": "cc0c540727228ca18dd6",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp4-4096-bfloat16",
+      "minimum_ratio": 19.09918760771399,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp4-4096-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 19.35750666666667,
+          "candidate_ms": 1.0135251333333333,
+          "ratio": 19.09918760771399,
+          "passed": true,
+          "task_id": "37966e59e99fa14006c8",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp4-16384-bfloat16",
+      "minimum_ratio": 6.803868777944203,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp4-16384-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 77.5388206,
+          "candidate_ms": 4.0818066,
+          "ratio": 18.996201485881272,
+          "passed": true,
+          "task_id": "7f2b4eb4e0f3076e336c",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp4-16384-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 28.78543601060907,
+          "candidate_ms": 4.230745323002338,
+          "ratio": 6.803868777944203,
+          "passed": true,
+          "task_id": "de0f8028d7a15c63402b",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp4-65536-bfloat16",
+      "minimum_ratio": 2.2952692384847975,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp4-65536-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 310.7129078666667,
+          "candidate_ms": 16.3730094,
+          "ratio": 18.97714099319253,
+          "passed": true,
+          "task_id": "19ebb90e117b96708c2c",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp4-65536-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 38.03822395081321,
+          "candidate_ms": 16.572445320586365,
+          "ratio": 2.2952692384847975,
+          "passed": true,
+          "task_id": "298b06072117c1f25320",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-4096-bfloat16",
+      "minimum_ratio": 27.9428274997711,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-4096-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 19.145514466666665,
+          "candidate_ms": 0.6851674,
+          "ratio": 27.9428274997711,
+          "passed": true,
+          "task_id": "b333c3d69641e18401a1",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-16384-bfloat16",
+      "minimum_ratio": 4.404676508991659,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-16384-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 12.838783487677574,
+          "candidate_ms": 2.9148073556522527,
+          "ratio": 4.404676508991659,
+          "passed": true,
+          "task_id": "f08e699f33935ddbd43a",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp8-16384-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 76.4406838,
+          "candidate_ms": 2.747081933333333,
+          "ratio": 27.826139028640554,
+          "passed": true,
+          "task_id": "d6a5ca26388d39ea52fb",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp8-16384-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 28.90501202394565,
+          "candidate_ms": 2.9148073556522527,
+          "ratio": 9.91661145903672,
+          "passed": true,
+          "task_id": "7631f274279598eaaad6",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-65536-bfloat16",
+      "minimum_ratio": 2.741678301840002,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-65536-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 47.72982929522792,
+          "candidate_ms": 11.293435376137495,
+          "ratio": 4.226333945831827,
+          "passed": true,
+          "task_id": "bda22add1cad00759776",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp8-65536-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 306.6202229333333,
+          "candidate_ms": 11.114994933333334,
+          "ratio": 27.586177481178517,
+          "passed": true,
+          "task_id": "cb397f83b5ed4190816c",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp8-65536-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 30.962966723988455,
+          "candidate_ms": 11.293435376137495,
+          "ratio": 2.741678301840002,
+          "passed": true,
+          "task_id": "555983680f92c15dca8b",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-1024-7168-bfloat16",
+      "minimum_ratio": 1.4861853944856995,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-1024-7168-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 10.132457284877697,
+          "candidate_ms": 6.8177613119284315,
+          "ratio": 1.4861853944856995,
+          "passed": true,
+          "task_id": "d618ffea72bd59c108a0",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-1024-7168-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 40.061640266666664,
+          "candidate_ms": 6.620789533333333,
+          "ratio": 6.050885633045799,
+          "passed": true,
+          "task_id": "d4086b949053c8819f9a",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-1024-7168-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 30.6296539803346,
+          "candidate_ms": 6.8177613119284315,
+          "ratio": 4.492626329810728,
+          "passed": true,
+          "task_id": "7a6e7a1202ee0e112844",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-16x8192-bfloat16",
+      "minimum_ratio": 1.3228661905188712,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-16x8192-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 140.5633686731259,
+          "candidate_ms": 106.25667938341697,
+          "ratio": 1.3228661905188712,
+          "passed": true,
+          "task_id": "41bcefbcde5321b6c841",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-1024-7168-bfloat16",
+      "minimum_ratio": 29.891261586598702,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-1024-7168-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 38.2205792,
+          "candidate_ms": 1.2786539333333333,
+          "ratio": 29.891261586598702,
+          "passed": true,
+          "task_id": "4f978884a1d8e4decf56",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-16x8192-bfloat16",
+      "minimum_ratio": 45.51615855108534,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-16x8192-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 614.0289762666666,
+          "candidate_ms": 13.490351466666667,
+          "ratio": 45.51615855108534,
+          "passed": true,
+          "task_id": "79996ebfcac5716546c7",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-decode-b8-bfloat16",
+      "minimum_ratio": 3.753406685153711,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-decode-b8-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.06713493333333334,
+          "candidate_ms": 0.0178864,
+          "ratio": 3.753406685153711,
+          "passed": true,
+          "task_id": "e8d9cd11d8132e71fba4",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-decode-b8-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 1.310767326503992,
+          "candidate_ms": 0.23805396631360054,
+          "ratio": 5.506177220241111,
+          "passed": true,
+          "task_id": "ee1a1d1ee5c836ac23c9",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-decode-b8-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.1467484666666667,
+          "candidate_ms": 0.0178864,
+          "ratio": 8.20447192652891,
+          "passed": true,
+          "task_id": "318c204bd57d7d481149",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-decode-b32-bfloat16",
+      "minimum_ratio": 3.7862336514882613,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-decode-b32-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.23026333333333335,
+          "candidate_ms": 0.060815933333333336,
+          "ratio": 3.7862336514882613,
+          "passed": true,
+          "task_id": "b35500ea04c91591a683",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-decode-b32-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.5317959333333333,
+          "candidate_ms": 0.060815933333333336,
+          "ratio": 8.744352083171187,
+          "passed": true,
+          "task_id": "90efe473f6ab64be2043",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-decode-b32-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 2.010564599186182,
+          "candidate_ms": 0.2179072859386603,
+          "ratio": 9.226697448529302,
+          "passed": true,
+          "task_id": "9db8dbd9d5d6809b58e5",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-decode-b128-bfloat16",
+      "minimum_ratio": 4.520854263564984,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-decode-b128-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 4.675501336654027,
+          "candidate_ms": 0.369139884908994,
+          "ratio": 12.665933776857255,
+          "passed": true,
+          "task_id": "7a9ccaae180dbc4716da",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp1-decode-b128-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 1.0301827333333333,
+          "candidate_ms": 0.22787346666666666,
+          "ratio": 4.520854263564984,
+          "passed": true,
+          "task_id": "5c1bd419c43cf139654a",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-decode-b128-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 2.2768626000000003,
+          "candidate_ms": 0.22787346666666666,
+          "ratio": 9.991784621991972,
+          "passed": true,
+          "task_id": "1fae5d403921c80e8caf",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp1-decode-b256-bfloat16",
+      "minimum_ratio": 4.559210055065918,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp1-decode-b256-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 2.0452695333333333,
+          "candidate_ms": 0.44860173333333336,
+          "ratio": 4.559210055065918,
+          "passed": true,
+          "task_id": "c169bd981bb360561594",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp1-decode-b256-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 5.736180674284697,
+          "candidate_ms": 0.604316716392835,
+          "ratio": 9.492010594252537,
+          "passed": true,
+          "task_id": "23f3005d58ec0592adc4",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-decode-b32-bfloat16",
+      "minimum_ratio": 4.356135587859298,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-decode-b32-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.04407073333333333,
+          "candidate_ms": 0.010116933333333333,
+          "ratio": 4.356135587859298,
+          "passed": true,
+          "task_id": "ddaa54059ad7efaac47f",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp8-decode-b32-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 1.4912554062902927,
+          "candidate_ms": 0.24902603278557459,
+          "ratio": 5.988351457111905,
+          "passed": true,
+          "task_id": "704fef34768b5495114a",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp8-decode-b32-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.07664166666666668,
+          "candidate_ms": 0.010116933333333333,
+          "ratio": 7.5755828511933805,
+          "passed": true,
+          "task_id": "a680546c3a42f990d265",
+          "quarantine": null
+        }
+      ]
+    },
+    {
+      "case": "kda-tp8-decode-b256-bfloat16",
+      "minimum_ratio": 3.8115376388898077,
+      "passed": true,
+      "constraints": [
+        {
+          "case": "kda-tp8-decode-b256-bfloat16",
+          "backend": "sgl-kernel-npu",
+          "metric": "host_roundtrip_with_device_synchronize_mean15",
+          "baseline_ms": 2.1700240982075534,
+          "candidate_ms": 0.22107666979233423,
+          "ratio": 9.815708280054789,
+          "passed": true,
+          "task_id": "fa517070b15b000daa61",
+          "quarantine": "Potential duplicate AIC/AIV roles of one kernel; original per-task trace unavailable. Conservative H fallback under prior user authorization."
+        },
+        {
+          "case": "kda-tp8-decode-b256-bfloat16",
+          "backend": "flash-linear-attention-npu",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.23047453333333331,
+          "candidate_ms": 0.060467599999999996,
+          "ratio": 3.8115376388898077,
+          "passed": true,
+          "task_id": "aca31aab379838b524e9",
+          "quarantine": null
+        },
+        {
+          "case": "kda-tp8-decode-b256-bfloat16",
+          "backend": "vllm-ascend",
+          "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+          "baseline_ms": 0.5326809333333333,
+          "candidate_ms": 0.060467599999999996,
+          "ratio": 8.809361266750017,
+          "passed": true,
+          "task_id": "ad2ad1719eb2fac891d7",
+          "quarantine": null
+        }
+      ]
+    }
+  ],
+  "batch_audit_sha256": {
+    "kda-manifest-00-audit-v15.json": "23ac7d93945023523efa577791691c13d64f3ad83513c4e0fc8ab09af4bcc6c3",
+    "kda-host-00-audit-v15.json": "39f75d4b13760065cb5d30caaabd5df18ea570371a4326539c13b3c179a71b03",
+    "kda-manifest-01-audit-v15.json": "6352dfb8b498e4671d58031066c58ea3dd5720a4ad5a214b03b7017a8c180908",
+    "kda-host-01-audit-v15.json": "d975bfb589731ce34294826da86d1288c1c41c1aa57701fea0f48900b8a5aefa",
+    "kda-manifest-02-audit-v15.json": "65083f5472b977f8324183a620aeaace2f7194029f027ebeb4bd7624fe4c438d",
+    "kda-host-02-audit-v15.json": "a5e36a698603a2bd89d534e154d97217829c7432a9da060d63fa4018da405e21",
+    "kda-manifest-03-audit-v15.json": "2a25bba43b3dcf9392b2403e0b812ec05248f91efb0a025d5d81cb3e6383527f",
+    "kda-host-03-audit-v15.json": "2487c994a9548c5897cbb5c1c83b0f14c4ee5acd1d14cf645c15453c6ff15827",
+    "kda-manifest-04-audit-v15.json": "0a49c8d18e10067950951215b05302f85ac2984752c69558a3b0dedeedb449e0",
+    "kda-manifest-05-audit-v15.json": "4165b6d0801ace4e9d7a75c416457ea86804c55e60b5e8eb001354a7537e0d4d",
+    "kda-manifest-06-audit-v15.json": "91de006e79abbc49d704cf6b4175a42a1487b513d5f62cb5bdaea85398ffe8f2",
+    "kda-manifest-07-audit-v15.json": "76f458a0e31e1b3f04cad23fbedba45026acbab550cf091b1648d510d5652ae5",
+    "kda-manifest-08-audit-v15.json": "98ed0da0103b2c1fa6b0362b0f9bd2f2181ef269100090137ac68f2812106c8e",
+    "kda-manifest-09-audit-v15.json": "2f0d440b2ca7614a51227c907c72b9e6603a330509664798c175a068208221be",
+    "kda-manifest-10-audit-v15.json": "9256f38d1cac223ceaeb715e7d23d4efb7789384fd04bb4e70d5362e7a3ac878",
+    "kda-manifest-11-audit-v15.json": "983163fb356cf471eb4a9868b5df23e807f504704e04fb945c0e8cb86328acf8",
+    "kda-manifest-12-audit-v15.json": "f49244f3f1f7b5e8d7ca91893d160e67513312e69b0a0501adf560ae295af7c7",
+    "kda-manifest-13-audit-v15.json": "05a94e4970fd9b0f962256c45f49b0d7f14c201d5dcaa199b536ea0fc961104d",
+    "kda-manifest-14-audit-v15.json": "9e0ef5650ad50b21e8194f8eb168ae34b5a2ddc13de8a2969f09aec6e53b960f",
+    "kda-manifest-15-audit-v15.json": "b9b12ec6a0ba3dc643902928536ba709ac4f2f824fefa233aaaa2c8db7764261",
+    "kda-manifest-16-audit-v15.json": "6a971c646ffa847bcb755cee104a55a3844f01e62296778dfe8a7b48d45eca7f",
+    "kda-manifest-17-audit-v15.json": "6875bd138d8bae6039597d12010ae2875874c2ceeb6a72abc436ab151d635914",
+    "kda-manifest-18-audit-v15.json": "c2866985df31a0a47ebf62176cc911545c5d78bf62a1a7053c7d3efb9a391f97",
+    "kda-manifest-19-audit-v15.json": "ce50741d564b1dbe06ba47288ea22cd32c21dbeb20a761cdb0fb727ea8232c9d",
+    "kda-manifest-20-audit-v15.json": "f33d35c1fbe072430d5d78de1b10b2ef6e17809df95afa3215bfc46dcb6589f5",
+    "kda-manifest-21-audit-v15.json": "60832c2e7cdf5b1b9a2d25ff0a986dd2eb50ba87f2db54ad030d421b2aaf5a36",
+    "kda-manifest-22-audit-v15.json": "d388cdb9a8d1b83e0a5b6950e25e056b9b45c8f711ed05d4ce94e596080ac216",
+    "kda-manifest-23-audit-v15.json": "44ff95899b5e853ee5442e2c30e356cce982926fbff6730b001d1f4432139d39",
+    "kda-manifest-24-audit-v15.json": "4cbb6dc4c8302870a66427d4260093171e6ee1ceccc1a4ec4243edb63aaf0536",
+    "kda-manifest-25-audit-v15.json": "b0895b19364f5985c7dbcfbb760b714761f7f02acb6bb0ba43753e28b09fee39",
+    "kda-manifest-26-audit-v15.json": "814065036b2b20d7711c97300cb5e4fbcd759a0f3845b3e4d3b4f2d191ca0846",
+    "kda-manifest-27-audit-v15.json": "4a90e306d82a3529b73520906f429f6537172a7814309d1fa7a3413a255ad929",
+    "kda-manifest-28-audit-v15.json": "7c5af98dcccc279c8383ace5355b618914f64006f2153f0b088ab5adef4b606f",
+    "kda-manifest-29-audit-v15.json": "e4d943e2b896a758a6d6e3d6d07ff501af035bc9864dba83948e1577cda31853",
+    "kda-host-29-audit-v15.json": "ce9ac83717b2e44bba0f9b3233b022b77ec5e8c5cff4a7664271ddcf54928852",
+    "kda-manifest-30-audit-v15.json": "93822c3510bf2d1c8273cf9bfb417567f06dfbbd34808776d6c9415060a0e8eb",
+    "kda-host-30-audit-v15.json": "f180d3b68c3faf1c788e8144b457ae179dc32dc42fb81d11517f5df9908bf605",
+    "kda-manifest-31-audit-v15.json": "fd9b6d95f1650516ea85ad78baf621d95dae6394fedaf391cac3f8124c6aed26",
+    "kda-host-31-audit-v15.json": "6fd9ebaa483810d873f0adc4978a7453509d1cc6b67fa040691d660239211611",
+    "kda-manifest-32-audit-v15.json": "9acf0b855d62d98bfca492982b6b53706fb1bdc74d5bfb36490752879854a16e",
+    "kda-host-32-audit-v15.json": "1e4deee9d6ff48595136e60f3d82ec14fa1d9e94a2c39ec0c01d1005d87c947e",
+    "kda-manifest-33-audit-v15.json": "cab168a1df408b86532b57f47a024bccc1d917d42a7e1a9e0b9efc918d653c0a",
+    "kda-host-33-audit-v15.json": "83d8af7cb5a8bd19086dc422a1b14150372cb7833b7e1638e958537cb61563d0",
+    "kda-manifest-34-audit-v15.json": "8d77697370e7b6c9c8b90baadd9c04a79a2e650674668d7ee48c96c58425b6d7",
+    "kda-host-34-audit-v15.json": "55500978372d67f6aa795d36995a0fb62594e42d2c80f5418e135d7a122c16f2",
+    "kda-manifest-35-audit-v15.json": "6d9b83b7d110fb1b4ff2e41a7be15a60138a81a470fba918993439c1fa763925",
+    "kda-manifest-36-audit-v15.json": "3788b250c6aa53161dfa6362e71ea47d14d2b688f447d6341b631bb565ebf9e5",
+    "kda-host-36-audit-v15.json": "438703d80fc3cf5d63f5a4a735c59d2f829f9e81024d574dd983644ea657ff2c",
+    "kda-manifest-37-audit-v15.json": "aadb0f74da2525495b425c869d0644c8e915ca5ea91f2d26c125217fd0734583",
+    "kda-host-37-audit-v15.json": "e6b7715d5337d12ae9250e928eddaf3800a0e41f4a946e2efbb2e997a26a32e1",
+    "kda-manifest-38-audit-v15.json": "e383ad1d4e8e0fb66d43035a985507e01da29a057cc2483bb9e852a755fa6ed3",
+    "kda-manifest-39-audit-v15.json": "8a05eff81221492ad39ae8ec25cf42fffced20195102fb05568a260b57f321fd",
+    "kda-host-39-audit-v15.json": "4bf070c364e235134762171ab3f9d8288a8f2967846f298bd6cf635969be5100",
+    "kda-manifest-40-audit-v15.json": "ba0bb9188577782bbc4862a2542630bb2abb05c4aeb08e1d3f911384277b2531",
+    "kda-host-40-audit-v15.json": "589d0c528ecf1337052269f220c7184a6059b70ebb03d0e9dbb98f654613d1b5",
+    "kda-manifest-41-audit-v15.json": "edcbf668f09358aff1dd98091da727ce2bff94027ff36d9426ded0db0c276f95",
+    "kda-host-41-audit-v15.json": "5c09283933f3a62bb882b362fd83274a295054a59ec45506e6b893c8eb1e5182",
+    "kda-manifest-42-audit-v15.json": "036a0811703c5ba2c60c3221a4b4be70fa4f0ce4845af0d0e543949066bf12b8",
+    "kda-host-42-audit-v15.json": "10142de5686743ea5cb3478fae83623c2f351ec40065624caf73b87744af8d0b",
+    "kda-manifest-43-audit-v15.json": "91a832777fb3600d0255dee95cba760fb7bdfbc66d3807a36e1847224b310d75",
+    "kda-manifest-44-audit-v15.json": "2611ff9d3c75516d8c5ee2e321003a2958f0c6650c2ecfeba7a235efed206f17",
+    "kda-manifest-45-audit-v15.json": "878d483e497bea480147e17f8a8c78660c8ac35ca28c8c72192d072b8100dbbb",
+    "kda-host-45-audit-v15.json": "ca592e6e2484a4205434e94715b3596a97c1183e55e8b4d733fa4a7f8cc827b0",
+    "kda-manifest-46-audit-v15.json": "0003322a1c0b3fe8ce7b73c708e6882c1c2af385c4c2b1584c15563626c4f55a",
+    "kda-host-46-audit-v15.json": "5c70f686b56521dd8dabaeb048ab49e44853c25b34f460b436070be57953a76e"
+  },
+  "baseline_limitations": "Historical host fallback quarantine and prior frozen authorization retained. New accepted baseline input sampling limitations unchanged."
+}

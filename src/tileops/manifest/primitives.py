@@ -408,12 +408,18 @@ def sample_indices(rng, n, hi):
     return rng.sample(range(hi), n)
 
 
-def causal_topk_indices(rng, batch, seq, heads_kv, k, extent, start, stride):
-    """Per token and head, up to `k` distinct keys it can see, padded with `extent`."""
+def _causal_topk_value_bounds(batch, seq, heads_kv, k, extent, start, stride):
+    """Validate the domain and bound every emitted integer, including padding."""
     if min(batch, seq, heads_kv, k, extent, stride) <= 0 or start < 0:
         raise ValueError(
             "causal_topk_indices needs positive B, S, H_kv, K, E, stride and start >= 0"
         )
+    return 0, extent  # inclusive; sampled keys are smaller, padding equals extent
+
+
+def causal_topk_indices(rng, batch, seq, heads_kv, k, extent, start, stride):
+    """Per token and head, up to `k` distinct keys it can see, padded with `extent`."""
+    _causal_topk_value_bounds(batch, seq, heads_kv, k, extent, start, stride)
     rows = []
     for _ in range(batch):
         per_token = []
@@ -658,10 +664,6 @@ RANDOM_GENERATORS = frozenset(
 # ---------------------------------------------------------------- requires predicates
 
 
-def _flat(values):
-    return [y for x in values for y in _flat(x)] if isinstance(values, list) else [values]
-
-
 def prefix_offsets(x, total):
     """`x` starts at 0, is non-decreasing and ends at `total`."""
     return (
@@ -679,7 +681,16 @@ def max_segment(x, bound):
 
 def in_range(x, lo, hi):
     """Every element of `x` lies in `[lo, hi)`."""
-    return all(lo <= v < hi for v in _flat(x))
+    if not isinstance(x, list):
+        return lo <= x < hi
+    # Walk nested metadata without copying every leaf into a flattened list.
+    for value in x:
+        if isinstance(value, list):
+            if not in_range(value, lo, hi):
+                return False
+        elif not lo <= value < hi:
+            return False
+    return True
 
 
 def sums_to(x, total):

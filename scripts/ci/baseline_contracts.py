@@ -31,7 +31,9 @@ def comparison_identity(op, case, params):
                 raise ValueError(f'Ambiguous baseline parameter aliases: {old}, {new}')
             params[new] = params.pop(old)
 
-    if op in ('GemmFwdOp', 'BmmFwdOp'):
+    if op == 'ReluFwdOp':
+        op = 'ReLUFwdOp'
+    elif op in ('GemmFwdOp', 'BmmFwdOp'):
         op = {'GemmFwdOp': 'GEMMFwdOp', 'BmmFwdOp': 'BMMFwdOp'}[op]
     elif op == 'GemmINT8W8A8FwdOp':
         op = 'GEMMINT8W8A8FwdOp'
@@ -68,6 +70,10 @@ def comparison_identity(op, case, params):
                 'llama-8b-ffn-prefill-bfloat16': 'llama-8b-prefill-tanh-bfloat16',
                 'llama-8b-ffn-decode-bfloat16': 'llama-8b-decode-tanh-bfloat16',
             }.get(case, case)
+    if op == 'MoEGroupedGemmFP8FwdOp':
+        op = 'MoEGroupedGEMMFP8FwdOp'
+    if op == 'SSDChunkStateFwdOp':
+        rename('Bmat', 'B')
     if op == 'MergeAttentionStatesFwdOp':
         # The old public interface used natural-log LSE; absence never means log2.
         params.setdefault('lse_base', 'e')

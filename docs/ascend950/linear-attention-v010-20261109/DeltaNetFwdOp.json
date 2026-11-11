@@ -1,0 +1,730 @@
+{
+  "op": "DeltaNetFwdOp",
+  "status": "accepted_isolated_candidate_physical32_v010",
+  "physical_aicore": 32,
+  "runtime_limit": {
+    "cube": 32,
+    "vector": 64
+  },
+  "cases": 18,
+  "passed": 18,
+  "minimum_ratio": 1.0966673202762174,
+  "public_tests": 1,
+  "public_architecture_skips": [
+    {
+      "name": "test_deltanet_dense_prefill_matches_fla[89-fp16]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_deltanet_dense_prefill_matches_fla[89-bf16]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_deltanet_dense_prefill_matches_fla[90-fp16]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_dense_prefill_matches_fla[90-bf16]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_dense_prefill_normalizes_q_and_k[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_deltanet_dense_prefill_normalizes_q_and_k[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_prefill_packs_ragged_sequences[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_deltanet_prefill_packs_ragged_sequences[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_prefill_runs_a_row_that_is_not_a_whole_chunk[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_deltanet_prefill_runs_a_row_that_is_not_a_whole_chunk[90]",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_partitioned_prefill_matches_fla",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_wide_partitioned_prefill_matches_fla",
+      "reason": "needs compute capability 9.x"
+    },
+    {
+      "name": "test_deltanet_wide_prefill_matches_fla[89]",
+      "reason": "needs compute capability 8.9"
+    },
+    {
+      "name": "test_deltanet_wide_prefill_matches_fla[90]",
+      "reason": "needs compute capability 9.x"
+    }
+  ],
+  "new_pr_regression_tests": 4,
+  "regression_source_snapshot": "base-v15",
+  "extended_checks": 38,
+  "output_guard_checks": 9,
+  "output_guard_regions": 36,
+  "device_windows_audited": 270,
+  "host_samples_audited": 270,
+  "source_snapshot": "base-v15",
+  "device_evidence_reuse": "15 unaffected cases from v3; all3 changed route cases rerun in v4; complete source/workload/benchmark diff and call-shape review bound",
+  "receipts": {
+    "linear7-delta-forward-device-v3": "f77ea1d8ac17abfd9c11da0559acfb0d167ec3c43b3f04ae88af7e86a3bd0857",
+    "linear7-delta-forward-device-v4": "b8705780f630d8e5b25f32b3994e5e7a653a500a139af1f6b2880c94a57c06d2",
+    "linear7-delta-forward-host-v4": "c15dbc17776e747baf87d2835189123fe15352d59309e816723356f7ca77500b",
+    "linear7-delta-forward-public-v4": "94888138d5f61919be96255a40fa040a2e4021f9f5dfb8f99be744590eb219cb",
+    "linear7-delta-forward-extended-v4": "056de2762d1e5bf36869ab84b73a7910c5f2f7540380e142a8762ba3b745a670",
+    "linear7-delta-forward-guards-v4": "d815e71fdbdfcce69f4347afa7b7ad19ce47e981819830a240a92dff8ede6158",
+    "linear7-delta-forward-sequential-guards-v4": "8f83b3f5971a7d10bf63205ae77e69d77d9b7a9f26184baaf1115d33c1de7885",
+    "linear7-delta-forward-reference-v6": "f2ec6fac2302b75ff4da261ab78af6d5db7f76ec258ca967949fbf5c26279ff7",
+    "linear7-delta-forward-regression-v4": "2d77c6d52f17acf8b794c68b4687b2ecda4897e4aa4ced0e99a2ef3df4936205"
+  },
+  "exact_reference_exceptions": [
+    {
+      "case": "varlen-4x1k-bfloat16",
+      "input_digest": "aae16b6e48f047f9c86df296acf1d1b1fa673f74d5443d6bf5ab56d89a338f62",
+      "tensor_sha256": "eae1a40a944b23ea7f474ea9d1e723547cc729df4707d719e00019d79f8821a2"
+    },
+    {
+      "case": "varlen-ragged-bfloat16",
+      "input_digest": "ebbb492a84ea53181ccd56e58cb0470da3c42eb2b56ddbfcca73ff2349921c0f",
+      "tensor_sha256": "8d58708cfa9e0565b03800761e65f3ad9014964d908fe3223e900bea0970e3f9"
+    },
+    {
+      "case": "prefill-l2norm-ragged-bfloat16",
+      "input_digest": "13d93efed8012d899469eebd4300618246a62dd5d2c14dbb6cdd2fa95adf6d42",
+      "tensor_sha256": "f80dde6e4f976ebed7c44c6299eccb6e0c0cfddf7996257c5bee3e9a3071ef9c"
+    }
+  ],
+  "reference": "Independent CPU FP64 direct recurrence with unchanged current 2-output verification; original FLA qualified separately, exact diagnosed packed exceptions only, native targets retained",
+  "public_exclusions": "14 original sm89/sm90 tests architecture-skipped and2 CUDA-only decode variants deselected; 46 other unrelated file tests deselected by scope. NPU mathematical counterparts plus extensions total38; full collection/markers preserved",
+  "additional_historical_constraints": [
+    {
+      "case": "prefill-2k-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 29.900584028412897,
+      "current_ms": 0.8949446491897106,
+      "ratio": 33.41054003226356
+    },
+    {
+      "case": "prefill-2k-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 5.472471347699563,
+      "current_ms": 0.8949446491897106,
+      "ratio": 6.1148712969616374
+    },
+    {
+      "case": "prefill-2k-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.5813506829241912,
+      "current_ms": 0.8949446491897106,
+      "ratio": 1.7669815494801355
+    },
+    {
+      "case": "prefill-2k-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.3970619688431423,
+      "current_ms": 0.8949446491897106,
+      "ratio": 1.5610596366021656
+    },
+    {
+      "case": "prefill-2k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.400345,
+      "current_ms": 0.19820833333333335,
+      "ratio": 2.019819213790204
+    },
+    {
+      "case": "prefill-8k-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 21.977170649915934,
+      "current_ms": 0.9410053491592407,
+      "ratio": 23.354990138527754
+    },
+    {
+      "case": "prefill-8k-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 2.627507938692967,
+      "current_ms": 0.9410053491592407,
+      "ratio": 2.792234859281687
+    },
+    {
+      "case": "prefill-8k-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 14.592549949884415,
+      "current_ms": 0.9410053491592407,
+      "ratio": 15.507403823923433
+    },
+    {
+      "case": "prefill-8k-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.6452679721017678,
+      "current_ms": 0.9410053491592407,
+      "ratio": 1.7484151111061845
+    },
+    {
+      "case": "prefill-8k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 1.3940462,
+      "current_ms": 0.6878876666666667,
+      "ratio": 2.02656082897256
+    },
+    {
+      "case": "prefill-16k-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 22.972620589037735,
+      "current_ms": 1.6345907002687454,
+      "ratio": 14.054050708388818
+    },
+    {
+      "case": "prefill-16k-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 4.457751971979936,
+      "current_ms": 1.6345907002687454,
+      "ratio": 2.7271365065560635
+    },
+    {
+      "case": "prefill-16k-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 28.844219353049994,
+      "current_ms": 1.6345907002687454,
+      "ratio": 17.646141843525523
+    },
+    {
+      "case": "prefill-16k-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 2.199166019757589,
+      "current_ms": 1.6345907002687454,
+      "ratio": 1.345392470051384
+    },
+    {
+      "case": "prefill-16k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 2.7577830666666667,
+      "current_ms": 1.433697,
+      "ratio": 1.9235466536281145
+    },
+    {
+      "case": "prefill-4k-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 22.896424649904173,
+      "current_ms": 0.5345333367586136,
+      "ratio": 42.83441850184139
+    },
+    {
+      "case": "prefill-4k-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.9028206666310628,
+      "current_ms": 0.5345333367586136,
+      "ratio": 3.559779223817326
+    },
+    {
+      "case": "prefill-4k-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 5.834460662057002,
+      "current_ms": 0.5345333367586136,
+      "ratio": 10.915054797960615
+    },
+    {
+      "case": "prefill-4k-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.3333939015865326,
+      "current_ms": 0.5345333367586136,
+      "ratio": 2.4945009223787125
+    },
+    {
+      "case": "prefill-4k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 1.7586547333333333,
+      "current_ms": 0.3819204666666667,
+      "ratio": 4.604766926168049
+    },
+    {
+      "case": "prefill-12k-continued-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 23.088048739979666,
+      "current_ms": 1.2801693752408028,
+      "ratio": 18.035151587372376
+    },
+    {
+      "case": "prefill-12k-continued-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 3.6484152699510255,
+      "current_ms": 1.2801693752408028,
+      "ratio": 2.849947312061539
+    },
+    {
+      "case": "prefill-12k-continued-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 22.16202796747287,
+      "current_ms": 1.2801693752408028,
+      "ratio": 17.311793576771155
+    },
+    {
+      "case": "prefill-12k-continued-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.9485306305189927,
+      "current_ms": 1.2801693752408028,
+      "ratio": 1.522088145681871
+    },
+    {
+      "case": "prefill-12k-continued-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 2.0743472666666665,
+      "current_ms": 1.094444,
+      "ratio": 1.8953434498856647
+    },
+    {
+      "case": "decode-continued-float16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.11512553333333334,
+      "current_ms": 0.0376294,
+      "ratio": 3.0594570557418757
+    },
+    {
+      "case": "decode-continued-float16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.10686113333333333,
+      "current_ms": 0.0376294,
+      "ratio": 2.8398309123539924
+    },
+    {
+      "case": "decode-continued-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.114939,
+      "current_ms": 0.037667,
+      "ratio": 3.051450872116176
+    },
+    {
+      "case": "decode-continued-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.06699046666666666,
+      "current_ms": 0.037667,
+      "ratio": 1.7784922257325155
+    },
+    {
+      "case": "decode-continued-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.10698273333333334,
+      "current_ms": 0.037667,
+      "ratio": 2.840224422792719
+    },
+    {
+      "case": "varlen-4x1k-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 30.8594540382425,
+      "current_ms": 0.86254325384895,
+      "ratio": 35.77728293687015
+    },
+    {
+      "case": "varlen-4x1k-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 8.393541350960732,
+      "current_ms": 0.86254325384895,
+      "ratio": 9.731154134596736
+    },
+    {
+      "case": "varlen-4x1k-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 2.2503692346314588,
+      "current_ms": 0.86254325384895,
+      "ratio": 2.6089929108941208
+    },
+    {
+      "case": "varlen-4x1k-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.4644080462555091,
+      "current_ms": 0.86254325384895,
+      "ratio": 1.6977792588613285
+    },
+    {
+      "case": "varlen-4x1k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.3958486,
+      "current_ms": 0.19442420000000002,
+      "ratio": 2.036004777183087
+    },
+    {
+      "case": "varlen-ragged-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 23.14426324640711,
+      "current_ms": 1.3092019595205784,
+      "ratio": 17.67814589498659
+    },
+    {
+      "case": "varlen-ragged-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 2.1528792567551136,
+      "current_ms": 1.3092019595205784,
+      "ratio": 1.6444210468058607
+    },
+    {
+      "case": "varlen-ragged-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 11.530462031563124,
+      "current_ms": 1.3092019595205784,
+      "ratio": 8.807244709430092
+    },
+    {
+      "case": "varlen-ragged-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 3.7751992543538413,
+      "current_ms": 1.3092019595205784,
+      "ratio": 2.883588148413936
+    },
+    {
+      "case": "varlen-ragged-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 1.9392405333333333,
+      "current_ms": 0.6538889333333333,
+      "ratio": 2.9657032478706373
+    },
+    {
+      "case": "prefill-3000-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 29.531307984143496,
+      "current_ms": 1.2309020695586999,
+      "ratio": 23.99159828753151
+    },
+    {
+      "case": "prefill-3000-bfloat16",
+      "provider": "ops-transformer",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 6.000047984222571,
+      "current_ms": 1.2309020695586999,
+      "ratio": 4.874512873614466
+    },
+    {
+      "case": "prefill-3000-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.7419200390577316,
+      "current_ms": 1.2309020695586999,
+      "ratio": 1.4151572916619115
+    },
+    {
+      "case": "prefill-3000-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.589289338638385,
+      "current_ms": 1.2309020695586999,
+      "ratio": 1.2911582309778498
+    },
+    {
+      "case": "prefill-3000-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.5460389333333333,
+      "current_ms": 0.28938886666666663,
+      "ratio": 1.8868691792566084
+    },
+    {
+      "case": "prefill-l2norm-4k-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 28.217016719281673,
+      "current_ms": 0.5440613565345606,
+      "ratio": 51.8636664419838
+    },
+    {
+      "case": "prefill-l2norm-4k-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 9.140388667583466,
+      "current_ms": 0.5440613565345606,
+      "ratio": 16.800290183820174
+    },
+    {
+      "case": "prefill-l2norm-4k-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.5612380889554818,
+      "current_ms": 0.5440613565345606,
+      "ratio": 2.869599301997672
+    },
+    {
+      "case": "prefill-l2norm-4k-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 1.7908458,
+      "current_ms": 0.3888638666666666,
+      "ratio": 4.605328377128723
+    },
+    {
+      "case": "prefill-l2norm-ragged-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 39.13431794693073,
+      "current_ms": 2.0057720132172108,
+      "ratio": 19.510850529896572
+    },
+    {
+      "case": "prefill-l2norm-ragged-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 2.199664618819952,
+      "current_ms": 2.0057720132172108,
+      "ratio": 1.0966673202762174
+    },
+    {
+      "case": "prefill-l2norm-ragged-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.5924404,
+      "current_ms": 0.5742547333333333,
+      "ratio": 1.0316682921551306
+    },
+    {
+      "case": "decode-fresh-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.09225713333333334,
+      "current_ms": 0.033342533333333334,
+      "ratio": 2.766950321711208
+    },
+    {
+      "case": "decode-fresh-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.05656926666666667,
+      "current_ms": 0.033342533333333334,
+      "ratio": 1.6966097357129435
+    },
+    {
+      "case": "decode-fresh-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.07456,
+      "current_ms": 0.033342533333333334,
+      "ratio": 2.236182813543462
+    },
+    {
+      "case": "decode-l2norm-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.0466006,
+      "current_ms": 0.0108286,
+      "ratio": 4.303474133313632
+    },
+    {
+      "case": "decode-l2norm-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.032508333333333334,
+      "current_ms": 0.0108286,
+      "ratio": 3.002080909197249
+    },
+    {
+      "case": "decode-l2norm-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 8.972545309613148,
+      "current_ms": 0.1841386780142784,
+      "ratio": 48.727108320596294
+    },
+    {
+      "case": "decode-l2norm-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.032851,
+      "current_ms": 0.0108286,
+      "ratio": 3.0337255046820455
+    },
+    {
+      "case": "decode-narrow-b17-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.040629066666666665,
+      "current_ms": 0.009721133333333333,
+      "ratio": 4.179457813560833
+    },
+    {
+      "case": "decode-narrow-b17-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.056927,
+      "current_ms": 0.009721133333333333,
+      "ratio": 5.856004443926291
+    },
+    {
+      "case": "decode-narrow-b17-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.017921799999999998,
+      "current_ms": 0.009721133333333333,
+      "ratio": 1.843591625119156
+    },
+    {
+      "case": "deltanet-1.3b-continue-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 28.087305339674156,
+      "current_ms": 0.4546226312716802,
+      "ratio": 61.78158192676802
+    },
+    {
+      "case": "deltanet-1.3b-continue-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.564616026977698,
+      "current_ms": 0.4546226312716802,
+      "ratio": 3.4415709191623844
+    },
+    {
+      "case": "deltanet-1.3b-continue-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 7.685309927910566,
+      "current_ms": 0.4546226312716802,
+      "ratio": 16.904811593767455
+    },
+    {
+      "case": "deltanet-1.3b-continue-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.20480406666666667,
+      "current_ms": 0.048222666666666664,
+      "ratio": 4.247049796776067
+    },
+    {
+      "case": "deltanet-1.3b-decode-b32-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.2653838,
+      "current_ms": 0.07633993333333333,
+      "ratio": 3.476343093479254
+    },
+    {
+      "case": "deltanet-1.3b-decode-b32-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 8.459415348867575,
+      "current_ms": 0.20107670376698175,
+      "ratio": 42.07058893640304
+    },
+    {
+      "case": "deltanet-1.3b-decode-b32-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "sum_profiled_single_core_role_kernel_durations_mean15",
+      "historical_baseline_ms": 0.1192602,
+      "current_ms": 0.07633993333333333,
+      "ratio": 1.5622256241600072
+    },
+    {
+      "case": "deltanet-1.3b-decode-b32-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.21387666666666666,
+      "current_ms": 0.07633993333333333,
+      "ratio": 2.8016354917784403
+    },
+    {
+      "case": "deltanet-1.3b-cont-b4-bfloat16",
+      "provider": "vllm-ascend",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 26.41984612370531,
+      "current_ms": 0.4719606600701809,
+      "ratio": 55.9789159540896
+    },
+    {
+      "case": "deltanet-1.3b-cont-b4-bfloat16",
+      "provider": "sgl-kernel-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 8.875550733258327,
+      "current_ms": 0.4719606600701809,
+      "ratio": 18.805700313959488
+    },
+    {
+      "case": "deltanet-1.3b-cont-b4-bfloat16",
+      "provider": "flash-linear-attention-npu",
+      "metric": "host_roundtrip_with_device_synchronize_mean15",
+      "historical_baseline_ms": 1.3033019999663036,
+      "current_ms": 0.4719606600701809,
+      "ratio": 2.7614632113034627
+    },
+    {
+      "case": "deltanet-1.3b-cont-b4-bfloat16",
+      "provider": "qualified_local_eager",
+      "metric": "device_complete_v3",
+      "historical_baseline_ms": 0.5495543333333334,
+      "current_ms": 0.13108226666666667,
+      "ratio": 4.192438438151309
+    }
+  ],
+  "minimum_including_historical_constraints": 1.0316682921551306,
+  "historical_provenance": "Historical target providers/metrics unchanged, local-eager target remains local36capped32; native provenance remains original frozen report; not relabelled physical32",
+  "changes": [
+    "Explicit SIMD Q/K normalization fixes observed multi-reducer pack errors",
+    "FP32 sequential chunk recurrence for K=V=128,S>=128 replaces prefix scan and readout launches",
+    "Unrolled32-row inverse used only new recurrence path"
+  ],
+  "diagnosis": "delta-normalization-source-diagnosis-v1.json",
+  "controlled_probe": "linear7-delta-forward-sequential-probe-v1-audit.json",
+  "accepted_at": "2026-11-09T12:37:27.208950+00:00",
+  "original_report": {
+    "path": "reports/linear7-server1-v010-20261109/DeltaNetFwdOp-server1-report.json",
+    "sha256": "8519becf135a3835736e55c58918b7f13e8efe434c478fe87c354af551bb5ef4"
+  },
+  "comparison_files": [
+    "DeltaNetFwdOp-device.csv",
+    "DeltaNetFwdOp-host.csv",
+    "DeltaNetFwdOp-historical.csv"
+  ],
+  "case_timings": "DeltaNetFwdOp-timings.csv",
+  "historical_source": {
+    "path": "docs/ascend950/dev/linear_attention_local32_20261103/reports/DeltaNetFwdOp.json",
+    "sha256": "c1901cc3b00bab5d83be767b065f176d0163548d9042c88e51751a9d16fe0af4",
+    "provenance": "Historical local36capped32 and native targets retain original provenance"
+  },
+  "minimum_including_all_retained_constraints": 1.0316682921551306
+}

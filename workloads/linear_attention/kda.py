@@ -164,6 +164,22 @@ def kda_ref(
     gap is exponentiated with a positive argument. The sequence boundaries come from the
     call's offsets, and a sequence with no token ends on the state it started from.
     """
+    if q.device.type == "npu":
+        # Ascend lacks FP64 matmul and evaluates some FP64 transcendental inputs
+        # in FP32. Keep the independent oracle's arithmetic on CPU there.
+        inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)
+        with torch.device("cpu"):
+            expected = kda_ref(
+                *(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs),
+                scale=scale,
+                raw_gate=raw_gate,
+                lower_bound=lower_bound,
+                beta_sigmoid=beta_sigmoid,
+                allow_neg_eigval=allow_neg_eigval,
+                l2norm=l2norm,
+                state_v_first=state_v_first,
+            )
+        return tuple(x.to(q.device) for x in expected)
     dtype = torch.float64
     scale = q.shape[-1] ** -0.5 if scale is None else scale
     group = v.shape[2] // q.shape[2]

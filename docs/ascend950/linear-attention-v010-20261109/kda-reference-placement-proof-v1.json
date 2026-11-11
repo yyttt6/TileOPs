@@ -1,0 +1,11 @@
+{
+  "file": "workloads/linear_attention/kda.py",
+  "old_sha256": "624b3d8b5999ffda1f3f94ce7e2fa746cc5d0591e12b5d095beaa602938cbacd",
+  "new_sha256": "03dd244f21c7846b57e91fd26eb5a3b405e07464affec2950e6e8ca0359cce74",
+  "unchanged_ast_after_removing_npu_placement_branch": true,
+  "branch": "if q.device.type == 'npu':\n    inputs = (q, k, v, g, beta, initial_state, cu_seqlens, cu_seqlens_cpu, a_log, dt_bias)\n    with torch.device('cpu'):\n        expected = kda_ref(*(x.cpu() if isinstance(x, torch.Tensor) else x for x in inputs), scale=scale, raw_gate=raw_gate, lower_bound=lower_bound, beta_sigmoid=beta_sigmoid, allow_neg_eigval=allow_neg_eigval, l2norm=l2norm, state_v_first=state_v_first)\n    return tuple((x.to(q.device) for x in expected))",
+  "reason": "NPU cannot execute FP64 matmul; FP64 extreme gate arithmetic also loses range on NPU. Original independent oracle now runs on CPU and returns outputs to the input device. Formula and tolerances unchanged.",
+  "performance_reuse": "Original accepted KDA measurements already pass CPU tensors to the same reference, so the added NPU-only branch is not entered. Three production kernel files remain byte-identical.",
+  "original_cpu_adapter": "reports/kda-v010-development-20261109/remote_kda_public_basic_v15.py",
+  "original_cpu_adapter_sha256": "98af8fb8a57e7385558c692133fcc736b29985f87963033b630ba4d22c650735"
+}

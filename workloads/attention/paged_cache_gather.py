@@ -69,7 +69,12 @@ class PagedKVCacheGatherWorkload(WorkloadBase):
             )
         if out.numel() == 0:
             return torch.empty_like(out)
-        rows = kv_cache.flatten(0, 1)[torch.cat(slots)]
+        flat = kv_cache.flatten(0, 1)
+        indices = torch.cat(slots)
+        if kv_cache.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
+            rows = flat.view(torch.uint8)[indices].view(kv_cache.dtype)
+        else:
+            rows = flat[indices]
         if kv_scale is not None:
             rows = rows.float() * kv_scale
         return rows.to(out.dtype)

@@ -24,7 +24,7 @@ from tilelang.carver.arch.driver import get_num_cube_cores
 
 import tileops.backend
 from tileops._kernels.gemm.call_spec import GEMMINT8W8A8Call, GEMMINT8W8A8FwdInterface
-from tileops._kernels.kernel_base import Kernel
+from tileops._kernels.kernel_base import Compilation, Kernel
 
 __all__ = ["AscendGemmINT8Kernel"]
 
@@ -130,6 +130,7 @@ def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
     return tile_m, tile_n, tile_k, 2, 32
 
 
+@functools.lru_cache(maxsize=256)
 def _fused_program(
     m: int,
     n: int,
@@ -229,6 +230,7 @@ def _fused_program(
     return main
 
 
+@functools.lru_cache(maxsize=256)
 def _gemm_program(
     m: int, n: int, k: int, tile_m: int, tile_n: int, tile_k: int, stages: int, blocks: int
 ):
@@ -295,6 +297,7 @@ def _gemm_program(
     return main
 
 
+@functools.lru_cache(maxsize=256)
 def _scale_program(
     m: int, n: int, out_dtype: str, has_bias: bool, per_token: bool, per_channel: bool
 ):
@@ -442,6 +445,33 @@ class AscendGemmINT8Kernel(Kernel, GEMMINT8W8A8FwdInterface):
         if call.m <= 0 or call.n <= 0 or call.k <= 0:
             return f"requires positive extents, got m={call.m}, n={call.n}, k={call.k}"
         return super().refusal(call)
+
+    @classmethod
+    def compilations(cls, tensors, params):
+        """Describe the existing runtime paths without constructing tensors or kernels."""
+        (m, k), _ = tensors["a"]
+        (n, _), _ = tensors["b"]
+        per_token = tuple(tensors["a_scale"][0]) == (m, 1)
+        per_channel = tuple(tensors["b_scale"][0]) == (1, n)
+        has_bias = tensors.get("bias") is not None
+        out_dtype = params.get("out_dtype", "bfloat16")
+        if out_dtype not in ("bfloat16", "float16") or min(m, n, k) <= 0:
+            return ()
+        tile_m, tile_n, tile_k, stages, blocks = _tiles(m, n, k)
+        fused = (
+            not per_token and not per_channel and not has_bias
+            and out_dtype == "bfloat16" and _fusable(m, n, k)
+            and _fixpipe_dequant_available()
+        )
+        if fused:
+            programs = (_fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks, out_dtype),)
+        else:
+            programs = (
+                _gemm_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks),
+                _scale_program(m, n, out_dtype, has_bias, per_token, per_channel),
+            )
+        return tuple(Compilation(p, target="ascend", out_idx=-1,
+                                 pass_configs={"tl.enable_fast_math": False}) for p in programs)
 
     def __init__(self, call: GEMMINT8W8A8Call):
         device_index = call.device.index
