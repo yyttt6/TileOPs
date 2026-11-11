@@ -1,0 +1,360 @@
+{
+  "verified": 39,
+  "performance_passed": 39,
+  "rows": [
+    {
+      "case": "ds-v3-decode-qkv-a-float8_e4m3fn-bfloat16",
+      "latency_us": 26.265200000000004,
+      "baseline_us": 65.99466666666667,
+      "baseline": "DeepGEMM-Ascend",
+      "ratio": 2.5126276086481987,
+      "passed": true,
+      "original_ci_us": 26.251266666666666
+    },
+    {
+      "case": "ds-v3-prefill-down-float8_e4m3fn-bfloat16",
+      "latency_us": 246.7860666666667,
+      "baseline_us": 300.92926666666665,
+      "baseline": "catlass",
+      "ratio": 1.2193932612619132,
+      "passed": true,
+      "original_ci_us": 247.03426666666667
+    },
+    {
+      "case": "ds-v3-prefill-qkv-a-blk-float8_e4m3fn-bfloat16",
+      "latency_us": 380.78273333333334,
+      "baseline_us": 5414.366,
+      "baseline": "torch-eager",
+      "ratio": 14.219042845255062,
+      "passed": true,
+      "original_ci_us": 586.8147333333333
+    },
+    {
+      "case": "ds-v3-prefill-o-proj-float8_e4m3fn-bfloat16",
+      "latency_us": 2479.6636000000003,
+      "baseline_us": 38562.87153333333,
+      "baseline": "torch-eager",
+      "ratio": 15.55165447979852,
+      "passed": true,
+      "original_ci_us": 2608.5898666666667
+    },
+    {
+      "case": "ds-v3-m1-down-float8_e4m3fn-bfloat16",
+      "latency_us": 12.848066666666668,
+      "baseline_us": 42.72173333333333,
+      "baseline": "DeepGEMM-Ascend",
+      "ratio": 3.3251487902200587,
+      "passed": true,
+      "original_ci_us": 9.898466666666668
+    },
+    {
+      "case": "ds-v3-decode-down-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 37.06026666666667,
+      "baseline_us": 59.29686666666667,
+      "baseline": "catlass",
+      "ratio": 1.6000118725535344,
+      "passed": true,
+      "original_ci_us": 65.7464
+    },
+    {
+      "case": "ds-v3-prefill-mlp-up-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 660.4965333333333,
+      "baseline_us": 584.6398,
+      "baseline": "catlass",
+      "ratio": 0.885151958405434,
+      "passed": true,
+      "original_ci_us": 935.3431333333333
+    },
+    {
+      "case": "ds-v3-m1-down-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 14.284666666666666,
+      "baseline_us": 16.667599999999997,
+      "baseline": "ops-nn",
+      "ratio": 1.1668175666215521,
+      "passed": true,
+      "original_ci_us": 59.61000000000001
+    },
+    {
+      "case": "ds-v3-decode-qkv-a-blk-float8_e4m3fn-float16",
+      "latency_us": 62.01166666666666,
+      "baseline_us": 409.2842,
+      "baseline": "torch-eager",
+      "ratio": 6.6001161071841326,
+      "passed": true,
+      "original_ci_us": 138.61379999999997
+    },
+    {
+      "case": "ds-v3-q-b-m128-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 86.11646666666665,
+      "baseline_us": 965.7414666666667,
+      "baseline": "torch-eager",
+      "ratio": 11.214364732412774,
+      "passed": true,
+      "original_ci_us": 362.26873333333333
+    },
+    {
+      "case": "ds-v3-kv-b-m128-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 37.88453333333333,
+      "baseline_us": 64.3296,
+      "baseline": "catlass",
+      "ratio": 1.698043880704175,
+      "passed": true,
+      "original_ci_us": 214.29966666666667
+    },
+    {
+      "case": "ds-v3-mlp-up-m128-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 84.9568,
+      "baseline_us": 771.6951999999999,
+      "baseline": "torch-eager",
+      "ratio": 9.083383554936153,
+      "passed": true,
+      "original_ci_us": 224.888
+    },
+    {
+      "case": "ds-v3-kv-a-m4096-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 153.4944,
+      "baseline_us": 226.98940000000002,
+      "baseline": "catlass",
+      "ratio": 1.4788122563429025,
+      "passed": true,
+      "original_ci_us": 312.3564
+    },
+    {
+      "case": "ds-v3-decode-down-float8_e4m3fn-bfloat16",
+      "latency_us": 15.542333333333334,
+      "baseline_us": 53.053333333333335,
+      "baseline": "tilelang",
+      "ratio": 3.4134728805198704,
+      "passed": true,
+      "original_ci_us": 15.708866666666669
+    },
+    {
+      "case": "ds-v3-decode-qkv-a-blk-float8_e4m3fn-bfloat16",
+      "latency_us": 62.114599999999996,
+      "baseline_us": 408.883,
+      "baseline": "torch-eager",
+      "ratio": 6.5827196826511,
+      "passed": true,
+      "original_ci_us": 138.46333333333337
+    },
+    {
+      "case": "ds-v3-prefill-down-blk-float8_e4m3fn-bfloat16",
+      "latency_us": 345.91886666666664,
+      "baseline_us": 4839.441866666666,
+      "baseline": "torch-eager",
+      "ratio": 13.990106736011121,
+      "passed": true,
+      "original_ci_us": 385.87126666666666
+    },
+    {
+      "case": "ds-v3-prefill-q-b-float8_e4m3fn-bfloat16",
+      "latency_us": 839.6702666666667,
+      "baseline_us": 12323.287933333333,
+      "baseline": "torch-eager",
+      "ratio": 14.67634191961384,
+      "passed": true,
+      "original_ci_us": 1159.3308666666667
+    },
+    {
+      "case": "ds-v3-m1-down-blk-float8_e4m3fn-bfloat16",
+      "latency_us": 12.9674,
+      "baseline_us": 241.75653333333332,
+      "baseline": "torch-eager",
+      "ratio": 18.64340834194467,
+      "passed": true,
+      "original_ci_us": 56.218666666666664
+    },
+    {
+      "case": "ds-v3-prefill-qkv-a-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 381.6033333333333,
+      "baseline_us": 333.16966666666667,
+      "baseline": "catlass",
+      "ratio": 0.8730785021095204,
+      "passed": true,
+      "original_ci_us": 592.6431333333333
+    },
+    {
+      "case": "ds-v3-prefill-o-proj-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 2482.2376,
+      "baseline_us": 2329.4498,
+      "baseline": "catlass",
+      "ratio": 0.938447552321341,
+      "passed": true,
+      "original_ci_us": 2596.495
+    },
+    {
+      "case": "ds-v3-decode-qkv-a-bias-float8_e4m3fn-bfloat16",
+      "latency_us": 28.572,
+      "baseline_us": 72.6754,
+      "baseline": "DeepGEMM-Ascend",
+      "ratio": 2.543588128237435,
+      "passed": true,
+      "original_ci_us": 28.855133333333335
+    },
+    {
+      "case": "ds-v3-kv-a-m128-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 42.9814,
+      "baseline_us": 135.85613333333333,
+      "baseline": "torch-eager",
+      "ratio": 3.1608121962833535,
+      "passed": true,
+      "original_ci_us": 68.80813333333333
+    },
+    {
+      "case": "ds-v3-q-b-m128-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 87.47293333333333,
+      "baseline_us": 115.3172,
+      "baseline": "catlass",
+      "ratio": 1.3183186570474372,
+      "passed": true,
+      "original_ci_us": 404.63373333333334
+    },
+    {
+      "case": "ds-v3-o-proj-m128-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 241.98866666666666,
+      "baseline_us": 3088.9288666666666,
+      "baseline": "torch-eager",
+      "ratio": 12.764766669513449,
+      "passed": true,
+      "original_ci_us": 327.07106666666664
+    },
+    {
+      "case": "ds-v3-mlp-up-m128-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 85.83506666666666,
+      "baseline_us": 98.78286666666666,
+      "baseline": "catlass",
+      "ratio": 1.1508451091473104,
+      "passed": true,
+      "original_ci_us": 231.114
+    },
+    {
+      "case": "ds-v3-kv-b-m4096-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 414.1818,
+      "baseline_us": 5625.37,
+      "baseline": "torch-eager",
+      "ratio": 13.58188602203187,
+      "passed": true,
+      "original_ci_us": 558.4264666666667
+    },
+    {
+      "case": "ds-v3-prefill-qkv-a-float8_e4m3fn-bfloat16",
+      "latency_us": 204.52679999999998,
+      "baseline_us": 335.6229333333334,
+      "baseline": "catlass",
+      "ratio": 1.6409728863568658,
+      "passed": true,
+      "original_ci_us": 203.94873333333334
+    },
+    {
+      "case": "ds-v3-decode-down-blk-float8_e4m3fn-bfloat16",
+      "latency_us": 35.94646666666667,
+      "baseline_us": 383.38393333333335,
+      "baseline": "torch-eager",
+      "ratio": 10.66541356869567,
+      "passed": true,
+      "original_ci_us": 62.26846666666667
+    },
+    {
+      "case": "ds-v3-prefill-mlp-up-float8_e4m3fn-bfloat16",
+      "latency_us": 660.1483333333333,
+      "baseline_us": 9867.349800000002,
+      "baseline": "torch-eager",
+      "ratio": 14.947170661139292,
+      "passed": true,
+      "original_ci_us": 929.7996666666666
+    },
+    {
+      "case": "ds-v3-m8-down-float8_e4m3fn-bfloat16",
+      "latency_us": 9.786399999999999,
+      "baseline_us": 44.84273333333333,
+      "baseline": "DeepGEMM-Ascend",
+      "ratio": 4.582148014932287,
+      "passed": true,
+      "original_ci_us": 9.755666666666666
+    },
+    {
+      "case": "ds-v3-decode-qkv-a-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 62.57359999999999,
+      "baseline_us": 78.3628,
+      "baseline": "catlass",
+      "ratio": 1.252330056125906,
+      "passed": true,
+      "original_ci_us": 144.24713333333332
+    },
+    {
+      "case": "ds-v3-prefill-down-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 346.21993333333336,
+      "baseline_us": 570.5168666666667,
+      "baseline": "catlass",
+      "ratio": 1.6478452328664304,
+      "passed": true,
+      "original_ci_us": 389.3707333333333
+    },
+    {
+      "case": "ds-v3-prefill-q-b-2d-float8_e4m3fn-bfloat16",
+      "latency_us": 840.5165999999999,
+      "baseline_us": 745.6364,
+      "baseline": "catlass",
+      "ratio": 0.8871168041178485,
+      "passed": true,
+      "original_ci_us": 1204.1613999999997
+    },
+    {
+      "case": "ds-v3-decode-qkv-a-float8_e4m3fn-float16",
+      "latency_us": 26.099133333333338,
+      "baseline_us": 65.486,
+      "baseline": "DeepGEMM-Ascend",
+      "ratio": 2.509125462659041,
+      "passed": true,
+      "original_ci_us": 25.843
+    },
+    {
+      "case": "ds-v3-kv-a-m128-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 43.70586666666667,
+      "baseline_us": 63.9484,
+      "baseline": "catlass",
+      "ratio": 1.4631536879869673,
+      "passed": true,
+      "original_ci_us": 72.34753333333335
+    },
+    {
+      "case": "ds-v3-kv-b-m128-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 37.21553333333333,
+      "baseline_us": 437.9032666666667,
+      "baseline": "torch-eager",
+      "ratio": 11.766679863067932,
+      "passed": true,
+      "original_ci_us": 164.81766666666667
+    },
+    {
+      "case": "ds-v3-o-proj-m128-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 244.46200000000002,
+      "baseline_us": 388.97593333333333,
+      "baseline": "catlass",
+      "ratio": 1.5911509082529527,
+      "passed": true,
+      "original_ci_us": 314.98493333333334
+    },
+    {
+      "case": "ds-v3-kv-a-m4096-s1-float8_e4m3fn-bfloat16",
+      "latency_us": 152.58460000000002,
+      "baseline_us": 1900.8804,
+      "baseline": "torch-eager",
+      "ratio": 12.457878449070218,
+      "passed": true,
+      "original_ci_us": 307.7860666666666
+    },
+    {
+      "case": "ds-v3-kv-b-m4096-s128-float8_e4m3fn-bfloat16",
+      "latency_us": 413.3233333333333,
+      "baseline_us": 341.10853333333336,
+      "baseline": "catlass",
+      "ratio": 0.8252825471583991,
+      "passed": true,
+      "original_ci_us": 604.9447333333333
+    }
+  ],
+  "source_digest": "aa2150a635e9b0ae3e033968d45fa6fe53ebc4b2719ccd3dc028e392ade42ad3",
+  "status": "passed",
+  "canonical_ci_pending": true
+}

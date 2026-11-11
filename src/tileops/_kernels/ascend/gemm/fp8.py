@@ -1,19 +1,14 @@
-"""Ascend 950 FP8 GEMM: E4M3 operands, FP32 accumulation, per-tensor scales.
+"""Ascend 950 FP8 GEMM with per-tensor or arbitrary FP32 block scales.
 
-Two passes. The cube multiplies the two FP8 operands and writes the FP32 accumulator;
-a vector kernel then applies both per-tensor scales and the optional bias while casting
-to the output dtype. Scaling inside the cube launch would need a mixed Cube/AIV kernel,
-so the extra FP32 round trip buys a build that is known to run.
-
-The reference also accepts a float32 scale per 128-element K block. That grid is not
-served here: the Cube's block-scale slots hold E8M0 factors (a power of two per block),
-so an arbitrary float32 block scale would have to be applied by accumulating every
-128-deep K block separately and scaling it on the vector unit — one L0C drain per block,
-several times the cost of the contraction itself. Per-tensor scales fold into one
-epilogue multiply and are served at the Cube's FP8 rate.
+Per-tensor scaling uses a native FP8 Cube product followed by a vector epilogue.
+Block scaling folds the operands into FP16 before the Cube contraction; the hardware's
+E8M0 scale slots cannot represent arbitrary FP32 factors. One-row contractions instead
+stream the original operands and scales on the vector unit when their UB footprint fits,
+avoiding both folded operands and the extra launches.
 """
 
 import functools
+import math
 from typing import Optional
 
 import tilelang
@@ -178,12 +173,23 @@ def _fold_program(rows: int, k: int, scale_rows: int, block_rows: int):
     feeds the 16-bit product below, because an arbitrary float32 block scale has no
     place in the Cube's E8M0 scale slots.
     """
-    chunk = 4096
-    while chunk > 128 and k % chunk:
-        chunk //= 2
+    chunk = max(c for c in range(128, min(k, 2048) + 1, 128) if k % c == 0)
     chunks = k // chunk
     groups = chunk // 128
-    threads = min(1024, chunk)
+    tile_rows = min(4, rows)
+    # Short rows otherwise pay a DMA/VF handoff for very little payload. Batch
+    # them only when both operand versions fit and each AIV still gets a pipeline.
+    batched_rows = 32
+    scale_rows_per_tile = batched_rows if block_rows == 1 else 1
+    staged_bytes = 3 * batched_rows * chunk + 4 * scale_rows_per_tile * groups
+    if (
+        _CAST_STAGES * staged_bytes <= 176 * 1024
+        and -(-rows // batched_rows) * chunks >= _NUM_AIV_CORES * _CAST_STAGES
+    ):
+        tile_rows = batched_rows
+    if block_rows > 1:
+        tile_rows = math.gcd(tile_rows, block_rows)
+    scale_tile_rows = tile_rows if block_rows == 1 else 1
 
     @T.prim_func
     def main(
@@ -194,25 +200,44 @@ def _fold_program(rows: int, k: int, scale_rows: int, block_rows: int):
         T.func_attr({"tilelang_callee_allocated_outputs": 0})
         with T.Kernel(_NUM_AIV_CORES) as core:
             for item in T.Persistent(
-                [rows * chunks], _NUM_AIV_CORES, core, num_stages=_CAST_STAGES
+                [T.ceildiv(rows, tile_rows) * chunks],
+                _NUM_AIV_CORES,
+                core,
+                num_stages=_CAST_STAGES,
             ):
-                row = item // chunks
+                row = (item // chunks) * tile_rows
                 col = item % chunks
-                x_ub = T.alloc_shared((chunk,), _OPERAND)
-                s_ub = T.alloc_shared((groups,), "float32")
-                out_ub = T.alloc_shared((chunk,), "float16")
+                valid = T.min(tile_rows, rows - row)
+                scale_row = row // block_rows
+                valid_scales = valid if block_rows == 1 else 1
+                x_ub = T.alloc_shared((tile_rows, chunk), _OPERAND)
+                s_ub = T.alloc_shared((scale_tile_rows, groups), "float32")
+                out_ub = T.alloc_shared((tile_rows, chunk), "float16")
                 T.annotate_buffer_versions(
                     {x_ub: _CAST_STAGES, s_ub: _CAST_STAGES, out_ub: _CAST_STAGES}
                 )
-                T.copy(X[row, col * chunk : (col + 1) * chunk], x_ub)
-                T.copy(S[row // block_rows, col * groups : (col + 1) * groups], s_ub)
-                with T.SimtVF(threads=threads):
-                    for j in T.Parallel(chunk):
-                        out_ub[j] = T.Cast(
-                            "float16",
-                            T.Cast("float16", x_ub[j]) * T.Cast("float16", s_ub[j // 128]),
-                        )
-                T.copy(out_ub, Y[row, col * chunk : (col + 1) * chunk])
+                T.copy(X[row : row + valid, col * chunk : (col + 1) * chunk], x_ub[:valid, :])
+                T.copy(
+                    S[scale_row : scale_row + valid_scales, col * groups : (col + 1) * groups],
+                    s_ub[:valid_scales, :],
+                )
+                # Broadcast each scale once per group. Keep the existing FP16 scale
+                # rounding; changing its precision is separate from this schedule.
+                with T.SimdVF():
+                    full = T.simd.pset(32)
+                    for r in T.serial(tile_rows):
+                        for g in T.serial(groups):
+                            scale = T.simd.vld(s_ub[r // block_rows, g], "BRC_B32")
+                            rounded = T.simd.vcvt(scale, "float16", full, sat=False)
+                            factor = T.simd.vcvt(rounded, "float32", full, part=0)
+                            for part in T.serial(2):
+                                offset = g * 128 + part * 64
+                                raw = T.simd.vld(x_ub[r, offset], "UNPK4_B8")
+                                value = T.simd.vcvt(raw, "float32", full, part=0)
+                                product = T.simd.vmul(value, factor, full)
+                                narrowed = T.simd.vcvt(product, "float16", full, sat=False)
+                                T.simd.vsts(out_ub[r, offset], narrowed, full, "PK_B32")
+                T.copy(out_ub[:valid, :], Y[row : row + valid, col * chunk : (col + 1) * chunk])
 
     return main
 
@@ -296,6 +321,119 @@ def _gemm16_program(
     return main
 
 
+def _gemv_tile(n: int, k: int, per_tensor: bool, per_row: bool) -> Optional[int]:
+    """Largest row tile fitting both operand versions and the resident activation."""
+    columns = 1 if per_tensor else k // 128
+    for tile_n in (16, 8, 4, 2, 1):
+        scale_rows = tile_n if per_row else 1
+        staged = tile_n * k + 4 * scale_rows * columns + 8 * tile_n
+        if n % tile_n == 0 and _CAST_STAGES * staged + k + 4 * columns <= 176 * 1024:
+            return tile_n
+    return None
+
+
+def _gemv_program(n, k, scale_a_shape, scale_b_shape, out_dtype, has_bias, tile_n):
+    """One-row contraction with arbitrary FP32 scales, without folded GM operands."""
+    groups = k // 128
+    per_tensor = scale_a_shape == (1, 1) and scale_b_shape == (1, 1)
+    per_row = scale_b_shape[0] == n
+    maximum = _gemv_tile(n, k, per_tensor, per_row)
+    if (
+        k <= 0
+        or k % 128
+        or tile_n <= 0
+        or n % tile_n
+        or 128 % tile_n
+        or maximum is None
+        or tile_n > maximum
+    ):
+        raise ValueError("single-row tile violates scale boundaries or UB capacity")
+    scale_rows = tile_n if per_row else 1
+    scale_columns = 1 if per_tensor else groups
+
+    @T.prim_func
+    def main(
+        A: T.Tensor((1, k), _OPERAND),
+        B: T.Tensor((n, k), _OPERAND),
+        SA: T.Tensor(scale_a_shape, "float32"),
+        SB: T.Tensor(scale_b_shape, "float32"),
+        Bias: T.Tensor((n,), out_dtype) if has_bias else None,
+        D: T.Tensor((1, n), out_dtype),
+    ):
+        T.func_attr({"tilelang_callee_allocated_outputs": 0})
+        with T.Kernel(_NUM_AIV_CORES) as core:
+            a = T.alloc_shared((k,), _OPERAND)
+            sa = T.alloc_shared((scale_columns,), "float32")
+            T.copy(A[0, :], a)
+            T.copy(SA[0, :], sa)
+            for task in T.Persistent([n // tile_n], _NUM_AIV_CORES, core, num_stages=_CAST_STAGES):
+                first = task * tile_n
+                b = T.alloc_shared((tile_n, k), _OPERAND)
+                sb = T.alloc_shared((scale_rows, scale_columns), "float32")
+                sums = T.alloc_shared((tile_n,), "float32")
+                out = T.alloc_shared((tile_n,), out_dtype)
+                bias = T.alloc_shared((tile_n,), out_dtype)
+                T.annotate_buffer_versions(
+                    {
+                        b: _CAST_STAGES,
+                        sb: _CAST_STAGES,
+                        sums: _CAST_STAGES,
+                        out: _CAST_STAGES,
+                        bias: _CAST_STAGES,
+                    }
+                )
+                T.copy(B[first : first + tile_n, :], b)
+                scale_first = 0 if per_tensor else first if per_row else first // 128
+                T.copy(SB[scale_first : scale_first + scale_rows, :], sb)
+                if has_bias:
+                    T.copy(Bias[first : first + tile_n], bias)
+                with T.SimdVF():
+                    full = T.simd.pset(32)
+                    one = T.simd.pset(32, "PAT_VL1")
+                    for row in T.serial(tile_n):
+                        acc = T.alloc_var("float32x64", init=T.simd.vdup(T.float32(0), "float32"))
+                        sr = row if per_row else 0
+                        for group in T.serial(groups):
+                            scale_col = 0 if per_tensor else group
+                            factor_a = T.simd.vld(sa[scale_col], "BRC_B32")
+                            factor_b = T.simd.vld(sb[sr, scale_col], "BRC_B32")
+                            for part in T.unroll(2):
+                                offset = group * 128 + part * 64
+                                wide_a = T.simd.vcvt(
+                                    T.simd.vld(a[offset], "UNPK4_B8"), "float32", full, part=0
+                                )
+                                wide_b = T.simd.vcvt(
+                                    T.simd.vld(b[row, offset], "UNPK4_B8"), "float32", full, part=0
+                                )
+                                product = T.simd.vmul(
+                                    T.simd.vmul(wide_a, factor_a, full),
+                                    T.simd.vmul(wide_b, factor_b, full),
+                                    full,
+                                )
+                                acc = T.simd.vadd(acc, product, full)
+                        # Packed narrow stores cannot address arbitrary row offsets.
+                        T.simd.vsts(sums[row], T.simd.vcadd(acc, full), one, "ONEPT_B32")
+                with T.SimtVF(threads=32):
+                    for row in T.Parallel(tile_n):
+                        value = sums[row]
+                        if has_bias:
+                            value = value + T.Cast("float32", bias[row])
+                        out[row] = T.Cast(out_dtype, value)
+                T.copy(out, D[0, first : first + tile_n])
+
+    return main
+
+
+@functools.lru_cache(maxsize=256)
+def _make_gemv(n, k, scale_a_shape, scale_b_shape, out_dtype, has_bias, tile_n):
+    return tilelang.compile(
+        _gemv_program(n, k, scale_a_shape, scale_b_shape, out_dtype, has_bias, tile_n),
+        target="ascend",
+        out_idx=-1,
+        pass_configs={"tl.enable_fast_math": False},
+    )
+
+
 @functools.lru_cache(maxsize=256)
 def _make_fold(rows: int, k: int, scale_rows: int, block_rows: int):
     """Compile the operand fold for one operand shape and scale grid."""
@@ -356,6 +494,8 @@ class AscendGEMMFP8Kernel(Kernel, GEMMFP8FwdInterface):
     block-scale slots hold E8M0 factors, so an arbitrary float32 block scale cannot ride
     the FP8 product itself. The folded value keeps every bit the tolerance can see (the
     operand has four significand bits), and the epilogue then adds only the bias.
+    A one-row contraction streams the original FP8 operands on the vector unit when
+    the resident activation and staged weight rows fit UB, avoiding intermediate operands.
     """
 
     devices = frozenset({"npu"})
@@ -366,8 +506,8 @@ class AscendGEMMFP8Kernel(Kernel, GEMMFP8FwdInterface):
             return "requires float8_e4m3fn operands"
         if call.out_dtype not in _OUT_DTYPE_NAMES:
             return "requires a float16 or bfloat16 output"
-        if call.k % 128:
-            return f"requires K a multiple of 128, got k={call.k}"
+        if call.k <= 0 or call.k % 128 or call.n % 16:
+            return f"requires positive K divisible by 128 and N divisible by 16, got n={call.n}, k={call.k}"
         return super().refusal(call)
 
     def __init__(self, call: GEMMFP8Call):
@@ -383,6 +523,23 @@ class AscendGEMMFP8Kernel(Kernel, GEMMFP8FwdInterface):
         out_dtype = _OUT_DTYPE_NAMES[call.out_dtype]
         per_tensor = tuple(call.scale_a_shape) == (1, 1) and tuple(call.scale_b_shape) == (1, 1)
         self._per_tensor = per_tensor
+        tile_n = (
+            _gemv_tile(call.n, call.k, per_tensor, call.scale_b_shape[0] == call.n)
+            if call.m == 1
+            else None
+        )
+        self._single_row = tile_n is not None
+        if self._single_row:
+            self._gemv = _make_gemv(
+                call.n,
+                call.k,
+                call.scale_a_shape,
+                call.scale_b_shape,
+                out_dtype,
+                call.has_bias,
+                tile_n,
+            )
+            return
         if per_tensor:
             self._gemm = _make_gemm(call.m, call.n, call.k)
             self._epilogue = _make_epilogue(call.m, call.n, out_dtype, call.has_bias)
@@ -403,9 +560,7 @@ class AscendGEMMFP8Kernel(Kernel, GEMMFP8FwdInterface):
         # the accumulator, so the product writes the call's dtype directly and the FP32
         # accumulator never reaches GM. With a bias the epilogue still runs.
         self._fused_cast = not call.has_bias
-        self._gemm = _make_gemm16(
-            call.m, call.n, call.k, out_dtype if self._fused_cast else _ACC
-        )
+        self._gemm = _make_gemm16(call.m, call.n, call.k, out_dtype if self._fused_cast else _ACC)
         self._epilogue = (
             None
             if self._fused_cast
@@ -420,6 +575,10 @@ class AscendGEMMFP8Kernel(Kernel, GEMMFP8FwdInterface):
         scale_b: torch.Tensor,
         bias: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        if self._single_row:
+            if bias is None:
+                return self._gemv(a, b, scale_a, scale_b)
+            return self._gemv(a, b, scale_a, scale_b, bias)
         if not self._per_tensor:
             a = self._fold_a(a, scale_a)
             b = self._fold_b(b, scale_b)
