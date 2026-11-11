@@ -509,3 +509,100 @@ def test_check_workloads(name, entry, message):
         assert errors == []
     else:
         assert any(message in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        ([], True),
+        ([[], [[]]], True),
+        (-8, True),
+        (7, True),
+        (-9, False),
+        (8, False),
+        ([[0, -8], [7]], True),
+        ([[0], [True]], False),
+        ([[0], [1.0]], False),
+        ([[0], [None]], False),
+    ],
+)
+def test_generated_metadata_integer_bounds(values, expected):
+    from tileops.manifest._workload import _within
+
+    assert _within(values, 8) is expected
+
+
+def _small_dsa_validation_entry():
+    from tileops.manifest import load_manifest
+
+    entry = copy.deepcopy(load_manifest()["DSADenseFwdOp"])
+    row = dict(entry["workloads"][0])
+    row.update(
+        B=1,
+        S=3,
+        S_kv=2,
+        H=2,
+        H_kv=1,
+        D=4,
+        K=4,
+        dim_tail=0,
+        stride_kv=1,
+        q_start_index_s=0,
+        label="small",
+    )
+    entry["workloads"] = [row]
+    return entry
+
+
+def test_all_dsa_manifest_rows_validate_without_generating_indices(monkeypatch):
+    from tileops.manifest import load_adts, load_manifest
+
+    def refuse(*args):
+        pytest.fail("manifest validation generated large causal indices")
+
+    monkeypatch.setitem(GENERATORS, "causal_topk_indices", refuse)
+    assert check_workloads("DSADenseFwdOp", load_manifest()["DSADenseFwdOp"], load_adts()) == []
+
+
+def test_static_dsa_validation_keeps_public_materialization(monkeypatch):
+    from tileops.manifest import load_adts
+
+    entry = _small_dsa_validation_entry()
+    row = entry["workloads"][0]
+    calls = []
+    original = GENERATORS["causal_topk_indices"]
+
+    def record(*args):
+        calls.append(1)
+        return original(*args)
+
+    monkeypatch.setitem(GENERATORS, "causal_topk_indices", record)
+    plan = entry_plan("DSADenseFwdOp", entry, load_adts(), resolve=False)
+    actual = instantiate(plan, row, row["dtype_cases"][0])
+    assert calls == [1]
+    assert actual.specs["indices"].values is not None
+    assert check_workloads("DSADenseFwdOp", entry, load_adts()) == []
+    assert calls == [1]
+
+
+@pytest.mark.parametrize("fault", ["range", "dtype", "domain", "shape", "predicate"])
+def test_static_dsa_validation_does_not_accept_invalid_workloads(fault):
+    from tileops.manifest import load_adts
+
+    entry = _small_dsa_validation_entry()
+    indices = entry["signature"]["inputs"]["indices"]
+    row = entry["workloads"][0]
+    if fault == "range":
+        indices["requires"] = ["in_range(0, S_kv)"]  # excludes emitted padding
+    elif fault == "dtype":
+        row.update(S=1, S_kv=1 << 31, K=2)  # padding is outside int32
+    elif fault == "domain":
+        row["K"] = 0
+    elif fault == "shape":
+        indices["shape"] = "[B, S, H_kv, K + 1]"
+    else:
+        indices["requires"] = ["in_range(0, S_kv + 1)", "sums_to(0)"]
+    plan = entry_plan("DSADenseFwdOp", entry, load_adts(), resolve=False)
+    with pytest.raises((RowError, TypeError, ValueError)):
+        instantiate(plan, row, row["dtype_cases"][0])
+    assert check_workloads("DSADenseFwdOp", entry, load_adts())
