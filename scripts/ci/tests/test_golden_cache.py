@@ -204,3 +204,31 @@ def test_manual_correctness_cache_and_wrong_output(tmp_path):
             golden_cache=cache(tmp_path),
         )
     assert len(calls) == 1
+
+
+def test_reference_identity_reuses_kernel_edits_but_not_reference_changes(tmp_path):
+    from golden_cache import reference_source_digest
+
+    w = tmp_path / "workloads/reference.py"
+    k = tmp_path / "src/tileops/_kernels/ascend/kernel.py"
+    w.parent.mkdir(parents=True)
+    k.parent.mkdir(parents=True)
+    w.write_text("from tileops.manifest import load_manifest\ndef ref(x): return x*2\n")
+    k.write_text("value = 1\n")
+    original, mode = reference_source_digest(tmp_path)
+    assert mode == "independent-reference"
+    k.write_text("value = 2\n")
+    assert reference_source_digest(tmp_path)[0] == original
+    w.write_text("def ref(x): return x*3\n")
+    assert reference_source_digest(tmp_path)[0] != original
+    w.write_text("from tileops.linear_attention import KDAFwdOp\n")
+    before, mode = reference_source_digest(tmp_path)
+    assert mode == "full-source"
+    k.write_text("value = 3\n")
+    assert reference_source_digest(tmp_path)[0] != before
+
+
+def test_current_tree_is_independent():
+    from golden_cache import reference_source_digest
+
+    assert reference_source_digest(ROOT)[1] == "independent-reference"

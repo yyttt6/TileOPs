@@ -4,6 +4,7 @@ This module never changes numerical checks. Entries are published only after the
 caller validates the complete case, including negative controls and probes.
 """
 
+import ast
 import fcntl
 import hashlib
 import importlib.metadata
@@ -96,21 +97,57 @@ def rng_digest():
     return h.hexdigest()
 
 
-def contract_identity(source):
-    """Conservative invalidation includes all possible in-tree reference helpers.
+def reference_source_digest(source):
+    """Exclude measured kernel bodies only for the audited independent workload layout.
 
-    Source commit IDs are not keys: identical trees can share. Kernel edits also
-    invalidate this first version; narrowing dependencies requires a separate audit.
+    Actual generated input bytes are keys, including backward saved intermediates.
+    Unknown direct operator/kernel reference dependencies fall back to hashing the
+    entire tree instead of risking reuse across changed reference arithmetic.
     """
-    import torch
-
     source = Path(source).resolve()
+    independent = True
+    for p in (source / "workloads").rglob("*.py"):
+        tree = ast.parse(p.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                if module == "tileops" or module.startswith("tileops."):
+                    allowed = module.startswith("tileops.manifest") or (
+                        module == "tileops.transform"
+                        and all(n.name == "HadamardTransformFwdOp" for n in node.names)
+                    )
+                    independent &= allowed
+            elif isinstance(node, ast.Import):
+                if any(n.name == "tileops" or n.name.startswith("tileops.") for n in node.names):
+                    independent = False
+            elif isinstance(node, ast.Call):
+                # Dynamic imports require a fresh dependency audit.
+                if isinstance(node.func, ast.Name) and node.func.id == "__import__":
+                    independent = False
+                if isinstance(node.func, ast.Attribute) and node.func.attr == "import_module":
+                    independent = False
+    for p in (source / "benchmarks/_cases").rglob("*.py"):
+        tree = ast.parse(p.read_text())
+        if any(isinstance(n, ast.FunctionDef) and n.name == "ref_program" for n in ast.walk(tree)):
+            independent = False
+        if "tileops._kernels" in p.read_text() or "tileops.kernels" in p.read_text():
+            independent = False
     h = hashlib.sha256()
     for folder in ("workloads", "benchmarks", "src/tileops"):
         for p in sorted((source / folder).rglob("*")):
+            if independent and p.is_relative_to(source / "src/tileops/_kernels"):
+                continue
             if p.suffix in {".py", ".yaml", ".json"} and p.is_file():
                 h.update(str(p.relative_to(source)).encode())
                 h.update(bytes.fromhex(digest_file(p)))
+    return h.hexdigest(), "independent-reference" if independent else "full-source"
+
+
+def contract_identity(source):
+    import torch
+
+    source_hash, source_mode = reference_source_digest(source)
+    h = hashlib.sha256(bytes.fromhex(source_hash))
     lock = Path(
         os.environ.get(
             "ASCEND950_GOLDEN_TOOLCHAIN_LOCK",
@@ -139,6 +176,7 @@ def contract_identity(source):
     return dict(
         protocol=PROTOCOL,
         source=h.hexdigest(),
+        source_mode=source_mode,
         toolchain=digest_file(lock),
         runtime=runtime,
         device=device,
