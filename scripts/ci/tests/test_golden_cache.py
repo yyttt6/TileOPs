@@ -219,6 +219,9 @@ def test_reference_identity_reuses_kernel_edits_but_not_reference_changes(tmp_pa
     assert mode == "independent-reference"
     k.write_text("value = 2\n")
     assert reference_source_digest(tmp_path)[0] == original
+    shared = tmp_path / "src/tileops/_kernels/shared_reference.py"
+    shared.write_text("HADAMARD_BASES = 1\n")
+    assert reference_source_digest(tmp_path)[0] != original
     w.write_text("def ref(x): return x*3\n")
     assert reference_source_digest(tmp_path)[0] != original
     w.write_text("from tileops.linear_attention import KDAFwdOp\n")

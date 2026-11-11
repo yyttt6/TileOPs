@@ -135,7 +135,7 @@ def reference_source_digest(source):
     h = hashlib.sha256()
     for folder in ("workloads", "benchmarks", "src/tileops"):
         for p in sorted((source / folder).rglob("*")):
-            if independent and p.is_relative_to(source / "src/tileops/_kernels"):
+            if independent and p.is_relative_to(source / "src/tileops/_kernels/ascend"):
                 continue
             if p.suffix in {".py", ".yaml", ".json"} and p.is_file():
                 h.update(str(p.relative_to(source)).encode())

@@ -23,7 +23,7 @@ Existing corrupt entries remain preserved and are treated as misses.
 
 Keys include a conservative hash of workloads, benchmark helpers and in-tree
 operator/manifest files, the pinned external reference overlay, verified
-compiler lock, package versions, device, cache protocol and helper source. Audited independent workloads exclude the measured `_kernels` tree, so kernel-only
+compiler lock, package versions, device, cache protocol and helper source. Audited independent workloads exclude only the measured `_kernels/ascend` tree (shared reference constants remain hashed), so kernel-only
 PRs can reuse golden outputs. New direct operator/kernel imports or dynamic imports
 in reference workloads fall back to whole-source invalidation. Reference/contract
 edits still invalidate entries. Commit IDs alone are not keys.
