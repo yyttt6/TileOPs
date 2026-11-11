@@ -106,6 +106,7 @@ def main():
             )
             begin = time.monotonic()
             golden = None
+            row["host_timings"] = {}
             try:
                 seed = int.from_bytes(
                     hashlib.sha256(f"{a.op}::{case.id}".encode()).digest()[:4], "little"
@@ -114,6 +115,8 @@ def main():
                 op = op_class(**case.arguments)
                 impl = entry(a.op).binder(op, case)
                 args = case.inputs if impl.args is None else impl.args
+                torch.npu.synchronize()
+                row["host_timings"]["prepare_seconds"] = time.monotonic() - begin
                 timer = make_timer(a.output / "profiles" / f"{index:04d}")
                 if a.verify_measured_output:
                     from measured_correctness import measure_and_verify
@@ -130,6 +133,8 @@ def main():
                         ),
                         expected_calls=1 + 3 + 15,
                         golden_cache=golden,
+                        timings=row["host_timings"],
+                        synchronize=torch.npu.synchronize,
                     )
                 else:
                     checks = benchmark_case(

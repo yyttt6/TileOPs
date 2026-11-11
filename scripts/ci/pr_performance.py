@@ -8,6 +8,7 @@ import math
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -142,6 +143,7 @@ def affected_composites(selected, registered):
 
 def main():
     p = argparse.ArgumentParser()
+    p.add_argument("--operators", default="", help="Explicit operator list for manual audits")
     p.add_argument("--base", required=True)
     p.add_argument("--baseline", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
@@ -150,6 +152,11 @@ def main():
     out = a.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     plan = select(root, a.base)
+    if a.operators:
+        chosen = a.operators.split(",")
+        if any(not op.isidentifier() or not op.endswith("Op") for op in chosen):
+            raise ValueError("Invalid explicit operator list")
+        plan.update(operators=sorted(set(chosen)), selection_mode="manual-explicit")
 
     def save(name, value):
         (out / name).write_text(json.dumps(value, indent=2, default=str) + "\n")
@@ -180,11 +187,18 @@ def main():
             op,
             "--verify-measured-output",
         ]
+        started = time.monotonic()
         with (out / f"{op}.log").open("w") as log:
-            return subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
+            code = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
+        save(f"{op}-process-timing.json", dict(
+            wall_seconds=time.monotonic() - started, includes_guard_wait=True, exit_code=code
+        ))
+        return code
 
     assert guarded("__list__", out / "registered.json") == 0
     registered = json.loads((out / "registered.json").read_text())
+    if a.operators and set(plan["operators"]) - set(registered["operators"]):
+        raise ValueError("Requested operator has no registered Ascend implementation")
     ops = affected_composites(plan["operators"], registered)
     assert ops, "Changed operators have no registered Ascend implementation"
     plan["operators"] = ops

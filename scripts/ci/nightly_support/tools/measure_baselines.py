@@ -605,8 +605,10 @@ def _time_reference(
     to have measured (roughly 15 profiler sessions per case instead of 1); see the Fix 1b
     summary for the measured wall-clock multiplier.
     """
+    setup_start = time.perf_counter()
     flush_kernel, flush_buffer = _get_flush_kernel_and_buffer(torch, torch_npu)
     _verify_flush_marker_resolvable(torch, torch_npu, flush_kernel, flush_buffer)
+    setup_seconds = time.perf_counter() - setup_start
     reset_kernel_names = frozenset()  # reset is excluded structurally, never by name
 
     # First-call cost is recorded for cache/JIT diagnostics, but never used as the
@@ -618,12 +620,14 @@ def _time_reference(
     cold_ms = (time.perf_counter() - cold_start) * 1000.0
     del out
 
+    warmup_start = time.perf_counter()
     for _ in range(warmup):
         _isolate_before_call(torch, torch_npu, reset, flush_kernel, flush_buffer)
         out = _call_reference(fn, inputs)
         torch.npu.synchronize()
         del out
 
+    warmup_seconds = time.perf_counter() - warmup_start
     total_kernel_ns = 0.0
     total_kernel_count = 0.0
     total_aic_cycles = 0.0
@@ -632,10 +636,13 @@ def _time_reference(
     total_excluded_count = 0.0
     samples_ms = []
     retained_profiles = []
+    repeat_wall_seconds = []
     for _ in range(repeats):
+        repeat_start = time.perf_counter()
         parsed = _time_one_isolated_repeat(
             torch, torch_npu, fn, inputs, reset, flush_kernel, flush_buffer, reset_kernel_names
         )
+        repeat_wall_seconds.append(time.perf_counter() - repeat_start)
         samples_ms.append(parsed["latency_ms"])
         if "profile_path" in parsed:
             retained_profiles.append(
@@ -665,6 +672,13 @@ def _time_reference(
         "profile_excluded_kernel_count": total_excluded_count / repeats,
         "profile_excluded_kernel_us": total_excluded_ns / repeats / 1e3,
         "cold_latency_ms": cold_ms,
+        "host_timer_phases": {
+            "setup_seconds": setup_seconds,
+            "cold_seconds": cold_ms / 1000,
+            "warmup_seconds": warmup_seconds,
+            "repeat_wall_seconds": repeat_wall_seconds,
+            "repeats_including_parse_and_copy_seconds": sum(repeat_wall_seconds),
+        },
         "latency_samples_ms": samples_ms,
         "retained_profiles": retained_profiles,
         "latency_median_ms": statistics.median(samples_ms),

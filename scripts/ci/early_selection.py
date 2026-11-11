@@ -29,10 +29,18 @@ def main():
     p.add_argument("--source", type=Path, required=True)
     p.add_argument("--base", required=True)
     p.add_argument("--pr-head", default="")
+    p.add_argument("--operators", default="")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--github-output", type=Path)
     a = p.parse_args()
     result = selection(a.source, a.base, a.pr_head)
+    if a.operators:
+        if a.pr_head:
+            raise ValueError("Explicit operators are only supported for manual runs")
+        ops = a.operators.split(",")
+        if any(not op.isidentifier() or not op.endswith("Op") for op in ops):
+            raise ValueError("Invalid explicit operator list")
+        result.update(operators=sorted(set(ops)), selection_mode="manual-explicit")
     a.output.write_text(json.dumps(result, indent=2) + "\n")
     if a.github_output:
         with a.github_output.open("a") as stream:

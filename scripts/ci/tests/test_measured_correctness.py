@@ -29,6 +29,8 @@ def execute(
     inputs=None,
     repeats=19,
     expected_calls=19,
+    timings=None,
+    synchronize=None,
 ):
     inputs = (torch.tensor([1.0, 3.0]),) if inputs is None else inputs
     case = SimpleNamespace(
@@ -43,7 +45,9 @@ def execute(
             capture(*(inputs if args is None else args))
         return {"latency_ms": 1.25}
 
-    return MODULE.measure_and_verify(case, impl, measure, expected_calls=expected_calls)
+    return MODULE.measure_and_verify(
+        case, impl, measure, expected_calls=expected_calls, timings=timings, synchronize=synchronize
+    )
 
 
 pytestmark = pytest.mark.smoke
@@ -262,3 +266,32 @@ def test_optional_outputs_count_as_validated_after_structural_checks():
 def test_optional_outputs_do_not_hide_wrong_tensor_or_structure(bad):
     with pytest.raises(AssertionError):
         execute(bad, reference=lambda x: (x * 2, None, None))
+
+
+def test_host_phase_receipt_preserves_measurement_and_reference_call_count():
+    phases = {}
+    syncs = []
+    calls = []
+
+    def reference(x):
+        calls.append(1)
+        return x * 2
+
+    check, measurement = execute(
+        lambda x: x * 2, reference=reference, timings=phases,
+        synchronize=lambda: syncs.append(1),
+    )
+    assert check["checked_outputs"] == 1
+    assert measurement == {"latency_ms": 1.25}
+    assert calls == [1] and phases["reference_calls"] == 1
+    assert syncs
+    assert all(v >= 0 for k, v in phases.items() if k.endswith("_seconds"))
+    assert phases["verification_including_reference_seconds"] >= phases["reference_seconds"]
+    assert "cleanup_seconds" in phases
+
+
+def test_host_phase_receipt_survives_bad_final_output():
+    phases = {}
+    with pytest.raises(AssertionError):
+        execute(lambda x: x * 3, timings=phases)
+    assert "timer_seconds" in phases and "cleanup_seconds" in phases
