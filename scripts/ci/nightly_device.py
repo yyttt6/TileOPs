@@ -124,7 +124,7 @@ def main(argv=None):
                 op = op_class(**case.arguments)
                 impl = entry(a.op).binder(op, case)
                 args = case.inputs if impl.args is None else impl.args
-                from reference_placement import prepare_reference
+                from reference_plan import prepare_reference
 
                 reference_plan = prepare_reference(a.op, case)
                 if reference_plan.cache_identity:
