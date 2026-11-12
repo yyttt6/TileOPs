@@ -53,10 +53,14 @@ jobs:
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950-v0.1.0' }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          MANUAL_OPERATORS: ${{ github.event_name == 'workflow_dispatch' && inputs.operators || '' }}
         run: |
           SELECTOR=ci-harness/scripts/ci/early_selection.py
           if [[ ! -f "$SELECTOR" ]]; then SELECTOR=scripts/ci/early_selection.py; fi
           python "$SELECTOR" --source "$PWD" --base "$PR_BASE" --pr-head "$PR_HEAD" --output "$RUNNER_TEMP/operator-selection.json" --github-output "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$MANUAL_OPERATORS" ]]; then
+            echo "performance_required=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/upload-artifact@v4
         if: steps.selection.outcome == 'success'
         with:
@@ -260,6 +264,7 @@ jobs:
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950-v0.1.0' }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          MANUAL_OPERATORS: ${{ github.event_name == 'workflow_dispatch' && inputs.operators || '' }}
         working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
           set -eo pipefail
@@ -285,7 +290,7 @@ jobs:
           TILELANG_CACHE_KEY="$(python "$CACHE_KEY_SCRIPT" --source "$PWD" --lock /opt/tileops-ci/server2-20261030/config/toolchain-v1.lock.json --verified-toolchain "$RUNNER_TEMP/pr-toolchain.json" --output "$RUNNER_TEMP/pr-cache.json")"
           export TILELANG_CACHE_DIR="/opt/tileops-ci/server2-20261030/cache/tilelang-v1-${TILELANG_CACHE_KEY}"
           mkdir -p "$TILELANG_CACHE_DIR"
-          python ci-harness/scripts/ci/pr_performance.py --base "$PR_BASE" --baseline baseline-cache/data/baseline-cache/snapshot.json --output "/opt/tileops-ci/server2-20261030/pr-evidence-v010/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          python ci-harness/scripts/ci/pr_performance.py --operators "$MANUAL_OPERATORS" --base "$PR_BASE" --baseline baseline-cache/data/baseline-cache/snapshot.json --output "/opt/tileops-ci/server2-20261030/pr-evidence-v010/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

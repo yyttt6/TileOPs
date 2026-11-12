@@ -1,7 +1,7 @@
 """Stable persistent-cache namespace after the canonical toolchain check passes.
 
-Identical source trees reuse a namespace across runs and merge commits. Different
-source trees are isolated; sharing individual kernels across PRs is not promised.
+Compilation-relevant tracked files define the namespace. Documentation and CI
+workflow-only commits reuse it; changed runtime/build inputs remain isolated.
 TileLang still applies its own per-kernel cache keys inside this namespace.
 """
 
@@ -10,6 +10,25 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+
+
+def compilation_sources(source, revision="HEAD"):
+    # Exclude documentation, workflow metadata and CI orchestration. Keep all
+    # runtime source, workloads, benchmarks and build configuration. CI helpers
+    # select existing programs; TileLang also hashes each compiled program/options.
+    tree = subprocess.check_output(["git", "ls-tree", "-rz", revision], cwd=source)
+    relevant = []
+    for entry in tree.split(b"\0"):
+        if not entry:
+            continue
+        meta, path = entry.split(b"\t", 1)
+        name = path.decode()
+        if name.startswith(("docs/", ".github/", ".agent_memory/", "scripts/ci/")) or (
+            "/" not in name and name.endswith(".md")
+        ):
+            continue
+        relevant.append(entry)
+    return hashlib.sha256(b"\0".join(relevant)).hexdigest()
 
 
 def cache_identity(source: Path, lock: Path, verified_toolchain: Path) -> dict:
@@ -33,12 +52,10 @@ def cache_identity(source: Path, lock: Path, verified_toolchain: Path) -> dict:
     # The archive is verified clean before environment preparation. Reject later
     # tracked-source edits rather than lending them HEAD's persistent namespace.
     subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=source, check=True)
-    tree = subprocess.check_output(
-        ["git", "rev-parse", "HEAD^{tree}"], cwd=source, text=True
-    ).strip()
+    source_digest = compilation_sources(source)
     return {
-        "schema": "tileops.ascend-cache.v1",
-        "source_tree": tree,
+        "schema": "tileops.ascend-cache.v2",
+        "compilation_sources": source_digest,
         "lock_sha256": hashlib.sha256(lock_bytes).hexdigest(),
         "toolchain": {
             **{key: report[key] for key in ("profile", "machine", "python", "cxx_version")},

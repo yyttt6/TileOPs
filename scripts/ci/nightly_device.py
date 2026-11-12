@@ -21,13 +21,17 @@ def registered_ascend_ops(registered):
     )
 
 
-def main():
+def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--source", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--op", required=True)
     p.add_argument("--verify-measured-output", action="store_true")
-    a = p.parse_args()
+    p.add_argument("--timer-mode", choices=("auto", "session", "isolated"), default="auto")
+    p.add_argument(
+        "--case-plan", type=Path, help="Explicit diagnostic sample; never a full-coverage receipt"
+    )
+    a = p.parse_args(argv)
     sys.path[:0] = [str(a.source / "src"), str(a.source)]
     from benchmarks.ascend.guard import require_reservation
 
@@ -97,10 +101,16 @@ def main():
             golden_identity = contract_identity(a.source)
         except (OSError, ValueError, RuntimeError) as exc:
             print(f"Golden cache disabled: {exc}", flush=True)
+    selected_cases = cases(a.op)
+    if a.case_plan:
+        ids = json.loads(a.case_plan.read_text())[a.op]
+        found = {c.id: c for c in selected_cases}
+        assert ids and len(ids) == len(set(ids)) and set(ids) <= set(found)
+        selected_cases = [found[i] for i in ids]
     count = failed = 0
     started = time.monotonic()
     with (a.output / "results.jsonl").open("x") as stream:
-        for index, case in enumerate(cases(a.op)):
+        for index, case in enumerate(selected_cases):
             row = dict(
                 op=a.op, case_id=case.id, params=case.params, family=manifest[a.op]["family"]
             )
@@ -114,27 +124,30 @@ def main():
                 op = op_class(**case.arguments)
                 impl = entry(a.op).binder(op, case)
                 args = case.inputs if impl.args is None else impl.args
-                timer = make_timer(a.output / "profiles" / f"{index:04d}")
+                mode = "session" if a.timer_mode == "auto" else a.timer_mode
                 if a.verify_measured_output:
-                    from measured_correctness import measure_and_verify
+                    from measured_correctness import measure_profile_and_verify
 
                     if golden_identity is not None:
                         from golden_cache import for_case
 
                         golden = for_case(a.source, a.op, case.id, golden_identity)
-                    correctness, measurement = measure_and_verify(
+                    correctness, measurement = measure_profile_and_verify(
                         case,
                         impl,
-                        lambda run, timer=timer, args=args, reset=impl.reset: timer(
-                            torch, torch_npu, run, args, 3, 15, reset=reset
-                        ),
-                        expected_calls=1 + 3 + 15,
+                        torch,
+                        torch_npu,
+                        args,
+                        a.output / "profiles" / f"{index:04d}",
+                        mode=a.timer_mode,
                         golden_cache=golden,
                     )
+
                 else:
                     checks = benchmark_case(
                         case, {"tileops": impl}, None, name=case.id, verify_only=True
                     )
+                    timer = make_timer(a.output / "profiles" / f"{index:04d}-{mode}", mode=mode)
                     measurement = timer(torch, torch_npu, impl.run, args, 3, 15, reset=impl.reset)
                     check_inputs_preserved(
                         Request(impl.run, args, impl.reset, preserve_inputs=True), case.inputs
@@ -172,6 +185,7 @@ def main():
         failed=failed,
         source_changed=changed,
         seconds=time.monotonic() - started,
+        selection_scope="case-sample" if a.case_plan else "all-cases",
     )
     (a.output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
     raise SystemExit(0 if result["status"] == "passed" else 1)
