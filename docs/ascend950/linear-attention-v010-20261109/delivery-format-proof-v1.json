@@ -1,0 +1,359 @@
+{
+  "source_hash_false_positives": [
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 227,
+      "source_file": "src/tileops/_kernels/ascend/norm/_qk_token_simd.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 281,
+      "source_file": "src/tileops/_kernels/ascend/quantization/fp8_tokens.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 681,
+      "source_file": "src/tileops/_ops/norm/fused_add_rms_norm_per_token_quant.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 792,
+      "source_file": "tests/test_check_api_compat.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 797,
+      "source_file": "tests/test_compile_boundary_instance_key.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 822,
+      "source_file": "tests/test_public_api.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 824,
+      "source_file": "tests/test_roof_key.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 830,
+      "source_file": "tests/kernels/test_autotune_supply_key.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 848,
+      "source_file": "tests/lint/test_device_api_lint.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 928,
+      "source_file": "tests/ops/test_fused_add_rms_norm_per_token_quant.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1030,
+      "source_file": "benchmarks/api.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1130,
+      "source_file": "benchmarks/tests/test_api.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1518,
+      "source_file": "src/tileops/_kernels/ascend/norm/_qk_token_simd.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1595,
+      "source_file": "src/tileops/_kernels/ascend/quantization/fp8_tokens.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1841,
+      "source_file": "src/tileops/_ops/norm/fused_add_rms_norm_per_token_quant.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1946,
+      "source_file": "tests/test_check_api_compat.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1957,
+      "source_file": "tests/test_compile_boundary_instance_key.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1966,
+      "source_file": "tests/test_roof_key.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1972,
+      "source_file": "tests/test_public_api.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 1987,
+      "source_file": "tests/kernels/test_autotune_supply_key.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 2014,
+      "source_file": "tests/lint/test_device_api_lint.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 2083,
+      "source_file": "tests/ops/test_fused_add_rms_norm_per_token_quant.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 2183,
+      "source_file": "benchmarks/api.py",
+      "is_verified_source_sha256": true
+    },
+    {
+      "file": "docs/ascend950/linear-attention-v010-20261109/final-tree-receipt-binding-v2.json",
+      "line": 2202,
+      "source_file": "benchmarks/tests/test_api.py",
+      "is_verified_source_sha256": true
+    }
+  ],
+  "source_map_conversion_roundtrip_equal": true,
+  "raw_binding_sha256": "0850132292022e5d8f6985a4c379498a7f910a7374b96fe7b5c921315eebeec4",
+  "published_binding_sha256": "fcb3b514e2283de6f7c92aadcaac5512e52aa48333c8aa136bf451d121a24391",
+  "terminal_newline_normalization": [
+    {
+      "file": "integrated-public.xml",
+      "original_sha256": "a6d4407221fc85afc89b1d370363e7254d209f35b95fbd51f7a9caec4f17f0f6",
+      "normalized_sha256": "1b583d3766f17f250373a4c918db7ee4de27a5703db76e39fa670b2bf9ddb78a",
+      "change": "terminal newline only"
+    },
+    {
+      "file": "integrated-public-full-collection.json",
+      "original_sha256": "1b330256f79db0d0d73b7f33d0b3a6331b57bcd4e218ca401bbbc88d05d4de80",
+      "normalized_sha256": "c7b847fef075bae47360277556c7c72c4dec2a05cf1aaa5cee8b747f1d5fcc7a",
+      "change": "terminal newline only"
+    },
+    {
+      "file": "integrated-public-selection.json",
+      "original_sha256": "8b00dd84e2b8fa5f60a897c48aef661d7d7885e6b0c74d21547873bcb1c4668a",
+      "normalized_sha256": "abe4fcc1952d91b5d7db3d350ebbab4fba4b074bf5733a025b085d13189b0466",
+      "change": "terminal newline only"
+    },
+    {
+      "file": "node-delta-source-review.json",
+      "original_sha256": "b6345d15f62a56b686f70eab6dfe1bdec3a5505ee120fb49c4bb7f935db9effa",
+      "normalized_sha256": "f62f51617bf68d289388de3d22b8f93993515d1e5b929f2aa48e7dbefa91f325",
+      "change": "terminal newline only"
+    },
+    {
+      "file": "integrated-public-source-review.json",
+      "original_sha256": "eb00c96b0402bdf92b8814bfc8ad93bc474b4df429a267df41a4c89f62685665",
+      "normalized_sha256": "a0e04766773b127419f258183d97847a6f05010716e3b57456bf6c0993beb654",
+      "change": "terminal newline only"
+    },
+    {
+      "file": "integrated-compile.xml",
+      "original_sha256": "907bf0c2e2d6cb031dc77a778aacc2fa69966a93c49d88b25e22e99b7f34640b",
+      "normalized_sha256": "f49c936b8db859c2b78e1cfe921946ffaf160428300d44874ef93e1f9938b87b",
+      "change": "terminal newline only"
+    }
+  ],
+  "csv_line_endings": [
+    {
+      "file": "GLAChunkFwdOp-device.csv",
+      "original_sha256": "0ee03be9493f94495572a9466ae92e6147adaee62e65d75dab7baf27d85efe1b",
+      "normalized_sha256": "a9e77791daf37c0b078c4a37a8ec7e0c1bc8d7a1ea98b1e318709495be9f252d",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLARecurrentFwdOp-host.csv",
+      "original_sha256": "3c15b2f0cdc53f7dc2732e7ecd548ed32b07bd29e3a1b5b6b0c4bb5ffb01e29e",
+      "normalized_sha256": "85839b49ad482e228e86cb9bc219486546d0c092ec2a0488a7e7563d2485a498",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkBwdOp-host.csv",
+      "original_sha256": "2e5e5a5ad0fd2ccc50d0c38bfaae6f83bb335abe9b875836f3af6bce344841bc",
+      "normalized_sha256": "d0e1c778ffdd968e2d4bf5b40d24abf21a3a120500e01f4284a77aba647d67b5",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLARecurrentFwdOp-device.csv",
+      "original_sha256": "ab64aa516beb45e440fa373521268097ebb8e676df6640a6fbc027ca8fb33b85",
+      "normalized_sha256": "a915af142c3099c8baac48c9d3b42b64bd4f88e29fa22b181672891b6b577b66",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAFwdOp-historical.csv",
+      "original_sha256": "b3c91e2f40c382883a1228bbc70776a2082db2c04822c05bbd70abd56e3d76fa",
+      "normalized_sha256": "c100287e589389462e3ce306a1ecceadad68e37816358038ef837e4432fc95d9",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetRecurrentFwdOp-host.csv",
+      "original_sha256": "e24fd812ee25d07cad9aa92cd840552bdad75ed2a8a8e9c4320cfb881a9767d3",
+      "normalized_sha256": "dfd1da0c945536a0a987e05a7de30632cf3f44c6d682d375caebb3d20544d5ef",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkFwdOp-host.csv",
+      "original_sha256": "23c43c0d623dc977b94aeb6b076cd2f6680e7ad861b93cd4af6b6f962ca65c2d",
+      "normalized_sha256": "23af01cd96fea1789af27bfe7d88064f401b3924f5d406652703c1a3f829e816",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetFwdOp-device.csv",
+      "original_sha256": "d1765fd62bbfef38712a59d86e5e9fd9be476be57d004e9f6bf9af3ea4af3e6a",
+      "normalized_sha256": "336b6c95730828f149e6232e35eba999c86e2577cad403f99b2777422654556d",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLARecurrentFwdOp-historical.csv",
+      "original_sha256": "cc32b10f9982c9b6b4d7dcc82118b0982882afce427c20c640253b56d9ebbfa4",
+      "normalized_sha256": "9c04831f695bb7c56023429f0394edba290a5a65e6d9a020a59a7cd446c37bee",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkFwdOp-timings.csv",
+      "original_sha256": "beec23912243bc1b8282a443a842f38b92f80ca0007bcd7d0e461d363f1fab4a",
+      "normalized_sha256": "719c8aba79866d6251cc52510bdc8d572b24ab77abd7aa1cbb32df2083de6b94",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLARecurrentFwdOp-timings.csv",
+      "original_sha256": "c5508ece56ad0e4559c0153b616a8721b0c488254438c8ce0039ead13ee9e36f",
+      "normalized_sha256": "aa9c9a79fff745ecb6e234c47ae6442437e98463655c3d24bb79f048162d6be0",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAFwdOp-timings.csv",
+      "original_sha256": "d87f6a38cd9d77b16ab98aa54a8de20769131bbd6fbad58ec3ae890472623fbf",
+      "normalized_sha256": "3fc0829aaf9d744d01f60d18b2fc75d7f4a1372a68bd179f2338596540e32d23",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetRecurrentFwdOp-timings.csv",
+      "original_sha256": "c637f50f8dbcb5e822cb2d6a17746738a39c73be78c032c28aabf2e813b4c56b",
+      "normalized_sha256": "46b0c43ee384a5bd463cc0c63aa2dbe3739df74b5c36a6cef3ab362b4e738982",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetFwdOp-host.csv",
+      "original_sha256": "59d59bad9d6d6a814553ba6ea3439076d46ba74dbe38c12c1a5e6ddb11d8816b",
+      "normalized_sha256": "928627ed7f3da718d87580551c222c214d8661456246b26b4ce43cf22a2b1119",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GDNFwdOp-historical.csv",
+      "original_sha256": "d50ad9f6a9fe5e3fa25a2dd52663dbafc9a04bf77a6a1d1519a3da483e0eb6c1",
+      "normalized_sha256": "12b3f25d72ac96cdea1358ba9cf6f7a8ff7729720db329f4ef3a404305fb92a4",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetRecurrentFwdOp-historical.csv",
+      "original_sha256": "48ed142c218f89206af4107441c0f80f4512968ea01e4d7c376df4c2ab516673",
+      "normalized_sha256": "93e88d3c968998a0f2a79259bdde137f7a8854d5e1d5941ec46e6f1618c1a4cd",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkBwdOp-historical.csv",
+      "original_sha256": "a57e1994f9498cce8f6fa827db7a1f40e2b54d7a09918b58408a1b3e60a95cfb",
+      "normalized_sha256": "3a9000400e55ca42e7473d49728b51f494ee80e359e2204af102bf477850caa9",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetFwdOp-timings.csv",
+      "original_sha256": "275c11b4f17a4cfff1453883440b956da381153ed4f3edd1d0fa07b8e4856274",
+      "normalized_sha256": "da289f5946e11645cf5751145258df60e929f7aaecd6a0fa918d257c471c517f",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAFwdOp-host.csv",
+      "original_sha256": "465d09e3d769a5d5105f7206281885afaf19178a83d700cf64621d66c714aaa5",
+      "normalized_sha256": "a04b8d89b94e6d8b9f6433c9d81fb754efacc9b7527d4f8d4cd2ffadd01d411a",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkBwdOp-device.csv",
+      "original_sha256": "fec111c2acbff8ce6e7a3ee464b85e3985d98327b099c88f7a0364b077d9ebfb",
+      "normalized_sha256": "4d0081822061e70a58bc55006be25be2310a50a0bcfdf5bd51332460721f3f85",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetFwdOp-historical.csv",
+      "original_sha256": "64ecdbdb0bdbef66578497f13d834a466dfac270f3fca1f1c87b823508b33fcc",
+      "normalized_sha256": "71de7518c9b50f37caa503f88de5e93ebae4127eeb273797bf1c8d20147495ff",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GDNFwdOp-device.csv",
+      "original_sha256": "b600e33431778939d5373712141f693612332c3a9c22fc3d2c0d705bf8a2425f",
+      "normalized_sha256": "31bdb45ee0bc1ee2c3caa2d6c8ad3e4a0af931df0047b15fb3a64efeed43849f",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAFwdOp-device.csv",
+      "original_sha256": "1e760b0a6c78dbb77a6c2074de6f212e1ce859d081ddfd244242448b695806eb",
+      "normalized_sha256": "4779d5354725466eec45609a0f8542ae6b142044487d5bbbd97cf6977d3e47f4",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkFwdOp-historical.csv",
+      "original_sha256": "119a9fcace0e80d2b3d6557d7c83676e20f99ce96e3d422b9c2e6d20b6ef50a9",
+      "normalized_sha256": "e1546e9a9f59807ad8ecf48bd80417b08da63e2beb149043d14c7886fd188455",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GDNFwdOp-host.csv",
+      "original_sha256": "0c406fff274aacef0002942dfd4b768ad9c3897cfb442066203982ca00197f88",
+      "normalized_sha256": "db28627fd29f119ec0258770cb61126337abc92cab20a9db2ca002d6d9d36b0e",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "DeltaNetRecurrentFwdOp-device.csv",
+      "original_sha256": "77afae663164ebf89c68369b7953f5675dc4ac0a9e08f1595e08776fed4c37c6",
+      "normalized_sha256": "1914379663445a6c2f872c7479743c2d294e05c74292566dd07eb440ba754f72",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GDNFwdOp-timings.csv",
+      "original_sha256": "671506bd84645dafa90c8bae0a64216fcbc841391093d32fdb14c9f55d5ae466",
+      "normalized_sha256": "a4e1f41751af7ab2672e1928bf2455579ee89232a7464bb260caccd81590aaf6",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    },
+    {
+      "file": "GLAChunkBwdOp-timings.csv",
+      "original_sha256": "4c733393915e965ff78c761c9c312a16df3c6ce1ca9ac23bca89baf872b6e493",
+      "normalized_sha256": "9d4a908995f4fcc6db29bc884214f9044b68295e40c0dc552c6e045ec79acad5",
+      "change": "CRLF to LF; parsed CSV rows identical"
+    }
+  ]
+}

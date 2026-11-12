@@ -1,0 +1,119 @@
+{
+  "scope": "W only, base16 active measurement immutable; comment/whitespace-only exact AST proof",
+  "files": [
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pack_group_reuse64.py",
+      "base16_sha256": "3727431d6c5d98c6dd267e3b360668550747f7d9f1e716380a0c4833bacd45e7",
+      "formatted_sha256": "7de4995145a2eca153c96b954301180787da97a4b8e67e97f8b7f6a9de18c912",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_vfirst.py",
+      "base16_sha256": "79483ff675d1d58b917423de44a70dffa496dbb6738445ead0f644303eee51a1",
+      "formatted_sha256": "79483ff675d1d58b917423de44a70dffa496dbb6738445ead0f644303eee51a1",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pack_hybrid.py",
+      "base16_sha256": "ac7c7516325d4d0c20ce9680b6b7bb1cd6830ccf70b680fd05eab7be2534805d",
+      "formatted_sha256": "06f8e70db5b81253569b71c7ee61b2b54da972e1e6ab09344da1e3b7cafdacaa",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_inverse64_gram_compact.py",
+      "base16_sha256": "ded3adbed30d2c411709cb36d6fc0da35bd4fa60a36074d97204ac00f09e12fe",
+      "formatted_sha256": "b3b003a3448c970f0acc1ddf396f4e61f7a1d157ce2e98a4c3e8da47ac9cb3d3",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_vfirst_fused.py",
+      "base16_sha256": "4552e5972de139533cbffea6647031421711f98d86a4f3903fdc57758b2d1700",
+      "formatted_sha256": "609a9fa3e439d14aa7ffedbac9b193941463adab9f21e6ae3f20993108888b7b",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pack_compact64.py",
+      "base16_sha256": "0b6b601b54ed9cbcfe0d8aaf22ac460a4d2051e6e9d456753580eb54fc4a6465",
+      "formatted_sha256": "efcfbe766dd6a911ce8266d45dacbafae0217975d5b839217152f291cccbfb70",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pipeline_vector64.py",
+      "base16_sha256": "96141d36a3368c9b1e05a61dc28bcaba1d9a90dff8fe8aa26159d2fa848377d5",
+      "formatted_sha256": "96141d36a3368c9b1e05a61dc28bcaba1d9a90dff8fe8aa26159d2fa848377d5",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_chunked_paired.py",
+      "base16_sha256": "9a5b88fb82a6b433be13e3335b53783b374455c85431b55ed0a62eca5ab9a83c",
+      "formatted_sha256": "9a5b88fb82a6b433be13e3335b53783b374455c85431b55ed0a62eca5ab9a83c",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_sequential_direct512.py",
+      "base16_sha256": "c9e0f3188cb5f80eb59e32d70452ba333e0f3cb0819f6dcbec8870d4fa93c8ab",
+      "formatted_sha256": "c9e0f3188cb5f80eb59e32d70452ba333e0f3cb0819f6dcbec8870d4fa93c8ab",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pack64.py",
+      "base16_sha256": "6bb4384c17ebdff63e0929391d2ec5520ec102b355729ad7bc6b8de3332a8446",
+      "formatted_sha256": "7ab01480e47e17b388d69a5fcd6a853b0c969b02a5350732d0bda51c4e5ce289",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_chunked_vector64.py",
+      "base16_sha256": "67911aebb6941538777ba79e715190eb4583ccaebacb3fff05ceabd04ef420f2",
+      "formatted_sha256": "67911aebb6941538777ba79e715190eb4583ccaebacb3fff05ceabd04ef420f2",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_gram_pair.py",
+      "base16_sha256": "0def5134cffbd45290283c42ba43cc5735f7a9c36602d9b0077a403b76331cc2",
+      "formatted_sha256": "0def5134cffbd45290283c42ba43cc5735f7a9c36602d9b0077a403b76331cc2",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn.py",
+      "base16_sha256": "a5da596683f7e22d178dc114b8dd6042fb486f05f44546aa9d30ba41dc671ec0",
+      "formatted_sha256": "a5da596683f7e22d178dc114b8dd6042fb486f05f44546aa9d30ba41dc671ec0",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pipeline.py",
+      "base16_sha256": "58c2236250c216830c35515f290b3e30c2a2b253820e75b410459f35f9781cf1",
+      "formatted_sha256": "58c2236250c216830c35515f290b3e30c2a2b253820e75b410459f35f9781cf1",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_sequential_vector_output.py",
+      "base16_sha256": "a066c499692fdb390e35be0c4b4240f431e5dd132fb0d8f98e08c7f8566c2d11",
+      "formatted_sha256": "a066c499692fdb390e35be0c4b4240f431e5dd132fb0d8f98e08c7f8566c2d11",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_inverse_branch.py",
+      "base16_sha256": "840a834378f74049dbfc3ab95543388c7f105ebf9eedde4d409532f277e934ca",
+      "formatted_sha256": "60b3d60abb49f5fb55965c5c5c235878b28fbcbb8a63a4a8aead967b7496536b",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_pack_vector64.py",
+      "base16_sha256": "1df58d6a0e4987de622da81488853684e184dc5ad5115dcdf22b25efc31c6230",
+      "formatted_sha256": "dc94dfa720567f79dca727bf7a734395cfdd79f36829e177e1021ed8607be8b1",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_inverse64_gram.py",
+      "base16_sha256": "5a469fcfc2b5165344ea9800f20259429c273f8f50cad05e22c300d61f1f4ab6",
+      "formatted_sha256": "8ef090a499f22649356c20c76e375fb8d0c808627eb7250a404e057f6307a4cd",
+      "full_AST_equal": true
+    },
+    {
+      "file": "src/tileops/_kernels/ascend/linear_attention/gdn_weighted_wu_vector64.py",
+      "base16_sha256": "a99445eb96799eb1c474eab33562870552c416841278524510bf9e7a97cb9bd0",
+      "formatted_sha256": "a99445eb96799eb1c474eab33562870552c416841278524510bf9e7a97cb9bd0",
+      "full_AST_equal": true
+    }
+  ]
+}

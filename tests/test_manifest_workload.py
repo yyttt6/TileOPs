@@ -1,6 +1,7 @@
 """Workload rows (docs/design/manifest.md § Workloads)."""
 
 import copy
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,7 @@ import torch
 import yaml
 
 from tileops.manifest._plan import entry_plan
+from tileops.manifest._values import ADTValue
 from tileops.manifest._workload import RowError, check_workloads, instantiate
 from tileops.manifest.primitives import GENERATORS, PREDICATES
 
@@ -41,6 +43,49 @@ def test_fixture_rows_pass_the_validator(name):
     entry["workloads"] = [r for r in entry.get("workloads", []) if not r.get("expect_fail")]
     if entry["workloads"]:
         assert check_workloads(name, entry, _ADTS) == []
+
+
+@pytest.mark.parametrize("name", sorted(_ENTRIES))
+def test_shape_descriptions_match_calls_without_generating_metadata(name, monkeypatch):
+    entry = _ENTRIES[name]
+    plan = entry_plan(name, entry, _ADTS)
+
+    def refuse(*args):
+        raise AssertionError("shape description generated tensor contents")
+
+    for row in entry.get("workloads", []):
+        if row.get("expect_fail"):
+            continue
+        for case in row.get("dtype_cases") or [{}]:
+            call = instantiate(plan, row, case)
+            with monkeypatch.context() as patch:
+                for generator in GENERATORS:
+                    patch.setitem(GENERATORS, generator, refuse)
+                described = instantiate(plan, row, case, metadata=False)
+            assert described.case_id == call.case_id
+            assert described.specs == {
+                n: None if spec is None else replace(spec, values=None)
+                for n, spec in call.specs.items()
+            }
+            for actual, expected in (
+                (described.params, call.params),
+                (described.indices, call.indices),
+            ):
+                assert actual.keys() == expected.keys()
+                for key, value in actual.items():
+                    assert (
+                        (vars(value) == vars(expected[key]))
+                        if isinstance(value, ADTValue)
+                        else value == expected[key]
+                    )
+
+
+def test_shape_descriptions_still_reject_inconsistent_dimensions():
+    entry = _varlen_with(shape="[B + 10]", values="as_tensor(L)")
+    plan = entry_plan("Varlen", entry, _ADTS)
+    row = entry["workloads"][0]
+    with pytest.raises(RowError, match="is not B \\+ 10 for a Dim"):
+        instantiate(plan, row, row["dtype_cases"][0], metadata=False)
 
 
 def test_case_id_is_label_then_dtype_cases_then_dtype_parameters():
@@ -464,3 +509,100 @@ def test_check_workloads(name, entry, message):
         assert errors == []
     else:
         assert any(message in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "values,expected",
+    [
+        ([], True),
+        ([[], [[]]], True),
+        (-8, True),
+        (7, True),
+        (-9, False),
+        (8, False),
+        ([[0, -8], [7]], True),
+        ([[0], [True]], False),
+        ([[0], [1.0]], False),
+        ([[0], [None]], False),
+    ],
+)
+def test_generated_metadata_integer_bounds(values, expected):
+    from tileops.manifest._workload import _within
+
+    assert _within(values, 8) is expected
+
+
+def _small_dsa_validation_entry():
+    from tileops.manifest import load_manifest
+
+    entry = copy.deepcopy(load_manifest()["DSADenseFwdOp"])
+    row = dict(entry["workloads"][0])
+    row.update(
+        B=1,
+        S=3,
+        S_kv=2,
+        H=2,
+        H_kv=1,
+        D=4,
+        K=4,
+        dim_tail=0,
+        stride_kv=1,
+        q_start_index_s=0,
+        label="small",
+    )
+    entry["workloads"] = [row]
+    return entry
+
+
+def test_all_dsa_manifest_rows_validate_without_generating_indices(monkeypatch):
+    from tileops.manifest import load_adts, load_manifest
+
+    def refuse(*args):
+        pytest.fail("manifest validation generated large causal indices")
+
+    monkeypatch.setitem(GENERATORS, "causal_topk_indices", refuse)
+    assert check_workloads("DSADenseFwdOp", load_manifest()["DSADenseFwdOp"], load_adts()) == []
+
+
+def test_static_dsa_validation_keeps_public_materialization(monkeypatch):
+    from tileops.manifest import load_adts
+
+    entry = _small_dsa_validation_entry()
+    row = entry["workloads"][0]
+    calls = []
+    original = GENERATORS["causal_topk_indices"]
+
+    def record(*args):
+        calls.append(1)
+        return original(*args)
+
+    monkeypatch.setitem(GENERATORS, "causal_topk_indices", record)
+    plan = entry_plan("DSADenseFwdOp", entry, load_adts(), resolve=False)
+    actual = instantiate(plan, row, row["dtype_cases"][0])
+    assert calls == [1]
+    assert actual.specs["indices"].values is not None
+    assert check_workloads("DSADenseFwdOp", entry, load_adts()) == []
+    assert calls == [1]
+
+
+@pytest.mark.parametrize("fault", ["range", "dtype", "domain", "shape", "predicate"])
+def test_static_dsa_validation_does_not_accept_invalid_workloads(fault):
+    from tileops.manifest import load_adts
+
+    entry = _small_dsa_validation_entry()
+    indices = entry["signature"]["inputs"]["indices"]
+    row = entry["workloads"][0]
+    if fault == "range":
+        indices["requires"] = ["in_range(0, S_kv)"]  # excludes emitted padding
+    elif fault == "dtype":
+        row.update(S=1, S_kv=1 << 31, K=2)  # padding is outside int32
+    elif fault == "domain":
+        row["K"] = 0
+    elif fault == "shape":
+        indices["shape"] = "[B, S, H_kv, K + 1]"
+    else:
+        indices["requires"] = ["in_range(0, S_kv + 1)", "sums_to(0)"]
+    plan = entry_plan("DSADenseFwdOp", entry, load_adts(), resolve=False)
+    with pytest.raises((RowError, TypeError, ValueError)):
+        instantiate(plan, row, row["dtype_cases"][0])
+    assert check_workloads("DSADenseFwdOp", entry, load_adts())

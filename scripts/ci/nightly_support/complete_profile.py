@@ -113,7 +113,7 @@ def pure_aicpu_base(extra):
     )
 
 
-def make_timer(evidence_dir):
+def make_isolated_timer(evidence_dir):
     from tools import measure_baselines as base
 
     evidence_dir = Path(evidence_dir)
@@ -189,3 +189,58 @@ def make_timer(evidence_dir):
         return result
 
     return wrapped
+
+
+def make_timer(evidence_dir, mode="auto"):
+    if mode == "isolated":
+        return make_isolated_timer(evidence_dir)
+    if mode not in ("auto", "session"):
+        raise ValueError(f"Unknown timer mode: {mode}")
+    from session_profile import make_timer as session_timer
+
+    return session_timer(evidence_dir)
+
+
+def replay_coverage(measurement):
+    """Replay every retained repeat, including shared-session window boundaries."""
+    import math
+
+    from tools.measure_baselines import _parse_ffts_profile
+
+    records = json.loads(Path(measurement["profile_coverage_evidence"]).read_text())
+    repeats = measurement["repeats"]
+    assert len(records) == repeats
+    if records[0].get("kind") == "marker-session":
+        from session_profile import COVERAGE, PROTOCOL, partition
+
+        assert measurement["measurement_protocol"] == PROTOCOL
+        assert measurement["profile_coverage_protocol"] == COVERAGE
+        path = records[0]["path"]
+        sha = complete_digest(path)
+        assert all(r["path"] == path and r["complete_sha256"] == sha for r in records)
+        assert [r["window"] for r in records] == list(range(repeats))
+        samples, _ = partition(path, repeats)
+        for r, sample in zip(records, samples, strict=True):
+            assert r["result"] == sample
+    else:
+        assert not any(r.get("kind") == "marker-session" for r in records)
+        samples = []
+        for r in records:
+            assert complete_digest(r["path"]) == r["complete_sha256"]
+            extra = decode(r["path"])
+            try:
+                sample = _parse_ffts_profile(Path(r["path"]), 1)
+            except ValueError as exc:
+                if str(exc) != "No valid FFTS activity":
+                    raise
+                sample = pure_aicpu_base(extra)
+            sample["latency_ms"] += extra["added_us"] / 1000
+            samples.append(sample)
+    assert len(measurement["latency_samples_ms"]) == repeats
+    for r, sample, value in zip(records, samples, measurement["latency_samples_ms"], strict=True):
+        assert math.isclose(sample["latency_ms"], r["result"]["latency_ms"], rel_tol=1e-10)
+        assert math.isclose(sample["latency_ms"], value, rel_tol=1e-10)
+    assert math.isclose(
+        sum(measurement["latency_samples_ms"]) / repeats, measurement["latency_ms"], rel_tol=1e-10
+    )
+    return records

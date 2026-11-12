@@ -3,7 +3,7 @@
 from dataclasses import asdict, replace
 
 
-def measure_and_verify(case, impl, measure, *, expected_calls):
+def measure_and_verify(case, impl, measure, *, expected_calls, golden_cache=None):
     """Run the unmodified timer, retain only its final output, then apply workload checks.
 
     ``measure(run)`` must perform exactly ``expected_calls`` calls (including cold and
@@ -43,7 +43,11 @@ def measure_and_verify(case, impl, measure, *, expected_calls):
         return produced
 
     try:
-        measurement = measure(capture)
+        try:
+            measurement = measure(capture)
+        except Exception:
+            _require_unchanged(shared, pristine)
+            raise
         if calls != expected_calls or len(final) != 1:
             raise AssertionError(f"timer call count changed: {calls} != {expected_calls}")
         _require_unchanged(shared, pristine)
@@ -52,7 +56,11 @@ def measure_and_verify(case, impl, measure, *, expected_calls):
         evidence = case.verification
         comparison = replace(evidence, probe=None) if isinstance(evidence, Custom) else evidence
         checks = verify(
-            case.reference,
+            (
+                golden_cache.wrap(case.reference)
+                if golden_cache is not None and case.reference is not None
+                else case.reference
+            ),
             inputs,
             evidence=comparison,
             requests={"tileops": Request(lambda: produced, ())},
@@ -70,10 +78,45 @@ def measure_and_verify(case, impl, measure, *, expected_calls):
                 impl.reset()
             evidence.probe(impl.run, args)
             _require_unchanged(shared, pristine)
+        if golden_cache is not None:
+            golden_cache.commit()
         return asdict(checked), measurement
     finally:
+        if golden_cache is not None:
+            golden_cache.discard()
         _restore(shared, pristine)
         _restore(own, own_pristine)
         final.clear()
         pristine.clear()
         own_pristine.clear()
+
+
+def measure_profile_and_verify(
+    case, impl, torch, torch_npu, args, evidence_dir, *, mode="auto", golden_cache=None
+):
+    """Retry only an unsupported captured topology, with restored inputs and a fresh counter."""
+    from pathlib import Path
+
+    from complete_profile import make_timer
+    from session_profile import UnsupportedSessionError
+
+    selected = "session" if mode == "auto" else mode
+
+    def perform(backend):
+        timer = make_timer(Path(evidence_dir) / backend, mode=backend)
+        return measure_and_verify(
+            case,
+            impl,
+            lambda run: timer(torch, torch_npu, run, args, 3, 15, reset=impl.reset),
+            expected_calls=19,
+            golden_cache=golden_cache,
+        )
+
+    try:
+        return perform(selected)
+    except UnsupportedSessionError as exc:
+        if mode != "auto":
+            raise
+        correctness, measurement = perform("isolated")
+        measurement["session_fallback_reason"] = str(exc)
+        return correctness, measurement

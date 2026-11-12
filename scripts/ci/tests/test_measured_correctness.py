@@ -192,7 +192,7 @@ def test_device_failure_keeps_receipt_and_does_not_run_next_case(tmp_path, monke
         "measured_correctness": MODULE,
     }
 
-    def make_timer(path):
+    def make_timer(path, mode="auto"):
         path.mkdir(parents=True)
         (path / "raw-evidence").write_text("kept even on failed comparison")
 
@@ -248,7 +248,7 @@ def test_device_failure_keeps_receipt_and_does_not_run_next_case(tmp_path, monke
     rows = [json.loads(line) for line in (out / "results.jsonl").read_text().splitlines()]
     assert len(rows) == 1 and rows[0]["status"] == "failed"
     assert "measurement" not in rows[0]
-    assert (out / "profiles/0000/raw-evidence").exists()
+    assert (out / "profiles/0000/session/raw-evidence").exists()
 
 
 def test_optional_outputs_count_as_validated_after_structural_checks():
@@ -262,3 +262,36 @@ def test_optional_outputs_count_as_validated_after_structural_checks():
 def test_optional_outputs_do_not_hide_wrong_tensor_or_structure(bad):
     with pytest.raises(AssertionError):
         execute(bad, reference=lambda x: (x * 2, None, None))
+
+
+def test_unsupported_session_fallback_restores_state_and_checks_final_output(monkeypatch, tmp_path):
+    class UnsupportedError(RuntimeError):
+        pass
+
+    x = torch.tensor([1.0, 3.0])
+    calls = []
+    modes = []
+    impl = SimpleNamespace(run=lambda v: v * 2, args=None, reset=None, noncomparable_reason=None)
+    case = SimpleNamespace(inputs=(x,), reference=lambda v: v * 2, verification=Exact())
+
+    def factory(path, mode):
+        modes.append(mode)
+
+        def timer(_torch, _npu, run, args, *rest, **kw):
+            for _ in range(19):
+                run(*args)
+                calls.append(mode)
+            if mode == "session":
+                raise UnsupportedError("multiple streams")
+            return dict(latency_ms=1.0)
+
+        return timer
+
+    monkeypatch.setitem(sys.modules, "complete_profile", SimpleNamespace(make_timer=factory))
+    monkeypatch.setitem(
+        sys.modules, "session_profile", SimpleNamespace(UnsupportedSessionError=UnsupportedError)
+    )
+    check, result = MODULE.measure_profile_and_verify(case, impl, torch, None, (x,), tmp_path)
+    assert modes == ["session", "isolated"] and len(calls) == 38
+    assert check["checked_outputs"] == 1 and result["session_fallback_reason"] == "multiple streams"
+    assert torch.equal(x, torch.tensor([1.0, 3.0]))
