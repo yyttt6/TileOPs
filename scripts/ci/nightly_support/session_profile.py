@@ -92,6 +92,14 @@ def partition(path, repeats):
     return samples, dict(samples=samples, preparation_and_markers=excluded, full_decode=extra)
 
 
+def require_qualified_topology(proof):
+    # Keep the established complete AICPU adapter until a real marker-session
+    # AICPU control is qualified on this toolchain. Synthetic partition tests
+    # establish parser invariants, not hardware qualification.
+    if any(t.get("name") and t["type"] in (4, 5) for t in proof["full_decode"]["tasks"]):
+        raise ValueError("Named AICPU work uses the qualified isolated profiler")
+
+
 def make_timer(evidence_dir):
     from complete_profile import complete_digest
     from tools import measure_baselines as base
@@ -145,6 +153,7 @@ def make_timer(evidence_dir):
                     path = Path(prof.prof_if.prof_path)
                     try:
                         parsed, proof = partition(path, repeats)
+                        require_qualified_topology(proof)
                     except (AssertionError, ValueError) as exc:
                         (evidence_dir / "unsupported.json").write_text(
                             json.dumps({"reason": str(exc), "path": str(path)})

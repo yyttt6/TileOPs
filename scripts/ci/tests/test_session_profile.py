@@ -127,3 +127,12 @@ def test_replay_rejects_tampered_shared_session(monkeypatch, tmp_path, damage):
     else:
         with pytest.raises(AssertionError):
             complete.replay_coverage(measurement)
+
+
+@pytest.mark.parametrize("kind", [4, 5])
+def test_unqualified_named_aicpu_uses_isolated_backend(kind):
+    with pytest.raises(ValueError, match="qualified isolated"):
+        session.require_qualified_topology(
+            dict(full_decode=dict(tasks=[dict(type=kind, name="Cast")]))
+        )
+    session.require_qualified_topology(dict(full_decode=dict(tasks=[dict(type=1, name="main")])))
