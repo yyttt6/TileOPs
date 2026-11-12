@@ -3,7 +3,9 @@
 from dataclasses import asdict, replace
 
 
-def measure_and_verify(case, impl, measure, *, expected_calls, golden_cache=None):
+def measure_and_verify(
+    case, impl, measure, *, expected_calls, golden_cache=None, comparison_transform=None
+):
     """Run the unmodified timer, retain only its final output, then apply workload checks.
 
     ``measure(run)`` must perform exactly ``expected_calls`` calls (including cold and
@@ -53,6 +55,8 @@ def measure_and_verify(case, impl, measure, *, expected_calls, golden_cache=None
         _require_unchanged(shared, pristine)
         # Freeze aliased/private output before reference execution or any reset/probe.
         produced = _copy_outputs(final.pop())
+        if comparison_transform is not None:
+            produced = comparison_transform(produced)
         evidence = case.verification
         comparison = replace(evidence, probe=None) if isinstance(evidence, Custom) else evidence
         checks = verify(
@@ -92,7 +96,16 @@ def measure_and_verify(case, impl, measure, *, expected_calls, golden_cache=None
 
 
 def measure_profile_and_verify(
-    case, impl, torch, torch_npu, args, evidence_dir, *, mode="auto", golden_cache=None
+    case,
+    impl,
+    torch,
+    torch_npu,
+    args,
+    evidence_dir,
+    *,
+    mode="auto",
+    golden_cache=None,
+    comparison_transform=None,
 ):
     """Retry only an unsupported captured topology, with restored inputs and a fresh counter."""
     from pathlib import Path
@@ -110,6 +123,7 @@ def measure_profile_and_verify(
             lambda run: timer(torch, torch_npu, run, args, 3, 15, reset=impl.reset),
             expected_calls=19,
             golden_cache=golden_cache,
+            comparison_transform=comparison_transform,
         )
 
     try:

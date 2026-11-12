@@ -124,6 +124,11 @@ def main(argv=None):
                 op = op_class(**case.arguments)
                 impl = entry(a.op).binder(op, case)
                 args = case.inputs if impl.args is None else impl.args
+                from reference_placement import prepare_reference
+
+                reference_plan = prepare_reference(a.op, case)
+                if reference_plan.cache_identity:
+                    row["reference_execution"] = reference_plan.cache_identity
                 mode = "session" if a.timer_mode == "auto" else a.timer_mode
                 if a.verify_measured_output:
                     from measured_correctness import measure_profile_and_verify
@@ -131,9 +136,14 @@ def main(argv=None):
                     if golden_identity is not None:
                         from golden_cache import for_case
 
-                        golden = for_case(a.source, a.op, case.id, golden_identity)
+                        golden = for_case(
+                            a.source,
+                            a.op,
+                            case.id,
+                            dict(golden_identity, **reference_plan.cache_identity),
+                        )
                     correctness, measurement = measure_profile_and_verify(
-                        case,
+                        reference_plan.case,
                         impl,
                         torch,
                         torch_npu,
@@ -141,11 +151,26 @@ def main(argv=None):
                         a.output / "profiles" / f"{index:04d}",
                         mode=a.timer_mode,
                         golden_cache=golden,
+                        comparison_transform=reference_plan.comparison_transform,
                     )
 
                 else:
+                    verification_impl = impl
+                    if reference_plan.comparison_transform is not None:
+                        from dataclasses import replace
+
+                        def cpu_result(
+                            *values, _run=impl.run, _transform=reference_plan.comparison_transform
+                        ):
+                            return _transform(_run(*values))
+
+                        verification_impl = replace(impl, run=cpu_result)
                     checks = benchmark_case(
-                        case, {"tileops": impl}, None, name=case.id, verify_only=True
+                        reference_plan.case,
+                        {"tileops": verification_impl},
+                        None,
+                        name=case.id,
+                        verify_only=True,
                     )
                     timer = make_timer(a.output / "profiles" / f"{index:04d}-{mode}", mode=mode)
                     measurement = timer(torch, torch_npu, impl.run, args, 3, 15, reset=impl.reset)
