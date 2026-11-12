@@ -78,6 +78,21 @@ def comparison_identity(op, case, params):
         op = "MoEGroupedGEMMFP8FwdOp"
     if op == "SSDChunkStateFwdOp":
         rename("Bmat", "B")
+    if op in {"CumsumFwdOp", "CumprodFwdOp"}:
+        # The old metadata used x/y and omitted the public dtype=None default.
+        # Preserve axis, shapes and dtypes; infer None only for same-dtype float
+        # outputs, never for a widening scan whose dtype must be explicit.
+        rename("x", "input")
+        rename("y", "output")
+        source, output = params.get("input"), params.get("output")
+        if (
+            source is not None
+            and output is not None
+            and len(source) == len(output) == 2
+            and source[1] == output[1]
+            and source[1] in {"float16", "bfloat16", "float32"}
+        ):
+            params.setdefault("dtype", None)
     if op == "MergeAttentionStatesFwdOp":
         # The old public interface used natural-log LSE; absence never means log2.
         params.setdefault("lse_base", "e")
