@@ -17,10 +17,11 @@ from pathlib import Path
 
 PROTOCOL = "golden-output-v1"
 POLICY = Path(__file__).with_name("golden_cache_policy.json")
-# Reviewed previous implementation stored finite outputs only. Accept its entries
-# only when every other source/runtime/toolchain/op/case/input identity still matches.
+# Reviewed prior implementations stored finite outputs or validated TopK masks.
+# Reuse only with every other source/runtime/toolchain/op/case/input identity exact.
 FINITE_LEGACY_IMPLEMENTATIONS = (
     "1efcc047f57c649de7e34d6f2dabb1b28ea512face30cf2532c9dcabb00359ef",
+    "07ec4df408c1ec7dbe7df587f68ed2257be3d6ebd6e862ef2094bf6a70c29d4f",
 )
 NEGATIVE_INFINITY_MASK_OPS = {"TopKMaskFwdOp", "TopKTopPMaskFwdOp", "TopPMaskFwdOp"}
 
@@ -276,9 +277,16 @@ class GoldenCache:
 
                     if t.is_floating_point() or t.is_complex():
                         allowed_mask = self.identity.get("op") in NEGATIVE_INFINITY_MASK_OPS
+                        # Compression has no visible block at early tokens: its
+                        # second output is a head-major FP32 LSE of exactly -inf.
+                        allowed_lse = (
+                            self.identity.get("op") == "NSACompressedVarlenFwdOp"
+                            and len(devices) == 1
+                            and t.dtype == torch.float32
+                        )
                         invalid = (
                             torch.isnan(t) | torch.isposinf(t)
-                            if allowed_mask and not t.is_complex()
+                            if (allowed_mask or allowed_lse) and not t.is_complex()
                             else ~torch.isfinite(t)
                         )
                         if invalid.any().item():

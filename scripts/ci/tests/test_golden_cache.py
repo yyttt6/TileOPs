@@ -289,3 +289,29 @@ def test_compatible_legacy_finite_entry_does_not_rerun_reference(tmp_path):
             lambda x: pytest.fail("reference rerun"),
             run=lambda x: x * 3,
         )
+
+
+def test_nsa_only_second_fp32_lse_may_contain_negative_infinity(tmp_path):
+    identity = {"op": "NSACompressedVarlenFwdOp"}
+
+    def reference(x):
+        return x.clone(), torch.tensor([-float("inf"), 0.0], dtype=torch.float32)
+
+    c = GoldenCache(tmp_path, identity, min_free_bytes=0)
+    c.wrap(reference)(torch.ones(2, dtype=torch.float16))
+    c.commit()
+    got = GoldenCache(tmp_path, identity, min_free_bytes=0).wrap(
+        lambda x: pytest.fail("cache miss")
+    )(torch.ones(2, dtype=torch.float16))
+    assert got[1][0].isneginf()
+    for tag, output in [
+        ("value", (torch.tensor([-float("inf")]), torch.ones(1))),
+        ("positive", (torch.ones(1), torch.tensor([float("inf")]))),
+        ("nan", (torch.ones(1), torch.tensor([float("nan")]))),
+        ("dtype", (torch.ones(1), torch.tensor([-float("inf")], dtype=torch.float16))),
+    ]:
+        root = tmp_path / tag
+        c = GoldenCache(root, identity, min_free_bytes=0)
+        c.wrap(lambda x, out=output: out)(torch.ones(1))
+        c.commit()
+        assert not list(root.glob("*/outputs.pt"))
