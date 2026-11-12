@@ -234,16 +234,21 @@ class AscendCumprodKernel(Kernel, CumprodFwdInterface):
             raise TypeError("Unsupported cumprod dtype")
         self.empty = self.M == 0 or self.N == 0
         if not self.empty:
-            self.kernel = build(self.M, self.N, str(call.dtype).split(".")[-1])
+            self.kernel = build(self.M, self.N, str(call.out_dtype).split(".")[-1])
 
     def forward(self, x):
         if tuple(x.shape) != self.call.shape or x.dtype != self.dtype:
             raise ValueError("Input signature changed")
         if self.empty:
-            return torch.empty_like(x)
+            return torch.empty_like(x, dtype=self.call.out_dtype)
         if x.is_neg():
             x = x.resolve_neg()
         arg = x.movedim(self.scan_axis, -1).contiguous().reshape(self.M, self.N)
+        # The call may request FP32 output from stored half/BF16 inputs.
+        # Widen before scanning, as torch dtype= specifies; this conversion is
+        # part of the timed operator, never a post-scan cast of narrowed prefixes.
+        if arg.dtype != self.call.out_dtype:
+            arg = arg.to(self.call.out_dtype)
         y = self.kernel(arg)
         kept = self.call.shape[: self.scan_axis] + self.call.shape[self.scan_axis + 1 :]
         return y.reshape(*kept, self.N).movedim(-1, self.scan_axis)
