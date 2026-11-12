@@ -235,3 +235,57 @@ def test_current_tree_is_independent():
     from golden_cache import reference_source_digest
 
     assert reference_source_digest(ROOT)[1] == "independent-reference"
+
+
+@pytest.mark.parametrize("op", ["TopKMaskFwdOp", "TopKTopPMaskFwdOp", "TopPMaskFwdOp"])
+def test_valid_mask_negative_infinity_can_be_reused(tmp_path, op):
+    identity = {"op": op}
+    c = GoldenCache(tmp_path, identity, min_free_bytes=0)
+    c.wrap(lambda x: x.masked_fill(x < 0, -float("inf")))(torch.tensor([-1.0, 2.0]))
+    # The application still owns full numerical/probe verification before commit.
+    c.commit()
+    got = GoldenCache(tmp_path, identity, min_free_bytes=0).wrap(
+        lambda x: pytest.fail("cache miss")
+    )(torch.tensor([-1.0, 2.0]))
+    torch.testing.assert_close(got, torch.tensor([-float("inf"), 2.0]))
+
+
+@pytest.mark.parametrize(
+    "op,value",
+    [("TopKMaskFwdOp", float("nan")), ("TopPMaskFwdOp", float("inf")), ("AbsFwdOp", -float("inf"))],
+)
+def test_nonfinite_exception_is_narrow(tmp_path, op, value):
+    c = GoldenCache(tmp_path, {"op": op}, min_free_bytes=0)
+    c.wrap(lambda x: x * value)(torch.ones(2))
+    c.commit()
+    assert not list(tmp_path.glob("*/outputs.pt"))
+
+
+def test_compatible_legacy_finite_entry_does_not_rerun_reference(tmp_path):
+    import golden_cache as module
+
+    legacy = {
+        "implementation": module.FINITE_LEGACY_IMPLEMENTATIONS[0],
+        "source": "unchanged",
+        "op": "KDAFwdOp",
+        "case": "same",
+    }
+    old = GoldenCache(tmp_path, legacy, min_free_bytes=0)
+    execute(old, lambda x: x * 2)
+    current = dict(legacy, implementation=module.digest_file(module.__file__))
+    execute(
+        GoldenCache(tmp_path, current, min_free_bytes=0), lambda x: pytest.fail("reference rerun")
+    )
+    # A changed source cannot use that compatibility exception.
+    calls = []
+    execute(
+        GoldenCache(tmp_path, dict(current, source="changed"), min_free_bytes=0),
+        lambda x: (calls.append(1), x * 2)[1],
+    )
+    assert calls == [1]
+    with pytest.raises(AssertionError):
+        execute(
+            GoldenCache(tmp_path, current, min_free_bytes=0),
+            lambda x: pytest.fail("reference rerun"),
+            run=lambda x: x * 3,
+        )
