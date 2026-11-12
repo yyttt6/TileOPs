@@ -17,6 +17,12 @@ from pathlib import Path
 
 PROTOCOL = "golden-output-v1"
 POLICY = Path(__file__).with_name("golden_cache_policy.json")
+# Reviewed previous implementation stored finite outputs only. Accept its entries
+# only when every other source/runtime/toolchain/op/case/input identity still matches.
+FINITE_LEGACY_IMPLEMENTATIONS = (
+    "1efcc047f57c649de7e34d6f2dabb1b28ea512face30cf2532c9dcabb00359ef",
+)
+NEGATIVE_INFINITY_MASK_OPS = {"TopKMaskFwdOp", "TopKTopPMaskFwdOp", "TopPMaskFwdOp"}
 
 
 def canonical(value):
@@ -196,12 +202,17 @@ class GoldenCache:
     def note(self, **event):
         self.events.append(event)
 
-    def _load(self, key):
+    def _load(self, key, *, expected_identity=None):
         import torch
 
         path = self.root / key
         meta = json.loads((path / "metadata.json").read_text())
-        if meta["key"] != key or meta["identity"] != self.identity or meta["protocol"] != PROTOCOL:
+        if (
+            meta["key"] != key
+            or meta["identity"]
+            != (self.identity if expected_identity is None else expected_identity)
+            or meta["protocol"] != PROTOCOL
+        ):
             raise ValueError("Cache identity mismatch")
         if digest_file(path / "outputs.pt") != meta["sha256"]:
             raise ValueError("Cache checksum mismatch")
@@ -225,6 +236,22 @@ class GoldenCache:
             try:
                 result = self._load(key)
             except Exception as exc:  # Corrupt/unsupported cache data is always a miss.
+                if self.identity.get("implementation") == digest_file(__file__):
+                    for implementation in FINITE_LEGACY_IMPLEMENTATIONS:
+                        legacy = dict(self.identity, implementation=implementation)
+                        legacy_key = hashlib.sha256(canonical([legacy, before])).hexdigest()
+                        try:
+                            result = self._load(legacy_key, expected_identity=legacy)
+                        except Exception:
+                            continue
+                        self.note(
+                            status="hit",
+                            key=legacy_key,
+                            requested_key=key,
+                            compatible_implementation=implementation,
+                            lookup_seconds=time.monotonic() - start,
+                        )
+                        return result
                 self.note(
                     status="miss",
                     key=key,
@@ -247,10 +274,15 @@ class GoldenCache:
                 def capture(t):
                     import torch
 
-                    if (t.is_floating_point() or t.is_complex()) and not torch.isfinite(
-                        t
-                    ).all().item():
-                        raise ValueError("Nonfinite golden is not persisted")
+                    if t.is_floating_point() or t.is_complex():
+                        allowed_mask = self.identity.get("op") in NEGATIVE_INFINITY_MASK_OPS
+                        invalid = (
+                            torch.isnan(t) | torch.isposinf(t)
+                            if allowed_mask and not t.is_complex()
+                            else ~torch.isfinite(t)
+                        )
+                        if invalid.any().item():
+                            raise ValueError("Nonfinite golden is not persisted")
                     devices.append(str(t.device))
                     return t.detach().cpu().contiguous().clone()
 
