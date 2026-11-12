@@ -129,3 +129,52 @@ def test_wrong_manifest_digest_and_path_escape_are_rejected(tmp_path):
     with pytest.raises(ValueError):
         publish(source, tmp_path / "cache", digest)
     assert restore(tmp_path, tmp_path / "cache", "../escape", "bad")[0] == "hit=false\n"
+
+
+def test_old_pr_excludes_target_only_manifest_changes(repo):
+    from pr_performance import select
+
+    manifest = repo / "src/tileops/manifest/_workload.py"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("OLD_VALIDATION = True\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "shared ancestor manifest")
+    common = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-qb", "target")
+    manifest.write_text("NEW_VALIDATION = True\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "target-only shared changes")
+    target = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-qb", "old-pr", common)
+    kernel = repo / "src/tileops/_kernels/ascend/topk/select.py"
+    kernel.parent.mkdir(parents=True)
+    kernel.write_text('OP = "TopKSelectFwdOp"\n')
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "topk only")
+    early = selection(repo, target)
+    late = select(repo, target)
+    assert early["operators"] == late["operators"] == ["TopKSelectFwdOp"]
+    assert early["changed"] == ["src/tileops/_kernels/ascend/topk/select.py"]
+    assert early["comparison_base"] == common
+    assert early["target_base"] == target
+    assert early["target_is_ancestor"] is False
+
+    # Shared changes actually introduced by the PR must still expand coverage.
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text("PR_VALIDATION = True\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "PR shared change")
+    assert selection(repo, target)["operators"] == ["FooOp", "TopKSelectFwdOp"]
+
+
+def test_manual_target_descendant_has_no_false_revert_changes(repo):
+    common = git(repo, "rev-parse", "HEAD")
+    p = repo / "src/tileops/_kernels/ascend/elementwise/foo.py"
+    p.write_text('OP = "FooOp"\nX = 4\n')
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "target advances")
+    target = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "--detach", common)
+    result = selection(repo, target)
+    assert result["operators"] == []
+    assert result["comparison_base"] == common
