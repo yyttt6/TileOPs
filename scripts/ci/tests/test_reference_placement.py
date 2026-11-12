@@ -12,6 +12,7 @@ sys.path[:0] = [str(ROOT / "scripts/ci"), str(ROOT / "scripts/ci/nightly_support
 from golden_cache import GoldenCache  # noqa: E402
 from measured_correctness import measure_and_verify  # noqa: E402
 from reference_placement import ReferenceCase, cpu_tree, needs_cpu, prepare_reference  # noqa: E402
+
 from workloads.numerics import Exact, zeroed_input  # noqa: E402
 
 pytestmark = pytest.mark.smoke
