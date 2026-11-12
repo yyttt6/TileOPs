@@ -268,3 +268,34 @@ def test_workflow_compares_tested_merge_parent_not_stale_event_base(
         selected = (tmp_path / "pr-selection-base.txt").read_text().strip()
         assert selected == tested_base
         assert git(source, "diff", "--name-only", selected, "HEAD") == "candidate.py"
+
+
+def test_documentation_and_workflow_only_changes_keep_namespace(environment):
+    source, _, _ = environment
+    before = cache_identity(*environment)
+    (source / "docs").mkdir()
+    (source / "docs/readme.md").write_text("changed docs")
+    (source / ".github").mkdir()
+    (source / ".github/job.yml").write_text("changed workflow")
+    git(source, "add", ".")
+    git(source, "commit", "-m", "non-runtime changes")
+    assert cache_identity(*environment) == before
+
+
+def test_new_runtime_file_invalidates_namespace(environment):
+    source, _, _ = environment
+    before = cache_identity(*environment)
+    (source / "runtime.json").write_text('{"tile": 128}')
+    git(source, "add", ".")
+    git(source, "commit", "-m", "runtime configuration")
+    assert cache_identity(*environment) != before
+
+
+def test_ci_orchestration_changes_reuse_compiled_runtime(environment):
+    source, _, _ = environment
+    before = cache_identity(*environment)
+    (source / "scripts/ci").mkdir(parents=True)
+    (source / "scripts/ci/timer.py").write_text('protocol = "v4"')
+    git(source, "add", ".")
+    git(source, "commit", "-m", "CI orchestration only")
+    assert cache_identity(*environment) == before

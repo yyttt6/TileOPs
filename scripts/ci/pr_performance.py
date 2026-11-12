@@ -34,6 +34,7 @@ def matching_baselines(baseline, op, case, params):
     from baseline_contracts import comparison_identity
 
     target = comparison_identity(op, case, params)
+
     def alias_rank(row):
         return row["op"] != op or row["case"] != case
 
@@ -135,8 +136,11 @@ def select(root, base):
     for family, ops in families.items():
         selected.update(ops if family in shared_families else (direct.get(family) or ops))
     return dict(
-        changed=changed, operators=sorted(selected), reasons=reasons,
-        target_base=target_base, comparison_base=base,
+        changed=changed,
+        operators=sorted(selected),
+        reasons=reasons,
+        target_base=target_base,
+        comparison_base=base,
         target_is_ancestor=base == target_base,
     )
 
@@ -160,11 +164,24 @@ def main():
     p.add_argument("--base", required=True)
     p.add_argument("--baseline", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument(
+        "--operators",
+        default="",
+        help="Explicit operator selection for manual performance dispatch",
+    )
     a = p.parse_args()
     root = Path.cwd()
     out = a.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
-    plan = select(root, a.base)
+    if a.operators:
+        plan = dict(
+            changed=[],
+            operators=a.operators.split(","),
+            target_base=a.base,
+            selection_source="explicit-manual-operators",
+        )
+    else:
+        plan = select(root, a.base)
 
     def save(name, value):
         (out / name).write_text(json.dumps(value, indent=2, default=str) + "\n")
@@ -200,8 +217,14 @@ def main():
 
     assert guarded("__list__", out / "registered.json") == 0
     registered = json.loads((out / "registered.json").read_text())
+    if a.operators:
+        assert set(plan["operators"]) <= set(registered["operators"]), (
+            "Explicit selection contains an unsupported operator"
+        )
     ops = affected_composites(plan["operators"], registered)
-    assert ops, "Changed operators have no registered Ascend implementation"
+    assert ops and set(ops) <= set(registered["operators"]), (
+        "Changed operators have no registered Ascend implementation"
+    )
     plan["operators"] = ops
     save("selection.json", plan)
     baseline = json.loads(a.baseline.read_text())
@@ -215,6 +238,8 @@ def main():
                 name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
                 for name in (
                     "pr_performance.py",
+                    "device_batch.py",
+                    "nightly_support/session_profile.py",
                     "baseline_contracts.py",
                     "nightly_device.py",
                     "precompile.py",
@@ -229,16 +254,35 @@ def main():
     )
     # Each case checks its final timed output; the device helper stops on failure.
     sys.path.insert(0, str(HERE / "nightly_support"))
-    import math
 
-    from complete_profile import complete_digest, decode, pure_aicpu_base
-    from tools.measure_baselines import _parse_ffts_profile
+    from device_batch import groups
+    from device_batch import run as run_batch
 
     rows = []
-    for op in ops:
+    live = {}
+    for index, op in enumerate(ops):
+        if op not in live:
+            batch = groups(ops[index:], 8)[0]
+            report = run_batch(
+                root,
+                [dict(op=name, output=str(out / name)) for name in batch],
+                out,
+                f"batch-{index:04d}",
+                f"pr/{os.environ.get('GITHUB_RUN_ID', 'local')}/batch-{index:04d}",
+                timer=os.environ.get("ASCEND950_TIMER_MODE", "auto"),
+            )
+            for name in batch:
+                live[name] = report["code"]
+                save(
+                    f"{name}-guard.json",
+                    dict(
+                        exit_code=report["code"],
+                        receipt=report["guard_receipt"],
+                        sha256=report["guard_sha256"],
+                    ),
+                )
         target = out / op
-        code = guarded(op, target)
-        save(f"{op}-guard.json", dict(exit_code=code))
+        code = live[op]
         assert code == 0, f"{op}: invalid guard receipt {code}"
         result = json.loads((target / "result.json").read_text())
         assert (
@@ -251,22 +295,10 @@ def main():
             row = json.loads(line)
             assert row["status"] == "passed"
             assert row["correctness_source"] == "final-profile-repeat"
-            coverage = json.loads(Path(row["measurement"]["profile_coverage_evidence"]).read_text())
-            assert len(coverage) >= 15
-            for c in coverage[-15:]:
-                assert complete_digest(c["path"]) == c["complete_sha256"]
-                extra = decode(c["path"])
-                try:
-                    replay = _parse_ffts_profile(Path(c["path"]), 1)
-                except ValueError as exc:
-                    if str(exc) != "No valid FFTS activity":
-                        raise
-                    replay = pure_aicpu_base(extra)
-                assert math.isclose(
-                    replay["latency_ms"] + extra["added_us"] / 1000,
-                    c["result"]["latency_ms"],
-                    rel_tol=1e-10,
-                )
+            from complete_profile import replay_coverage
+
+            replay_coverage(row["measurement"])
+            assert result.get("selection_scope", "all-cases") == "all-cases"
             matches = matching_baselines(baseline, op, row["case_id"], row["params"])
             us = row["measurement"]["latency_ms"] * 1000
             rows.append(
@@ -274,6 +306,7 @@ def main():
                     op=op,
                     case=row["case_id"],
                     tileops_us=us,
+                    measurement_protocol=row["measurement"]["measurement_protocol"],
                     comparisons=[
                         dict(
                             library=b["library"],
@@ -299,7 +332,7 @@ def main():
             )
     lines += [
         "",
-        "Historical native v2 baselines are retained; new TileOPs measurements use v3. Missing baseline is not a performance pass. Ratios are reported, not a new merge threshold.",
+        "Historical native v2 baselines are retained; new TileOPs measurements record their v3 isolated or v4 bracketed-session protocol explicitly. Missing baseline is not a performance pass. Ratios are reported, not a new merge threshold.",
     ]
     summary = "\n".join(lines) + "\n"
     (out / "summary.md").write_text(summary)
