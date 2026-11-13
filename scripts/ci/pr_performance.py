@@ -75,7 +75,16 @@ def select(root, base):
     families = {}
     shared_families = set()
     reasons = {}
+    # These public builtins route to Ascend without register_kernel_type literals.
+    # Keep the existing conservative helper-family expansion for every other path.
+    builtin_sources = {
+        "src/tileops/_kernels/ascend/convolution/conv1d.py": "Conv1dFwdOp",
+        "src/tileops/_kernels/ascend/convolution/conv1d_shallow.py": "Conv1dFwdOp",
+        "src/tileops/_kernels/ascend/transform/hadamard.py": "HadamardTransformFwdOp",
+    }
     for path in changed:
+        if path in builtin_sources:
+            selected.add(builtin_sources[path])
         p = root / path
         if not p.exists() or p.suffix != ".py" or p.name == "__init__.py":
             continue

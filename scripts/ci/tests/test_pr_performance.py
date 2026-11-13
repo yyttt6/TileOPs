@@ -48,3 +48,30 @@ def test_changed_delegate_retests_supported_composites():
     }
     assert MODULE.affected_composites(["LeafOp"], registered) == ["InnerOp", "LeafOp", "OuterOp"]
     assert MODULE.affected_composites(["UnrelatedOp"], registered) == ["UnrelatedOp"]
+
+
+@pytest.mark.parametrize(
+    "path,op",
+    [
+        ("convolution/conv1d.py", "Conv1dFwdOp"),
+        ("convolution/conv1d_shallow.py", "Conv1dFwdOp"),
+        ("transform/hadamard.py", "HadamardTransformFwdOp"),
+    ],
+)
+def test_builtin_ascend_without_registration_literal_is_selected(tmp_path, path, op):
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(tmp_path), *args], text=True).strip()
+
+    git("init")
+    git("config", "user.email", "test@example.invalid")
+    git("config", "user.name", "test")
+    source = tmp_path / "src/tileops/_kernels/ascend" / path
+    source.parent.mkdir(parents=True)
+    source.write_text("VALUE = 1\n")
+    git("add", ".")
+    git("commit", "-m", "base")
+    base = git("rev-parse", "HEAD")
+    source.write_text("VALUE = 2\n")
+    git("add", ".")
+    git("commit", "-m", "builtin changed")
+    assert op in MODULE.select(tmp_path, base)["operators"]
