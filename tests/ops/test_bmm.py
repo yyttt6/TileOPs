@@ -466,11 +466,12 @@ def test_bmm_empty_reduction_is_zero(dtype: torch.dtype) -> None:
 
 
 @pytest.mark.smoke
-def test_bmm_ascend_square512_reuses_changed_operands():
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_bmm_ascend_square512_reuses_changed_operands(dtype: torch.dtype):
     """The selected aligned schedule reloads both operands and preserves retained output."""
     if torch.device(run_device()).type != "npu":
         pytest.skip("Ascend aligned-schedule regression")
-    test = BMMTest(16, 512, 512, 512, torch.float16)
+    test = BMMTest(16, 512, 512, 512, dtype)
     a, b = test.gen_inputs()
     op = BMMFwdOp()
     test.check(op, a, b)

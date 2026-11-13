@@ -216,23 +216,23 @@ def _make_bmm_small_fp16_kernel():
     return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
-@functools.lru_cache(maxsize=1)
-def _make_bmm_square512_fp16_kernel():
+@functools.lru_cache(maxsize=2)
+def _make_bmm_square512_kernel(dtype: str):
     """Two full output tiles per core, with 64-wide K and double-buffered L0 operands."""
     block_m, block_n, block_k = 256, 256, 64
     stages = 3
 
     @T.prim_func
     def main_square512(
-        A: T.Tensor((16, 512, 512), "float16"),
-        B: T.Tensor((16, 512, 512), "float16"),
-        C: T.Tensor((16, 512, 512), "float16"),
+        A: T.Tensor((16, 512, 512), dtype),
+        B: T.Tensor((16, 512, 512), dtype),
+        C: T.Tensor((16, 512, 512), dtype),
     ):
         with T.Kernel(32) as bx:
-            al = T.alloc_l1((block_m, block_k), "float16")
-            bl = T.alloc_l1((block_n, block_k), "float16")
-            a = T.alloc_l0a((block_m, block_k), "float16")
-            b = T.alloc_l0b((block_n, block_k), "float16")
+            al = T.alloc_l1((block_m, block_k), dtype)
+            bl = T.alloc_l1((block_n, block_k), dtype)
+            a = T.alloc_l0a((block_m, block_k), dtype)
+            b = T.alloc_l0b((block_n, block_k), dtype)
             c = T.alloc_l0c((block_m, block_n), "float32")
             T.annotate_buffer_versions({al: stages, bl: stages, a: 2, b: 2})
             for job in T.serial(2):
@@ -302,8 +302,8 @@ class AscendBMMKernel(Kernel, BMMFwdInterface):
             return
         dtype_name = _dtype_str(dtype)
         selection = _ALIGNED_L1_SELECTIONS.get((batch, m, n, k, dtype_name))
-        if (batch, m, n, k, dtype_name) == (16, 512, 512, 512, "float16"):
-            self._compiled_fn = _make_bmm_square512_fp16_kernel()
+        if (batch, m, n, k) == (16, 512, 512, 512) and dtype_name in ("float16", "bfloat16"):
+            self._compiled_fn = _make_bmm_square512_kernel(dtype_name)
         elif (batch, m, n, k, dtype_name) == (8, 128, 128, 128, "float16"):
             self._compiled_fn = _make_bmm_small_fp16_kernel()
         elif selection is None:
