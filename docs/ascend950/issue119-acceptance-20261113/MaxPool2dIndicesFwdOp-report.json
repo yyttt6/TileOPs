@@ -1,0 +1,42 @@
+{
+  "op": "MaxPool2dIndicesFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 2,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.527003267571743,
+  "full_manifest_passed": 9,
+  "public_regression_passed": 12,
+  "public_scope": "Six existing window/indices regressions plus six FP16/BF16/FP32 aligned/offset full-plane tests checking ties, NaNs, negative infinity, signed zeros and value-only output; 231 unselected tests not counted.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/pool/max_alexnet_pairs.py": "949a600aa79a85daa750a90bf0bf5cc26303cc44b4a76261042362b9d42b04e0"
+  },
+  "evidence": [
+    "maxpool-v1-full-audit.json",
+    "maxpool-final-r1-audit.json",
+    "maxpool-original-audit.json",
+    "maxpool-original-r2-audit.json",
+    "maxpool-v1-source-review.json",
+    "device-evidence/maxpool-v1-public-r2.xml",
+    "maxpool-public-import-failure.json"
+  ],
+  "cases": [
+    {
+      "case": "alexnet-ceil-float16",
+      "baseline_us": 37.33366666666666,
+      "rounds_us": [
+        24.442,
+        24.3518
+      ],
+      "worst_ratio": 1.527439107547118
+    },
+    {
+      "case": "alexnet-ceil-bfloat16",
+      "baseline_us": 37.229866666666666,
+      "rounds_us": [
+        24.272933333333334,
+        24.381
+      ],
+      "worst_ratio": 1.527003267571743
+    }
+  ]
+}

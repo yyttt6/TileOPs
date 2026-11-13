@@ -1,0 +1,32 @@
+{
+  "op": "BitwiseAndFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.1220283625720218,
+  "full_manifest_passed": 14,
+  "public_regression_passed": 11,
+  "public_scope": "Existing AND/broadcast/rejection checks and four new grouped/offset/fallback checks;29 unselected tests not counted.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/elementwise/_bitwise_fast.py": "20595fd62967231fbd70337abefaaf6d43bcd59256b8b79649ffb15ce8fad046"
+  },
+  "evidence": [
+    "and-v1-full-audit.json",
+    "and-final-r1-audit.json",
+    "and-original-full-audit.json",
+    "and-source-preflight.json",
+    "and-generated-review.json",
+    "and-v1-full-comparison.json"
+  ],
+  "cases": [
+    {
+      "case": "cnn-feat-broadcast-int32",
+      "baseline_us": 20.291733333333333,
+      "rounds_us": [
+        18.084866666666663,
+        18.0728
+      ],
+      "worst_ratio": 1.1220283625720218
+    }
+  ]
+}
