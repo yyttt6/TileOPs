@@ -259,14 +259,17 @@ def test_bitwise_not_large_offsets_and_tails(dtype, size, offset):
 @pytest.mark.parametrize(
     "repeat,channels,offset", [(64, 4, 0), (3136, 8, 1), (4096, 4, 1), (128, 3, 0)]
 )
-def test_bitwise_and_grouped_channels(repeat, channels, offset):
+@pytest.mark.parametrize(
+    "op,reference", [(BitwiseAndFwdOp, torch.bitwise_and), (BitwiseXorFwdOp, torch.bitwise_xor)]
+)
+def test_bitwise_grouped_channels(repeat, channels, offset, op, reference):
     """Grouped broadcast, offset storage and non-grouped fallback preserve exact bits."""
     storage = torch.arange(2 * channels * repeat + offset, device=run_device(), dtype=torch.int32)
     x = storage[offset:].reshape(2, channels, repeat)
     mask = torch.arange(channels, device=run_device(), dtype=torch.int32).reshape(1, channels, 1)
     mask[0, 0, 0] = -1
     before, other = x.cpu(), mask.cpu()
-    actual = BitwiseAndFwdOp()(x, mask).cpu()
-    torch.testing.assert_close(actual, torch.bitwise_and(before, other), rtol=0, atol=0)
+    actual = op()(x, mask).cpu()
+    torch.testing.assert_close(actual, reference(before, other), rtol=0, atol=0)
     torch.testing.assert_close(x.cpu(), before, rtol=0, atol=0)
     torch.testing.assert_close(mask.cpu(), other, rtol=0, atol=0)

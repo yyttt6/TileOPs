@@ -235,7 +235,7 @@ class FastBitwiseBinaryBase(base.BitwiseBinaryBase):
         self.fast = False
         # Use the validated OR channel grouping for large int32 broadcasts.
         if (
-            self.kind == "and"
+            self.kind in ("and", "xor")
             and dtype == torch.int32
             and axes
             and math.prod(a_shape) == math.prod(shape)
