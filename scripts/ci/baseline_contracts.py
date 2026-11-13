@@ -32,6 +32,93 @@ def comparison_identity(op, case, params):
                 raise ValueError(f"Ambiguous baseline parameter aliases: {old}, {new}")
             params[new] = params.pop(old)
 
+    # Explicit public spelling changes; no case-insensitive/fuzzy matching.
+    op = {
+        "EluFwdOp": "ELUFwdOp",
+        "GeluFwdOp": "GELUFwdOp",
+        "LeakyReluFwdOp": "LeakyReLUFwdOp",
+        "PreluFwdOp": "PReLUFwdOp",
+        "SeluFwdOp": "SELUFwdOp",
+        "SiluFwdOp": "SiLUFwdOp",
+        "SiluAndMulFwdOp": "SiLUAndMulFwdOp",
+        # This legacy name describes 1x128 groups, not FP8's 128x128 blocks.
+        "INT8QuantPerBlockFwdOp": "INT8QuantPerTokenGroupFwdOp",
+    }.get(op, op)
+    input_renames = {
+        "AmaxFwdOp",
+        "AminFwdOp",
+        "AnyFwdOp",
+        "ArgmaxFwdOp",
+        "ArgminFwdOp",
+        "CountNonzeroFwdOp",
+        "FusedAddRMSNormFwdOp",
+        "FusedAddRMSNormPerTokenQuantFwdOp",
+        "GroupNormFwdOp",
+        "InstanceNormFwdOp",
+        "LayerNormFwdOp",
+        "LogSoftmaxFwdOp",
+        "LogSumExpFwdOp",
+        "MeanFwdOp",
+        "ProdFwdOp",
+        "StdFwdOp",
+        "SumFwdOp",
+        "VarFwdOp",
+        "VarMeanFwdOp",
+        "ELUFwdOp",
+        "GELUFwdOp",
+        "LeakyReLUFwdOp",
+        "PReLUFwdOp",
+        "SELUFwdOp",
+        "SiLUFwdOp",
+        "SiLUAndMulFwdOp",
+    }
+    if op in input_renames:
+        rename("x", "input")
+    aliases = {
+        "DeltaNetChunkFwdOp": [("S", "h")],
+        "GLARecurrentFwdOp": [("gk", "g")],
+        "MeanPoolingFwdOp": [("indices", "chunk_indices"), ("offsets", "cu_seqlens")],
+        "NSATopKVarlenFwdOp": [
+            ("bs", "block_size"),
+            ("offsets", "cu_seqlens"),
+            ("scale", "sm_scale"),
+        ],
+        "NSAVarlenFwdOp": [("o_slc", "o"), ("offsets", "cu_seqlens"), ("scale", "sm_scale")],
+        "SSDChunkCouplingFwdOp": [("C_mat", "C"), ("B_mat", "B"), ("chunk_len", "chunk_size")],
+        "SSDChunkCumsumFwdOp": [("chunk_len", "chunk_size")],
+        "SelectiveScanFwdOp": [("B_in", "B"), ("C_in", "C"), ("D_in", "D")],
+        "TopKMaskFwdOp": [("k", "top_k")],
+        "TopKTopPMaskFwdOp": [("k", "top_k"), ("p", "top_p")],
+        "TopPMaskFwdOp": [("p", "top_p")],
+    }
+    for old, new in aliases.get(op, []):
+        rename(old, new)
+    if op in {
+        "GDNFwdOp",
+        "KDAFwdOp",
+        "GLAFwdOp",
+        "DeltaNetFwdOp",
+        "NSATopKVarlenFwdOp",
+        "NSAVarlenFwdOp",
+    }:
+        # Public constructor default. True remains a distinct timing contract.
+        params.setdefault("validate_inputs", False)
+    # Legacy Engram metadata redundantly recorded dimensions. Remove only when
+    # the saved scalars agree exactly with the tensor metadata; never guess.
+    dimensions = {}
+    if op == "EngramDecodeFwdOp" and "e_t" in params and "h_t" in params:
+        dimensions = {
+            "batch": params["e_t"][0][0],
+            "d_mem": params["e_t"][0][1],
+            "d": params["h_t"][0][1],
+        }
+    if op == "EngramGateConvFwdOp" and "H" in params:
+        dimensions = dict(zip(("M", "seq_len", "d"), params["H"][0], strict=True))
+    for name, value in dimensions.items():
+        if name in params:
+            if params[name] != value:
+                raise ValueError(f"Contradictory Engram dimension: {name}")
+            del params[name]
     if op == "ReluFwdOp":
         op = "ReLUFwdOp"
     elif op in ("GemmFwdOp", "BmmFwdOp"):
