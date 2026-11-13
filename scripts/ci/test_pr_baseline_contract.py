@@ -22,6 +22,27 @@ class ContractTest(unittest.TestCase):
         self.assertEqual(matching_baselines(snapshot, "ExampleOp", "same", {"n": 64}), [latest])
         self.assertEqual(matching_baselines(snapshot, "ExampleOp", "same", {"n": 16}), [])
 
+    def test_linear_attention_defaults_and_renames_preserve_contracts(self):
+        from baseline_contracts import comparison_identity as key
+
+        for op in ("GDNFwdOp", "KDAFwdOp", "GLAFwdOp", "DeltaNetFwdOp"):
+            params = {"q": [[1, 128, 4, 64], "bfloat16"]}
+            self.assertEqual(
+                key(op, "c", params), key(op, "c", {**params, "validate_inputs": False})
+            )
+            self.assertNotEqual(
+                key(op, "c", params), key(op, "c", {**params, "validate_inputs": True})
+            )
+        old = {"gk": [[1, 4, 64], "float16"], "scale": 0.125}
+        current = {"g": old["gk"], "scale": 0.125}
+        self.assertEqual(key("GLARecurrentFwdOp", "c", old), key("GLARecurrentFwdOp", "c", current))
+        self.assertNotEqual(
+            key("GLARecurrentFwdOp", "c", old),
+            key("GLARecurrentFwdOp", "c", {**current, "scale": 0.25}),
+        )
+        with self.assertRaises(ValueError):
+            key("GLARecurrentFwdOp", "c", {**old, **current})
+
     def test_positive_and_negative_infinity(self):
         for raw in (float("inf"), "inf", "Infinity"):
             self.assertEqual(canonical_contract({"ord": raw}), {"ord": "Infinity"})
