@@ -1005,7 +1005,7 @@ class SharedExpertMLPWorkload(CallWorkload):
     def ref_program(
         self, hidden_states: torch.Tensor, w_gate_up: torch.Tensor, w_down: torch.Tensor
     ) -> torch.Tensor:
-        """``down(silu(gate) * up)`` in fp32, cast to the hidden dtype."""
+        """FP32 projections with the gated activation narrowed before the down projection."""
         return ref_shared_expert(hidden_states, w_gate_up, w_down)
 
     def verification(self, *inputs):
@@ -1013,8 +1013,9 @@ class SharedExpertMLPWorkload(CallWorkload):
 
 
 def ref_shared_expert(hidden, gate_up, down):
-    """Shared expert MLP in FP32, narrowed once to the token dtype."""
+    """Use FP32 projections and narrow the activation and output to the token dtype."""
     act = gated_activation(hidden.float() @ gate_up.float().T, "silu_and_mul")
+    act = act.to(hidden.dtype).float()
     return (act @ down.float().T).to(hidden.dtype)
 
 
