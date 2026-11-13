@@ -63,6 +63,27 @@ def _build_project(
     axis carries the real remainder, which is what keeps an unaligned ``d_mem``
     or a batch that is not a multiple of the Cube's M granularity off the host.
     """
+    if d_mem == 0:
+        # An empty contraction is zero. No MAD would initialise L0C, so write
+        # both projections from the Vector core and keep the normal step below.
+        @T.prim_func
+        def engram_decode_project_zero(
+            E: T.Tensor((batch, d_mem), dtype_str),
+            W_K: T.Tensor((d_mem, d_pad), dtype_str),
+            W_V: T.Tensor((d_mem, d_pad), dtype_str),
+            K_out: T.Tensor((batch, d_pad), "float32"),
+            V_out: T.Tensor((batch, d_pad), "float32"),
+        ):
+            with T.Kernel(batch) as bx:
+                zeros = T.alloc_shared((d_pad,), "float32")
+                with T.SimtVF(threads=_pick_threads(d_pad)):
+                    for i in T.Parallel(d_pad, coalesced_width=T.int32(1)):
+                        zeros[i] = T.float32(0)
+                T.copy(zeros, K_out[bx, :])
+                T.copy(zeros, V_out[bx, :])
+
+        return tilelang.compile(engram_decode_project_zero, target="ascend", out_idx=[])
+
     m_tiles = -(-batch // block_m)
     n_tiles = -(-d_pad // block_n)
     k_tiles = -(-d_mem // block_k)
