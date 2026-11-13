@@ -9,6 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import golden_cache as cache
 import reference_cache_compat as compat
 
+pytestmark = pytest.mark.smoke
+
 
 def identity(source):
     return dict(
