@@ -245,6 +245,7 @@ def main():
                     "precompile.py",
                     "measured_correctness.py",
                     "golden_cache.py",
+                    "reference_cache_compat.py",
                     "golden_cache_policy.json",
                     "nightly_support/complete_profile.py",
                 )
