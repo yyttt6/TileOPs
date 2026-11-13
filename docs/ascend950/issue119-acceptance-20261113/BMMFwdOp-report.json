@@ -1,0 +1,35 @@
+{
+  "op": "BMMFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.0347746521615182,
+  "full_manifest_passed": 16,
+  "public_regression_passed": 25,
+  "public_scope": "Original non-FP8 BMM shape/dtype/refusal/wave/empty checks plus one changed-operands/retained-output regression;26 FP8/CUDA calibration nodes deselected, not counted.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/gemm/bmm.py": "0f2cc1a13b97d8f09e28b7ba7ea196ceb65bbf432b6c2ee9ae6206727cd1dd2e"
+  },
+  "evidence": [
+    "bmm-v1-full-audit.json",
+    "bmm-final-r1-audit.json",
+    "bmm-original-full-audit.json",
+    "bmm-source-preflight.json",
+    "bmm-v1-source-regression-review.json",
+    "bmm-search-v1-diagnostic-audit.json",
+    "bmm-search-v2-diagnostic-audit.json",
+    "bmm-search-v3-rejected.json",
+    "bmm-search-v4-diagnostic-audit.json"
+  ],
+  "cases": [
+    {
+      "case": "square-512-float16",
+      "baseline_us": 15.003266666666665,
+      "rounds_us": [
+        14.484,
+        14.499066666666668
+      ],
+      "worst_ratio": 1.0347746521615182
+    }
+  ]
+}

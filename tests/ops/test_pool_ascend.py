@@ -11,6 +11,7 @@ from tileops._ops.pool import AvgPool1dFwdOp
 from tileops.manifest import load_adts, load_manifest, load_workloads
 from tileops.manifest._plan import entry_plan
 from tileops.manifest._workload import instantiate
+from tileops.pool import MaxPool2dFwdOp, MaxPool2dIndicesFwdOp
 from workloads.device import run_device, run_device_available
 from workloads.numerics import compare_outputs
 from workloads.pool import (
@@ -88,3 +89,32 @@ def test_avg_pool1d_single_element_storage_offset(dtype):
     expected = workload.ref_program(x.cpu()).to(x.device)
     actual = AvgPool1dFwdOp(1, 1)(x)
     compare_outputs(actual, expected, workload.verification(x))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
+@pytest.mark.parametrize("offset", [0, 1], ids=["aligned", "offset"])
+def test_max_pool2d_alexnet_indices_bulk_writes(dtype, offset):
+    """Packed stores retain every value/index, including the final short row."""
+    if torch.device(run_device()).type != "npu" or not run_device_available():
+        pytest.skip("requires an Ascend NPU and --tileops-device=npu")
+    size = 32 * 64 * 55 * 55
+    storage = torch.randn(size + offset, device=run_device(), dtype=dtype)
+    x = storage[offset:].view(32, 64, 55, 55)
+    x[0, 0].fill_(1)
+    x[0, 1].zero_()
+    x[0, 1, ::2, ::2] = -0.0
+    x[0, 2].fill_(float("-inf"))
+    x[0, 3, :4, :4] = float("nan")
+    x[-1, -1, -1, -1] = float("nan")
+    expected_values, expected_indices = torch.nn.functional.max_pool2d(
+        x.cpu(), 3, 2, ceil_mode=True, return_indices=True
+    )
+    values, indices = MaxPool2dIndicesFwdOp(kernel_size=3, stride=2, ceil_mode=True)(x)
+    values, indices = values.cpu(), indices.cpu()
+    torch.testing.assert_close(values, expected_values, rtol=0, atol=0, equal_nan=True)
+    torch.testing.assert_close(indices, expected_indices, rtol=0, atol=0)
+    plain = MaxPool2dFwdOp(kernel_size=3, stride=2, ceil_mode=True)(x).cpu()
+    torch.testing.assert_close(plain, expected_values, rtol=0, atol=0, equal_nan=True)
+    zeros = expected_values == 0
+    assert torch.equal(torch.signbit(values[zeros]), torch.signbit(expected_values[zeros]))

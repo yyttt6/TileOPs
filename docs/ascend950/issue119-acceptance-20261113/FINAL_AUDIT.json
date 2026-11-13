@@ -1,0 +1,412 @@
+{
+  "status": "passed",
+  "time": "2026-11-13T10:01:07.840872+00:00",
+  "scope": "Frozen17 alerts below0.8 across9operators; all meet>=1.0 against frozen fastest comparable baselines. Unmatched605 and other0.8..1 remain outside scope.",
+  "qualified_cases": 17,
+  "qualified_operators": 9,
+  "hardware": "server2 physical32AIC/64AIV, guarded valid performance receipts",
+  "accepted_round_raw_windows": 1695,
+  "minimum_ratio": 1.0060637387816298,
+  "operators": [
+    {
+      "op": "HadamardTransformFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.637061426347224,
+      "report": "HadamardTransformFwdOp-report.json",
+      "cases": [
+        {
+          "case": "llama-8b-prefill-float16",
+          "baseline_us": 335.34526666666665,
+          "candidate_means_us": [
+            204.8458666666667,
+            204.67253333333332
+          ],
+          "ratio": 1.637061426347224
+        }
+      ]
+    },
+    {
+      "op": "Conv1dFwdOp",
+      "issue_cases": 8,
+      "minimum_ratio": 1.0368498319446768,
+      "report": "Conv1dFwdOp-report.json",
+      "cases": [
+        {
+          "case": "wav2vec2-layer1-bias-float16",
+          "baseline_us": 10.735266666666666,
+          "candidate_means_us": [
+            10.353733333333334,
+            10.3114
+          ],
+          "ratio": 1.0368498319446768
+        },
+        {
+          "case": "wav2vec2-layer1-bias-bfloat16",
+          "baseline_us": 11.011866666666666,
+          "candidate_means_us": [
+            10.389733333333334,
+            10.250200000000001
+          ],
+          "ratio": 1.0598796247577735
+        },
+        {
+          "case": "wav2vec2-layer1-float16",
+          "baseline_us": 10.731666666666666,
+          "candidate_means_us": [
+            10.029866666666667,
+            10.1132
+          ],
+          "ratio": 1.0611543988714418
+        },
+        {
+          "case": "wav2vec2-layer1-bfloat16",
+          "baseline_us": 10.690466666666667,
+          "candidate_means_us": [
+            9.864733333333334,
+            10.033733333333334
+          ],
+          "ratio": 1.0654525400980692
+        },
+        {
+          "case": "encodec-init-bfloat16",
+          "baseline_us": 9.103200000000001,
+          "candidate_means_us": [
+            7.732933333333333,
+            8.116999999999999
+          ],
+          "ratio": 1.121498090427498
+        },
+        {
+          "case": "encodec-init-bias-bfloat16",
+          "baseline_us": 9.313799999999999,
+          "candidate_means_us": [
+            7.733533333333334,
+            7.7938
+          ],
+          "ratio": 1.1950268161872255
+        },
+        {
+          "case": "encodec-init-bias-float16",
+          "baseline_us": 9.3696,
+          "candidate_means_us": [
+            7.948,
+            7.977666666666668
+          ],
+          "ratio": 1.1744787531859773
+        },
+        {
+          "case": "encodec-init-float16",
+          "baseline_us": 8.949266666666666,
+          "candidate_means_us": [
+            8.082,
+            8.0958
+          ],
+          "ratio": 1.1054209178421732
+        }
+      ]
+    },
+    {
+      "op": "MaxPool2dIndicesFwdOp",
+      "issue_cases": 2,
+      "minimum_ratio": 1.527003267571743,
+      "report": "MaxPool2dIndicesFwdOp-report.json",
+      "cases": [
+        {
+          "case": "alexnet-ceil-float16",
+          "baseline_us": 37.33366666666666,
+          "candidate_means_us": [
+            24.442,
+            24.3518
+          ],
+          "ratio": 1.527439107547118
+        },
+        {
+          "case": "alexnet-ceil-bfloat16",
+          "baseline_us": 37.229866666666666,
+          "candidate_means_us": [
+            24.272933333333334,
+            24.381
+          ],
+          "ratio": 1.527003267571743
+        }
+      ]
+    },
+    {
+      "op": "BitwiseNotFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.0060637387816298,
+      "report": "BitwiseNotFwdOp-report.json",
+      "cases": [
+        {
+          "case": "16M-int32",
+          "baseline_us": 22.18833333333333,
+          "candidate_means_us": [
+            21.86266666666667,
+            22.054599999999997
+          ],
+          "ratio": 1.0060637387816298
+        }
+      ]
+    },
+    {
+      "op": "BitwiseAndFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.1220283625720218,
+      "report": "BitwiseAndFwdOp-report.json",
+      "cases": [
+        {
+          "case": "cnn-feat-broadcast-int32",
+          "baseline_us": 20.291733333333333,
+          "candidate_means_us": [
+            18.084866666666663,
+            18.0728
+          ],
+          "ratio": 1.1220283625720218
+        }
+      ]
+    },
+    {
+      "op": "BitwiseXorFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.118612033689928,
+      "report": "BitwiseXorFwdOp-report.json",
+      "cases": [
+        {
+          "case": "cnn-feat-broadcast-int32",
+          "baseline_us": 20.320333333333334,
+          "candidate_means_us": [
+            17.926333333333332,
+            18.165666666666667
+          ],
+          "ratio": 1.118612033689928
+        }
+      ]
+    },
+    {
+      "op": "MaskedFillScalarFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.0090341771497582,
+      "report": "MaskedFillScalarFwdOp-report.json",
+      "cases": [
+        {
+          "case": "16M-float32",
+          "baseline_us": 28.630066666666664,
+          "candidate_means_us": [
+            28.373733333333334,
+            27.024866666666664
+          ],
+          "ratio": 1.0090341771497582
+        }
+      ]
+    },
+    {
+      "op": "MaskedFillTensorFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.0178225770059308,
+      "report": "MaskedFillTensorFwdOp-report.json",
+      "cases": [
+        {
+          "case": "16M-float32",
+          "baseline_us": 28.569533333333336,
+          "candidate_means_us": [
+            28.069266666666664,
+            27.18626666666667
+          ],
+          "ratio": 1.0178225770059308
+        }
+      ]
+    },
+    {
+      "op": "BMMFwdOp",
+      "issue_cases": 1,
+      "minimum_ratio": 1.0347746521615182,
+      "report": "BMMFwdOp-report.json",
+      "cases": [
+        {
+          "case": "square-512-float16",
+          "baseline_us": 15.003266666666665,
+          "candidate_means_us": [
+            14.484,
+            14.499066666666668
+          ],
+          "ratio": 1.0347746521615182
+        }
+      ]
+    }
+  ],
+  "source_checks": [
+    {
+      "op": "HadamardTransformFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/transform/hadamard.py",
+          "status": "exact",
+          "sha256": "ba9d9d613ade2f0efccc1501c6c453493ac1b26eaef5cf2a44df4e650467c560"
+        }
+      ],
+      "round_audits": [
+        "hadamard-v2-audit.json",
+        "hadamard-final-r1-audit.json"
+      ],
+      "report_sha256": "e81205670f19c602ed8b5682cc52159ee2d17e52b2da02d4fad3696190dc5d94"
+    },
+    {
+      "op": "Conv1dFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/convolution/conv1d.py",
+          "status": "exact",
+          "sha256": "4812e4cd2f89b2481e2db12a52330e3cd53a64979576f156fc3ce0c2348fa49a"
+        },
+        {
+          "file": "src/tileops/_kernels/ascend/convolution/conv1d_shallow.py",
+          "status": "exact",
+          "sha256": "1a982fae76250cfb7221bd5699257f061bc2741832e6cd1af2e96bd0540d4306"
+        }
+      ],
+      "round_audits": [
+        "conv1d-v4-full-audit.json",
+        "conv1d-final-r1-audit.json"
+      ],
+      "report_sha256": "fff8a2966158ec73f290a0b0b05709c59e6b092f6f9a7fc0a7bce6c26d1774d0"
+    },
+    {
+      "op": "MaxPool2dIndicesFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/pool/max_alexnet_pairs.py",
+          "status": "exact",
+          "sha256": "949a600aa79a85daa750a90bf0bf5cc26303cc44b4a76261042362b9d42b04e0"
+        }
+      ],
+      "round_audits": [
+        "maxpool-v1-full-audit.json",
+        "maxpool-final-r1-audit.json"
+      ],
+      "report_sha256": "e18315aa2d0edbdf0582affa49898b952f5271a224f4f1ccc6b3cf00ecca6562"
+    },
+    {
+      "op": "BitwiseNotFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/elementwise/bitwise_not.py",
+          "status": "exact",
+          "sha256": "b32dd9936d5371b26d52d8bb444666b6087b45ccc59cd3138c49e68d2c143910"
+        }
+      ],
+      "round_audits": [
+        "not-v4-full-audit.json",
+        "not-final-resume-r1-audit.json"
+      ],
+      "report_sha256": "1150a0723241efef9aba05c7528bf9520a298840f7c8c16c7dbece1fce6c59c9"
+    },
+    {
+      "op": "BitwiseAndFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/elementwise/_bitwise_fast.py",
+          "status": "qualified dependency reuse",
+          "sha256": "bcd96b11db9ca2008bac2f1d0e8a399459525741cc26e8b6b9ee0e67dfe8a0c3",
+          "proof": "and-reuse-on-xor-helper.json;14 CPP identical,AND predicate unchanged,full regression audited"
+        }
+      ],
+      "round_audits": [
+        "and-v1-full-audit.json",
+        "and-final-r1-audit.json"
+      ],
+      "report_sha256": "e42ec0cd40fcf2463e9b818019307c12cc21d705c87c0e1e77f2b073b79ad321"
+    },
+    {
+      "op": "BitwiseXorFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/elementwise/_bitwise_fast.py",
+          "status": "exact",
+          "sha256": "bcd96b11db9ca2008bac2f1d0e8a399459525741cc26e8b6b9ee0e67dfe8a0c3"
+        }
+      ],
+      "round_audits": [
+        "xor-v1-full-audit.json",
+        "xor-final-r1-audit.json"
+      ],
+      "report_sha256": "4e9aa08b2c3cac84dc23f54f4e58ea7fa55d8d68b593561f5cff95e5f12a11ef"
+    },
+    {
+      "op": "MaskedFillScalarFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/elementwise/masked_fill_scalar.py",
+          "status": "exact",
+          "sha256": "2a55178d85e0469e6aeacebd9827d0450d5a87c2268ef86b1dd2075a6a995bde"
+        }
+      ],
+      "round_audits": [
+        "scalar-v3-full-audit.json",
+        "scalar-final-r3-audit.json"
+      ],
+      "report_sha256": "aab98f2d8116d027950e7deb0f3c7f43aabb7d047cf7ddd70bbcc61d2019d98c"
+    },
+    {
+      "op": "MaskedFillTensorFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/elementwise/masked_fill_tensor.py",
+          "status": "exact",
+          "sha256": "bd5d505a1ab61f8ce3cd4fc6761c7ddb37cdc1999be2daf49366d2ddfd21731e"
+        }
+      ],
+      "round_audits": [
+        "tensor-v1-full-audit.json",
+        "tensor-final-r1-audit.json"
+      ],
+      "report_sha256": "59b78f6153c77c2f1b23cec96a882f40e5153f56186eb7d2dfb114b77d4f5de5"
+    },
+    {
+      "op": "BMMFwdOp",
+      "sources": [
+        {
+          "file": "src/tileops/_kernels/ascend/gemm/bmm.py",
+          "status": "exact",
+          "sha256": "0f2cc1a13b97d8f09e28b7ba7ea196ceb65bbf432b6c2ee9ae6206727cd1dd2e"
+        }
+      ],
+      "round_audits": [
+        "bmm-v1-full-audit.json",
+        "bmm-final-r1-audit.json"
+      ],
+      "report_sha256": "0a0a18c31c308baaadc633eece62d1d513f6f9b621045c7cdb7ee92a19926ad3"
+    }
+  ],
+  "branch": "perf/issue119-server2",
+  "head": "a1aa520be3bd2a8191e44f425f83f38a327f733e",
+  "changed_files": [
+    "src/tileops/_kernels/ascend/convolution/conv1d.py",
+    "src/tileops/_kernels/ascend/convolution/conv1d_shallow.py",
+    "src/tileops/_kernels/ascend/elementwise/_bitwise_fast.py",
+    "src/tileops/_kernels/ascend/elementwise/bitwise_not.py",
+    "src/tileops/_kernels/ascend/elementwise/masked_fill_scalar.py",
+    "src/tileops/_kernels/ascend/elementwise/masked_fill_tensor.py",
+    "src/tileops/_kernels/ascend/gemm/bmm.py",
+    "src/tileops/_kernels/ascend/pool/max_alexnet_pairs.py",
+    "src/tileops/_kernels/ascend/transform/hadamard.py",
+    "tests/ops/test_bitwise.py",
+    "tests/ops/test_bmm.py",
+    "tests/ops/test_convolution.py",
+    "tests/ops/test_hadamard_transform.py",
+    "tests/ops/test_masked_fill_stream_ascend.py",
+    "tests/ops/test_pool_ascend.py"
+  ],
+  "history_snapshot": "unchanged SHA verified",
+  "limitations": [
+    "Qualification applies to17alert cases; complete manifest correctness and regression do not claim all non-alert cases exceed1.0.",
+    "Platform-default clock policy and frozen1GiBflush protocol; no claim of proven cold data.",
+    "Minimum retained ratio1.00606 has a small margin; future baseline/source/toolchain changes require reassessment.",
+    "Failed candidates and rejectedBMM device/compiler diagnostics retained and excluded from qualification."
+  ],
+  "static_checks": {
+    "changed_file_ruff": "passed",
+    "changed_file_format": "passed",
+    "git_diff_check": "passed",
+    "file_count": 15
+  }
+}
