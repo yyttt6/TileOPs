@@ -43,8 +43,8 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          repository: yyttt6/TileOPs.github.io
-          ref: 8cc05d7b4d1bfb4f07ed9109d8e6ea71f0791c65
+          repository: yyttt6/tileops-ascend-baselines
+          ref: f138bbe755c72c9961732926ce017197bee93e63
           path: baseline-cache
           persist-credentials: false
       - name: Select affected operators without a device
@@ -70,14 +70,17 @@ jobs:
       - name: Package exact sources for isolated runners
         id: package
         run: |
-          echo "f0b3227010d03c4ae9781d50272cf00d433b979a6909b5b10e5a4bcc113919ea  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
+          echo "571c36b1ae082f1452ef2fe2f1a32700a7a194a247f670993a631e04ea505194  baseline-cache/catalog/releases/shared28-20261113/snapshot.json" | sha256sum --check
           mkdir -p "$RUNNER_TEMP/ci-sources"
           git rev-parse HEAD > "$RUNNER_TEMP/ci-sources/source.commit"
           git archive --format=tar HEAD > "$RUNNER_TEMP/ci-sources/source.tar"
           tar -rf "$RUNNER_TEMP/ci-sources/source.tar" .git
           gzip "$RUNNER_TEMP/ci-sources/source.tar"
           git -C ci-harness archive --format=tar.gz HEAD > "$RUNNER_TEMP/ci-sources/harness.tar.gz"
-          git -C baseline-cache archive --format=tar.gz HEAD data/baseline-cache > "$RUNNER_TEMP/ci-sources/baseline.tar.gz"
+          mkdir -p "$RUNNER_TEMP/ci-sources/baseline-layout/data/baseline-cache"
+          cp baseline-cache/catalog/releases/shared28-20261113/snapshot.json "$RUNNER_TEMP/ci-sources/baseline-layout/data/baseline-cache/snapshot.json"
+          cp baseline-cache/catalog/releases/shared28-20261113/latest-release.json "$RUNNER_TEMP/ci-sources/baseline-layout/data/baseline-cache/latest-release.json"
+          tar -czf "$RUNNER_TEMP/ci-sources/baseline.tar.gz" -C "$RUNNER_TEMP/ci-sources/baseline-layout" data/baseline-cache
           cd "$RUNNER_TEMP/ci-sources"
           sha256sum source.commit source.tar.gz harness.tar.gz baseline.tar.gz > SHA256SUMS
           echo "archive_digest=$(sha256sum SHA256SUMS | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
@@ -259,7 +262,7 @@ jobs:
       - name: Verify published baseline snapshot
         working-directory: ${{ runner.temp }}/ci-v010-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         run: |
-          echo "f0b3227010d03c4ae9781d50272cf00d433b979a6909b5b10e5a4bcc113919ea  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
+          echo "571c36b1ae082f1452ef2fe2f1a32700a7a194a247f670993a631e04ea505194  baseline-cache/data/baseline-cache/snapshot.json" | sha256sum --check
       - name: Changed operator performance with final-output correctness
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha || 'origin/ascend950-v0.1.0' }}

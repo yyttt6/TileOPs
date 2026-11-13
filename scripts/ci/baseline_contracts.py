@@ -41,6 +41,11 @@ def comparison_identity(op, case, params):
         "SeluFwdOp": "SELUFwdOp",
         "SiluFwdOp": "SiLUFwdOp",
         "SiluAndMulFwdOp": "SiLUAndMulFwdOp",
+        "MHADecodePagedWithKVCacheFwdOp": "MHAPagedFwdOp",
+        "MLADecodeWithKVCacheFwdOp": "MLADenseDecodeFwdOp",
+        "DSADecodeWithKVCacheFwdOp": "DSADenseFwdOp",
+        "BmmFP8FwdOp": "BMMFP8FwdOp",
+        "MoEGroupedGemmFwdOp": "MoEGroupedGEMMFwdOp",
         # This legacy name describes 1x128 groups, not FP8's 128x128 blocks.
         "INT8QuantPerBlockFwdOp": "INT8QuantPerTokenGroupFwdOp",
     }.get(op, op)
@@ -74,7 +79,21 @@ def comparison_identity(op, case, params):
     }
     if op in input_renames:
         rename("x", "input")
+    # These names retain the same tensor roles; all values, layouts and flags
+    # remain in the identity, and rename() rejects duplicate spellings.
     aliases = {
+        "GQAPagedFwdOp": [
+            ("k_pages", "k_cache"),
+            ("v_pages", "v_cache"),
+            ("page_table", "block_table"),
+        ],
+        "MHAPagedFwdOp": [
+            ("k", "k_cache"),
+            ("v", "v_cache"),
+            ("real_seqlen_kv", "cache_seqlens"),
+        ],
+        "FP8LightningIndexerFwdOp": [("cu_seqlen_ks", "starts"), ("cu_seqlen_ke", "ends")],
+        "BMMFP8FwdOp": [("scale_a", "a_scale"), ("scale_b", "b_scale")],
         "TopKSelectFwdOp": [("index_score", "logits"), ("indexes", "indices"), ("topk", "top_k")],
         "DeltaNetChunkFwdOp": [("S", "h")],
         "GLARecurrentFwdOp": [("gk", "g")],
@@ -95,6 +114,7 @@ def comparison_identity(op, case, params):
     for old, new in aliases.get(op, []):
         rename(old, new)
     if op in {
+        "GQAPagedFwdOp",
         "GDNFwdOp",
         "KDAFwdOp",
         "GLAFwdOp",

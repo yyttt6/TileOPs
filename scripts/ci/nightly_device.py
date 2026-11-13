@@ -99,6 +99,14 @@ def main(argv=None):
 
         try:
             golden_identity = contract_identity(a.source)
+            from reference_cache_compat import reuse_unchanged_reference_identity
+
+            original_identity = golden_identity
+            golden_identity = reuse_unchanged_reference_identity(a.source, a.op, golden_identity)
+            if golden_identity != original_identity:
+                print(
+                    f"Golden identity: shared28 unaffected reference reuse for {a.op}", flush=True
+                )
         except (OSError, ValueError, RuntimeError) as exc:
             print(f"Golden cache disabled: {exc}", flush=True)
     selected_cases = cases(a.op)
