@@ -252,11 +252,6 @@ class AscendKDAKernel(Kernel, KDAFwdInterface):
         dt_bias=None,
     ):
         c = self.call
-        offsets = (
-            tuple((cu_seqlens_cpu if cu_seqlens_cpu is not None else cu_seqlens.cpu()).tolist())
-            if c.varlen
-            else ()
-        )
         state_shape = (
             (c.sequences, c.value_heads, c.dim_v, c.dim_k)
             if c.state_v_first
@@ -276,6 +271,30 @@ class AscendKDAKernel(Kernel, KDAFwdInterface):
             dt_bias
             if dt_bias is not None
             else torch.empty((c.value_heads * c.dim_k,), device=q.device, dtype=torch.float32)
+        )
+        # Keep the tiled path within the profiled layout and parameter range.
+        if (
+            0 < c.seq_len < 2**31
+            and c.sequences > 0
+            and c.dim_k == c.dim_v == 128
+            and c.heads == c.value_heads
+            and c.dtype in (torch.float16, torch.bfloat16)
+            and (c.seq_len > 1 or c.dtype == torch.bfloat16)
+            and c.l2norm
+            and c.scale == c.dim_k**-0.5
+            and c.lower_bound in (None, -5.0)
+            and not c.state_v_first
+            and not c.beta_sigmoid
+            and not c.allow_neg_eigval
+        ):
+            from tileops._kernels.ascend.linear_attention.kda_tiled import run as run_tiled
+
+            return run_tiled(c, q, k, v, g, beta, h0, a, bias, cu_seqlens)
+
+        offsets = (
+            tuple((cu_seqlens_cpu if cu_seqlens_cpu is not None else cu_seqlens.cpu()).tolist())
+            if c.varlen
+            else ()
         )
         if (
             c.seq_len >= 16
