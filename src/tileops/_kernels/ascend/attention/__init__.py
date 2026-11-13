@@ -11,6 +11,7 @@ from tileops._kernels.ascend.attention.nsa_topk_varlen import (
 from tileops._kernels.ascend.attention.nsa_varlen_unified import (
     AscendNSAFwdVarlenKernel,
 )
+from tileops._kernels.ascend.attention.topk_select import AscendTopKSelectKernel
 
 from tileops._kernels.ascend.attention.paged_cache_gather import (
     AscendPagedKVCacheGatherGenericKernel,
@@ -23,4 +24,5 @@ __all__ = [
     "AscendNSACompressedFwdVarlenKernel",
     "AscendNSAFwdVarlenKernel",
     "AscendNSATopKVarlenKernel",
+    "AscendTopKSelectKernel",
 ]
