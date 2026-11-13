@@ -3,6 +3,7 @@
 from tileops._kernels.ascend import (
     convolution,
     elementwise,
+    fft,
     gemm,
     linear_attention,
     moe,
@@ -17,6 +18,7 @@ from tileops._kernels.ascend import (
 __all__ = [
     "convolution",
     "elementwise",
+    "fft",
     "gemm",
     "moe",
     "pool",
