@@ -10,6 +10,47 @@ import torch
 from tileops._kernels.ascend.elementwise import _bitwise_fused as base
 
 
+@functools.lru_cache(maxsize=128)
+def build_grouped(n, period, repeat, kind):
+    channels = n // repeat
+    group = min(4, 16384 // repeat)
+    tile = group * repeat
+    groups = (channels + group - 1) // group
+    grid = min(64, groups)
+
+    @T.prim_func
+    def main(
+        A: T.Tensor((n,), "int32"), B: T.Tensor((period,), "int32"), C: T.Tensor((n,), "int32")
+    ):
+        with T.Kernel(grid) as bx:
+            a = T.alloc_shared((tile,), "int32")
+            b = T.alloc_shared((period,), "int32")
+            c = T.alloc_shared((tile,), "int32")
+            T.copy(B, b)
+            T.annotate_buffer_versions({a: 2, c: 2})
+            for step in T.Pipelined((groups + grid - 1) // grid, num_stages=2):
+                block = step * grid + bx
+                if block < groups:
+                    begin = block * tile
+                    count = tile
+                    T.copy(A[begin : begin + count], a[:count])
+                    with T.SimdVF():
+                        mask = T.simd.pset(32)
+                        for j in T.unroll(group, explicit=True):
+                            channel = block * group + j
+                            bv = T.simd.vld(b[channel % period], dist="BRC_B32")
+                            for i in range(repeat // 64):
+                                av = T.simd.vld(a[j * repeat + i * 64])
+                                if kind == "and":
+                                    cv = T.simd.vand(av, bv, mask)
+                                else:
+                                    cv = T.simd.vxor(av, bv, mask)
+                                T.simd.vsts(c[j * repeat + i * 64], cv, mask)
+                    T.copy(c[:count], C[begin : begin + count], l2_cache_ctrl=0)
+
+    return tilelang.compile(main, target="ascend", out_idx=-1)
+
+
 @T.macro
 def body(a, b, c, width: int, channel, period: int, itemsize: int, boolean: bool, kind: str):
     with T.SimdVF():
@@ -192,6 +233,29 @@ class FastBitwiseBinaryBase(base.BitwiseBinaryBase):
         padded = (1,) * (len(shape) - len(b_shape)) + tuple(b_shape)
         axes = [i for i, s in enumerate(padded) if s > 1]
         self.fast = False
+        # Use the validated OR channel grouping for large int32 broadcasts.
+        if (
+            self.kind == "and"
+            and dtype == torch.int32
+            and axes
+            and math.prod(a_shape) == math.prod(shape)
+        ):
+            lo, hi = axes[0], axes[-1]
+            period = math.prod(padded[lo : hi + 1])
+            repeat = math.prod(shape[hi + 1 :])
+            if (
+                all(padded[i] == shape[i] for i in range(lo, hi + 1))
+                and 64 <= repeat <= 4096
+                and repeat % 64 == 0
+                and math.prod(shape) // repeat % 4 == 0
+                and period * 4 <= 8192
+                and repeat * 4 * 16 + period * 4 <= 248 * 1024
+            ):
+                super().__init__((0,), (0,), dtype)
+                self.shape, self.n, self.dtype = shape, math.prod(shape), dtype
+                self.compiled = build_grouped(self.n, period, repeat, self.kind)
+                self.fast = True
+                return
         if (
             axes
             and math.prod(a_shape) == math.prod(shape)
