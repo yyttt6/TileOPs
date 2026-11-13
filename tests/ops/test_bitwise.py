@@ -231,3 +231,25 @@ def test_bitwise_binary_rejects_float_dtype(op_cls, dtype: torch.dtype) -> None:
     x = torch.zeros(shape, device=run_device(), dtype=dtype)
     with pytest.raises(ValueError, match="dtype is outside"):
         op(x, x)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    "dtype,size,offset",
+    [
+        (torch.int32, 1 << 22, 0),
+        (torch.int32, (1 << 22) + 16384, 1),
+        (torch.int64, 1 << 21, 1),
+        (torch.int32, (1 << 22) + 1, 0),
+    ],
+)
+def test_bitwise_not_large_offsets_and_tails(dtype, size, offset):
+    """Streaming and tail paths preserve all bits and leave offset inputs untouched."""
+    storage = torch.arange(size + offset, device=run_device(), dtype=dtype)
+    x = storage[offset:]
+    limits = torch.iinfo(dtype)
+    x[:4] = torch.tensor([limits.min, -1, 0, limits.max], device=run_device(), dtype=dtype)
+    before = x.cpu()
+    actual = BitwiseNotFwdOp()(x).cpu()
+    torch.testing.assert_close(actual, torch.bitwise_not(before), rtol=0, atol=0)
+    torch.testing.assert_close(x.cpu(), before, rtol=0, atol=0)
