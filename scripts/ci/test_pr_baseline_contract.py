@@ -43,6 +43,22 @@ class ContractTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             key("GLARecurrentFwdOp", "c", {**old, **current})
 
+    def test_topk_select_public_field_renames(self):
+        from baseline_contracts import comparison_identity as key
+
+        old = {
+            "index_score": [[1, 1, 16384, 1], "float32"],
+            "indexes": [[1, 1, 1, 2048], "int32"],
+            "topk": 2048,
+        }
+        new = {"logits": old["index_score"], "indices": old["indexes"], "top_k": 2048}
+        self.assertEqual(key("TopKSelectFwdOp", "c", old), key("TopKSelectFwdOp", "c", new))
+        self.assertNotEqual(
+            key("TopKSelectFwdOp", "c", old), key("TopKSelectFwdOp", "c", {**new, "top_k": 1024})
+        )
+        with self.assertRaises(ValueError):
+            key("TopKSelectFwdOp", "c", {**new, "indexes": old["indexes"]})
+
     def test_positive_and_negative_infinity(self):
         for raw in (float("inf"), "inf", "Infinity"):
             self.assertEqual(canonical_contract({"ord": raw}), {"ord": "Infinity"})

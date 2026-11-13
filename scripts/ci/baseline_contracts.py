@@ -75,6 +75,7 @@ def comparison_identity(op, case, params):
     if op in input_renames:
         rename("x", "input")
     aliases = {
+        "TopKSelectFwdOp": [("index_score", "logits"), ("indexes", "indices"), ("topk", "top_k")],
         "DeltaNetChunkFwdOp": [("S", "h")],
         "GLARecurrentFwdOp": [("gk", "g")],
         "MeanPoolingFwdOp": [("indices", "chunk_indices"), ("offsets", "cu_seqlens")],
