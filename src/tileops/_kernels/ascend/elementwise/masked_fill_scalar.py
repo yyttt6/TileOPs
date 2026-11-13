@@ -82,7 +82,7 @@ if T is not None:
                     block = step * grid + bx
                     if block < full:
                         begin = block * tile
-                        T.copy(X[begin : begin + tile], x)
+                        T.copy(X[begin : begin + tile], x, l2_cache_ctrl=4)
                         T.copy(M[begin : begin + tile], m)
                         _stream_body(x, m, y, tile, fill_bits)
                         T.copy(y, Y[begin : begin + tile], l2_cache_ctrl=1)

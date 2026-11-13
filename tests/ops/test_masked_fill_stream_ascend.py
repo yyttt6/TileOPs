@@ -35,7 +35,15 @@ def test_scalar_stream_storage_and_mask_bytes(size, offset, dtype, fill):
     mask = raw[offset:].view(torch.bool)
     before, mask_before = x.cpu(), raw.cpu()
     expected = before.masked_fill(mask_before[offset:] != 0, fill)
-    actual = MaskedFillScalarFwdOp(value=fill)(x, mask).cpu()
+    op = MaskedFillScalarFwdOp(value=fill)
+    actual = op(x, mask).cpu()
     torch.testing.assert_close(actual.view(torch.int32), expected.view(torch.int32), rtol=0, atol=0)
     torch.testing.assert_close(x.cpu().view(torch.int32), before.view(torch.int32), rtol=0, atol=0)
     torch.testing.assert_close(raw.cpu(), mask_before, rtol=0, atol=0)
+
+    x[8:16].fill_(11)
+    raw[offset : offset + 16].fill_(0)
+    updated = x.cpu().masked_fill(raw[offset:].cpu() != 0, fill)
+    torch.testing.assert_close(
+        op(x, mask).cpu().view(torch.int32), updated.view(torch.int32), rtol=0, atol=0
+    )
