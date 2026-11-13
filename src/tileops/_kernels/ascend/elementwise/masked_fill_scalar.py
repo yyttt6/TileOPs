@@ -50,6 +50,45 @@ if T is not None:
                 for i in T.Parallel(width):
                     y[i] = T.if_then_else(m[i] != 0, T.cast(fill_bits, dtype), x[i])
 
+    @T.macro
+    def _stream_body(x, m, y, width: int, fill_bits: int):
+        with T.SimdVF():
+            mask = T.simd.pset(32)
+            fill = T.simd.vdup(T.int32(fill_bits), "int32", mask)
+            for group in range(width // 256):
+                for j in T.unroll(4, explicit=True):
+                    base = group * 256 + j * 64
+                    condition = T.reinterpret(T.simd.vld(m[base], dist="UNPK4_B8"), "uint32x64")
+                    choose = T.simd.vcmps(condition, T.uint32(0), mask, op="ne")
+                    result = T.simd.vsel(fill, T.simd.vld(x[base]), choose)
+                    T.simd.vsts(y[base], result, mask)
+
+    @functools.lru_cache(maxsize=256)
+    def build_stream(n, fill_bits):
+        tile = 8192
+        full = n // tile
+        grid = min(64, full)
+
+        @T.prim_func
+        def main_stream(
+            X: T.Tensor((n,), "int32"), M: T.Tensor((n,), "uint8"), Y: T.Tensor((n,), "int32")
+        ):
+            with T.Kernel(grid) as bx:
+                x = T.alloc_shared((tile,), "int32")
+                m = T.alloc_shared((tile,), "uint8")
+                y = T.alloc_shared((tile,), "int32")
+                T.annotate_buffer_versions({x: 3, m: 3, y: 2})
+                for step in T.Pipelined(T.ceildiv(full, grid), num_stages=3):
+                    block = step * grid + bx
+                    if block < full:
+                        begin = block * tile
+                        T.copy(X[begin : begin + tile], x)
+                        T.copy(M[begin : begin + tile], m)
+                        _stream_body(x, m, y, tile, fill_bits)
+                        T.copy(y, Y[begin : begin + tile], l2_cache_ctrl=1)
+
+        return tilelang.compile(main_stream, target="ascend", out_idx=[2])
+
     @functools.lru_cache(maxsize=256)
     def build(xs, ms, out_shape, dtype, itemsize, fill_bits):
         n = math.prod(out_shape)
@@ -59,6 +98,8 @@ if T is not None:
         tile = (32768 if itemsize == 4 and n % 8192 == 0 else 16384) // itemsize
         stages = 3
         same = xs == out_shape and ms == out_shape
+        if same and itemsize == 4 and n >= 1 << 20 and n % 16384 == 0:
+            return build_stream(n, fill_bits)
         full, tail = divmod(n, tile)
         grid = min(64, full) if full else 1
         padded = (tail + 127) // 128 * 128
