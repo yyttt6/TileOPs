@@ -1483,3 +1483,27 @@ def test_folded_volume_keeps_nonfinite_values_within_their_group(nonfinite) -> N
     actual = Conv3dFwdOp(groups=8, padding=1)(x, weight)
     expected = F.conv3d(x[:, 2:].contiguous(), weight[4:].contiguous(), groups=7, padding=1)
     torch.testing.assert_close(actual[:, 4:], expected, rtol=0, atol=0)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("use_bias", [False, True])
+@pytest.mark.parametrize(
+    "channels,stride,padding,dilation,c_in_g",
+    [(32, 1, 0, 1, 1), (64, 5, 2, 1, 2), (96, 2, 3, 2, 1)],
+)
+def test_conv1d_shallow_reduction_output_tails(
+    dtype, use_bias, channels, stride, padding, dilation, c_in_g
+):
+    """Shallow reductions retain channel/spatial tails, padding and updated bias."""
+    op = Conv1dFwdOp(stride=stride, padding=padding, dilation=dilation, groups=2)
+    x = torch.randn(2, 2 * c_in_g, 137, device=run_device(), dtype=dtype)
+    weight = torch.randn(2 * channels, c_in_g, 7, device=run_device(), dtype=dtype)
+    bias = torch.randn(2 * channels, device=run_device(), dtype=dtype) if use_bias else None
+    for scale in (1.0, 0.5):
+        weight.mul_(scale)
+        if bias is not None:
+            bias.add_(0.25)
+        out = op(x, weight, bias)
+        ref = F.conv1d(x, weight, bias, stride=stride, padding=padding, dilation=dilation, groups=2)
+        compare_outputs(out, ref.contiguous(), convolution_verification(dtype))
