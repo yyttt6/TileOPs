@@ -27,6 +27,12 @@ _CASES = (
     pytest.param((4,), 20 * 256, torch.bfloat16, 20, marks=_SMOKE, id="shared-base-mma"),
     pytest.param((0,), 4096, torch.bfloat16, 1, marks=_SMOKE, id="empty-batch"),
     pytest.param((), 256, torch.bfloat16, 1, marks=_SMOKE, id="rank-1"),
+    pytest.param((256,), 32, torch.float16, 1, marks=_FULL, id="fused-warp-only"),
+    pytest.param((128,), 64, torch.bfloat16, 1, marks=_FULL, id="fused-two-slots"),
+    pytest.param((32,), 256, torch.float16, 1, marks=_FULL, id="fused-eight-slots"),
+    pytest.param((16,), 512, torch.bfloat16, 1, marks=_FULL, id="fused-register-boundary"),
+    pytest.param((8,), 1024, torch.float16, 1, marks=_FULL, id="fused-first-exchange"),
+    pytest.param((4,), 2048, torch.bfloat16, 1, marks=_FULL, id="fused-two-exchanges"),
     pytest.param((9,), 512, torch.bfloat16, 1, marks=_FULL, id="warp-rows-upper"),
     pytest.param((140,), 2048, torch.float16, 1, marks=_FULL, id="exchange-odd"),
     pytest.param((200,), 8192, torch.bfloat16, 1, marks=_FULL, id="exchange-eight-slots"),
@@ -59,10 +65,10 @@ def test_hadamard_transform(
 
 
 @pytest.mark.smoke
+@pytest.mark.parametrize("rows", [6, 256], ids=["short", "full-tile"])
 @pytest.mark.parametrize("n, base_order", [(128, 1), (12, 12)], ids=["vector-rows", "scalar-rows"])
-def test_hadamard_transform_unaligned_storage(n: int, base_order: int) -> None:
+def test_hadamard_transform_unaligned_storage(n: int, base_order: int, rows: int) -> None:
     """An input whose storage starts off a 16-byte boundary reads the same rows."""
-    rows = 6
     flat = torch.randn(rows * n + 1, device=run_device(), dtype=torch.bfloat16)
     x = flat[1:].view(rows, n)
 
