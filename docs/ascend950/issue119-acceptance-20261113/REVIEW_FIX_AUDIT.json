@@ -1,0 +1,251 @@
+{
+  "status": "passed",
+  "time": "2026-11-13T14:24:29.800329+00:00",
+  "review_comment": "https://github.com/yyttt6/TileOPs/pull/122#issuecomment-6855247520",
+  "original_head": "a902056993d9f3cb3c8e552bb06f0301ab381b91",
+  "scope": "One additional BF16 reviewed case; FP16 route and all BMM cases revalidated. Historical17 evidence retained.",
+  "hardware": "server2 physical32AIC/64AIV",
+  "change": "Generalize existing square512 FP16 schedule to dtype-keyed FP16/BF16 kernel; retain FP32 accumulation and32Cube blocks.",
+  "baseline_release_sha256": "571c36b1ae082f1452ef2fe2f1a32700a7a194a247f670993a631e04ea505194",
+  "baseline_remeasured": false,
+  "previous_bf16": {
+    "latency_us": 18.838,
+    "ratio": 0.7977067629260006
+  },
+  "affected_cases": [
+    {
+      "case": "square-512-float16",
+      "baseline_us": 15.003266666666665,
+      "candidate_means_us": [
+        14.503666666666666,
+        14.5012
+      ],
+      "worst_ratio": 1.0344464618142537
+    },
+    {
+      "case": "square-512-bfloat16",
+      "baseline_us": 15.0272,
+      "candidate_means_us": [
+        14.470866666666668,
+        14.466533333333333
+      ],
+      "worst_ratio": 1.038445059729203
+    }
+  ],
+  "bmm_full_manifest": {
+    "correctness_passed": 16,
+    "performance_ge_point_eight": 16,
+    "minimum_ratio": 0.8620466076438862,
+    "cases": [
+      {
+        "case": "square-128-float16",
+        "baseline_us": 2.373266666666667,
+        "candidate_us": 2.2651999999999997,
+        "ratio": 1.047707340043558
+      },
+      {
+        "case": "square-128-bfloat16",
+        "baseline_us": 3.412066666666667,
+        "candidate_us": 2.4601333333333333,
+        "ratio": 1.3869437970841691
+      },
+      {
+        "case": "square-1k-float16",
+        "baseline_us": 45.60006666666667,
+        "candidate_us": 47.34653333333333,
+        "ratio": 0.963113103669681
+      },
+      {
+        "case": "square-1k-bfloat16",
+        "baseline_us": 45.604400000000005,
+        "candidate_us": 47.300533333333334,
+        "ratio": 0.9641413486528694
+      },
+      {
+        "case": "square-512-float16",
+        "baseline_us": 15.003266666666665,
+        "candidate_us": 14.5012,
+        "ratio": 1.0346224220524276
+      },
+      {
+        "case": "square-512-bfloat16",
+        "baseline_us": 15.0272,
+        "candidate_us": 14.466533333333333,
+        "ratio": 1.0387561175679039
+      },
+      {
+        "case": "square-256-float16",
+        "baseline_us": 7.544266666666666,
+        "candidate_us": 6.6936,
+        "ratio": 1.127086570256165
+      },
+      {
+        "case": "square-256-bfloat16",
+        "baseline_us": 7.4745333333333335,
+        "candidate_us": 6.642533333333334,
+        "ratio": 1.1252534173708826
+      },
+      {
+        "case": "square-4k-bfloat16",
+        "baseline_us": 1281.3950666666667,
+        "candidate_us": 1308.5526,
+        "ratio": 0.979246127871869
+      },
+      {
+        "case": "square-2k-float16",
+        "baseline_us": 325.67226666666664,
+        "candidate_us": 338.62399999999997,
+        "ratio": 0.9617518742518743
+      },
+      {
+        "case": "square-2k-bfloat16",
+        "baseline_us": 325.69846666666666,
+        "candidate_us": 339.15866666666665,
+        "ratio": 0.960312970527069
+      },
+      {
+        "case": "mha-decode-qk-float16",
+        "baseline_us": 19.765866666666668,
+        "candidate_us": 22.929000000000002,
+        "ratio": 0.8620466076438862
+      },
+      {
+        "case": "mha-decode-qk-bfloat16",
+        "baseline_us": 19.882933333333334,
+        "candidate_us": 23.020266666666668,
+        "ratio": 0.8637142923337117
+      },
+      {
+        "case": "mha-decode-pv-float16",
+        "baseline_us": 22.9152,
+        "candidate_us": 21.837933333333332,
+        "ratio": 1.0493300648107726
+      },
+      {
+        "case": "mha-decode-pv-bfloat16",
+        "baseline_us": 22.956733333333332,
+        "candidate_us": 21.77966666666667,
+        "ratio": 1.0540442920767075
+      },
+      {
+        "case": "moe-prefill-bfloat16",
+        "baseline_us": 326.1037333333333,
+        "candidate_us": 342.75213333333335,
+        "ratio": 0.9514272899249642
+      }
+    ]
+  },
+  "public": {
+    "passed": 26,
+    "deselected": 26,
+    "scope": "Non-FP8 BMM public suite; changed-operands/retained-output regression now covers both FP16 and BF16."
+  },
+  "raw_windows_replayed": 270,
+  "rounds": [
+    {
+      "run": "pr122-bmm-both-r1",
+      "guard_exit": 0,
+      "performance_valid": true,
+      "source_manifest_sha256": "4ee266b93ae712c936d8071ed899323a896f17f0caa84eef457ce68a65bf9db7"
+    },
+    {
+      "run": "pr122-bmm-full-r2",
+      "guard_exit": 0,
+      "performance_valid": true,
+      "source_manifest_sha256": "4ee266b93ae712c936d8071ed899323a896f17f0caa84eef457ce68a65bf9db7"
+    }
+  ],
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/gemm/bmm.py": "8a18447824c05e2fdc2a6fb099ab61ea5eaa2c8bdc64f0b5b0ac89e04cd0c501"
+  },
+  "other_source_files_identical": 1069,
+  "generated_cpp": [
+    {
+      "case": "square-128-float16",
+      "unchanged": true,
+      "sha256": "3ff0d9ad30888eb47833fe8b77b5bf3e45573385d60a897fcc9c0df71c54dd9b"
+    },
+    {
+      "case": "square-128-bfloat16",
+      "unchanged": true,
+      "sha256": "5e8605fc98f29bed5fb543ecd4074ea2c293c2d10ae1c8c3cebac9666b55e24d"
+    },
+    {
+      "case": "square-1k-float16",
+      "unchanged": true,
+      "sha256": "d012f2b4e12ed546a684ad3076ac35c57acdee2413a2038c3521cf0b97a76d5f"
+    },
+    {
+      "case": "square-1k-bfloat16",
+      "unchanged": true,
+      "sha256": "28ab6d69424561ec346fe542e58a7f86ad21c9b31ca0f70c34b9fba9f2b1799c"
+    },
+    {
+      "case": "square-512-float16",
+      "unchanged": true,
+      "sha256": "cd3ae5e41f0ffd4f496a70733e73defdcf2dc166d9c3b34a64a4724cacdc7ade"
+    },
+    {
+      "case": "square-512-bfloat16",
+      "unchanged": false,
+      "sha256": "530c58b3d96abe476de3256e3596467b9bbcd9b9e83afa984b8ce3a700cfb1df"
+    },
+    {
+      "case": "square-256-float16",
+      "unchanged": true,
+      "sha256": "389479953f83b84488cd1e87c7850d49cc0a5bef1bedc0938faf848d81f075c2"
+    },
+    {
+      "case": "square-256-bfloat16",
+      "unchanged": true,
+      "sha256": "d9b6607ebf974860b052d9d1321da770cfd3372977d833885499a373b5234cb7"
+    },
+    {
+      "case": "square-4k-bfloat16",
+      "unchanged": true,
+      "sha256": "b3c380f0ed1d37c8fed6075acf0fa9baaf0f45fc23705a90221f9289678f307b"
+    },
+    {
+      "case": "square-2k-float16",
+      "unchanged": true,
+      "sha256": "9f54a3dd2046754230c8d21c1c216514cd4faae46843c5c6a1c061aed3fb828b"
+    },
+    {
+      "case": "square-2k-bfloat16",
+      "unchanged": true,
+      "sha256": "0ca6cf8dc244dae9de42402289297d00a8e391ee22d3a61aedd32ab7ff6c4cbf"
+    },
+    {
+      "case": "mha-decode-qk-float16",
+      "unchanged": true,
+      "sha256": "787183374ff4c19bcae4221632d5313651b900e610a8363fdd84475f87d6dd1a"
+    },
+    {
+      "case": "mha-decode-qk-bfloat16",
+      "unchanged": true,
+      "sha256": "ed94ec69ae6484c042df6088cdbb9149d8e566baf86ce9f160ebd18034c070e7"
+    },
+    {
+      "case": "mha-decode-pv-float16",
+      "unchanged": true,
+      "sha256": "823b2085bde1e946d41936f43ba94e963644ddbd8b6c1bab2ba5129a950059b7"
+    },
+    {
+      "case": "mha-decode-pv-bfloat16",
+      "unchanged": true,
+      "sha256": "63c1ed6eb51e9ce08e6375e98da8fe704f20e387d1e93b8751c82ae1cd8b9261"
+    },
+    {
+      "case": "moe-prefill-bfloat16",
+      "unchanged": true,
+      "sha256": "84ffa0ac5e3a30d8195d9ae3ea2642d1fa17f9c3ce2724c899730199774791ed"
+    }
+  ],
+  "evidence": [
+    "pr122-bmm-both-r1-audit.json",
+    "pr122-bmm-full-r2-audit.json",
+    "device-evidence/pr122-bmm-public.xml",
+    "device-evidence/pr122-bmm-public.guard.json"
+  ],
+  "limitations": "Scoped development verification, not a claim that updated-head CI has passed. Historical FINAL_AUDIT.json remains bound to its original tree. Other nine-op kernels untouched and reused by source equality. Do not close issue119."
+}

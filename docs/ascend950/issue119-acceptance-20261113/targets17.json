@@ -1,0 +1,1388 @@
+[
+  {
+    "library": "ops-transformer",
+    "op": "HadamardTransformFwdOp",
+    "case": "llama-8b-prefill-float16",
+    "latency_us": 335.34526666666665,
+    "samples": 15,
+    "measurement_id": "5c54b4a957344c20b9210a63753cb1ed9dab2a0b993f973e5296c578f73e292f",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "HadamardTransformFwdOp",
+      "case_id": "llama-8b-prefill-float16",
+      "family": "transform",
+      "tensors": {
+        "x": [
+          [
+            4096,
+            4096
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "float16"
+        ]
+      },
+      "params": {
+        "x": [
+          [
+            4096,
+            4096
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "float16"
+        ],
+        "base_order": 1
+      }
+    },
+    "ratio": 0.30536846584821115,
+    "tileops_latency_us": 1098.166,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "658cb4fa7e9d72b2c9ce845bfaee14ba2e4f94681a6b9eff6a9f2fea30f629dc",
+    "canonical_op": "HadamardTransformFwdOp",
+    "canonical_case": "llama-8b-prefill-float16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "wav2vec2-layer1-bias-float16",
+    "latency_us": 10.735266666666666,
+    "samples": 15,
+    "measurement_id": "f0cade5289ea0b1e1cfb6d8778cbd91dd39bc4d94a5a155984807297518e5fe6",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "wav2vec2-layer1-bias-float16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "float16"
+        ],
+        "bias": [
+          [
+            512
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "float16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "float16"
+        ],
+        "bias": [
+          [
+            512
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "float16"
+        ],
+        "stride": 5,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6377790275819458,
+    "tileops_latency_us": 16.832266666666666,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "1ac9d4922178cdb1c985ddd1fe3c3f0bd7f3763bdb182af0d07d8ae81d3ebea6",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "wav2vec2-layer1-bias-float16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "wav2vec2-layer1-bias-bfloat16",
+    "latency_us": 11.011866666666666,
+    "samples": 15,
+    "measurement_id": "af46e5d3ae793b77e7475838b20e5aa6b14726711d1dcb964e35d75e768029fe",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "wav2vec2-layer1-bias-bfloat16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "bfloat16"
+        ],
+        "bias": [
+          [
+            512
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "bfloat16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "bfloat16"
+        ],
+        "bias": [
+          [
+            512
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "bfloat16"
+        ],
+        "stride": 5,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6601759371390431,
+    "tileops_latency_us": 16.6802,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "b734332199b178d2ddfb6112a76310399f96f043515023d52f81d5680bcc5589",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "wav2vec2-layer1-bias-bfloat16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "wav2vec2-layer1-float16",
+    "latency_us": 10.731666666666666,
+    "samples": 15,
+    "measurement_id": "2cacb909b91f969830503379da4f03e5224713f63ab7733c85a836dfb1b4b4a5",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "wav2vec2-layer1-float16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "float16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "float16"
+        ],
+        "stride": 5,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6718461108259147,
+    "tileops_latency_us": 15.973399999999998,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "f511590ccd7dd32cb2030c29842fbb553e9303a992b3d4a7ea110b7316a1dfc2",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "wav2vec2-layer1-float16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "wav2vec2-layer1-bfloat16",
+    "latency_us": 10.690466666666667,
+    "samples": 15,
+    "measurement_id": "1babe47b2655ee38cc3f4c3cb2c8c1714fe62fc450c3ea364734d8857e43fa05",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "wav2vec2-layer1-bfloat16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "bfloat16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            16000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            512,
+            1,
+            10
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            512,
+            3199
+          ],
+          "bfloat16"
+        ],
+        "stride": 5,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6745227859708751,
+    "tileops_latency_us": 15.848933333333333,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "a20c303cbe59b162fcb05ee97335d8b6d38aaa30ca6659a7a14944a080ecc643",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "wav2vec2-layer1-bfloat16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "encodec-init-bfloat16",
+    "latency_us": 9.103200000000001,
+    "samples": 15,
+    "measurement_id": "fa134ff5610a6f7df2d04186aa6f804e22f2a7133e12b3b872c19204af8b26ac",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "encodec-init-bfloat16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "bfloat16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "bfloat16"
+        ],
+        "stride": 1,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6787523300608924,
+    "tileops_latency_us": 13.411666666666665,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "e5dce90bf4456a18534c67ed3abe227450ebea41f0822edaa943b7eb947f62de",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "encodec-init-bfloat16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "encodec-init-bias-bfloat16",
+    "latency_us": 9.313799999999999,
+    "samples": 15,
+    "measurement_id": "52f90fe562b7a8794898c5ef34e9c905e19b519146534e50d67e5d5ff32abfba",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "encodec-init-bias-bfloat16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "bfloat16"
+        ],
+        "bias": [
+          [
+            32
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "bfloat16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "bfloat16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "bfloat16"
+        ],
+        "bias": [
+          [
+            32
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "bfloat16"
+        ],
+        "stride": 1,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6807172265939044,
+    "tileops_latency_us": 13.682333333333334,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "2be1f13047e792ddf677782bd1c59ad359d95cbe1e28f4a788ceaea964ac7dc7",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "encodec-init-bias-bfloat16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "encodec-init-bias-float16",
+    "latency_us": 9.3696,
+    "samples": 15,
+    "measurement_id": "ace78ceb2f5edd33eedd6fc3c051f7ca9aef957b6cca5716900a4f33e03e9923",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "encodec-init-bias-float16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "float16"
+        ],
+        "bias": [
+          [
+            32
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "float16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "float16"
+        ],
+        "bias": [
+          [
+            32
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "float16"
+        ],
+        "stride": 1,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6872567237163814,
+    "tileops_latency_us": 13.633333333333335,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "3954c35424e518a56966916604d7244d539b7a2f0357c982ac78e22e2341811f",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "encodec-init-bias-float16"
+  },
+  {
+    "library": "torch-eager",
+    "op": "Conv1dFwdOp",
+    "case": "encodec-init-float16",
+    "latency_us": 8.949266666666666,
+    "samples": 15,
+    "measurement_id": "287aa6ed44ae71f5926e98b3fe5e2a8b831fcea2ebcbf37a10c0017a09412ff7",
+    "protocol": "ascend950-isolated-ffts-v3",
+    "parser_revision": "v3-task-coverage-full32-20261103",
+    "workload": {
+      "op": "Conv1dFwdOp",
+      "case_id": "encodec-init-float16",
+      "tensors": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "float16"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            1,
+            1,
+            24000
+          ],
+          "float16"
+        ],
+        "weight": [
+          [
+            32,
+            1,
+            7
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            1,
+            32,
+            23994
+          ],
+          "float16"
+        ],
+        "stride": 1,
+        "padding": 0,
+        "dilation": 1,
+        "groups": 1
+      },
+      "family": "convolution"
+    },
+    "ratio": 0.6947037757721288,
+    "tileops_latency_us": 12.882133333333334,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "944a5824cab471f6caee8883b5ee4bd9c3048b79d9a7a326a733e7a21083914f",
+    "canonical_op": "Conv1dFwdOp",
+    "canonical_case": "encodec-init-float16"
+  },
+  {
+    "library": "ops-math",
+    "op": "BitwiseNotFwdOp",
+    "case": "16M-int32",
+    "latency_us": 22.18833333333333,
+    "samples": 15,
+    "measurement_id": "fc4ea864534ec4c6afeafccab7929ee52244c4bc95e115ba98b09bfde5d42e3c",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "BitwiseNotFwdOp",
+      "case_id": "16M-int32",
+      "family": "elementwise",
+      "tensors": {
+        "input": [
+          [
+            4096,
+            4096
+          ],
+          "int32"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "int32"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            4096,
+            4096
+          ],
+          "int32"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "int32"
+        ]
+      }
+    },
+    "tileops_latency_us": 31.212466666666668,
+    "ratio": 0.7108804815170006,
+    "tileops_samples": 15,
+    "tileops_verified": true,
+    "tileops_measurement_id": "eeb33a086e0db402953404b8d060d7076242331fbc0072168bdbdd9b8a739d88",
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "canonical_op": "BitwiseNotFwdOp",
+    "canonical_case": "16M-int32"
+  },
+  {
+    "library": "ops-nn",
+    "op": "MaxPool2dIndicesFwdOp",
+    "case": "alexnet-ceil-float16",
+    "latency_us": 37.33366666666666,
+    "samples": 15,
+    "measurement_id": "400ed2510e6bbf3f61e0232145dc2c09b0b6d306c014de2c739e254477706a40",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "MaxPool2dIndicesFwdOp",
+      "case_id": "alexnet-ceil-float16",
+      "family": "pool",
+      "tensors": {
+        "input": [
+          [
+            32,
+            64,
+            55,
+            55
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "float16"
+        ],
+        "indices": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "int64"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            32,
+            64,
+            55,
+            55
+          ],
+          "float16"
+        ],
+        "output": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "float16"
+        ],
+        "indices": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "int64"
+        ],
+        "kernel_size": [
+          3,
+          3
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "dilation": 1,
+        "ceil_mode": true
+      }
+    },
+    "ratio": 0.7391595303211089,
+    "tileops_latency_us": 50.50826666666667,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "b0cc54612ac75262e048a432a0ed6d77c2b585688803278e706d9e945533ff8e",
+    "canonical_op": "MaxPool2dIndicesFwdOp",
+    "canonical_case": "alexnet-ceil-float16"
+  },
+  {
+    "library": "ops-nn",
+    "op": "MaxPool2dIndicesFwdOp",
+    "case": "alexnet-ceil-bfloat16",
+    "latency_us": 37.229866666666666,
+    "samples": 15,
+    "measurement_id": "588072eacaefafd189a604b9ebf0c8554e429b9d204d7d2cf406a84a6d7cfd2b",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "MaxPool2dIndicesFwdOp",
+      "case_id": "alexnet-ceil-bfloat16",
+      "family": "pool",
+      "tensors": {
+        "input": [
+          [
+            32,
+            64,
+            55,
+            55
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "bfloat16"
+        ],
+        "indices": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "int64"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            32,
+            64,
+            55,
+            55
+          ],
+          "bfloat16"
+        ],
+        "output": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "bfloat16"
+        ],
+        "indices": [
+          [
+            32,
+            64,
+            27,
+            27
+          ],
+          "int64"
+        ],
+        "kernel_size": [
+          3,
+          3
+        ],
+        "stride": [
+          2,
+          2
+        ],
+        "padding": [
+          0,
+          0
+        ],
+        "dilation": 1,
+        "ceil_mode": true
+      }
+    },
+    "ratio": 0.7413521876904164,
+    "tileops_latency_us": 50.21886666666667,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "0ced395a6d58fcb1cb2cc1e6c52bbd831d4072cc0b3d58f5b838e5a96b4e594b",
+    "canonical_op": "MaxPool2dIndicesFwdOp",
+    "canonical_case": "alexnet-ceil-bfloat16"
+  },
+  {
+    "library": "ops-math",
+    "op": "MaskedFillScalarFwdOp",
+    "case": "16M-float32",
+    "latency_us": 28.630066666666664,
+    "samples": 15,
+    "measurement_id": "b4e8abcaafbd76c6371c14fe3f9ff50b682cd7287775d347fb72de60fb561ae2",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "MaskedFillScalarFwdOp",
+      "case_id": "16M-float32",
+      "family": "elementwise",
+      "tensors": {
+        "input": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ],
+        "mask": [
+          [
+            4096,
+            4096
+          ],
+          "bool"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ],
+        "mask": [
+          [
+            4096,
+            4096
+          ],
+          "bool"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ],
+        "value": 0.0
+      }
+    },
+    "tileops_latency_us": 37.1796,
+    "ratio": 0.7700477322689503,
+    "tileops_samples": 15,
+    "tileops_verified": true,
+    "tileops_measurement_id": "08bbb2b0a31d3d5949fd2bee69a6c50669e7eec4ec1b77a905bf8b45f80c3fab",
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "canonical_op": "MaskedFillScalarFwdOp",
+    "canonical_case": "16M-float32"
+  },
+  {
+    "library": "ops-math",
+    "op": "MaskedFillTensorFwdOp",
+    "case": "16M-float32",
+    "latency_us": 28.569533333333336,
+    "samples": 15,
+    "measurement_id": "60ba4f4064486d85acc2071e679875f46c3f63df897a0854008ed837378afcbd",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "MaskedFillTensorFwdOp",
+      "case_id": "16M-float32",
+      "family": "elementwise",
+      "tensors": {
+        "input": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ],
+        "mask": [
+          [
+            4096,
+            4096
+          ],
+          "bool"
+        ],
+        "value": [
+          [],
+          "float32"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ],
+        "mask": [
+          [
+            4096,
+            4096
+          ],
+          "bool"
+        ],
+        "value": [
+          [],
+          "float32"
+        ],
+        "output": [
+          [
+            4096,
+            4096
+          ],
+          "float32"
+        ]
+      }
+    },
+    "tileops_latency_us": 37.00006666666666,
+    "ratio": 0.7721481582916069,
+    "tileops_samples": 15,
+    "tileops_verified": true,
+    "tileops_measurement_id": "dd7230e62c399f412923cadfcc26a9b35c5cc108d88b6c9dfff870d5ee910013",
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "canonical_op": "MaskedFillTensorFwdOp",
+    "canonical_case": "16M-float32"
+  },
+  {
+    "library": "ops-math",
+    "op": "BitwiseXorFwdOp",
+    "case": "cnn-feat-broadcast-int32",
+    "latency_us": 20.320333333333334,
+    "samples": 15,
+    "measurement_id": "fa828d7a62afdf1f2f6ec0064cc292997b8bd9e326d78289385aa01a42724dbe",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "BitwiseXorFwdOp",
+      "case_id": "cnn-feat-broadcast-int32",
+      "family": "elementwise",
+      "tensors": {
+        "input": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ],
+        "other": [
+          [
+            256,
+            1,
+            1
+          ],
+          "int32"
+        ],
+        "output": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ],
+        "other": [
+          [
+            256,
+            1,
+            1
+          ],
+          "int32"
+        ],
+        "output": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ]
+      }
+    },
+    "tileops_latency_us": 25.849133333333338,
+    "ratio": 0.7861127516847759,
+    "tileops_samples": 15,
+    "tileops_verified": true,
+    "tileops_measurement_id": "6420af8b9b6b97a318c398e6bd740e2e51ff3d769b63a817f1614e3d41afa4d3",
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "canonical_op": "BitwiseXorFwdOp",
+    "canonical_case": "cnn-feat-broadcast-int32"
+  },
+  {
+    "library": "ops-math",
+    "op": "BitwiseAndFwdOp",
+    "case": "cnn-feat-broadcast-int32",
+    "latency_us": 20.291733333333333,
+    "samples": 15,
+    "measurement_id": "2dd39bdd9202271831c84206b5f66ab5c7dcebf19801d83ffc3cfdc9e5fdaca7",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "BitwiseAndFwdOp",
+      "case_id": "cnn-feat-broadcast-int32",
+      "family": "elementwise",
+      "tensors": {
+        "input": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ],
+        "other": [
+          [
+            256,
+            1,
+            1
+          ],
+          "int32"
+        ],
+        "output": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ]
+      },
+      "params": {
+        "input": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ],
+        "other": [
+          [
+            256,
+            1,
+            1
+          ],
+          "int32"
+        ],
+        "output": [
+          [
+            16,
+            256,
+            56,
+            56
+          ],
+          "int32"
+        ]
+      }
+    },
+    "tileops_latency_us": 25.669666666666668,
+    "ratio": 0.7904946175122388,
+    "tileops_samples": 15,
+    "tileops_verified": true,
+    "tileops_measurement_id": "50ac0bd39b0c2175c5a3111e4fbaf901e6c3442e2ad9957ab3d3d46f3a946bd1",
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "canonical_op": "BitwiseAndFwdOp",
+    "canonical_case": "cnn-feat-broadcast-int32"
+  },
+  {
+    "library": "ops-nn",
+    "op": "BmmFwdOp",
+    "case": "square-512-float16",
+    "latency_us": 15.003266666666665,
+    "samples": 15,
+    "measurement_id": "6d306399e84a6d9bf25ea65231201f033e3a32ec4f2dae371ccbc128c81d7a22",
+    "protocol": "ascend950-isolated-ffts-v2",
+    "workload": {
+      "op": "BmmFwdOp",
+      "case_id": "square-512-float16",
+      "family": "gemm",
+      "tensors": {
+        "a": [
+          [
+            16,
+            512,
+            512
+          ],
+          "float16"
+        ],
+        "b": [
+          [
+            16,
+            512,
+            512
+          ],
+          "float16"
+        ],
+        "d": [
+          [
+            16,
+            512,
+            512
+          ],
+          "float16"
+        ]
+      },
+      "params": {
+        "a": [
+          [
+            16,
+            512,
+            512
+          ],
+          "float16"
+        ],
+        "b": [
+          [
+            16,
+            512,
+            512
+          ],
+          "float16"
+        ],
+        "d": [
+          [
+            16,
+            512,
+            512
+          ],
+          "float16"
+        ]
+      }
+    },
+    "ratio": 0.7954453877747223,
+    "tileops_latency_us": 18.861466666666665,
+    "tileops_verified": true,
+    "tileops_samples": 15,
+    "tileops_protocol": "ascend950-marker-session-v4",
+    "tileops_commit": "eab4b9cd12953651e75cd1bb3741b4b850e2ff42",
+    "tileops_date": "2026-11-12T19:16:07.635245+00:00",
+    "tileops_measurement_id": "54f838d28c8f8b93f583673ee69bc15e3ad2cbf269ebb22dc28d468c92765162",
+    "canonical_op": "BMMFwdOp",
+    "canonical_case": "square-512-float16"
+  }
+]

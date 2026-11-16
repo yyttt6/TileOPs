@@ -6,6 +6,7 @@ import tilelang
 import tilelang.ascend.language as T
 import torch  # noqa: F401
 
+from tileops._kernels.ascend.convolution.conv1d_shallow import build_shallow_pack
 from tileops._kernels.convolution.call_spec import Conv1dFwdInterface
 from tileops._kernels.kernel_base import Kernel
 
@@ -67,8 +68,8 @@ def build(c):
         and np % 256 == 0
         and batch * groups * (co // 128) * (np // 256) >= 32
     )
-    bm, bn, bk = (128, 256, kb) if wide else (64, 128, kb)
-    mt, nt = mp // bm, np // bn
+    bm, bn, bk = (128, 256, kb) if wide else (32 if co == 32 and k <= 16 else 64, 128, kb)
+    mt, nt = (co // bm if use_direct_output(c) else mp // bm), np // bn
     tiles = batch * groups * mt * nt
     blocks = min(32, tiles)
     direct = use_direct_output(c)
@@ -240,18 +241,23 @@ def build(c):
         and kw * np % 256 == 0
         and batch * groups * ci >= 64
     )
+    shallow = k <= 16 and (use_direct_output(c) or use_mixed_finish(c))
     input_kernel = (
-        build_input_channel_dma(c)
-        if channel_dma
+        None
+        if shallow
         else (
-            build_input_dma(c)
-            if c.stride_l == 1 and c.pad_left == 0
-            else tilelang.compile(pack_x, target="ascend", out_idx=[1])
+            build_input_channel_dma(c)
+            if channel_dma
+            else (
+                build_input_dma(c)
+                if c.stride_l == 1 and c.pad_left == 0
+                else tilelang.compile(pack_x, target="ascend", out_idx=[1])
+            )
         )
     )
     compiled = (
         input_kernel,
-        tilelang.compile(pack_w, target="ascend", out_idx=[1]),
+        None if shallow else tilelang.compile(pack_w, target="ascend", out_idx=[1]),
         (build_deep_mixed_contract(c) if use_deep_mixed_finish(c) else build_mixed_contract(c))
         if use_mixed_finish(c)
         else tilelang.compile(
@@ -263,9 +269,13 @@ def build(c):
         ),
     )
     final = (
-        build_finish_dma(c)
-        if use_dma_finish(c)
-        else tilelang.compile(finish, target="ascend", out_idx=[2])
+        None
+        if shallow
+        else (
+            build_finish_dma(c)
+            if use_dma_finish(c)
+            else tilelang.compile(finish, target="ascend", out_idx=[2])
+        )
     )
     return (*compiled, final)
 
@@ -274,7 +284,8 @@ def use_direct_output(c):
     k = c.c_in_g * c.kernel_l
     np = (c.out_l + 127) // 128 * 128
     return not c.has_bias and (
-        (c.c_out_g % 64 == 0 and (k + 127) // 128 >= 4)
+        (k <= 16 and (c.c_out_g == 32 or c.c_out_g % 64 == 0))
+        or (c.c_out_g % 64 == 0 and (k + 127) // 128 >= 4)
         or (
             c.c_out_g % 128 == 0
             and 128 < k <= 256
@@ -360,7 +371,10 @@ def build_mixed_contract(c):
 def use_deep_mixed_finish(c):
     k = c.c_in_g * c.kernel_l
     kb = 256 if k >= 1024 and k % 256 == 0 else (16 if k <= 16 else 128)
-    return c.has_bias and c.c_out_g % 64 == 0 and (k + kb - 1) // kb >= 4
+    return c.has_bias and (
+        (k <= 16 and (c.c_out_g == 32 or c.c_out_g % 64 == 0))
+        or (c.c_out_g % 64 == 0 and (k + kb - 1) // kb >= 4)
+    )
 
 
 @functools.lru_cache(maxsize=128)
@@ -371,8 +385,8 @@ def build_deep_mixed_contract(c):
     k = ci * kw
     kb = 256 if k >= 1024 and k % 256 == 0 else (16 if k <= 16 else 128)
     kp, mp, np = (k + kb - 1) // kb * kb, (co + 63) // 64 * 64, (out + 127) // 128 * 128
-    bm, bn = 64, 128
-    mt, nt = mp // bm, np // bn
+    bm, bn = (32 if co == 32 else 64), (256 if co == 32 and np % 256 == 0 else 128)
+    mt, nt = (co + bm - 1) // bm, np // bn
     tiles = batch * groups * mt * nt
     blocks = min(32, tiles)
 
@@ -606,16 +620,25 @@ class AscendConv1dKernel(Kernel, Conv1dFwdInterface):
         super().__init__()
         self.call = call
         self.pack_x, self.pack_w, self.contract, self.finish = build(call)
+        self.pack_inputs = (
+            build_shallow_pack(call)
+            if call.c_in_g * call.kernel_l <= 16
+            and (use_direct_output(call) or use_mixed_finish(call))
+            else None
+        )
 
     def forward(self, x, weight, bias=None):
-        packed = self.pack_x(x)
-        k = self.call.c_in_g * self.call.kernel_l
-        if self.call.c_out_g % 64 == 0 and (k % 128 == 0 or (128 < k <= 256 and k % 16 == 0)):
-            # No padding is needed: the original contiguous grouped OIK layout
-            # is exactly (groups, padded_output_channels, padded_reduction).
-            weights = weight.view(self.call.groups, self.call.c_out_g, k)
+        if self.pack_inputs is not None:
+            packed, weights = self.pack_inputs(x, weight)
         else:
-            weights = self.pack_w(weight)
+            packed = self.pack_x(x)
+            k = self.call.c_in_g * self.call.kernel_l
+            if self.call.c_out_g % 64 == 0 and (k % 128 == 0 or (128 < k <= 256 and k % 16 == 0)):
+                # No padding is needed: the original contiguous grouped OIK layout
+                # is exactly (groups, padded_output_channels, padded_reduction).
+                weights = weight.view(self.call.groups, self.call.c_out_g, k)
+            else:
+                weights = self.pack_w(weight)
         if use_mixed_finish(self.call):
             return self.contract(weights, packed, bias).view(
                 self.call.n, self.call.c_out, self.call.out_l

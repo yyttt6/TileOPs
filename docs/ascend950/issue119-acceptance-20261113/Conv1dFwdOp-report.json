@@ -1,0 +1,97 @@
+{
+  "op": "Conv1dFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 8,
+  "criterion": "baseline / worst of full and confirmation round means >=1.0",
+  "minimum_ratio": 1.0368498319446768,
+  "full_manifest_passed": 16,
+  "public_regression_passed": 24,
+  "public_scope": "Conv1d output-tail, padding, dilation, dispatch, bias/no-bias and depthwise selection; 152 unrelated/unselected items not counted",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/convolution/conv1d.py": "4812e4cd2f89b2481e2db12a52330e3cd53a64979576f156fc3ce0c2348fa49a",
+    "src/tileops/_kernels/ascend/convolution/conv1d_shallow.py": "1a982fae76250cfb7221bd5699257f061bc2741832e6cd1af2e96bd0540d4306"
+  },
+  "evidence": [
+    "conv1d-original-audit.json",
+    "conv1d-v4-full-audit.json",
+    "conv1d-original-r2-audit.json",
+    "conv1d-final-r1-audit.json",
+    "device-evidence/conv1d-v4-public.xml",
+    "conv1d-v1-failure-review.json",
+    "conv1d-v4-source-review.json"
+  ],
+  "cases": [
+    {
+      "case": "wav2vec2-layer1-bias-float16",
+      "baseline_us": 10.735266666666666,
+      "original_us": 16.582933333333333,
+      "control_us": 16.540799999999997,
+      "full_us": 10.353733333333334,
+      "confirmation_us": 10.3114,
+      "worst_ratio": 1.0368498319446768
+    },
+    {
+      "case": "wav2vec2-layer1-bias-bfloat16",
+      "baseline_us": 11.011866666666666,
+      "original_us": 16.71833333333333,
+      "control_us": 16.7678,
+      "full_us": 10.389733333333334,
+      "confirmation_us": 10.250200000000001,
+      "worst_ratio": 1.0598796247577735
+    },
+    {
+      "case": "wav2vec2-layer1-float16",
+      "baseline_us": 10.731666666666666,
+      "original_us": 15.760533333333333,
+      "control_us": 15.841066666666666,
+      "full_us": 10.029866666666667,
+      "confirmation_us": 10.1132,
+      "worst_ratio": 1.0611543988714418
+    },
+    {
+      "case": "wav2vec2-layer1-bfloat16",
+      "baseline_us": 10.690466666666667,
+      "original_us": 15.798799999999998,
+      "control_us": 15.883466666666669,
+      "full_us": 9.864733333333334,
+      "confirmation_us": 10.033733333333334,
+      "worst_ratio": 1.0654525400980692
+    },
+    {
+      "case": "encodec-init-bfloat16",
+      "baseline_us": 9.103200000000001,
+      "original_us": 13.0302,
+      "control_us": 13.135266666666666,
+      "full_us": 7.732933333333333,
+      "confirmation_us": 8.116999999999999,
+      "worst_ratio": 1.121498090427498
+    },
+    {
+      "case": "encodec-init-bias-bfloat16",
+      "baseline_us": 9.313799999999999,
+      "original_us": 13.983533333333332,
+      "control_us": 14.366200000000001,
+      "full_us": 7.733533333333334,
+      "confirmation_us": 7.7938,
+      "worst_ratio": 1.1950268161872255
+    },
+    {
+      "case": "encodec-init-bias-float16",
+      "baseline_us": 9.3696,
+      "original_us": 13.807733333333333,
+      "control_us": 14.1236,
+      "full_us": 7.948,
+      "confirmation_us": 7.977666666666668,
+      "worst_ratio": 1.1744787531859773
+    },
+    {
+      "case": "encodec-init-float16",
+      "baseline_us": 8.949266666666666,
+      "original_us": 13.352466666666666,
+      "control_us": 13.4076,
+      "full_us": 8.082,
+      "confirmation_us": 8.0958,
+      "worst_ratio": 1.1054209178421732
+    }
+  ]
+}

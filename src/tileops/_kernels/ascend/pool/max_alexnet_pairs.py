@@ -40,7 +40,8 @@ def program(dtype="float16", indices=False):
             raw = T.alloc_shared((raw_elements,), dtype)
             data = T.alloc_shared((staged_plane,), "float32")
             output = T.alloc_shared((14, 64), dtype)
-            picks = T.alloc_shared((pick_rows, 64), "uint32")
+            picks = T.alloc_shared((pick_rows, 128), "uint32")
+            wide_picks = T.view(picks, (pick_rows, 64), "int64")
             if dtype == "float32":
                 T.annotate_buffer_versions({data: 2, output: 2, picks: 2})
             else:
@@ -110,17 +111,22 @@ def program(dtype="float16", indices=False):
                             narrowed = S.vcvt(value[0], dtype, full, sat=False)
                             S.vsts(output[pair, 0], narrowed, active, "PK_B32")
                         if indices:
-                            S.vsts(picks[pair, 0], pick[0], active)
-                # Public output stays densely packed at729 elements per plane.
-                # DMA each full54-value pair, then the final27-value row.
-                for pair in T.serial(13):
-                    begin = row * 729 + pair * 54
-                    T.copy(output[pair, :54], Y[begin : begin + 54])
-                T.copy(output[13, :27], Y[row * 729 + 702 : (row + 1) * 729])
+                            low, high_words = S.vintlv(pick[0], uzero)
+                            S.vsts(picks[pair, 0], low, full)
+                            S.vsts(picks[pair, 64], high_words, full)
+                # The first thirteen pairs form a rectangular strided source.
+                # Store both outputs through DMA, preserving the final short row.
                 if indices:
-                    with T.SimtVF(threads=128):
-                        for col in T.Parallel(729):
-                            I[row * 729 + col] = T.cast(picks[col // 54, col % 54], "int64")
+                    begin = row * 729
+                    T.copy(output[:13, :54], Y[begin : begin + 702])
+                    T.copy(output[13, :27], Y[begin + 702 : begin + 729])
+                    T.copy(wide_picks[:13, :54], I[begin : begin + 702])
+                    T.copy(wide_picks[13, :27], I[begin + 702 : begin + 729])
+                else:
+                    for pair in T.serial(13):
+                        begin = row * 729 + pair * 54
+                        T.copy(output[pair, :54], Y[begin : begin + 54])
+                    T.copy(output[13, :27], Y[row * 729 + 702 : (row + 1) * 729])
 
     return main.with_attr("tilelang_callee_allocated_outputs", 0)
 

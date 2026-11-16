@@ -1,0 +1,78 @@
+{
+  "op": "HadamardTransformFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "hardware": {
+    "device": "Ascend950DT_9582",
+    "cube": 32,
+    "vector": 64,
+    "clock_policy": "platform-default"
+  },
+  "criterion": "fastest frozen comparable baseline / worst of two candidate round means >= 1.0",
+  "issue_case": "llama-8b-prefill-float16",
+  "baseline_us": 335.34526666666665,
+  "worst_candidate_us": 204.8458666666667,
+  "ratio": 1.637061426347224,
+  "public_tests": {
+    "passed": 36,
+    "cuda_only_deselected": 5
+  },
+  "raw_windows_audited": 435,
+  "source_sha256": "ba9d9d613ade2f0efccc1501c6c453493ac1b26eaef5cf2a44df4e650467c560",
+  "evidence": [
+    "hadamard-original-audit.json",
+    "hadamard-v1-audit.json",
+    "hadamard-v2-audit.json",
+    "hadamard-original-r2-audit.json",
+    "hadamard-final-r1-audit.json",
+    "device-evidence/hadamard-v2-public-r3.xml",
+    "device-evidence/toolchain-preflight.json",
+    "hadamard-v2-source-review.json",
+    "hadamard-v2-format-equivalence.json"
+  ],
+  "cases": [
+    {
+      "case": "llama-8b-prefill-float16",
+      "original_us": 1132.5274,
+      "search_us": 204.8458666666667,
+      "confirmation_us": 204.67253333333332
+    },
+    {
+      "case": "llama-8b-prefill-bfloat16",
+      "original_us": 1133.0398000000002,
+      "search_us": 205.44693333333333,
+      "confirmation_us": 205.80553333333333
+    },
+    {
+      "case": "llama-8b-decode-bfloat16",
+      "original_us": 34.5916,
+      "search_us": 7.782,
+      "confirmation_us": 7.786066666666667
+    },
+    {
+      "case": "llama-70b-prefill-bfloat16",
+      "original_us": 2368.3723333333332,
+      "search_us": 450.84066666666666,
+      "confirmation_us": 451.4669333333334
+    },
+    {
+      "case": "llama-70b-decode-bfloat16",
+      "original_us": 40.51573333333333,
+      "search_us": 9.4886,
+      "confirmation_us": 9.501733333333334
+    },
+    {
+      "case": "llama3-head-dim-bfloat16",
+      "original_us": 1986.6264666666666,
+      "search_us": 197.31526666666664,
+      "confirmation_us": 197.2952
+    },
+    {
+      "case": "non-pow2-order20-bfloat16",
+      "original_us": 552.0559333333333,
+      "search_us": 313.92206666666664,
+      "confirmation_us": 314.11026666666663
+    }
+  ],
+  "note": "All7 manifest cases improve over original; two independent valid candidate rounds; baseline retained from issue snapshot. Original controls 1132.527/1132.164us. Every measured output checked; no reference tolerance changes."
+}

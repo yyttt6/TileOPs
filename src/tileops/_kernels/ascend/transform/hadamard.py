@@ -104,7 +104,7 @@ def build_base_shared(total, n, base):
                             k = i % m
                             acc = T.alloc_var("float32")
                             acc = T.float32(0)
-                            for a in T.serial(base):
+                            for a in T.unroll(base, explicit=True):
                                 acc = acc + values[a * m + k] * coefficients[a, col]
                             output[i] = acc / T.float32(norm)
                     T.copy(output, Y[row * n : row * n + n])
@@ -147,6 +147,79 @@ def build_base(total, n, base):
     return tilelang.compile(main, target="ascend", out_idx=[2])
 
 
+@functools.lru_cache(maxsize=128)
+def build_fused(total, n, dtype):
+    """Keep the first nine butterfly levels in warp registers and fuse the output."""
+    parts = min(16, n // 32)
+    threads = min(1024, 8192 // parts)
+    tile = threads * parts
+    levels = n.bit_length() - 1
+    register_levels = 5 + parts.bit_length() - 1
+    chunk = parts * 32
+    tiles = total // tile
+    blocks = min(64, tiles)
+    norm = math.sqrt(n)
+
+    @T.prim_func
+    def main(X: T.Tensor((total,), dtype), Y: T.Tensor((total,), dtype)):
+        with T.Kernel(blocks) as bx:
+            inp = T.alloc_shared((tile,), dtype)
+            out = T.alloc_shared((tile,), dtype)
+            a = T.alloc_shared((tile,), "float32")
+            b = T.alloc_shared((tile,), "float32")
+            for step in T.serial(T.ceildiv(tiles, blocks)):
+                job = step * blocks + bx
+                if job < tiles:
+                    offset = job * tile
+                    T.copy(X[offset : offset + tile], inp)
+                    with T.SimtVF(threads=threads):
+                        tid = T.get_thread_binding()
+                        lane = tid % 32
+                        warp = tid // 32
+                        v = T.alloc_local((parts,), "float32")
+                        for part in T.unroll(parts, explicit=True):
+                            v[part] = T.cast(inp[warp * chunk + part * 32 + lane], "float32")
+                            for level in T.unroll(5, explicit=True):
+                                other = T.call_extern(  # lint: extern-target allow: Ascend native SIMD lowering
+                                    "float32", "asc_shfl_xor", v[part], T.int32(1 << level)
+                                )
+                                v[part] = T.if_then_else(
+                                    lane % (2 << level) < (1 << level),
+                                    v[part] + other,
+                                    other - v[part],
+                                )
+                        for level in T.unroll(register_levels - 5, explicit=True):
+                            for pair in T.unroll(parts // 2, explicit=True):
+                                lo = (pair // (1 << level)) * (2 << level) + pair % (1 << level)
+                                left = v[lo]
+                                right = v[lo + (1 << level)]
+                                v[lo] = left + right
+                                v[lo + (1 << level)] = left - right
+                        for part in T.unroll(parts, explicit=True):
+                            a[warp * chunk + part * 32 + lane] = v[part]
+                    for stage in T.unroll(max(0, levels - register_levels), explicit=True):
+                        with T.SimtVF(threads=256):
+                            for i in T.Parallel(tile // 2):
+                                lo = (i // (chunk << stage)) * (2 * chunk << stage) + i % (
+                                    chunk << stage
+                                )
+                                if stage % 2 == 0:
+                                    b[lo] = a[lo] + a[lo + (chunk << stage)]
+                                    b[lo + (chunk << stage)] = a[lo] - a[lo + (chunk << stage)]
+                                else:
+                                    a[lo] = b[lo] + b[lo + (chunk << stage)]
+                                    a[lo + (chunk << stage)] = b[lo] - b[lo + (chunk << stage)]
+                    with T.SimtVF(threads=256):
+                        for i in T.Parallel(tile):
+                            if max(0, levels - register_levels) % 2 == 0:
+                                out[i] = T.cast(a[i] / T.float32(norm), dtype)
+                            else:
+                                out[i] = T.cast(b[i] / T.float32(norm), dtype)
+                    T.copy(out, Y[offset : offset + tile])
+
+    return tilelang.compile(main, target="ascend", out_idx=[1])
+
+
 class AscendHadamardKernel(Kernel, HadamardTransformFwdInterface):
     devices = frozenset({"npu"})
 
@@ -166,6 +239,9 @@ class AscendHadamardKernel(Kernel, HadamardTransformFwdInterface):
         n = c.n
         base = c.base_order
         m = n // base
+        if base == 1 and 32 <= n <= 8192 and total % 8192 == 0 and x.data_ptr() % 32 == 0:
+            self.fused = build_fused(total, n, str(x.dtype).removeprefix("torch."))
+            return self.fused(x.reshape(-1)).reshape(x.shape)
         self.local = build_local(total, m, str(x.dtype).removeprefix("torch."))
         v = self.local(x.reshape(-1))
         self.passes = []

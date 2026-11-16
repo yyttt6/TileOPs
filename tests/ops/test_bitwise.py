@@ -231,3 +231,45 @@ def test_bitwise_binary_rejects_float_dtype(op_cls, dtype: torch.dtype) -> None:
     x = torch.zeros(shape, device=run_device(), dtype=dtype)
     with pytest.raises(ValueError, match="dtype is outside"):
         op(x, x)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    "dtype,size,offset",
+    [
+        (torch.int32, 1 << 22, 0),
+        (torch.int32, (1 << 22) + 16384, 1),
+        (torch.int64, 1 << 21, 1),
+        (torch.int32, (1 << 22) + 1, 0),
+    ],
+)
+def test_bitwise_not_large_offsets_and_tails(dtype, size, offset):
+    """Streaming and tail paths preserve all bits and leave offset inputs untouched."""
+    storage = torch.arange(size + offset, device=run_device(), dtype=dtype)
+    x = storage[offset:]
+    limits = torch.iinfo(dtype)
+    x[:4] = torch.tensor([limits.min, -1, 0, limits.max], device=run_device(), dtype=dtype)
+    before = x.cpu()
+    actual = BitwiseNotFwdOp()(x).cpu()
+    torch.testing.assert_close(actual, torch.bitwise_not(before), rtol=0, atol=0)
+    torch.testing.assert_close(x.cpu(), before, rtol=0, atol=0)
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    "repeat,channels,offset", [(64, 4, 0), (3136, 8, 1), (4096, 4, 1), (128, 3, 0)]
+)
+@pytest.mark.parametrize(
+    "op,reference", [(BitwiseAndFwdOp, torch.bitwise_and), (BitwiseXorFwdOp, torch.bitwise_xor)]
+)
+def test_bitwise_grouped_channels(repeat, channels, offset, op, reference):
+    """Grouped broadcast, offset storage and non-grouped fallback preserve exact bits."""
+    storage = torch.arange(2 * channels * repeat + offset, device=run_device(), dtype=torch.int32)
+    x = storage[offset:].reshape(2, channels, repeat)
+    mask = torch.arange(channels, device=run_device(), dtype=torch.int32).reshape(1, channels, 1)
+    mask[0, 0, 0] = -1
+    before, other = x.cpu(), mask.cpu()
+    actual = op()(x, mask).cpu()
+    torch.testing.assert_close(actual, reference(before, other), rtol=0, atol=0)
+    torch.testing.assert_close(x.cpu(), before, rtol=0, atol=0)
+    torch.testing.assert_close(mask.cpu(), other, rtol=0, atol=0)

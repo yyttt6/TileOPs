@@ -216,6 +216,42 @@ def _make_bmm_small_fp16_kernel():
     return tilelang.compile(main, target="ascend", out_idx=-1)
 
 
+@functools.lru_cache(maxsize=2)
+def _make_bmm_square512_kernel(dtype: str):
+    """Two full output tiles per core, with 64-wide K and double-buffered L0 operands."""
+    block_m, block_n, block_k = 256, 256, 64
+    stages = 3
+
+    @T.prim_func
+    def main_square512(
+        A: T.Tensor((16, 512, 512), dtype),
+        B: T.Tensor((16, 512, 512), dtype),
+        C: T.Tensor((16, 512, 512), dtype),
+    ):
+        with T.Kernel(32) as bx:
+            al = T.alloc_l1((block_m, block_k), dtype)
+            bl = T.alloc_l1((block_n, block_k), dtype)
+            a = T.alloc_l0a((block_m, block_k), dtype)
+            b = T.alloc_l0b((block_n, block_k), dtype)
+            c = T.alloc_l0c((block_m, block_n), "float32")
+            T.annotate_buffer_versions({al: stages, bl: stages, a: 2, b: 2})
+            for job in T.serial(2):
+                block = job * 32 + bx
+                batch = block // 4
+                mi = (block // 2) % 2 * block_m
+                ni = block % 2 * block_n
+                for step in T.Pipelined(512 // block_k, num_stages=stages):
+                    begin = step * block_k
+                    T.copy(A[batch, mi : mi + block_m, begin : begin + block_k], al)
+                    T.copy(B[batch, begin : begin + block_k, ni : ni + block_n], bl, transpose=True)
+                    T.copy(al, a)
+                    T.copy(bl, b)
+                    T.gemm(a, b, c, transpose_B=True, clear_accum=step == 0)
+                T.copy(c, C[batch, mi : mi + block_m, ni : ni + block_n])
+
+    return tilelang.compile(main_square512, target="ascend", out_idx=-1)
+
+
 _ALIGNED_L1_SELECTIONS = {
     (64, 128, 2048, 128, "float16"): (128, 256, 128, 2, 32),
     (64, 128, 2048, 128, "bfloat16"): (128, 256, 128, 2, 32),
@@ -266,7 +302,9 @@ class AscendBMMKernel(Kernel, BMMFwdInterface):
             return
         dtype_name = _dtype_str(dtype)
         selection = _ALIGNED_L1_SELECTIONS.get((batch, m, n, k, dtype_name))
-        if (batch, m, n, k, dtype_name) == (8, 128, 128, 128, "float16"):
+        if (batch, m, n, k) == (16, 512, 512, 512) and dtype_name in ("float16", "bfloat16"):
+            self._compiled_fn = _make_bmm_square512_kernel(dtype_name)
+        elif (batch, m, n, k, dtype_name) == (8, 128, 128, 128, "float16"):
             self._compiled_fn = _make_bmm_small_fp16_kernel()
         elif selection is None:
             self._compiled_fn = _make_bmm_kernel(batch, m, n, k, dtype_name, device_index or 0)

@@ -1,0 +1,31 @@
+{
+  "op": "MaskedFillTensorFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.0178225770059308,
+  "full_manifest_passed": 5,
+  "public_regression_passed": 56,
+  "public_scope": "Full where/clamp/masked-fill conformance module plus eight large Scalar/Tensor storage/mask/tail/update tests. Includes12 original Tensor value dtype/broadcast cases,3 new runtime value-update cases;56 total suite passes, not56 distinct Tensor cases.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/elementwise/masked_fill_tensor.py": "bd5d505a1ab61f8ce3cd4fc6761c7ddb37cdc1999be2daf49366d2ddfd21731e"
+  },
+  "evidence": [
+    "tensor-v1-full-audit.json",
+    "tensor-final-r1-audit.json",
+    "tensor-original-full-audit.json",
+    "tensor-source-preflight.json",
+    "tensor-v1-source-regression-review.json"
+  ],
+  "cases": [
+    {
+      "case": "16M-float32",
+      "baseline_us": 28.569533333333336,
+      "rounds_us": [
+        28.069266666666664,
+        27.18626666666667
+      ],
+      "worst_ratio": 1.0178225770059308
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "op": "BitwiseNotFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.0060637387816298,
+  "full_manifest_passed": 3,
+  "public_regression_passed": 10,
+  "public_scope": "Six original dtype checks and four large integer offset/tail/input-preservation checks;26 unselected tests not counted.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/elementwise/bitwise_not.py": "b32dd9936d5371b26d52d8bb444666b6087b45ccc59cd3138c49e68d2c143910"
+  },
+  "evidence": [
+    "not-v4-full-audit.json",
+    "not-final-resume-r1-audit.json",
+    "not-original-audit.json",
+    "not-original-full-resume-r1-audit.json",
+    "not-v4-source-regression-review.json",
+    "device-evidence/not-v4-public.xml"
+  ],
+  "cases": [
+    {
+      "case": "16M-int32",
+      "baseline_us": 22.18833333333333,
+      "rounds_us": [
+        21.86266666666667,
+        22.054599999999997
+      ],
+      "worst_ratio": 1.0060637387816298
+    }
+  ]
+}

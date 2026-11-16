@@ -1,0 +1,33 @@
+{
+  "op": "MaskedFillScalarFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.0090341771497582,
+  "full_manifest_passed": 5,
+  "public_regression_passed": 31,
+  "public_scope": "Original scalar masked-fill dtype/mask/rejection tests plus five new large32bit bit-exact noncanonical mask, signedzero/NaN, offset/tail and input preservation tests;54 unselected tests not counted.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/elementwise/masked_fill_scalar.py": "2a55178d85e0469e6aeacebd9827d0450d5a87c2268ef86b1dd2075a6a995bde"
+  },
+  "evidence": [
+    "scalar-v3-full-audit.json",
+    "scalar-final-r3-audit.json",
+    "scalar-original-full-audit.json",
+    "scalar-v1-rejected.json",
+    "scalar-v2-independent-failure.json",
+    "scalar-v3-source-regression-review.json",
+    "scalar-hard-search-4-audit.json"
+  ],
+  "cases": [
+    {
+      "case": "16M-float32",
+      "baseline_us": 28.630066666666664,
+      "rounds_us": [
+        28.373733333333334,
+        27.024866666666664
+      ],
+      "worst_ratio": 1.0090341771497582
+    }
+  ]
+}

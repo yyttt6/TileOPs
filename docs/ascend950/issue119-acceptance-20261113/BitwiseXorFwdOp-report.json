@@ -1,0 +1,33 @@
+{
+  "op": "BitwiseXorFwdOp",
+  "status": "qualified",
+  "completed_issue_cases": 1,
+  "criterion": "baseline / worst of independent candidate round means >=1.0",
+  "minimum_ratio": 1.118612033689928,
+  "full_manifest_passed": 13,
+  "public_regression_passed": 15,
+  "public_scope": "Existing XOR/rejection checks plus eight grouped AND/XOR geometry/offset/fallback tests;29 deselected tests not counted.",
+  "source_sha256": {
+    "src/tileops/_kernels/ascend/elementwise/_bitwise_fast.py": "bcd96b11db9ca2008bac2f1d0e8a399459525741cc26e8b6b9ee0e67dfe8a0c3"
+  },
+  "evidence": [
+    "xor-v1-full-audit.json",
+    "xor-final-r1-audit.json",
+    "xor-original-full-audit.json",
+    "xor-source-preflight.json",
+    "xor-generated-review.json",
+    "xor-v1-full-comparison.json",
+    "and-reuse-on-xor-helper.json"
+  ],
+  "cases": [
+    {
+      "case": "cnn-feat-broadcast-int32",
+      "baseline_us": 20.320333333333334,
+      "rounds_us": [
+        17.926333333333332,
+        18.165666666666667
+      ],
+      "worst_ratio": 1.118612033689928
+    }
+  ]
+}

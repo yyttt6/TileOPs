@@ -59,10 +59,43 @@ if T is not None:
                     else:
                         c[i] = T.bitwise_xor(a[i], T.int32(-1))
 
+    @T.macro
+    def _stream_body(a, c, width: int):
+        with T.SimdVF():
+            mask = T.simd.pset(32)
+            for group in range(width // 128):
+                for j in T.unroll(2, explicit=True):
+                    value = T.simd.vld(a[group * 128 + j * 64])
+                    result = T.simd.vnot(value, mask)
+                    T.simd.vsts(c[group * 128 + j * 64], result, mask)
+
+    @functools.lru_cache(maxsize=128)
+    def build_stream(words, tile, blocks):
+        full = words // tile
+        grid = min(blocks, full)
+
+        @T.prim_func
+        def main_stream(A: T.Tensor((words,), "int32"), C: T.Tensor((words,), "int32")):
+            with T.Kernel(grid) as bx:
+                a = T.alloc_shared((tile,), "int32")
+                c = T.alloc_shared((tile,), "int32")
+                T.annotate_buffer_versions({a: 2, c: 1})
+                for step in T.Pipelined(T.ceildiv(full, grid), num_stages=2):
+                    block = step * grid + bx
+                    if block < full:
+                        begin = block * tile
+                        T.copy(A[begin : begin + tile], a)
+                        _stream_body(a, c, tile)
+                        T.copy(c, C[begin : begin + tile], l2_cache_ctrl=1)
+
+        return tilelang.compile(main_stream, target="ascend", out_idx=-1)
+
     @functools.lru_cache(maxsize=128)
     def build(words, boolean, tile=16384, blocks=64):
         tile = min(tile, words)
         full, tail = divmod(words, tile)
+        if not boolean and not tail and tile == 16384 and words >= 1 << 22:
+            return build_stream(words, 16384, blocks)
         grid = min(blocks, full)
 
         @T.prim_func
