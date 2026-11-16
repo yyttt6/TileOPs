@@ -35,8 +35,10 @@ def matching_baselines(baseline, op, case, params):
 
     target = comparison_identity(op, case, params)
 
+    retired = set(baseline.get("retired_measurement_ids", []))
+
     def alias_rank(row):
-        return row["op"] != op or row["case"] != case
+        return (row["op"] != op or row["case"] != case, bool(row.get("requested_library")))
 
     candidates = sorted(baseline["rows"], key=alias_rank) + sorted(
         baseline.get("historical_rows", []), key=alias_rank
@@ -44,12 +46,13 @@ def matching_baselines(baseline, op, case, params):
     matches = [
         b
         for b in candidates
-        if comparison_identity(b["op"], b["case"], b["workload"]["params"]) == target
+        if b.get("measurement_id") not in retired
+        and comparison_identity(b["op"], b["case"], b["workload"]["params"]) == target
     ]
     # Current rows precede history; never compare two versions of the same provider.
     providers = {}
     for row in matches:
-        providers.setdefault(row["library"], row)
+        providers.setdefault(row.get("actual_library", row["library"]), row)
     return list(providers.values())
 
 

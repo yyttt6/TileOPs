@@ -75,3 +75,36 @@ def test_builtin_ascend_without_registration_literal_is_selected(tmp_path, path,
     git("add", ".")
     git("commit", "-m", "builtin changed")
     assert op in MODULE.select(tmp_path, base)["operators"]
+
+
+def test_retired_native_history_cannot_override_a_qualified_alternative():
+    params = {"x": [[8], "float32"]}
+    shared = dict(op="ExampleOp", case="case", workload={"params": params})
+    native = dict(shared, library="provider", latency_us=10, measurement_id="native")
+    alternative = dict(
+        shared,
+        library="old (via provider)",
+        actual_library="provider",
+        requested_library="old",
+        latency_us=10,
+        measurement_id="reuse",
+    )
+    retired = dict(shared, library="old", latency_us=1, measurement_id="retired")
+    snapshot = dict(
+        rows=[alternative, native], historical_rows=[retired], retired_measurement_ids=["retired"]
+    )
+    assert MODULE.matching_baselines(snapshot, "ExampleOp", "case", params) == [native]
+
+
+def test_legacy_snapshot_without_retirement_metadata_keeps_admitted_history():
+    saved = dict(
+        library="old",
+        op="ExampleOp",
+        case="case",
+        workload={"params": {}},
+        latency_us=1,
+        measurement_id="legacy",
+    )
+    assert MODULE.matching_baselines(
+        dict(rows=[], historical_rows=[saved]), "ExampleOp", "case", {}
+    ) == [saved]
