@@ -7,11 +7,10 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 
-from tileops._csrc import csrc_include
-from tileops.backend import register_kernel_type
 from tileops._kernels.ascend.moe.pre_permute import route_pass_configs
 from tileops._kernels.kernel_base import Kernel
 from tileops._kernels.moe.call_spec import PermuteAlignFwdInterface
+from tileops.backend._registry import register_kernel_type
 
 
 def make_sharded(e, grid):
@@ -33,7 +32,6 @@ def make_sharded(e, grid):
         count: T.Tensor((1,), "int32"),
         workspace: T.Tensor((grid, e), "int32"),
     ):
-        T.func_attr({"ascend.batch_schedule": True})
         with T.Kernel(grid) as block:
             data = T.alloc_shared((512,), "int32")
             positions = T.alloc_shared((256,), "int32")
@@ -102,7 +100,10 @@ def make_sharded(e, grid):
             T.ascend_set_flag("MTE3_S", 0)
             T.ascend_wait_flag("MTE3_S", 0)
             if grid > 1:
-                T.call_extern("handle", "tileops::moe_grid_sync")
+                # Mode 0 makes the global barrier visible to the compiler,
+                # which selects batch scheduling for this resident AIV grid.
+                T.ascend_cross_core_set_flag(0, "PIPE_MTE3", 0)
+                T.ascend_cross_core_wait_flag(0, "PIPE_S", 0)
             # Stage at most eight workspace rows; the event chain protects reuse.
             for group in T.serial(T.ceildiv(grid, 8)):
                 first = group * 8
@@ -213,11 +214,6 @@ def make_sharded(e, grid):
 def _compile(e, grid):
     """Cache the compiled dynamic-N artifact by expert count and physical grid."""
     configs = route_pass_configs()
-    if grid > 1:
-        configs[tilelang.PassConfigKey.TL_DEVICE_COMPILE_FLAGS] = [
-            *csrc_include("ascend_moe_grid_sync.h"),
-            "-U__cpp_concepts",
-        ]
     return tilelang.compile(
         make_sharded(e, grid), target="ascend", out_idx=[], pass_configs=configs
     )

@@ -7,7 +7,7 @@ import torch
 
 from tileops._kernels.ascend.moe.permute_align import AscendMoEPermuteAlignKernel, _vector_capacity
 from tileops._kernels.moe.call_spec import PermuteAlignCall
-from tileops.ops.moe.permute_align import MoEPermuteAlignFwdOp
+from tileops.moe import MoEPermuteAlignFwdOp
 from workloads.device import run_device, run_device_available
 
 
