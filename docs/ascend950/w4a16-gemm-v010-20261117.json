@@ -1,0 +1,234 @@
+{
+  "verified": 15,
+  "performance_passed": 15,
+  "threshold": 0.8,
+  "baseline": "torch_npu.npu_weight_quant_batchmatmul (A16W4 per-group), same process, 3 warmups + 15 profiler windows",
+  "snapshot_note": "The pinned comparison snapshot (yyttt6/TileOPs.github.io@63c58f47, frozen 2026-11-16) still carries ascend950-isolated-ffts-v2 rows for ops-nn/ops-transformer that report about 10 ms for every shape (flat across M); those rows are not used here.",
+  "rows": [
+    {
+      "case": "decode-hbm-streaming-float16",
+      "latency_us": 89.033,
+      "baseline_us": 76.073,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 0.8544,
+      "passed": true,
+      "previous_head_us": 190.259,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-b2-float16",
+      "latency_us": 47.421,
+      "baseline_us": 43.054,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 0.9079,
+      "passed": true,
+      "previous_head_us": 114.144,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-l2-resident-float16",
+      "latency_us": 47.284,
+      "baseline_us": 42.971,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 0.9088,
+      "passed": true,
+      "previous_head_us": 113.464,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.03125,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "chunked-prefill-tile-float16",
+      "latency_us": 50.589,
+      "baseline_us": 48.475,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 0.9582,
+      "passed": true,
+      "previous_head_us": 121.94,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-b8-float16",
+      "latency_us": 47.427,
+      "baseline_us": 45.462,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 0.9586,
+      "passed": true,
+      "previous_head_us": 114.749,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "prefill-mlp-up-float16",
+      "latency_us": 175.418,
+      "baseline_us": 168.642,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 0.9614,
+      "passed": true,
+      "previous_head_us": 268.694,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "single-tile-float16",
+      "latency_us": 2.847,
+      "baseline_us": 2.956,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.0385,
+      "passed": true,
+      "previous_head_us": 6.163,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0078125,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-non-pow2-float16",
+      "latency_us": 98.042,
+      "baseline_us": 106.895,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.0903,
+      "passed": true,
+      "previous_head_us": 207.947,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-b32-float16",
+      "latency_us": 48.286,
+      "baseline_us": 53.409,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.1061,
+      "passed": true,
+      "previous_head_us": 115.717,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-tp8-attn-out-float16",
+      "latency_us": 13.57,
+      "baseline_us": 15.126,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.1146,
+      "passed": true,
+      "previous_head_us": 33.488,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "qwen3-32b-prefill-down-float16",
+      "latency_us": 111.988,
+      "baseline_us": 126.592,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.1304,
+      "passed": true,
+      "previous_head_us": 218.477,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.125,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "llama-8b-decode-down-float16",
+      "latency_us": 35.346,
+      "baseline_us": 40.467,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.1449,
+      "passed": true,
+      "previous_head_us": 88.034,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0625,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "decode-long-k-float16",
+      "latency_us": 440.266,
+      "baseline_us": 592.306,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.3453,
+      "passed": true,
+      "previous_head_us": 921.853,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.125,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "llama-8b-prefill-down-float16",
+      "latency_us": 57.131,
+      "baseline_us": 91.3,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.5981,
+      "passed": true,
+      "previous_head_us": 106.5,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.125,
+        "unchecked_reason": null
+      }
+    },
+    {
+      "case": "multi-tile-float16",
+      "latency_us": 3.438,
+      "baseline_us": 6.599,
+      "baseline": "torch_npu.npu_weight_quant_batchmatmul",
+      "ratio": 1.9195,
+      "passed": true,
+      "previous_head_us": 25.445,
+      "correctness": {
+        "checked_outputs": 1,
+        "total_outputs": 1,
+        "max_abs_err": 0.0078125,
+        "unchecked_reason": null
+      }
+    }
+  ]
+}
