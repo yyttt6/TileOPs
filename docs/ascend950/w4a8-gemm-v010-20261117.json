@@ -1,0 +1,1001 @@
+{
+  "verified": 98,
+  "vendor_baseline": null,
+  "reference": "torch-eager (ascend950-isolated-ffts-v3) \u2014 reference implementation, not a vendor baseline",
+  "note": "The published snapshot carries98 valid torch-eager reference measurements. The0.8 threshold is passed against this reference set; ratios are not vendor speedups or a global fastest-library claim. There are no admitted same-contract vendor rows in the snapshot; this does not establish global nonexistence. Additional vendor applicability/coverage remains tracked in#59/#46.",
+  "measurement": {
+    "source": "Official Ascend 950 nightly measurement run 43924017589",
+    "published": "2026-11-17T02:58:17Z",
+    "snapshot_date": "2026-11-16T19:25:50Z",
+    "protocol": "ascend950-adaptive-ffts-v4",
+    "device": "Ascend950DT_9582 (32 Cube / 64 Vector, platform-default clocks)",
+    "tileops_commit": "e7b1e901d22379ebd226299c597f01c204c5622d",
+    "measurement_run_id": "43924017589",
+    "publication_run_id": "44005914506",
+    "pages_deployment_run_id": "44006752287"
+  },
+  "rows": [
+    {
+      "case": "ds-r1-down-tp8-b1",
+      "m": 1,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 35.394,
+      "reference_us": 824.54,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.2961
+    },
+    {
+      "case": "ds-r1-down-tp8-b8",
+      "m": 8,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 35.399,
+      "reference_us": 885.824,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.0239
+    },
+    {
+      "case": "ds-r1-down-tp8-b16",
+      "m": 16,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 35.839,
+      "reference_us": 900.356,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.1221
+    },
+    {
+      "case": "ds-r1-down-tp8-b32",
+      "m": 32,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 36.586,
+      "reference_us": 936.223,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.5894
+    },
+    {
+      "case": "ds-r1-down-tp8-b33",
+      "m": 33,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 36.731,
+      "reference_us": 899.189,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.4807
+    },
+    {
+      "case": "ds-r1-down-tp8-b48",
+      "m": 48,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 37.186,
+      "reference_us": 918.872,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.71
+    },
+    {
+      "case": "ds-r1-down-tp8-b64",
+      "m": 64,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 38.189,
+      "reference_us": 990.01,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.9242
+    },
+    {
+      "case": "ds-r1-down-tp8-b65",
+      "m": 65,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 38.946,
+      "reference_us": 969.697,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.8987
+    },
+    {
+      "case": "ds-r1-up-tp8-b1",
+      "m": 1,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 39.308,
+      "reference_us": 403.086,
+      "reference_library": "torch-eager",
+      "reference_ratio": 10.2545
+    },
+    {
+      "case": "ds-r1-down-tp8-b96",
+      "m": 96,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 39.342,
+      "reference_us": 978.438,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.8701
+    },
+    {
+      "case": "ds-r1-up-tp8-b8",
+      "m": 8,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 39.402,
+      "reference_us": 426.76,
+      "reference_library": "torch-eager",
+      "reference_ratio": 10.8309
+    },
+    {
+      "case": "ds-r1-up-tp8-b16",
+      "m": 16,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 39.806,
+      "reference_us": 430.758,
+      "reference_library": "torch-eager",
+      "reference_ratio": 10.8214
+    },
+    {
+      "case": "ds-r1-up-tp8-b32",
+      "m": 32,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 40.603,
+      "reference_us": 463.311,
+      "reference_library": "torch-eager",
+      "reference_ratio": 11.4106
+    },
+    {
+      "case": "ds-r1-down-tp8-b97",
+      "m": 97,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 40.617,
+      "reference_us": 1010.984,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.8909
+    },
+    {
+      "case": "ds-r1-up-tp8-b33",
+      "m": 33,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 40.903,
+      "reference_us": 481.27,
+      "reference_library": "torch-eager",
+      "reference_ratio": 11.7661
+    },
+    {
+      "case": "ds-r1-up-tp8-b48",
+      "m": 48,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 41.366,
+      "reference_us": 487.33,
+      "reference_library": "torch-eager",
+      "reference_ratio": 11.7809
+    },
+    {
+      "case": "ds-r1-down-tp8-b128",
+      "m": 128,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 41.568,
+      "reference_us": 1028.767,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.749
+    },
+    {
+      "case": "ds-r1-up-tp8-b64",
+      "m": 64,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 42.531,
+      "reference_us": 538.329,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.6573
+    },
+    {
+      "case": "ds-r1-down-tp8-b129",
+      "m": 129,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 46.051,
+      "reference_us": 1065.49,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.137
+    },
+    {
+      "case": "ds-r1-down-tp8-b160",
+      "m": 160,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 46.231,
+      "reference_us": 1112.282,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.0594
+    },
+    {
+      "case": "ds-r1-down-tp8-b192",
+      "m": 192,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 47.65,
+      "reference_us": 1122.088,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.5487
+    },
+    {
+      "case": "ds-r1-down-tp8-b161",
+      "m": 161,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 47.881,
+      "reference_us": 1112.666,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.2384
+    },
+    {
+      "case": "llama-70b-down-tp8-b1",
+      "m": 1,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 49.468,
+      "reference_us": 1032.096,
+      "reference_library": "torch-eager",
+      "reference_ratio": 20.8638
+    },
+    {
+      "case": "llama-70b-down-tp8-b8",
+      "m": 8,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 49.651,
+      "reference_us": 1105.392,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.2633
+    },
+    {
+      "case": "ds-r1-down-tp8-b193",
+      "m": 193,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 49.894,
+      "reference_us": 1187.497,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.8006
+    },
+    {
+      "case": "ds-r1-down-tp8-b256",
+      "m": 256,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 50.116,
+      "reference_us": 1186.712,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.6792
+    },
+    {
+      "case": "llama-70b-down-tp8-b16",
+      "m": 16,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 50.674,
+      "reference_us": 1120.101,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.104
+    },
+    {
+      "case": "llama-70b-down-tp8-b32",
+      "m": 32,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 51.01,
+      "reference_us": 1172.107,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.9782
+    },
+    {
+      "case": "llama-70b-down-tp8-b33",
+      "m": 33,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 51.468,
+      "reference_us": 1154.551,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.4324
+    },
+    {
+      "case": "llama-70b-down-tp8-b48",
+      "m": 48,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 51.809,
+      "reference_us": 1178.354,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.7444
+    },
+    {
+      "case": "llama-70b-up-tp8-b1",
+      "m": 1,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 52.395,
+      "reference_us": 650.888,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.4228
+    },
+    {
+      "case": "llama-70b-up-tp8-b8",
+      "m": 8,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 52.531,
+      "reference_us": 682.334,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.9891
+    },
+    {
+      "case": "llama-70b-down-tp8-b64",
+      "m": 64,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 52.902,
+      "reference_us": 1287.294,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.3336
+    },
+    {
+      "case": "llama-70b-up-tp8-b16",
+      "m": 16,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 52.968,
+      "reference_us": 679.737,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.833
+    },
+    {
+      "case": "llama-70b-up-tp8-b32",
+      "m": 32,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 53.464,
+      "reference_us": 735.887,
+      "reference_library": "torch-eager",
+      "reference_ratio": 13.7643
+    },
+    {
+      "case": "llama-70b-up-tp8-b33",
+      "m": 33,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 54.188,
+      "reference_us": 761.679,
+      "reference_library": "torch-eager",
+      "reference_ratio": 14.0562
+    },
+    {
+      "case": "llama-70b-down-tp8-b96",
+      "m": 96,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 55.028,
+      "reference_us": 1286.737,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.3833
+    },
+    {
+      "case": "llama-70b-up-tp8-b48",
+      "m": 48,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 55.218,
+      "reference_us": 782.008,
+      "reference_library": "torch-eager",
+      "reference_ratio": 14.1621
+    },
+    {
+      "case": "llama-70b-up-tp8-b64",
+      "m": 64,
+      "n": 3584,
+      "k": 8192,
+      "latency_us": 56.861,
+      "reference_us": 854.407,
+      "reference_library": "torch-eager",
+      "reference_ratio": 15.0261
+    },
+    {
+      "case": "llama-70b-down-tp8-b129",
+      "m": 129,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 64.102,
+      "reference_us": 1434.093,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.372
+    },
+    {
+      "case": "llama-70b-down-tp8-b192",
+      "m": 192,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 67.042,
+      "reference_us": 1513.674,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.5779
+    },
+    {
+      "case": "llama-70b-down-tp8-b256",
+      "m": 256,
+      "n": 8192,
+      "k": 3584,
+      "latency_us": 70.897,
+      "reference_us": 1645.558,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.2106
+    },
+    {
+      "case": "ds-r1-down-b2",
+      "m": 2,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 170.234,
+      "reference_us": 2205.801,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.9574
+    },
+    {
+      "case": "ds-r1-down-b1",
+      "m": 1,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 170.52,
+      "reference_us": 2170.056,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.7261
+    },
+    {
+      "case": "ds-r1-down-b16",
+      "m": 16,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 170.952,
+      "reference_us": 2248.244,
+      "reference_library": "torch-eager",
+      "reference_ratio": 13.1513
+    },
+    {
+      "case": "ds-r1-down-b8",
+      "m": 8,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 171.185,
+      "reference_us": 2203.771,
+      "reference_library": "torch-eager",
+      "reference_ratio": 12.8737
+    },
+    {
+      "case": "ds-r1-down-b32",
+      "m": 32,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 173.064,
+      "reference_us": 2430.136,
+      "reference_library": "torch-eager",
+      "reference_ratio": 14.0418
+    },
+    {
+      "case": "ds-r1-down-b33",
+      "m": 33,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 173.75,
+      "reference_us": 2645.723,
+      "reference_library": "torch-eager",
+      "reference_ratio": 15.2272
+    },
+    {
+      "case": "ds-r1-down-b48",
+      "m": 48,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 174.382,
+      "reference_us": 2725.131,
+      "reference_library": "torch-eager",
+      "reference_ratio": 15.6273
+    },
+    {
+      "case": "ds-r1-down-b64",
+      "m": 64,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 178.469,
+      "reference_us": 3008.734,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.8586
+    },
+    {
+      "case": "ds-r1-down-b65",
+      "m": 65,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 179.54,
+      "reference_us": 2991.274,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.6608
+    },
+    {
+      "case": "ds-r1-down-b80",
+      "m": 80,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 181.808,
+      "reference_us": 3011.028,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.5616
+    },
+    {
+      "case": "ds-r1-down-b81",
+      "m": 81,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 183.424,
+      "reference_us": 3002.196,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.3675
+    },
+    {
+      "case": "ds-r1-down-b96",
+      "m": 96,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 184.302,
+      "reference_us": 3012.344,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.3446
+    },
+    {
+      "case": "ds-r1-down-b97",
+      "m": 97,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 186.995,
+      "reference_us": 3313.324,
+      "reference_library": "torch-eager",
+      "reference_ratio": 17.7188
+    },
+    {
+      "case": "ds-r1-up-b1",
+      "m": 1,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 190.79,
+      "reference_us": 3125.566,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.3822
+    },
+    {
+      "case": "ds-r1-down-b128",
+      "m": 128,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 192.388,
+      "reference_us": 3319.597,
+      "reference_library": "torch-eager",
+      "reference_ratio": 17.2547
+    },
+    {
+      "case": "ds-r1-up-b32",
+      "m": 32,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 194.674,
+      "reference_us": 3496.101,
+      "reference_library": "torch-eager",
+      "reference_ratio": 17.9587
+    },
+    {
+      "case": "ds-r1-up-b33",
+      "m": 33,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 195.914,
+      "reference_us": 3610.864,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.4309
+    },
+    {
+      "case": "ds-r1-up-b48",
+      "m": 48,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 197.228,
+      "reference_us": 3678.423,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.6506
+    },
+    {
+      "case": "ds-r1-up-b64",
+      "m": 64,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 200.632,
+      "reference_us": 4066.732,
+      "reference_library": "torch-eager",
+      "reference_ratio": 20.2696
+    },
+    {
+      "case": "ds-r1-up-b65",
+      "m": 65,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 205.469,
+      "reference_us": 4041.602,
+      "reference_library": "torch-eager",
+      "reference_ratio": 19.6702
+    },
+    {
+      "case": "ds-r1-down-b129",
+      "m": 129,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 232.386,
+      "reference_us": 3633.579,
+      "reference_library": "torch-eager",
+      "reference_ratio": 15.6359
+    },
+    {
+      "case": "ds-r1-down-b192",
+      "m": 192,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 236.68,
+      "reference_us": 3946.263,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.6734
+    },
+    {
+      "case": "ds-r1-down-b193",
+      "m": 193,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 240.819,
+      "reference_us": 4568.532,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.9708
+    },
+    {
+      "case": "ds-r1-down-b256",
+      "m": 256,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 247.497,
+      "reference_us": 4585.905,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.5291
+    },
+    {
+      "case": "ds-r1-up-b129",
+      "m": 129,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 254.974,
+      "reference_us": 4675.204,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.336
+    },
+    {
+      "case": "ds-r1-down-b257",
+      "m": 257,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 256.729,
+      "reference_us": 5209.776,
+      "reference_library": "torch-eager",
+      "reference_ratio": 20.2929
+    },
+    {
+      "case": "ds-r1-up-tp8-4k",
+      "m": 4096,
+      "n": 2304,
+      "k": 7168,
+      "latency_us": 265.45,
+      "reference_us": 5523.498,
+      "reference_library": "torch-eager",
+      "reference_ratio": 20.808
+    },
+    {
+      "case": "ds-r1-down-b384",
+      "m": 384,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 273.328,
+      "reference_us": 5834.676,
+      "reference_library": "torch-eager",
+      "reference_ratio": 21.3468
+    },
+    {
+      "case": "ds-r1-down-b385",
+      "m": 385,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 278.008,
+      "reference_us": 6460.899,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.2399
+    },
+    {
+      "case": "ds-r1-up-b257",
+      "m": 257,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 283.025,
+      "reference_us": 6324.847,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.3473
+    },
+    {
+      "case": "llama-70b-down-b1",
+      "m": 1,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 285.502,
+      "reference_us": 3879.117,
+      "reference_library": "torch-eager",
+      "reference_ratio": 13.587
+    },
+    {
+      "case": "llama-70b-down-b32",
+      "m": 32,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 292.35,
+      "reference_us": 4251.216,
+      "reference_library": "torch-eager",
+      "reference_ratio": 14.5415
+    },
+    {
+      "case": "llama-70b-down-b33",
+      "m": 33,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 296.156,
+      "reference_us": 4641.756,
+      "reference_library": "torch-eager",
+      "reference_ratio": 15.6733
+    },
+    {
+      "case": "llama-70b-down-b48",
+      "m": 48,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 297.888,
+      "reference_us": 4785.046,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.0632
+    },
+    {
+      "case": "ds-r1-down-b512",
+      "m": 512,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 300.589,
+      "reference_us": 7082.855,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.5633
+    },
+    {
+      "case": "ds-r1-down-tp8-4k",
+      "m": 4096,
+      "n": 7168,
+      "k": 2304,
+      "latency_us": 300.903,
+      "reference_us": 6082.967,
+      "reference_library": "torch-eager",
+      "reference_ratio": 20.2157
+    },
+    {
+      "case": "llama-70b-down-b64",
+      "m": 64,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 302.547,
+      "reference_us": 5330.486,
+      "reference_library": "torch-eager",
+      "reference_ratio": 17.6187
+    },
+    {
+      "case": "llama-70b-down-b65",
+      "m": 65,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 304.913,
+      "reference_us": 5316.19,
+      "reference_library": "torch-eager",
+      "reference_ratio": 17.4351
+    },
+    {
+      "case": "llama-70b-up-b1",
+      "m": 1,
+      "n": 28672,
+      "k": 8192,
+      "latency_us": 312.201,
+      "reference_us": 5076.25,
+      "reference_library": "torch-eager",
+      "reference_ratio": 16.2596
+    },
+    {
+      "case": "llama-70b-up-b32",
+      "m": 32,
+      "n": 28672,
+      "k": 8192,
+      "latency_us": 319.391,
+      "reference_us": 5835.978,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.2722
+    },
+    {
+      "case": "llama-70b-up-b33",
+      "m": 33,
+      "n": 28672,
+      "k": 8192,
+      "latency_us": 321.741,
+      "reference_us": 5962.426,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.5318
+    },
+    {
+      "case": "llama-70b-up-b48",
+      "m": 48,
+      "n": 28672,
+      "k": 8192,
+      "latency_us": 324.283,
+      "reference_us": 6130.219,
+      "reference_library": "torch-eager",
+      "reference_ratio": 18.9039
+    },
+    {
+      "case": "llama-70b-up-b64",
+      "m": 64,
+      "n": 28672,
+      "k": 8192,
+      "latency_us": 329.361,
+      "reference_us": 6842.676,
+      "reference_library": "torch-eager",
+      "reference_ratio": 20.7756
+    },
+    {
+      "case": "ds-r1-down-b513",
+      "m": 513,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 344.333,
+      "reference_us": 7710.755,
+      "reference_library": "torch-eager",
+      "reference_ratio": 22.3933
+    },
+    {
+      "case": "ds-r1-down-b576",
+      "m": 576,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 347.751,
+      "reference_us": 8359.119,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.0377
+    },
+    {
+      "case": "ds-r1-down-b577",
+      "m": 577,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 352.778,
+      "reference_us": 8354.854,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.683
+    },
+    {
+      "case": "ds-r1-up-b513",
+      "m": 513,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 365.261,
+      "reference_us": 8931.752,
+      "reference_library": "torch-eager",
+      "reference_ratio": 24.4531
+    },
+    {
+      "case": "llama-70b-down-b129",
+      "m": 129,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 402.353,
+      "reference_us": 6417.5,
+      "reference_library": "torch-eager",
+      "reference_ratio": 15.9499
+    },
+    {
+      "case": "llama-70b-down-b193",
+      "m": 193,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 416.271,
+      "reference_us": 8060.62,
+      "reference_library": "torch-eager",
+      "reference_ratio": 19.3639
+    },
+    {
+      "case": "llama-70b-down-b257",
+      "m": 257,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 434.693,
+      "reference_us": 9187.687,
+      "reference_library": "torch-eager",
+      "reference_ratio": 21.136
+    },
+    {
+      "case": "ds-r1-down-b1024",
+      "m": 1024,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 466.694,
+      "reference_us": 12127.553,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.9861
+    },
+    {
+      "case": "llama-70b-down-b513",
+      "m": 513,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 579.829,
+      "reference_us": 13616.665,
+      "reference_library": "torch-eager",
+      "reference_ratio": 23.4839
+    },
+    {
+      "case": "ds-r1-down-4k",
+      "m": 4096,
+      "n": 7168,
+      "k": 18432,
+      "latency_us": 1491.439,
+      "reference_us": 42356.28,
+      "reference_library": "torch-eager",
+      "reference_ratio": 28.3996
+    },
+    {
+      "case": "ds-r1-up-4k",
+      "m": 4096,
+      "n": 18432,
+      "k": 7168,
+      "latency_us": 1748.509,
+      "reference_us": 43744.708,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.0183
+    },
+    {
+      "case": "llama-70b-down-4k",
+      "m": 4096,
+      "n": 8192,
+      "k": 28672,
+      "latency_us": 2662.913,
+      "reference_us": 75199.355,
+      "reference_library": "torch-eager",
+      "reference_ratio": 28.2395
+    },
+    {
+      "case": "llama-70b-up-4k",
+      "m": 4096,
+      "n": 28672,
+      "k": 8192,
+      "latency_us": 2979.014,
+      "reference_us": 77254.249,
+      "reference_library": "torch-eager",
+      "reference_ratio": 25.9328
+    }
+  ],
+  "reference_acceptance": "passed_against_published_reference_only",
+  "vendor_comparison_status": "no_admitted_same_contract_measurement"
+}
