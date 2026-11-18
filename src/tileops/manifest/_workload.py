@@ -130,6 +130,24 @@ class Call(CallView):
         values = {p: _python_value(self.signature, p, v) for p, v in self.params.items()}
         return values | {t: tensors[t] for t in self.signature.ctor_tensors}
 
+    @staticmethod
+    def _random_tensor(shape, dtype, device):
+        import math
+
+        import torch
+
+        sample_dtype = dtype if dtype.is_complex else torch.get_default_dtype()
+        if torch.device(device).type != "npu" or math.prod(shape) < 2**32:
+            return torch.randn(shape, device=device, dtype=sample_dtype).to(dtype)
+
+        # Large NPU normal draws can leave the tail unwritten. Bound each draw
+        # and cast before copying, keeping peak temporary storage bounded too.
+        result = torch.empty(shape, device=device, dtype=dtype)
+        flat = result.view(-1)
+        for segment in flat.split(1 << 25):
+            segment.copy_(torch.randn(segment.shape, device=device, dtype=sample_dtype))
+        return result
+
     def materialize(self, device="cuda"):
         """Build the tensors the call passes: generated values where declared, random data elsewhere.
 
@@ -151,9 +169,7 @@ class Call(CallView):
             if spec.values is not None:
                 out[name] = torch.tensor(spec.values, dtype=dtype, device=place).reshape(spec.shape)
             elif dtype.is_floating_point or dtype.is_complex:
-                out[name] = torch.randn(
-                    spec.shape, device=place, dtype=dtype if dtype.is_complex else None
-                ).to(dtype)
+                out[name] = self._random_tensor(spec.shape, dtype, place)
             else:
                 high = 2 if dtype == torch.bool else 8
                 out[name] = torch.randint(0, high, spec.shape, device=place).to(dtype)
