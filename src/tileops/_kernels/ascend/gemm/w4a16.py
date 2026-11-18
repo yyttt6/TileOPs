@@ -303,54 +303,11 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
     return main
 
 
-@functools.lru_cache(maxsize=1)
-def _make_repack_paired():
-    """The paired nibble layout for any whole-row shape, compiled once.
-
-    The pass only moves nibbles, so a dynamic row count and row length let the
-    single compiled kernel serve every manifest shape instead of one build per
-    (N, K) pair.
-    """
-    rows = T.dynamic("rows")
-    columns = T.dynamic("columns")
-    pairs = columns // 128
-
-    @T.prim_func
-    def main(W: T.Tensor((rows, columns), "uint8"), P: T.Tensor((rows, columns), "uint8")):
-        T.func_attr({"tilelang_callee_allocated_outputs": 0})
-        with T.Kernel(_NUM_AIV_CORES) as core:
-            for item in T.Persistent(
-                [rows * pairs], _NUM_AIV_CORES, core, num_stages=_CAST_STAGES
-            ):
-                row = item // pairs
-                first = item % pairs * 128
-                source = T.alloc_shared((128,), "uint8")
-                output = T.alloc_shared((128,), "uint8")
-                T.annotate_buffer_versions({source: _CAST_STAGES, output: _CAST_STAGES})
-                T.copy(W[row, first : first + 128], source)
-                with T.SimtVF(threads=256):
-                    for j in T.Parallel(128):
-                        shift = 4 * (j % 2)
-                        low = (source[j // 2] >> shift) & 15
-                        high = (source[64 + j // 2] >> shift) & 15
-                        output[j] = low | (high << 4)
-                T.copy(output, P[row, first : first + 128])
-
-    return tilelang.compile(
-        main,
-        target="ascend",
-        out_idx=-1,
-        pass_configs={"tl.enable_fast_math": False},
-    )
-
-
 @functools.lru_cache(maxsize=256)
 def _make_repack(n: int, packed_k: int):
     """Public row-major INT4 input to the paired order the GEMM reads."""
     if min(n, packed_k) <= 0 or packed_k % 64:
         raise ValueError("repack requires positive rows and whole 128-value K groups")
-    if packed_k >= 256 and packed_k % 128 == 0:
-        return _make_repack_paired()
     chunk = max(c for c in range(64, min(4096, packed_k) + 1, 64) if packed_k % c == 0)
     chunks = packed_k // chunk
 
@@ -474,10 +431,23 @@ class AscendW4A16RepackKernel(Kernel, W4A16RepackFwdInterface):
 
     def __init__(self, call: W4A16RepackCall):
         super().__init__(device_index=call.device.index)
-        self._repack = _make_repack(call.n, call.packed_k)
+        self._paired = call.packed_k >= 256 and call.packed_k % 128 == 0
+        if not self._paired:
+            self._repack = _make_repack(call.n, call.packed_k)
 
     def forward(self, packed_weight: torch.Tensor) -> torch.Tensor:
-        return self._repack(packed_weight)
+        if not self._paired:
+            return self._repack(packed_weight)
+        n, packed_k = packed_weight.shape
+        values = torch.empty(
+            n, 2 * packed_k, dtype=torch.uint8, device=packed_weight.device
+        )
+        values[:, 0::2] = packed_weight & 0xF
+        values[:, 1::2] = packed_weight >> 4
+        grouped = values.view(n, packed_k // 128, 2, 128)
+        return (grouped[:, :, 0, :] | (grouped[:, :, 1, :] << 4)).reshape(
+            n, packed_k
+        ).contiguous()
 
 
 tileops.backend._registry.register_kernel_type("GEMMW4A16FwdOp", "ascend", AscendGEMMW4A16Kernel)
