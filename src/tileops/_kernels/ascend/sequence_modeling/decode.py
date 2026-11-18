@@ -348,6 +348,7 @@ class AscendEngramDecodeKernel(Kernel, EngramDecodeFwdInterface):
                 f"dilation * (conv_kernel_size - 1) = {min_cache}"
             )
         self.batch = call.batch
+        self.d_mem = call.d_mem
         self.d = call.d
         # Only ``d`` is padded, and only to a 32-byte vector: the Cube tiles carry
         # their own remainders, so ``d_mem`` and ``batch`` reach the kernel as-is.
@@ -360,15 +361,19 @@ class AscendEngramDecodeKernel(Kernel, EngramDecodeFwdInterface):
             self.d_pad, call.max_conv_len, call.conv_kernel_size, itemsize
         )
         block_n = min(_BLOCK_N, self.d_pad)
-        self.project = _build_project(
-            call.batch,
-            call.d_mem,
-            self.d_pad,
-            self.dtype_str,
-            _BLOCK_M,
-            block_n,
-            _pick_block_k(block_n, itemsize, _NUM_STAGES),
-            _NUM_STAGES,
+        self.project = (
+            None
+            if call.d_mem == 0
+            else _build_project(
+                call.batch,
+                call.d_mem,
+                self.d_pad,
+                self.dtype_str,
+                _BLOCK_M,
+                block_n,
+                _pick_block_k(block_n, itemsize, _NUM_STAGES),
+                _NUM_STAGES,
+            )
         )
         self.step = _build_step(
             call.batch,
@@ -408,9 +413,15 @@ class AscendEngramDecodeKernel(Kernel, EngramDecodeFwdInterface):
             rms_w_h = F.pad(rms_w_h, (0, pad))
             rms_w_v = F.pad(rms_w_v, (0, pad))
             conv_w = F.pad(conv_w, (0, pad))
-        k_out = torch.empty((self.batch, self.d_pad), dtype=torch.float32, device=e_t.device)
-        v_out = torch.empty((self.batch, self.d_pad), dtype=torch.float32, device=e_t.device)
-        self.project(e_t, W_K, W_V, k_out, v_out)
+        if self.d_mem == 0:
+            # An empty contraction is identically zero; initialize both projections
+            # directly so zero-trip Cube loops cannot expose stale L0C accumulators.
+            k_out = torch.zeros((self.batch, self.d_pad), dtype=torch.float32, device=e_t.device)
+            v_out = torch.zeros((self.batch, self.d_pad), dtype=torch.float32, device=e_t.device)
+        else:
+            k_out = torch.empty((self.batch, self.d_pad), dtype=torch.float32, device=e_t.device)
+            v_out = torch.empty((self.batch, self.d_pad), dtype=torch.float32, device=e_t.device)
+            self.project(e_t, W_K, W_V, k_out, v_out)
         y_t = torch.empty((self.batch, self.d_pad), dtype=e_t.dtype, device=e_t.device)
         new_conv_state = torch.empty(
             (self.batch, self.max_conv_len, self.d_pad), dtype=e_t.dtype, device=e_t.device
