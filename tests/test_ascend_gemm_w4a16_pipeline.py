@@ -61,7 +61,7 @@ def test_ascend_w4a16_producer_pipeline_boundaries(m: int, n: int, k: int) -> No
     torch.manual_seed(328)
     workload = GEMMW4A16Workload(m, n, k, torch.float16)
     inputs = workload.gen_inputs()
-    op = GEMMW4A16FwdOp()
+    op = _Repacked(GEMMW4A16FwdOp())
     checks = verify(
         workload.ref_program,
         inputs,
@@ -130,7 +130,7 @@ def test_ascend_w4a16_paired_groups_distinct_metadata(k: int) -> None:
     zeros[:, 0::2].fill_(3)
     zeros[:, 1::2].fill_(11)
     def candidate(a, p, s, z):
-        return GEMMW4A16FwdOp()(a, p, s, z)
+        return _Repacked(GEMMW4A16FwdOp())(a, p, s, z)
 
     inputs = activation, packed, scales, zeros
     checks = verify(
@@ -143,9 +143,9 @@ def test_ascend_w4a16_paired_groups_distinct_metadata(k: int) -> None:
 
 
 @pytest.mark.parametrize("k", [128, 8192])
-@pytest.mark.parametrize("zero", [0, 15, 127])
+@pytest.mark.parametrize("zero", [0, 15, 127, 128, 255])
 def test_ascend_w4a16_wide_zero_point(k: int, zero: int) -> None:
-    """The zero point rides in a byte lane, so it may exceed the INT4 range."""
+    """The public contract takes the full uint8 zero-point range."""
 
     from tileops._kernels.ascend.gemm import w4a16  # noqa: F401 -- register this checkout
     from tileops.gemm import GEMMW4A16FwdOp
@@ -164,9 +164,27 @@ def test_ascend_w4a16_wide_zero_point(k: int, zero: int) -> None:
         workload.ref_program,
         inputs,
         evidence=workload.verification(*inputs),
-        requests={"candidate": Request(GEMMW4A16FwdOp(), inputs, preserve_inputs=True)},
+        requests={
+            "candidate": Request(
+                _Repacked(GEMMW4A16FwdOp()), inputs, preserve_inputs=True
+            )
+        },
     )
     assert checks["candidate"].checked_outputs == 1
+
+
+class _Repacked:
+    """Call the op on its own repack of the row-major weight, as the binder does."""
+
+    def __init__(self, op) -> None:
+        self._op = op
+
+    @property
+    def repack(self):
+        return self._op.repack
+
+    def __call__(self, activation, packed, scale, zero):
+        return self._op(activation, self._op.repack(packed), scale, zero)
 
 
 @pytest.mark.parametrize("n,k", [(1, 128), (7, 384), (32, 8192)])
@@ -177,11 +195,21 @@ def test_ascend_w4a16_public_repack_matches_contract(n: int, k: int) -> None:
 
     source = torch.randint(0, 256, (n, k // 2), device="npu", dtype=torch.uint8)
     snapshot = source.clone()
-    expected = repack_w4a16_weight(source)
     result = GEMMW4A16FwdOp().repack(source)
     assert torch.equal(source, snapshot)
-    assert torch.equal(result, expected)
+    assert result.shape == source.shape and result.dtype == source.dtype
     assert result.data_ptr() != source.data_ptr()
+    if k // 2 >= 256 and (k // 2) % 128 == 0:
+        # Paired layout: byte b of a 128-byte pair block carries group 2p at k=b in
+        # its low nibble and group 2p+1 in its high nibble.
+        values = torch.empty(n, k, dtype=torch.uint8, device=source.device)
+        values[:, 0::2] = source & 0xF
+        values[:, 1::2] = source >> 4
+        grouped = values.view(n, (k // 2) // 128, 2, 128)
+        expected = (grouped[:, :, 0, :] | (grouped[:, :, 1, :] << 4)).reshape(n, k // 2)
+        assert torch.equal(result, expected)
+    else:
+        assert torch.equal(result, repack_w4a16_weight(source))
 
 
 @pytest.mark.parametrize("m,n,k", [(1, 1024, 8192), (1, 8192, 16384)])
@@ -201,7 +229,11 @@ def test_ascend_w4a16_paired_nibbles_match_reference(m: int, n: int, k: int) -> 
         workload.ref_program,
         inputs,
         evidence=workload.verification(*inputs),
-        requests={"candidate": Request(GEMMW4A16FwdOp(), inputs, preserve_inputs=True)},
+        requests={
+            "candidate": Request(
+                _Repacked(GEMMW4A16FwdOp()), inputs, preserve_inputs=True
+            )
+        },
     )
     assert checks["candidate"].checked_outputs == checks["candidate"].total_outputs == 1
 

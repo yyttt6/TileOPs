@@ -327,12 +327,6 @@ def repack_w4a16_weight(packed: torch.Tensor) -> torch.Tensor:
     lanes = 4
     if kp % step:
         raise ValueError(f"K/2={kp} must be a multiple of {step}")
-    if kp >= 256 and kp % 128 == 0:
-        view = torch.empty(n, 2 * kp, dtype=torch.uint8, device=packed.device)
-        view[:, 0::2] = packed & 0xF
-        view[:, 1::2] = packed >> 4
-        grouped = view.view(n, kp // 128, 2, 128)
-        return (grouped[:, :, 0, :] | (grouped[:, :, 1, :] << 4)).reshape(n, kp).contiguous()
     n_steps = kp // step
     words_per_lane = step // (4 * lanes)
     grouped = packed.view(n, n_steps, step).to(torch.int32)
@@ -360,14 +354,6 @@ def unrepack_w4a16_weight(prepacked: torch.Tensor) -> torch.Tensor:
     n, kp = prepacked.shape
     step = 64
     lanes = 4
-    if kp >= 256 and kp % 128 == 0:
-        words = prepacked.contiguous().view(n, kp // 128, 128).to(torch.int32)
-        values = torch.empty(n, 2 * kp, dtype=torch.uint8, device=prepacked.device)
-        grouped = values.view(n, kp // 128, 2, 128)
-        grouped[:, :, 0, :] = (words & 0xF).to(torch.uint8)
-        grouped[:, :, 1, :] = ((words >> 4) & 0xF).to(torch.uint8)
-        flat = values.view(n, -1)
-        return (flat[:, 0::2] | (flat[:, 1::2] << 4)).reshape(n, kp).contiguous()
     n_steps = kp // step
     words_per_lane = step // (4 * lanes)
     words = prepacked.contiguous().view(torch.int32).reshape(n, n_steps, step // 4)
@@ -438,7 +424,7 @@ class GEMMW4A16Workload(WorkloadBase):
             source_weight, group_size=self.group_size, scale_dtype=self.dtype
         )
         self._row_major_weight = packed
-        return activation, repack_w4a16_weight(packed), scale, zero
+        return activation, packed, scale, zero
 
     @property
     def row_major_weight(self) -> torch.Tensor:
@@ -454,7 +440,14 @@ class GEMMW4A16Workload(WorkloadBase):
         weight_scale: torch.Tensor,
         weight_zero: torch.Tensor,
     ) -> torch.Tensor:
-        weight = dequantize_w4a16_weight(packed_weight, weight_scale, weight_zero)
+        n, kp = packed_weight.shape
+        q = torch.empty(n, 2 * kp, dtype=torch.float32, device=packed_weight.device)
+        q[:, 0::2] = (packed_weight & 0xF).float()
+        q[:, 1::2] = (packed_weight >> 4).float()
+        group = 2 * kp // weight_scale.shape[1]
+        weight = (q - weight_zero.float().repeat_interleave(group, dim=1)) * (
+            weight_scale.float().repeat_interleave(group, dim=1)
+        )
         return torch.matmul(activation.float(), weight.T).to(activation.dtype)
 
     def verification(self, *inputs):
