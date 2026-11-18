@@ -44,7 +44,7 @@ def _permute_index() -> list[int]:
     return order
 
 
-def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
+def _tiles(m: int, n: int, k: int, apermute: bool = True) -> tuple[int, int, int, int, int]:
     """Widest complete column atom that fills the fixed grid within L1/L0C."""
     if min(m, n, k) <= 0 or n % 16 or k % 128:
         raise ValueError("requires positive dimensions, N divisible by 16, and K divisible by 128")
@@ -58,8 +58,23 @@ def _tiles(m: int, n: int, k: int) -> tuple[int, int, int, int, int]:
         if n % candidate == 0 and row_tiles * (n // candidate) >= blocks:
             tile_n = candidate
             break
-    tile_k = 256 if k % 256 == 0 and _metadata_resident(tile_n, k, _CAST_STAGES, 256) else 128
-    return tile_m, tile_n, tile_k, _CAST_STAGES, blocks
+    tile_k = (
+        256
+        if k % 256 == 0 and _tile_k_fits(m, tile_m, tile_n, k, _CAST_STAGES, 256, apermute)
+        else 128
+    )
+    if k >= 512 and k % 256 == 0 and tile_k == 128:
+        # The paired nibble layout needs whole 256-value K tiles.
+        while tile_n > 16 and not _tile_k_fits(
+            m, tile_m, tile_n, k, _CAST_STAGES, 256, apermute
+        ):
+            tile_n //= 2
+        if _tile_k_fits(m, tile_m, tile_n, k, _CAST_STAGES, 256, apermute):
+            tile_k = 256
+    stages = _CAST_STAGES
+    if tile_k == 256 and _tile_k_fits(m, tile_m, tile_n, k, stages + 1, tile_k, apermute):
+        stages += 1
+    return tile_m, tile_n, tile_k, stages, blocks
 
 
 def _producer_rows(tile_n: int) -> tuple[int, int]:
@@ -74,6 +89,30 @@ def _metadata_resident(tile_n: int, k: int, stages: int, tile_k: int = 128) -> b
     packed_rows = rows + (256 - packed_columns) // packed_columns
     staged = stages * (packed_rows * packed_columns + 2 * (rows + 1) * tile_k)
     return staged + 3 * rows * (k // 128) + 512 <= _UB_BUDGET
+
+
+def _tile_k_fits(
+    m: int, tile_m: int, tile_n: int, k: int, stages: int, tile_k: int, apermute: bool = True
+) -> bool:
+    """Mirror the fused program's capacity checks for one candidate K tile."""
+    _, producer_n = _producer_rows(tile_n)
+    resident = _metadata_resident(tile_n, k, stages, tile_k)
+    packed_columns = tile_k // 2
+    packed_rows = producer_n + (256 - packed_columns) // packed_columns
+    scale_columns = k // 128 if resident else (2 if tile_k == 256 else 1)
+    metadata_versions = 1 if resident else stages
+    a_rows = min(tile_m, m) if apermute and m <= 2 else 0
+    ub_bytes = stages * (packed_rows * packed_columns + 2 * (producer_n + 1) * tile_k)
+    ub_bytes += metadata_versions * 3 * producer_n * scale_columns + 512
+    if a_rows:
+        ub_bytes += stages * (a_rows + tile_m) * tile_k * 2
+    if ub_bytes > _UB_BUDGET:
+        return False
+    if 2 * (tile_m + tile_n) * tile_k * stages > 512 * 1024:
+        return False
+    if 4 * tile_m * tile_n > 256 * 1024:
+        return False
+    return True
 
 
 def _permute_program(m: int, k: int):
@@ -108,7 +147,7 @@ def _permute_program(m: int, k: int):
     return main
 
 
-def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
+def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks, apermute=False):
     """Two-stage weight producer/Cube consumer, including persistent M/N tiles."""
     if min(m, n, k, tile_m, tile_n, stages, blocks) <= 0:
         raise ValueError("dimensions, tiles, stages and blocks must be positive")
@@ -116,14 +155,15 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
         raise ValueError("requires whole 128-value quantization groups and 16-row NZ atoms")
     producer_count, producer_n = _producer_rows(tile_n)
     resident_metadata = _metadata_resident(tile_n, k, stages, tile_k)
-    if tile_k == 256 and not resident_metadata:
-        raise ValueError("paired quantization groups require the full metadata grid in UB")
     packed_columns = tile_k // 2
     packed_rows = producer_n + (256 - packed_columns) // packed_columns
-    scale_columns = k // 128 if resident_metadata else 1
+    scale_columns = k // 128 if resident_metadata else (2 if tile_k == 256 else 1)
     metadata_versions = 1 if resident_metadata else stages
+    a_rows = min(tile_m, m) if apermute else 0
     ub_bytes = stages * (packed_rows * packed_columns + 2 * (producer_n + 1) * tile_k)
     ub_bytes += metadata_versions * 3 * producer_n * scale_columns + 512
+    if apermute:
+        ub_bytes += stages * (a_rows + tile_m) * tile_k * 2
     if ub_bytes > _UB_BUDGET:
         raise ValueError("versioned packed/NZ operands and metadata exceed UB capacity")
     if 2 * (tile_m + tile_n) * tile_k * stages > 512 * 1024:
@@ -133,6 +173,23 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
     mad_k = 64
     if 4 * max(tile_m, tile_n) * mad_k > 64 * 1024:
         raise ValueError("two L0 operand versions exceed the 64 KiB capacity")
+
+    paired = k >= 512 and tile_k == 256
+
+    @T.macro
+    def dequantize_paired(stream, scale, weight, row, col, part: int):
+        mask_all = T.simd.pset(8, "PAT_ALL")
+        mask16 = T.simd.pset(16, "PAT_VL128")
+        value = T.simd.vcvt(
+            T.reinterpret(stream, "int8x256"), _FP16, mask_all, part=part
+        )
+        factor = T.simd.vld(scale[row, col], "BRC_B16")
+        T.simd.vsstb(
+            T.simd.vmul(value, factor, mask16),
+            weight[row, part * 128],
+            (producer_n + 1) << 16,
+            mask16,
+        )
 
     @T.macro
     def dequantize(stream, scale, zero, weight, row, col, part: int):
@@ -151,6 +208,7 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
         P: T.Tensor((n, k // 2), "uint8"),
         S: T.Tensor((n, k // 128), _FP16),
         Z: T.Tensor((n, k // 128), "uint8"),
+        Order: T.Tensor((128,), "uint16"),
         D: T.Tensor((m, n), _FP16),
     ):
         T.func_attr({"tilelang_callee_allocated_outputs": 0})
@@ -167,22 +225,29 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
             # The pinned release's compact-NZ copy requires one trailing gap row.
             weight = T.alloc_shared((producer_n + 1, tile_k), _FP16)
             T.annotate_layout({weight: make_ascend_compact_nz_layout(weight)})
-            T.annotate_buffer_versions(
-                {
-                    a_l1: stages,
-                    b_l1: stages,
-                    a_l0: 2,
-                    b_l0: 2,
-                    packed: stages,
-                    weight: stages,
-                    scale: metadata_versions,
-                    zero: metadata_versions,
-                }
-            )
+            if apermute:
+                a_in = T.alloc_shared((a_rows, tile_k), _FP16)
+                a_out = T.alloc_shared((tile_m, tile_k), _FP16)
+                order = T.alloc_shared((128,), "uint16")
+            versions = {
+                a_l1: stages,
+                b_l1: stages,
+                a_l0: 2,
+                b_l0: 2,
+                packed: stages,
+                weight: stages,
+                scale: metadata_versions,
+                zero: metadata_versions,
+            }
+            if apermute:
+                versions.update({a_in: stages, a_out: stages})
+            T.annotate_buffer_versions(versions)
             scheduler = T.AscendTileScheduler(
                 block_m=tile_m, block_n=tile_n, num_cores=blocks, shape_m=m, shape_n=n
             )
             scheduler.init(bx)
+            if apermute:
+                T.copy(Order, order)
             while scheduler.valid():
                 first_m, first_n, rows, cols = scheduler.tile()
                 producer = first_n + sid * producer_n
@@ -191,30 +256,64 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
                     T.copy(Z[producer : producer + producer_n, :], zero)
                 for ki in T.Pipelined(k // tile_k, num_stages=stages):
                     start = ki * tile_k
-                    T.copy(A[first_m : first_m + rows, start : start + tile_k], a_l1[:rows, :])
+                    if apermute:
+                        T.copy(A[0:a_rows, start : start + tile_k], a_in[:a_rows, :])
+                        with T.SimdVF():
+                            index = T.simd.vld(order[0], "NORM_B16")
+                            for arow in T.serial(a_rows):
+                                for agroup in T.serial(tile_k // 128):
+                                    gathered = T.simd.vgather2(
+                                        a_in[arow, agroup * 128], index
+                                    )
+                                    T.simd.vsts(
+                                        a_out[arow, agroup * 128], gathered, dist="NORM_B16"
+                                    )
+                        T.copy(a_out, a_l1)
+                    else:
+                        T.copy(A[first_m : first_m + rows, start : start + tile_k], a_l1[:rows, :])
                     if sid < producer_count:
                         T.copy(
                             P[producer : producer + producer_n, start // 2 : (start + tile_k) // 2],
                             packed[:producer_n, :],
                         )
-                        if not resident_metadata:
+                        if not resident_metadata and tile_k == 256:
+                            T.copy(
+                                S[producer : producer + producer_n, 2 * ki : 2 * ki + 2], scale
+                            )
+                            T.copy(Z[producer : producer + producer_n, 2 * ki : 2 * ki + 2], zero)
+                        elif not resident_metadata:
                             T.copy(S[producer : producer + producer_n, ki : ki + 1], scale)
                             T.copy(Z[producer : producer + producer_n, ki : ki + 1], zero)
                         with T.SimdVF():
                             mask8 = T.simd.pset(8, "PAT_VL128" if tile_k == 256 else "PAT_VL64")
                             fifteen = T.simd.vdup(T.uint8(15), "uint8")
                             for row in T.serial(producer_n):
+                                col = ki * (tile_k // 128) if resident_metadata else 0
                                 raw = T.simd.vld(packed[row, 0], "NORM_B8")
                                 low = T.simd.vand(raw, fifteen, mask8)
-                                high = T.simd.vand(T.simd.vshrs(raw, 4, mask8), fifteen, mask8)
+                                high = T.simd.vshrs(raw, 4, mask8)
+                                if paired:
+                                    low = T.simd.vsub(
+                                        low, T.simd.vld(zero[row, col], "BRC_B8"), mask8
+                                    )
+                                    high = T.simd.vsub(
+                                        high,
+                                        T.simd.vld(zero[row, col + 1], "BRC_B8"),
+                                        mask8,
+                                    )
                                 stream, _ = T.simd.vintlv(
                                     T.reinterpret(low, "uint8x256"),
                                     T.reinterpret(high, "uint8x256"),
                                 )
-                                col = ki * (tile_k // 128) if resident_metadata else 0
-                                dequantize(stream, scale, zero, weight, row, col, 0)
-                                if tile_k == 256:
-                                    dequantize(stream, scale, zero, weight, row, col + 1, 1)
+                                if paired:
+                                    dequantize_paired(stream, scale, weight, row, col, 0)
+                                    dequantize_paired(stream, scale, weight, row, col + 1, 1)
+                                else:
+                                    dequantize(stream, scale, zero, weight, row, col, 0)
+                                    if tile_k == 256:
+                                        dequantize(
+                                            stream, scale, zero, weight, row, col + 1, 1
+                                        )
                         T.copy(
                             weight[:producer_n, :],
                             b_l1[sid * producer_n : (sid + 1) * producer_n, :],
@@ -237,9 +336,39 @@ def _fused_program(m, n, k, tile_m, tile_n, tile_k, stages, blocks):
 
 @functools.lru_cache(maxsize=256)
 def _make_repack(n: int, packed_k: int):
-    """Public row-major INT4 input to the same group-local order the GEMM reads."""
+    """Public row-major INT4 input to the paired order the GEMM reads."""
     if min(n, packed_k) <= 0 or packed_k % 64:
         raise ValueError("repack requires positive rows and whole 128-value K groups")
+    if packed_k >= 256 and packed_k % 128 == 0:
+        pairs = packed_k // 128
+
+        @T.prim_func
+        def main(W: T.Tensor((n, packed_k), "uint8"), P: T.Tensor((n, packed_k), "uint8")):
+            T.func_attr({"tilelang_callee_allocated_outputs": 0})
+            with T.Kernel(_NUM_AIV_CORES) as core:
+                for item in T.Persistent(
+                    [n * pairs], _NUM_AIV_CORES, core, num_stages=_CAST_STAGES
+                ):
+                    row = item // pairs
+                    first = item % pairs * 128
+                    source = T.alloc_shared((128,), "uint8")
+                    output = T.alloc_shared((128,), "uint8")
+                    T.annotate_buffer_versions({source: _CAST_STAGES, output: _CAST_STAGES})
+                    T.copy(W[row, first : first + 128], source)
+                    with T.SimtVF(threads=256):
+                        for j in T.Parallel(128):
+                            shift = 4 * (j % 2)
+                            low = (source[j // 2] >> shift) & 15
+                            high = (source[64 + j // 2] >> shift) & 15
+                            output[j] = low | (high << 4)
+                    T.copy(output, P[row, first : first + 128])
+
+        return tilelang.compile(
+            main,
+            target="ascend",
+            out_idx=-1,
+            pass_configs={"tl.enable_fast_math": False},
+        )
     chunk = max(c for c in range(64, min(4096, packed_k) + 1, 64) if packed_k % c == 0)
     chunks = packed_k // chunk
 
@@ -285,9 +414,9 @@ def _make_permute(m: int, k: int):
 
 
 @functools.lru_cache(maxsize=256)
-def _make_fused(m: int, n: int, k: int):
+def _make_fused(m: int, n: int, k: int, apermute: bool = False):
     return tilelang.compile(
-        _fused_program(m, n, k, *_tiles(m, n, k)),
+        _fused_program(m, n, k, *_tiles(m, n, k, apermute), apermute=apermute),
         target="ascend",
         out_idx=-1,
         pass_configs={"tl.enable_fast_math": False},
@@ -322,7 +451,7 @@ class AscendGEMMW4A16Kernel(Kernel, GEMMW4A16FwdInterface):
             raise RuntimeError(f"These W4A16 schedules require Ascend 950, got {name}")
         if get_num_cube_cores(device_id=device_index or 0) < 32:
             raise RuntimeError("These W4A16 schedules require at least 32 Cube cores")
-        tile_m, tile_n, _, _, blocks = _tiles(call.m, call.n, call.k)
+        tile_m, tile_n, tile_k, _, blocks = _tiles(call.m, call.n, call.k)
         self._resident = w4a16_resident.fits(call.m, call.n, call.k, tile_m, tile_n)
         order = _permute_index()
         if self._resident:
@@ -332,15 +461,32 @@ class AscendGEMMW4A16Kernel(Kernel, GEMMW4A16FwdInterface):
             order = inverse
             self._gemm = _make_resident(call.m, call.n, call.k, tile_m, tile_n, blocks)
         else:
-            self._permute = _make_permute(call.m, call.k)
-            self._gemm = _make_fused(call.m, call.n, call.k)
+            self._fused_perm = (
+                call.m <= 2
+                and call.k < 256
+                and call.n * call.k <= 1 << 24
+                and _tiles(call.m, call.n, call.k, True)[2]
+                == _tiles(call.m, call.n, call.k, False)[2]
+            )
+            if call.k >= 512 and tile_k == 256:
+                self._permute = None
+            else:
+                self._permute = _make_permute(call.m, call.k)
+            self._gemm = _make_fused(call.m, call.n, call.k, apermute=self._fused_perm)
         self._order = torch.tensor(order, dtype=torch.uint16, device=call.device)
 
     def forward(self, activation, packed_weight, weight_scale, weight_zero) -> torch.Tensor:
         if self._resident:
             return self._gemm(activation, packed_weight, weight_scale, weight_zero, self._order)
-        activation = self._permute(activation, self._order)
-        return self._gemm(activation, packed_weight, weight_scale, weight_zero)
+        if self._fused_perm:
+            return self._gemm(
+                activation, packed_weight, weight_scale, weight_zero, self._order
+            )
+        if self._permute is not None:
+            activation = self._permute(activation, self._order)
+        return self._gemm(
+            activation, packed_weight, weight_scale, weight_zero, self._order
+        )
 
 
 class AscendW4A16RepackKernel(Kernel, W4A16RepackFwdInterface):

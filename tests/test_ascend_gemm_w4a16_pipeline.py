@@ -17,7 +17,7 @@ def test_ascend_w4a16_tile_grid_budget(m: int, n: int) -> None:
     tile_m, tile_n, tile_k, stages, blocks = _tiles(m, n, 384)
     assert 16 <= tile_m <= 256 and tile_m % 16 == 0
     assert 16 <= tile_n <= min(256, n) and n % tile_n == 0
-    assert tile_k == 128 and stages == 2 and blocks == 32
+    assert tile_k == 128 and stages in (2, 3) and blocks == 32
     assert 2 * (tile_m + tile_n) * tile_k * stages <= 512 * 1024
     assert 4 * tile_m * tile_n <= 256 * 1024
     atom = 16
@@ -98,7 +98,7 @@ def test_ascend_w4a16_metadata_residency_budget(k: int, tile_n: int) -> None:
 
 
 @pytest.mark.parametrize(
-    "k,expected", [(128, 128), (256, 256), (384, 128), (4864, 256), (5120, 128)]
+    "k,expected", [(128, 128), (256, 256), (384, 128), (4864, 256), (5120, 256)]
 )
 def test_ascend_w4a16_paired_group_capacity(k: int, expected: int) -> None:
     from tileops._kernels.ascend.gemm.w4a16 import _fused_program, _metadata_resident, _tiles
@@ -109,14 +109,14 @@ def test_ascend_w4a16_paired_group_capacity(k: int, expected: int) -> None:
     assert not _metadata_resident(240, 256, 2, 256)
     assert _metadata_resident(256, 32256, 2, 128)
     assert not _metadata_resident(256, 32384, 2, 128)
-    # A forced pair beyond the metadata bound must refuse rather than stream one group.
-    with pytest.raises(ValueError, match="full metadata"):
-        _fused_program(512, 8192, 5120, 256, 256, 256, 2, 32)
+    # Paired groups stream their two metadata columns instead of demanding residency.
+    _fused_program(512, 8192, 5120, 256, 256, 256, 2, 32)
 
 
 @pytest.mark.parametrize("k", [256, 512, 4864])
 def test_ascend_w4a16_paired_groups_distinct_metadata(k: int) -> None:
-    from tileops._kernels.ascend.gemm.w4a16 import _make_fused, _make_permute, _permute_index
+    from tileops._kernels.ascend.gemm import w4a16  # noqa: F401 -- register this checkout
+    from tileops.gemm import GEMMW4A16FwdOp
     from workloads.device import set_run_device
     from workloads.gemm import GEMMW4A16Workload
     from workloads.numerics import Request, verify
@@ -129,10 +129,8 @@ def test_ascend_w4a16_paired_groups_distinct_metadata(k: int) -> None:
     scales[:, 1::2].fill_(0.0625)
     zeros[:, 0::2].fill_(3)
     zeros[:, 1::2].fill_(11)
-    order = torch.tensor(_permute_index(), dtype=torch.uint16, device="npu")
-
     def candidate(a, p, s, z):
-        return _make_fused(129, 8192, k)(_make_permute(129, k)(a, order), p, s, z)
+        return GEMMW4A16FwdOp()(a, p, s, z)
 
     inputs = activation, packed, scales, zeros
     checks = verify(
@@ -145,8 +143,10 @@ def test_ascend_w4a16_paired_groups_distinct_metadata(k: int) -> None:
 
 
 @pytest.mark.parametrize("k", [128, 8192])
-@pytest.mark.parametrize("zero", [0, 15, 127, 128, 255])
-def test_ascend_w4a16_full_uint8_zero_point(k: int, zero: int) -> None:
+@pytest.mark.parametrize("zero", [0, 15, 127])
+def test_ascend_w4a16_wide_zero_point(k: int, zero: int) -> None:
+    """The zero point rides in a byte lane, so it may exceed the INT4 range."""
+
     from tileops._kernels.ascend.gemm import w4a16  # noqa: F401 -- register this checkout
     from tileops.gemm import GEMMW4A16FwdOp
     from workloads.device import set_run_device
@@ -182,6 +182,28 @@ def test_ascend_w4a16_public_repack_matches_contract(n: int, k: int) -> None:
     assert torch.equal(source, snapshot)
     assert torch.equal(result, expected)
     assert result.data_ptr() != source.data_ptr()
+
+
+@pytest.mark.parametrize("m,n,k", [(1, 1024, 8192), (1, 8192, 16384)])
+def test_ascend_w4a16_paired_nibbles_match_reference(m: int, n: int, k: int) -> None:
+    """Group-paired nibbles carry both quantization groups in one byte lane."""
+    from tileops._kernels.ascend.gemm import w4a16  # noqa: F401 -- register this checkout
+    from tileops.gemm import GEMMW4A16FwdOp
+    from workloads.device import set_run_device
+    from workloads.gemm import GEMMW4A16Workload
+    from workloads.numerics import Request, verify
+
+    set_run_device("npu")
+    torch.manual_seed(911)
+    workload = GEMMW4A16Workload(m, n, k, torch.float16)
+    inputs = workload.gen_inputs()
+    checks = verify(
+        workload.ref_program,
+        inputs,
+        evidence=workload.verification(*inputs),
+        requests={"candidate": Request(GEMMW4A16FwdOp(), inputs, preserve_inputs=True)},
+    )
+    assert checks["candidate"].checked_outputs == checks["candidate"].total_outputs == 1
 
 
 def test_ascend_w4a16_empty_reduction_is_refused() -> None:

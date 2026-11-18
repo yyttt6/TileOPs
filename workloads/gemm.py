@@ -327,6 +327,12 @@ def repack_w4a16_weight(packed: torch.Tensor) -> torch.Tensor:
     lanes = 4
     if kp % step:
         raise ValueError(f"K/2={kp} must be a multiple of {step}")
+    if kp >= 256 and kp % 128 == 0:
+        view = torch.empty(n, 2 * kp, dtype=torch.uint8, device=packed.device)
+        view[:, 0::2] = packed & 0xF
+        view[:, 1::2] = packed >> 4
+        grouped = view.view(n, kp // 128, 2, 128)
+        return (grouped[:, :, 0, :] | (grouped[:, :, 1, :] << 4)).reshape(n, kp).contiguous()
     n_steps = kp // step
     words_per_lane = step // (4 * lanes)
     grouped = packed.view(n, n_steps, step).to(torch.int32)
@@ -354,6 +360,14 @@ def unrepack_w4a16_weight(prepacked: torch.Tensor) -> torch.Tensor:
     n, kp = prepacked.shape
     step = 64
     lanes = 4
+    if kp >= 256 and kp % 128 == 0:
+        words = prepacked.contiguous().view(n, kp // 128, 128).to(torch.int32)
+        values = torch.empty(n, 2 * kp, dtype=torch.uint8, device=prepacked.device)
+        grouped = values.view(n, kp // 128, 2, 128)
+        grouped[:, :, 0, :] = (words & 0xF).to(torch.uint8)
+        grouped[:, :, 1, :] = ((words >> 4) & 0xF).to(torch.uint8)
+        flat = values.view(n, -1)
+        return (flat[:, 0::2] | (flat[:, 1::2] << 4)).reshape(n, kp).contiguous()
     n_steps = kp // step
     words_per_lane = step // (4 * lanes)
     words = prepacked.contiguous().view(torch.int32).reshape(n, n_steps, step // 4)
