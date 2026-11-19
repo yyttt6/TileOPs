@@ -19,7 +19,10 @@ Standalone correctness jobs and nightly's default verification path are unchange
 
 The selector records changed paths and operator names. Kernel-bearing changes select
 explicit operator names. Helper-only changes expand to their kernel family. Shared
-backend/manifest changes expand to registered affected operators. Review selection.json
+backend/manifest changes expand to registered affected operators. For the GEMM
+benchmark harness, isolated entry or workload edits select their affected
+operator. Shared definitions and unresolved dependencies select the GEMM family.
+Review selection.json
 when changing dynamic registrations or dependencies; it is part of the evidence.
 
 The timer is copied from the successfully audited website nightly: three warmups,
