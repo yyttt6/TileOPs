@@ -6,6 +6,7 @@ import torch
 from tests.workload_test_base import FixtureBase, TestBase
 from tileops.attention import MHAPagedFwdOp
 from workloads.attention.mha import MHADecodePagedWorkload
+from workloads.device import run_device, run_device_available
 from workloads.numerics import compare_outputs
 
 
@@ -207,3 +208,25 @@ def test_mha_decode_paged_table_width_is_independent_of_pool() -> None:
         compare_outputs(
             output, test.ref_program(q, k, v, block_table, lengths), test.verification(q)
         )
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    "q_len,live_kv",
+    [
+        pytest.param(129, 512, id="direct-q-tail"),
+        pytest.param(64, 4096, id="split-and-merge"),
+        pytest.param(129, 256, id="partially-filled-page-table"),
+    ],
+)
+def test_mha_paged_ascend(q_len: int, live_kv: int) -> None:
+    if torch.device(run_device()).type != "npu" or not run_device_available():
+        pytest.skip("requires Ascend NPU")
+    workload = MHADecodePagedWorkload(
+        1, 1, q_len, max(512, live_kv), 128, 128, False, torch.bfloat16
+    )
+    q, k, v, table, lengths = workload.gen_inputs()
+    lengths.fill_(live_kv)
+    op = MHAPagedFwdOp(page_size=128)
+    output = op(q, k, v, table, lengths)
+    compare_outputs(output, workload.ref_program(q, k, v, table, lengths), workload.verification(q))

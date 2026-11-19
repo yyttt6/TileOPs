@@ -2,6 +2,7 @@
 
 from tileops._kernels.ascend.attention import mla_cache_write, paged_cache_write
 from tileops._kernels.ascend.attention.merge_states import AscendMergeAttentionStatesKernel
+from tileops._kernels.ascend.attention.mha_paged_decode import AscendMHAPagedDecodeKernel
 from tileops._kernels.ascend.attention.nsa_compressed_varlen import (
     AscendNSACompressedFwdVarlenKernel,
 )
@@ -11,18 +12,19 @@ from tileops._kernels.ascend.attention.nsa_topk_varlen import (
 from tileops._kernels.ascend.attention.nsa_varlen_unified import (
     AscendNSAFwdVarlenKernel,
 )
-from tileops._kernels.ascend.attention.topk_select import AscendTopKSelectKernel
-
 from tileops._kernels.ascend.attention.paged_cache_gather import (
     AscendPagedKVCacheGatherGenericKernel,
     AscendPagedKVCacheGatherKernel,
 )
+from tileops._kernels.ascend.attention.topk_select import AscendTopKSelectKernel
 
 __all__ = [
-    "AscendPagedKVCacheGatherGenericKernel",
-    "AscendPagedKVCacheGatherKernel","AscendMergeAttentionStatesKernel", 
+    "AscendMHAPagedDecodeKernel",
+    "AscendMergeAttentionStatesKernel",
     "AscendNSACompressedFwdVarlenKernel",
     "AscendNSAFwdVarlenKernel",
     "AscendNSATopKVarlenKernel",
+    "AscendPagedKVCacheGatherGenericKernel",
+    "AscendPagedKVCacheGatherKernel",
     "AscendTopKSelectKernel",
 ]
