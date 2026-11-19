@@ -260,6 +260,7 @@ def main():
                 name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
                 for name in (
                     "pr_performance.py",
+                    "gemm_selection.py",
                     "device_batch.py",
                     "nightly_support/session_profile.py",
                     "baseline_contracts.py",

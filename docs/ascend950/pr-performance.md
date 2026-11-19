@@ -22,8 +22,7 @@ explicit operator names. Helper-only changes expand to their kernel family. Shar
 backend/manifest changes expand to registered affected operators. For the GEMM
 benchmark harness, isolated entry or workload edits select their affected
 operator. Shared definitions and unresolved dependencies select the GEMM family.
-Review selection.json
-when changing dynamic registrations or dependencies; it is part of the evidence.
+Use `selection.json` to audit the selected operators when changing dynamic registrations or dependencies.
 
 The timer is copied from the successfully audited website nightly: three warmups,
 fifteen profiler samples, 1 GiB eviction, platform-default clocks, distinct FFTS tasks
