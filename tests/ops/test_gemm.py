@@ -1153,7 +1153,7 @@ def test_w4a8_extended_decode_calibrated_band(m: int, n: int, k: int, key: str) 
 def test_gemm_w4a16(m: int, n: int, k: int, dtype: torch.dtype) -> None:
     test = GEMMW4A16Test(m, n, k, dtype)
     op = GEMMW4A16FwdOp()
-    test.check(op, *test.gen_inputs())
+    test.check(op, *test.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.smoke
@@ -1164,13 +1164,14 @@ def test_gemm_w4a16_a_published_tile_height_pads_m_for_itself() -> None:
     test = GEMMW4A16Test(8, 256, 512, torch.float16)
     op = GEMMW4A16FwdOp()
     inputs = test.gen_inputs()
-    test.check(op, *inputs)
+    run = _repacked(op)
+    test.check(op, *inputs, runs=run)
     (kernel,) = [k for k in op.iter_kernels() if type(k).__name__ == "GEMMW4A16Kernel"]
     narrow = dict(kernel.config)
     assert narrow["block_m"] == 8
     for block_m, padded in ((64, 64), (8, 8)):
         kernel.config = {**narrow, "block_m": block_m}
-        test.check(op, *inputs)
+        test.check(op, *inputs, runs=run)
         ((_, m_pad),) = kernel._generation.programs.values()
         assert m_pad == padded
 
@@ -1180,7 +1181,8 @@ def test_gemm_w4a16_a_published_tile_height_pads_m_for_itself() -> None:
 def test_gemm_w4a16_is_exact_on_a_basis_vector(k_index: int) -> None:
     """A basis vector selects the exact signed-INT4 value, group scale and zero point."""
     workload = GEMMW4A16BasisWorkload(k_index)
-    TestBase.check(workload, GEMMW4A16FwdOp(), *workload.gen_inputs())
+    op = GEMMW4A16FwdOp()
+    TestBase.check(workload, op, *workload.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.smoke
@@ -1373,7 +1375,8 @@ def test_gemm_w4a16_kernel_predicates_a_ragged_token_count(m: int) -> None:
 )
 def test_gemm_w4a16_decode_partitions_match_the_reference(n: int, k: int) -> None:
     test = GEMMW4A16Test(1, n, k, torch.float16)
-    test.check(GEMMW4A16FwdOp(target=BUILTIN), *test.gen_inputs())
+    op = GEMMW4A16FwdOp(target=BUILTIN)
+    test.check(op, *test.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.in_tree_kernels
@@ -1382,7 +1385,7 @@ def test_gemm_w4a16_decode_partitions_match_the_reference(n: int, k: int) -> Non
 def test_gemm_w4a16_long_k_stages_metadata_per_tile() -> None:
     test = GEMMW4A16Test(1, 64, 32896, torch.float16)
     op = GEMMW4A16FwdOp(target=BUILTIN)
-    test.check(op, *test.gen_inputs())
+    test.check(op, *test.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.in_tree_kernels
@@ -1391,7 +1394,8 @@ def test_gemm_w4a16_long_k_stages_metadata_per_tile() -> None:
 def test_gemm_w4a16_two_stage_ring_refills_after_the_last_sub_step() -> None:
     """Repeated K-tile refills preserve every sub-step's input until its MMA completes."""
     test = GEMMW4A16Test(384, 2048, 4096, torch.float16)
-    test.check(GEMMW4A16FwdOp(target=BUILTIN), *test.gen_inputs())
+    op = GEMMW4A16FwdOp(target=BUILTIN)
+    test.check(op, *test.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.in_tree_kernels
@@ -1400,7 +1404,8 @@ def test_gemm_w4a16_two_stage_ring_refills_after_the_last_sub_step() -> None:
 def test_gemm_w4a16_split_wide_tile_matches_the_reference() -> None:
     """Uneven contraction partitions preserve affine group scales and zero points."""
     test = GEMMW4A16Test(128, 5120, 25600, torch.float16)
-    test.check(GEMMW4A16FwdOp(target=BUILTIN), *test.gen_inputs())
+    op = GEMMW4A16FwdOp(target=BUILTIN)
+    test.check(op, *test.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.in_tree_kernels
@@ -1410,17 +1415,18 @@ def test_gemm_w4a16_request_tune_keeps_composite_runtime_state() -> None:
     test = GEMMW4A16Test(1, 1024, 8192, torch.float16)
     inputs = test.gen_inputs()
     op = GEMMW4A16FwdOp(target=BUILTIN)
-    expected = op(*inputs)
+    run = _repacked(op)
+    expected = run(*inputs)
 
     with pytest.warns(UserWarning, match="does not support generic autotuning"):
         op.request_tune()
 
     assert op._tune_requested is False
-    assert torch.equal(op(*inputs), expected)
+    assert torch.equal(run(*inputs), expected)
 
     next_test = GEMMW4A16Test(2, 1024, 8192, torch.float16)
     next_inputs = next_test.gen_inputs()
-    next_test.check(op, *next_inputs)
+    next_test.check(op, *next_inputs, runs=run)
 
     with pytest.warns(UserWarning, match="does not support generic autotuning"):
         new_op = GEMMW4A16FwdOp()
@@ -1447,14 +1453,13 @@ def test_w4a16_repack_kernel_matches_the_reference(n: int, k: int) -> None:
 @pytest.mark.smoke
 def test_gemm_w4a16_repack_feeds_forward() -> None:
     test = GEMMW4A16Test(64, 1024, 512, torch.float16)
-    activation, _, scale, zero = test.gen_inputs()
-    packed = test.row_major_weight
+    activation, packed, scale, zero = test.gen_inputs()
 
     prepacked = GEMMW4A16FwdOp().repack(packed)
     actual = GEMMW4A16FwdOp()(activation, prepacked, scale, zero)
 
     compare_outputs(
-        actual, test.ref_program(activation, prepacked, scale, zero), test.verification()
+        actual, test.ref_program(activation, packed, scale, zero), test.verification()
     )
 
 
@@ -1464,7 +1469,7 @@ def test_gemm_w4a16_repack_refuses_a_partial_k_step() -> None:
         GEMMW4A16FwdOp().repack(torch.zeros((8, 96), dtype=torch.uint8, device=run_device()))
 
 
-def _repacked(op: GEMMW4A8FwdOp):
+def _repacked(op):
     """The op as a caller runs it on a row-major weight: ``repack``, then ``forward``."""
 
     def run(activation, packed_weight, *scales):
