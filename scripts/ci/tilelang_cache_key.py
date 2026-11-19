@@ -31,7 +31,9 @@ def compilation_sources(source, revision="HEAD"):
     return hashlib.sha256(b"\0".join(relevant)).hexdigest()
 
 
-def cache_identity(source: Path, lock: Path, verified_toolchain: Path) -> dict:
+def cache_identity(
+    source: Path, lock: Path, verified_toolchain: Path, *, trusted_programs=False
+) -> dict:
     lock_bytes = lock.read_bytes()
     if not lock_bytes.strip():
         raise ValueError("Toolchain lock is empty")
@@ -52,10 +54,16 @@ def cache_identity(source: Path, lock: Path, verified_toolchain: Path) -> dict:
     # The archive is verified clean before environment preparation. Reject later
     # tracked-source edits rather than lending them HEAD's persistent namespace.
     subprocess.run(["git", "diff", "--quiet", "HEAD", "--"], cwd=source, check=True)
-    source_digest = compilation_sources(source)
+    scope = (
+        {"schema": "tileops.ascend-trusted-program-cache.v1"}
+        if trusted_programs
+        else {
+            "schema": "tileops.ascend-cache.v2",
+            "compilation_sources": compilation_sources(source),
+        }
+    )
     return {
-        "schema": "tileops.ascend-cache.v2",
-        "compilation_sources": source_digest,
+        **scope,
         "lock_sha256": hashlib.sha256(lock_bytes).hexdigest(),
         "toolchain": {
             **{key: report[key] for key in ("profile", "machine", "python", "cxx_version")},
@@ -71,8 +79,15 @@ def main():
     parser.add_argument("--lock", type=Path, required=True)
     parser.add_argument("--verified-toolchain", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--trusted-programs",
+        action="store_true",
+        help="Share a verified toolchain namespace for trusted nightly sources only",
+    )
     args = parser.parse_args()
-    identity = cache_identity(args.source, args.lock, args.verified_toolchain)
+    identity = cache_identity(
+        args.source, args.lock, args.verified_toolchain, trusted_programs=args.trusted_programs
+    )
     key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     args.output.write_text(json.dumps({"key": key, **identity}, indent=2) + "\n")
     print(key)
