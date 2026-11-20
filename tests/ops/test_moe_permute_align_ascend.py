@@ -34,8 +34,9 @@ def test_effective_vector_capacity_cpu(monkeypatch, limit, expected):
         get_device_properties=lambda device: SimpleNamespace(vector_core_num=72),
         get_device_limit=lambda device: {"vector_core_num": limit},
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
-    assert _vector_capacity(0) == expected
+    with monkeypatch.context() as context:
+        context.setattr(torch, "npu", npu, raising=False)
+        assert _vector_capacity(0) == expected
 
 
 @pytest.mark.smoke
@@ -45,16 +46,18 @@ def test_invalid_vector_limit_is_not_ignored_cpu(monkeypatch, limit):
         get_device_properties=lambda device: SimpleNamespace(vector_core_num=72),
         get_device_limit=lambda device: {"vector_core_num": limit},
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
-    with pytest.raises(RuntimeError, match="invalid vector_core_num"):
-        _vector_capacity(0)
+    with monkeypatch.context() as context:
+        context.setattr(torch, "npu", npu, raising=False)
+        with pytest.raises(RuntimeError, match="invalid vector_core_num"):
+            _vector_capacity(0)
 
 
 @pytest.mark.smoke
 def test_legacy_no_limit_getter_cpu(monkeypatch):
     npu = SimpleNamespace(get_device_properties=lambda device: SimpleNamespace(vector_core_num=72))
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
-    assert _vector_capacity(0) == 72
+    with monkeypatch.context() as context:
+        context.setattr(torch, "npu", npu, raising=False)
+        assert _vector_capacity(0) == 72
 
 
 @pytest.mark.smoke
@@ -63,13 +66,16 @@ def test_cached_grid_rechecked_cpu(monkeypatch):
         get_device_properties=lambda device: SimpleNamespace(vector_core_num=72),
         get_device_limit=lambda device: {"vector_core_num": 64},
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
-    monkeypatch.setattr(AscendMoEPermuteAlignKernel, "_require_devices", lambda *args, **kw: None)
-    entry = object.__new__(AscendMoEPermuteAlignKernel)
-    entry.grid = 72
-    entry.device_index = 0
-    with pytest.raises(RuntimeError, match="cached grid exceeds"):
-        entry.forward(torch.empty(8, dtype=torch.int32))
+    with monkeypatch.context() as context:
+        context.setattr(torch, "npu", npu, raising=False)
+        monkeypatch.setattr(
+            AscendMoEPermuteAlignKernel, "_require_devices", lambda *args, **kw: None
+        )
+        entry = object.__new__(AscendMoEPermuteAlignKernel)
+        entry.grid = 72
+        entry.device_index = 0
+        with pytest.raises(RuntimeError, match="cached grid exceeds"):
+            entry.forward(torch.empty(8, dtype=torch.int32))
 
 
 @pytest.mark.smoke
@@ -81,9 +87,10 @@ def test_limit_getter_errors_propagate_cpu(monkeypatch):
         get_device_properties=lambda device: SimpleNamespace(vector_core_num=72),
         get_device_limit=fail,
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
-    with pytest.raises(RuntimeError, match="getter failed"):
-        _vector_capacity(0)
+    with monkeypatch.context() as context:
+        context.setattr(torch, "npu", npu, raising=False)
+        with pytest.raises(RuntimeError, match="getter failed"):
+            _vector_capacity(0)
 
 
 def _require_npu():
@@ -135,7 +142,7 @@ def test_public_op_dynamic_n_and_compiled_cache():
         op = ops[i % 2]
         outputs = op(ids)
         assert all(x.data_ptr() != ids.data_ptr() for x in outputs)
-        entry = op.kernel_for("permute_align", _call(ids, experts))
+        entry = op.kernel_for("permute_align", lambda ids=ids: _call(ids, experts))
         assert isinstance(entry, AscendMoEPermuteAlignKernel)
         entries.append(entry)
         _check(ids, outputs, experts)
@@ -180,7 +187,7 @@ def test_public_default_grid_limit_and_stream():
     op = MoEPermuteAlignFwdOp(128)
     small = (torch.arange(256, dtype=torch.int32, device=run_device()) % 128).reshape(-1, 8)
     _check(small, op(small), 128)
-    assert op.kernel_for("permute_align", _call(small, 128)).grid == 1
+    assert op.kernel_for("permute_align", lambda: _call(small, 128)).grid == 1
 
     stream = torch.npu.Stream()
     with torch.npu.stream(stream):
@@ -192,12 +199,12 @@ def test_public_default_grid_limit_and_stream():
         second_n = op(ids2)
         consumed = tuple(x.clone() for x in warm)
     stream.synchronize()
-    entry = op.kernel_for("permute_align", _call(ids, 128))
+    entry = op.kernel_for("permute_align", lambda: _call(ids, 128))
     assert entry.grid == 64
     _check(ids, cold, 128)
     _check(ids, warm, 128)
     _check(ids2, second_n, 128)
-    assert op.kernel_for("permute_align", _call(ids2, 128)).kernels is entry.kernels
+    assert op.kernel_for("permute_align", lambda: _call(ids2, 128)).kernels is entry.kernels
     for x, y in zip(consumed, warm, strict=True):
         torch.testing.assert_close(x, y, rtol=0, atol=0)
     torch.testing.assert_close(ids, before, rtol=0, atol=0)
