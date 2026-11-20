@@ -388,6 +388,20 @@ def dequantize_w4a16_weight(
     return (q - zero_f) * scale_f
 
 
+def dequantize_row_major_w4a16_weight(
+    packed: torch.Tensor, scale: torch.Tensor, zero: torch.Tensor
+) -> torch.Tensor:
+    """The logical ``[N, K]`` weight a row-major packed INT4 weight and its metadata encode."""
+    n, kp = packed.shape
+    q = torch.empty(n, 2 * kp, dtype=torch.float32, device=packed.device)
+    q[:, 0::2] = (packed & 0xF).float()
+    q[:, 1::2] = (packed >> 4).float()
+    group = 2 * kp // scale.shape[1]
+    return (q - zero.float().repeat_interleave(group, dim=1)) * scale.float().repeat_interleave(
+        group, dim=1
+    )
+
+
 class GEMMW4A16Workload(WorkloadBase):
     def __init__(
         self,
@@ -424,7 +438,7 @@ class GEMMW4A16Workload(WorkloadBase):
             source_weight, group_size=self.group_size, scale_dtype=self.dtype
         )
         self._row_major_weight = packed
-        return activation, repack_w4a16_weight(packed), scale, zero
+        return activation, packed, scale, zero
 
     @property
     def row_major_weight(self) -> torch.Tensor:
@@ -440,7 +454,9 @@ class GEMMW4A16Workload(WorkloadBase):
         weight_scale: torch.Tensor,
         weight_zero: torch.Tensor,
     ) -> torch.Tensor:
-        weight = dequantize_w4a16_weight(packed_weight, weight_scale, weight_zero)
+        weight = dequantize_row_major_w4a16_weight(
+            packed_weight, weight_scale, weight_zero
+        )
         return torch.matmul(activation.float(), weight.T).to(activation.dtype)
 
     def verification(self, *inputs):
@@ -1003,8 +1019,7 @@ class GEMMW4A16BasisWorkload(GEMMW4A16Workload):
         self.expected = (centered * scale[:, group].float()).half()[None, :]
         activation = torch.zeros((1, k), device=run_device(), dtype=torch.float16)
         activation[0, self.k_index] = 1
-        prepacked = repack_w4a16_weight(packed)
-        return activation, prepacked.to(run_device()), scale.to(run_device()), zero.to(run_device())
+        return activation, packed.to(run_device()), scale.to(run_device()), zero.to(run_device())
 
     def ref_program(self, activation, *weights):
         return self.expected.to(activation.device)
