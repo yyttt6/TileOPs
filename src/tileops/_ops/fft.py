@@ -22,6 +22,9 @@ class FFTC2CFwdOp(Op):
     length from 1 to 2**28 is served in complex64 and complex128 on sm_80, sm_86,
     sm_89, and sm_90.
 
+    On Ascend, power-of-two lengths through 65536 are supported in complex64,
+    and through 1048576 in complex128 using device binary64 arithmetic.
+
     * ``n = 1`` returns a copy of the input.
     * Up to 16384 (8192 at complex128), one launch holds a whole transform. With
       99 KB of shared memory per block (sm_86, sm_89), 8192 (complex128) and
