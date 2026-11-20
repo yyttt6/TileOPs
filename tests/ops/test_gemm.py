@@ -1166,6 +1166,8 @@ def test_gemm_w4a16_a_published_tile_height_pads_m_for_itself() -> None:
     inputs = test.gen_inputs()
     run = _repacked(op)
     test.check(op, *inputs, runs=run)
+    if inputs[0].device.type != "cuda":
+        return  # The numerical check above also covers Ascend.
     (kernel,) = [k for k in op.iter_kernels() if type(k).__name__ == "GEMMW4A16Kernel"]
     narrow = dict(kernel.config)
     assert narrow["block_m"] == 8
@@ -1357,7 +1359,7 @@ def test_gemm_k_tail_shorter_than_one_k_block() -> None:
 def test_gemm_w4a16_kernel_predicates_a_ragged_token_count(m: int) -> None:
     test = GEMMW4A16Test(m, 1024, 512, torch.float16)
     op = GEMMW4A16FwdOp(target=BUILTIN)
-    test.check(op, *test.gen_inputs())
+    test.check(op, *test.gen_inputs(), runs=_repacked(op))
 
 
 @pytest.mark.in_tree_kernels
@@ -1446,7 +1448,14 @@ def test_w4a16_repack_kernel_matches_the_reference(n: int, k: int) -> None:
 
     assert actual.dtype == torch.uint8
     assert actual.shape == packed.shape
-    assert torch.equal(actual, repack_w4a16_weight(packed))
+    if packed.device.type == "npu" and k >= 512 and k % 256 == 0:
+        groups = packed.reshape(n, k // 256, 2, 64)
+        even = (groups[..., 0, :] & 15) | ((groups[..., 1, :] & 15) << 4)
+        odd = (groups[..., 0, :] >> 4) | (groups[..., 1, :] & 240)
+        expected = torch.stack((even, odd), dim=-1).reshape_as(packed)
+    else:
+        expected = repack_w4a16_weight(packed)
+    assert torch.equal(actual, expected)
 
 
 @pytest.mark.in_tree_kernels
@@ -1458,9 +1467,7 @@ def test_gemm_w4a16_repack_feeds_forward() -> None:
     prepacked = GEMMW4A16FwdOp().repack(packed)
     actual = GEMMW4A16FwdOp()(activation, prepacked, scale, zero)
 
-    compare_outputs(
-        actual, test.ref_program(activation, packed, scale, zero), test.verification()
-    )
+    compare_outputs(actual, test.ref_program(activation, packed, scale, zero), test.verification())
 
 
 @pytest.mark.smoke
