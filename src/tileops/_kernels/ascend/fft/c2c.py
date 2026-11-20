@@ -8,12 +8,13 @@ import tilelang.ascend.language as T
 import torch
 from tilelang.carver.arch.driver import get_num_vector_cores
 
+from tileops._kernels.ascend.fft._complex128 import MAX_LENGTH, fft_complex128
 from tileops._kernels.fft import FFTC2CCall, FFTC2CFwdInterface
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops.backend._registry import register_kernel_type
 
 
-def _fft_prim_func(batch: int, n: int, vector_cores: int):
+def _fft_prim_func(batch: int, n: int, vector_cores: int, phase: int | None = None):
     dtype = "float32"
     if not isinstance(batch, int) or not isinstance(n, int):
         raise TypeError("batch and n must be static Python integers")
@@ -21,21 +22,30 @@ def _fft_prim_func(batch: int, n: int, vector_cores: int):
         raise ValueError("batch must be positive, n a power of two in [2,65536]")
     if vector_cores <= 0:
         raise ValueError("vector_cores must be positive")
-    tile = min(n, 4096)
+    local_tile = min(n, 4096)
+    global_tile = 2048 if n == 16384 else 1024
+    tile = global_tile if phase is not None and phase > 0 else local_tile
+    interleaved = n <= tile
+    io_width = n * 2 if interleaved else n
+    imaginary_shape = (1, 1) if interleaved else (batch, n)
     stages = n.bit_length() - 1
     local_stages = tile.bit_length() - 1
     pack = max(1, 4096 // n) if n <= tile else 1
+    if 4096 // n < batch // vector_cores and n >= 16 and n <= 128:
+        pack = 8192 // n
     # One-wave row balancing within a 5120-element input-buffer budget.
     # This geometry rule is shared by all inputs; no complete-kernel dispatch.
     balanced_pack = (batch + vector_cores - 1) // vector_cores
     if n <= tile and pack < balanced_pack and balanced_pack * tile <= 5120:
         pack = balanced_pack
+    dma_io = interleaved and pack * tile >= 8192 and batch % pack == 0
     packets = (batch + pack - 1) // pack
     blocks = min(packets, vector_cores)
     iterations = (packets + blocks - 1) // blocks
     # Whole VF iterations keep cross-thread barriers out of partial-lane branches.
     butterfly_groups = pack * tile // (8 if local_stages >= 3 else 2)
-    threads = min(256, butterfly_groups & -butterfly_groups)
+    thread_limit = 512 if phase == 0 and n == 16384 else 256
+    threads = min(thread_limit, butterfly_groups & -butterfly_groups)
     cs = [(-1) ** k * math.pi ** (2 * k) / math.factorial(2 * k) for k in range(1, 7)]
     ss = [(-1) ** k * math.pi ** (2 * k + 1) / math.factorial(2 * k + 1) for k in range(1, 7)]
     pi_low = math.pi - float.fromhex("0x1.921fb60000000p+1")
@@ -570,18 +580,160 @@ def _fft_prim_func(batch: int, n: int, vector_cores: int):
             R[3 * tile + i], I[3 * tile + i] = v1r - u1r, v1i - u1i
         T.sync_threads()
 
+    @T.macro
+    def local_stages_in_place(a_real, a_imag, wr_table, wi_table):
+        # Omit absent stages before tracing their index arithmetic.
+        if local_stages >= 3:
+            for k in T.Parallel(pack * tile // 8):
+                row_base = (k // (tile // 8)) * tile
+                group = k % (tile // 8)
+                fused_first_triple(a_real, a_imag, row_base + 8 * group)
+        if local_stages >= 6:
+            for triple_stage in T.unroll(1, local_stages // 3):
+                half = 1 << (3 * triple_stage)
+                for k in T.Parallel(pack * tile // 8):
+                    row_base = (k // (tile // 8)) * tile
+                    group = k % (tile // 8)
+                    j = group % half
+                    low = row_base + (group // half) * (8 * half) + j
+                    fused_triple(a_real, a_imag, wr_table, wi_table, low, half)
+        if local_stages % 3:
+            for tail_stage in T.unroll((local_stages // 3) * 3, local_stages):
+                half = 1 << tail_stage
+                for k in T.Parallel(pack * tile // 2):
+                    row_base = (k // (tile // 2)) * tile
+                    group = k % (tile // 2)
+                    j = group % half
+                    low = row_base + (group // half) * (2 * half) + j
+                    twiddle = j * (tile // (2 * half))
+                    butterfly(
+                        a_real,
+                        a_imag,
+                        a_real,
+                        a_imag,
+                        low,
+                        low + half,
+                        wr_table[twiddle],
+                        wi_table[twiddle],
+                    )
+
+    if phase == 0:
+        dma_row = n == 16384
+        tasks = batch if dma_row else batch * (n // tile)
+        pack_input = n * 2 if dma_row else 1
+        phase_blocks = min(tasks, vector_cores)
+
+        @T.prim_func
+        def fft_local(
+            packed: T.Tensor((batch, n * 2), dtype),
+            out_real: T.Tensor((batch, n), dtype),
+            out_imag: T.Tensor((batch, n), dtype),
+        ):
+            with T.Kernel(phase_blocks) as block:
+                a_real = T.alloc_shared((tile,), dtype)
+                a_imag = T.alloc_shared((tile,), dtype)
+                wr_table = T.alloc_shared((tile // 2,), dtype)
+                wi_table = T.alloc_shared((tile // 2,), dtype)
+                input_ub = T.alloc_shared((pack_input,), dtype)
+                fill_roots(wr_table, wi_table, tile // 2, 0, tile // 2, 0)
+                for iteration in T.serial(T.ceildiv(tasks, phase_blocks)):
+                    task = block + iteration * phase_blocks
+                    if task < tasks:
+                        if dma_row:
+                            first_row = task
+                            T.copy(packed[first_row, :], input_ub)
+                            T.ascend_pipe_barrier("PIPE_ALL")
+                        else:
+                            first_row = task // (n // tile)
+                        for subtile in T.serial(n // tile if dma_row else 1):
+                            start = (subtile if dma_row else task % (n // tile)) * tile
+                            with T.SimtVF(threads=threads):
+                                for k in T.Parallel(pack * tile):
+                                    packed_row = k // tile
+                                    row = first_row + packed_row
+                                    pos = start + k % tile
+                                    v0 = T.cast(pos, "uint32")
+                                    v1 = ((v0 >> 1) & 0x55555555) | ((v0 & 0x55555555) << 1)
+                                    v2 = ((v1 >> 2) & 0x33333333) | ((v1 & 0x33333333) << 2)
+                                    v3 = ((v2 >> 4) & 0x0F0F0F0F) | ((v2 & 0x0F0F0F0F) << 4)
+                                    v4 = ((v3 >> 8) & 0x00FF00FF) | ((v3 & 0x00FF00FF) << 8)
+                                    v5 = (v4 >> 16) | (v4 << 16)
+                                    source = T.cast(v5 >> (32 - stages), "int32")
+                                    if dma_row:
+                                        a_real[k] = input_ub[2 * source]
+                                        a_imag[k] = input_ub[2 * source + 1]
+                                    else:
+                                        a_real[k] = packed[row, 2 * source]
+                                        a_imag[k] = packed[row, 2 * source + 1]
+                                local_stages_in_place(a_real, a_imag, wr_table, wi_table)
+                            T.copy(a_real, out_real[first_row, start : start + tile])
+                            T.copy(a_imag, out_imag[first_row, start : start + tile])
+                            T.ascend_pipe_barrier("PIPE_ALL")
+
+        return fft_local
+
+    if phase is not None:
+        half = local_tile << (2 * (phase - 1))
+        final = 4 * half == n
+        tasks = batch * (n // (4 * tile))
+        phase_blocks = min(tasks, vector_cores)
+        chunks = half // tile
+        groups = n // (4 * half)
+
+        @T.prim_func
+        def fft_global(
+            out_real: T.Tensor((batch, n), dtype),
+            out_imag: T.Tensor((batch, n), dtype),
+            packed: T.Tensor((batch, 2 * n) if final else (1, 1), dtype),
+        ):
+            with T.Kernel(phase_blocks) as block:
+                a_real = T.alloc_shared((4 * tile,), dtype)
+                a_imag = T.alloc_shared((4 * tile,), dtype)
+                wr_table = T.alloc_shared((2 * tile,), dtype)
+                wi_table = T.alloc_shared((2 * tile,), dtype)
+                for iteration in T.serial(T.ceildiv(tasks, phase_blocks)):
+                    task = block + iteration * phase_blocks
+                    if task < tasks:
+                        first_row = task // (groups * chunks)
+                        group = (task // chunks) % groups
+                        offset = (task % chunks) * tile
+                        fill_roots(wr_table, wi_table, half, offset, tile, 0)
+                        fill_roots(wr_table, wi_table, 2 * half, offset, tile, tile)
+                        start = group * 4 * half + offset
+                        for bank in T.unroll(4):
+                            pos = start + bank * half
+                            T.copy(out_real[first_row, pos : pos + tile], a_real[bank * tile : (bank + 1) * tile])
+                            T.copy(out_imag[first_row, pos : pos + tile], a_imag[bank * tile : (bank + 1) * tile])
+                        with T.SimtVF(threads=threads):
+                            global_pair(a_real, a_imag, wr_table, wi_table)
+                        if final:
+                            with T.SimtVF(threads=threads):
+                                for k in T.Parallel(4 * tile):
+                                    col = 2 * (start + (k // tile) * half + k % tile)
+                                    packed[first_row, col] = a_real[k]
+                                    packed[first_row, col + 1] = a_imag[k]
+                        else:
+                            for bank in T.unroll(4):
+                                pos = start + bank * half
+                                T.copy(a_real[bank * tile : (bank + 1) * tile], out_real[first_row, pos : pos + tile])
+                                T.copy(a_imag[bank * tile : (bank + 1) * tile], out_imag[first_row, pos : pos + tile])
+                        T.ascend_pipe_barrier("PIPE_ALL")
+
+        return fft_global
+
     @T.prim_func
     def fft(
-        real: T.Tensor((batch, n), dtype),
-        imag: T.Tensor((batch, n), dtype),
-        out_real: T.Tensor((batch, n), dtype),
-        out_imag: T.Tensor((batch, n), dtype),
+        real: T.Tensor((batch, io_width), dtype),
+        imag: T.Tensor((batch, io_width), dtype),
+        out_real: T.Tensor((batch, io_width), dtype),
+        out_imag: T.Tensor(imaginary_shape, dtype),
     ):
         with T.Kernel(blocks) as block:
             a_real = T.alloc_shared(((4 if n > tile else pack) * tile,), dtype)
             a_imag = T.alloc_shared(((4 if n > tile else pack) * tile,), dtype)
             wr_table = T.alloc_shared((2 * tile if n > tile else tile // 2,), dtype)
             wi_table = T.alloc_shared((2 * tile if n > tile else tile // 2,), dtype)
+            io_ub = T.alloc_shared((pack, 2 * tile) if dma_io else (1, 1), dtype)
             if n <= tile:
                 fill_roots(wr_table, wi_table, tile // 2, 0, tile // 2, 0)
             for iteration in T.serial(iterations):
@@ -592,6 +744,9 @@ def _fft_prim_func(batch: int, n: int, vector_cores: int):
                         fill_roots(wr_table, wi_table, tile // 2, 0, tile // 2, 0)
                     for tile_index in T.serial(n // tile):
                         start = tile_index * tile
+                        if dma_io:
+                            T.copy(real[first_row : first_row + pack, :], io_ub)
+                            T.ascend_pipe_barrier("PIPE_ALL")
                         with T.SimtVF(threads=threads):
                             for k in T.Parallel(pack * tile):
                                 packed_row = k // tile
@@ -604,52 +759,38 @@ def _fft_prim_func(batch: int, n: int, vector_cores: int):
                                 v4 = ((v3 >> 8) & 0x00FF00FF) | ((v3 & 0x00FF00FF) << 8)
                                 v5 = (v4 >> 16) | (v4 << 16)
                                 source = T.cast(v5 >> (32 - stages), "int32")
-                                a_real[k] = T.if_then_else(
-                                    row < batch, real[row, source], T.float32(0)
-                                )
-                                a_imag[k] = T.if_then_else(
-                                    row < batch, imag[row, source], T.float32(0)
-                                )
-                            # Omit absent stages before tracing their index arithmetic.
-                            if local_stages >= 3:
-                                for k in T.Parallel(pack * tile // 8):
-                                    row_base = (k // (tile // 8)) * tile
-                                    group = k % (tile // 8)
-                                    fused_first_triple(a_real, a_imag, row_base + 8 * group)
-                            if local_stages >= 6:
-                                for triple_stage in T.unroll(1, local_stages // 3):
-                                    half = 1 << (3 * triple_stage)
-                                    for k in T.Parallel(pack * tile // 8):
-                                        row_base = (k // (tile // 8)) * tile
-                                        group = k % (tile // 8)
-                                        j = group % half
-                                        low = row_base + (group // half) * (8 * half) + j
-                                        fused_triple(a_real, a_imag, wr_table, wi_table, low, half)
-                            if local_stages % 3:
-                                for tail_stage in T.unroll((local_stages // 3) * 3, local_stages):
-                                    half = 1 << tail_stage
-                                    for k in T.Parallel(pack * tile // 2):
-                                        row_base = (k // (tile // 2)) * tile
-                                        group = k % (tile // 2)
-                                        j = group % half
-                                        low = row_base + (group // half) * (2 * half) + j
-                                        twiddle = j * (tile // (2 * half))
-                                        butterfly(
-                                            a_real,
-                                            a_imag,
-                                            a_real,
-                                            a_imag,
-                                            low,
-                                            low + half,
-                                            wr_table[twiddle],
-                                            wi_table[twiddle],
-                                        )
+                                if dma_io:
+                                    a_real[k] = io_ub[packed_row, 2 * source]
+                                    a_imag[k] = io_ub[packed_row, 2 * source + 1]
+                                elif interleaved:
+                                    a_real[k] = T.if_then_else(
+                                        row < batch, real[row, 2 * source], T.float32(0)
+                                    )
+                                    a_imag[k] = T.if_then_else(
+                                        row < batch, real[row, 2 * source + 1], T.float32(0)
+                                    )
+                                else:
+                                    a_real[k] = T.if_then_else(
+                                        row < batch, real[row, source], T.float32(0)
+                                    )
+                                    a_imag[k] = T.if_then_else(
+                                        row < batch, imag[row, source], T.float32(0)
+                                    )
+                            local_stages_in_place(a_real, a_imag, wr_table, wi_table)
                             if n <= tile:
                                 for k in T.Parallel(pack * tile):
                                     row = first_row + k // tile
-                                    if row < batch:
-                                        out_real[row, k % tile] = a_real[k]
-                                        out_imag[row, k % tile] = a_imag[k]
+                                    col = 2 * (k % tile)
+                                    if dma_io:
+                                        io_ub[k // tile, col] = a_real[k]
+                                        io_ub[k // tile, col + 1] = a_imag[k]
+                                    elif row < batch:
+                                        out_real[row, col] = a_real[k]
+                                        out_real[row, col + 1] = a_imag[k]
+                        if dma_io:
+                            T.ascend_pipe_barrier("PIPE_ALL")
+                            T.copy(io_ub, out_real[first_row : first_row + pack, :])
+                            T.ascend_pipe_barrier("PIPE_ALL")
                         if n > tile:
                             T.copy(a_real[0:tile], out_real[first_row, start : start + tile])
                             T.copy(a_imag[0:tile], out_imag[first_row, start : start + tile])
@@ -800,21 +941,31 @@ def _make_fft_kernel(batch: int, n: int, vector_cores: int, device_index: int):
     return tilelang.compile(_fft_prim_func(batch, n, vector_cores), target="ascend", out_idx=[2, 3])
 
 
-class AscendFFTC2CKernel(Kernel, FFTC2CFwdInterface):
-    """Forward complex64 FFT with one arithmetic flow on Ascend vector cores.
+@functools.lru_cache(maxsize=64)
+def _make_long_phases(batch: int, n: int, vector_cores: int, device_index: int):
+    stages = (n.bit_length() - 1 - 12) // 2
+    return tuple(
+        tilelang.compile(
+            _fft_prim_func(batch, n, vector_cores, phase),
+            target="ascend",
+            out_idx=[1, 2] if phase == 0 else [2],
+        )
+        for phase in range(stages + 1)
+    )
 
-    FP64/complex128 is unsupported by this implementation and refused before
-    compilation. Length one is the public op's out-of-place identity.
-    """
+
+class AscendFFTC2CKernel(Kernel, FFTC2CFwdInterface):
+    """Forward FFT on Ascend vector cores, including software binary64 arithmetic."""
 
     devices = frozenset({"npu"})
 
     @classmethod
     def refusal(cls, call: FFTC2CCall) -> str | None:
-        if call.dtype != torch.complex64:
-            return "FP64/complex128 is unsupported by this Ascend kernel; use complex64"
-        if call.n < 2 or call.n > 65536 or call.n & (call.n - 1):
-            return "requires a power-of-two length in [2, 65536]"
+        if call.dtype not in (torch.complex64, torch.complex128):
+            return "requires complex64 or complex128 input"
+        limit = MAX_LENGTH if call.dtype == torch.complex128 else 65536
+        if call.n < 2 or call.n > limit or call.n & (call.n - 1):
+            return f"requires a power-of-two length in [2, {limit}]"
         return super().refusal(call)
 
     @classmethod
@@ -833,11 +984,27 @@ class AscendFFTC2CKernel(Kernel, FFTC2CFwdInterface):
         if batch == 0:
             return x.clone(memory_format=torch.contiguous_format)
         # Dtype views only reinterpret storage. All FFT arithmetic stays on the NPU.
+        if self.dtype == torch.complex128:
+            return fft_complex128(x, self.n, self.vector_cores)
         dense = x.resolve_conj().contiguous()
+        device_index = x.device.index
+        if self.n <= 4096:
+            kernel = _make_fft_kernel(batch, self.n, self.vector_cores, device_index)
+            # Read and write adjacent real/imaginary elements directly in the
+            # local FFT, avoiding two split launches and an output stack.
+            packed = dense.view(torch.float32).reshape(batch, self.n * 2)
+            result, _ = kernel(packed, packed)
+            return result.view(torch.complex64).reshape(x.shape)
+        if (self.n.bit_length() - 1 - 12) % 2 == 0:
+            local, *global_phases = _make_long_phases(batch, self.n, self.vector_cores, device_index)
+            packed = dense.view(torch.float32).reshape(batch, self.n * 2)
+            out_real, out_imag = local(packed)
+            for phase in global_phases:
+                result = phase(out_real, out_imag)
+            return result.view(torch.complex64).reshape(x.shape)
         components = dense.view(torch.float32).reshape(batch, self.n, 2)
         real = components[..., 0].contiguous()
         imag = components[..., 1].contiguous()
-        device_index = x.device.index
         kernel = _make_fft_kernel(batch, self.n, self.vector_cores, device_index)
         out_real, out_imag = kernel(real, imag)
         interleaved = torch.stack((out_real, out_imag), dim=-1)

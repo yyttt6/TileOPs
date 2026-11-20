@@ -31,7 +31,7 @@ _CORRECTNESS_CASES = (
         4096,
         torch.complex128,
         (),
-        marks=[pytest.mark.smoke, pytest.mark.cuda_only],
+        marks=pytest.mark.smoke,
         id="three-pass-upper-c128",
     ),
     pytest.param(32768, torch.complex64, (3,), marks=pytest.mark.smoke, id="two-factor-lower"),
@@ -74,7 +74,13 @@ _CORRECTNESS_CASES = (
         marks=[pytest.mark.full, pytest.mark.cuda_only],
         id="decomposed-dtype-boundary",
     ),
-    pytest.param(1 << 25, torch.complex64, (), marks=pytest.mark.full, id="three-factor-lower"),
+    pytest.param(
+        1 << 25,
+        torch.complex64,
+        (),
+        marks=[pytest.mark.full, pytest.mark.cuda_only],
+        id="three-factor-lower",
+    ),
     # Asks for 112 GiB free; the nightly job runs alone on its GPU.
     pytest.param(
         16384,
@@ -210,16 +216,32 @@ def test_fft_partial_vf_group() -> None:
 
 
 @pytest.mark.smoke
-def test_fft_ascend_complex128_unsupported() -> None:
-    """FP64 is refused at the public entry point, including the length-one path."""
-    op = FFTC2CFwdOp()
-    device = SimpleNamespace(type="npu")
-    for n in (1, 4096):
-        metadata = SimpleNamespace(shape=(n,), dtype=torch.complex128, device=device)
-        with pytest.raises(ValueError, match="FP64/complex128 is unsupported"):
-            op.forward(metadata)
-    run_target = torch.device(run_device())
-    if run_target.type != "npu":
-        return
-    with pytest.raises(ValueError, match="FP64/complex128 is unsupported"):
-        op.key_for("fft_c2c", FFTC2CCall(n=4096, dtype=torch.complex128, device=run_target))
+@pytest.mark.parametrize("exponent", [500, -600])
+def test_fft_ascend_complex128_keeps_wide_exponents(exponent: int) -> None:
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("requires the Ascend binary64 kernel")
+    host = torch.randn((3, 64), dtype=torch.complex128, device="cpu")
+    x = (host * (2.0**exponent)).to(device)
+    got = FFTC2CFwdOp()(x)
+    assert got.device == x.device and got.dtype == torch.complex128
+    torch.testing.assert_close(
+        got.cpu(),
+        torch.fft.fft(host) * (2.0**exponent),
+        rtol=1e-8,
+        atol=1e-8 * (2.0**exponent),
+    )
+    assert torch.equal(x.cpu(), host * (2.0**exponent))
+
+
+@pytest.mark.smoke
+def test_fft_ascend_complex128_strided_conjugate() -> None:
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("requires the Ascend binary64 kernel")
+    host = torch.randn((3, 128), dtype=torch.complex128, device="cpu")
+    x = host.to(device)[..., ::2].conj()
+    reference = torch.fft.fft(host[..., ::2].conj())
+    got = FFTC2CFwdOp()(x)
+    assert got.device == x.device and got.dtype == x.dtype
+    torch.testing.assert_close(got.cpu(), reference, rtol=1e-8, atol=1e-8)
