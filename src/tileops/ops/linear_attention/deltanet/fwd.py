@@ -37,6 +37,11 @@ class DeltaNetFwdOp(Op):
     width that is neither 64 nor 128, or one that differs from the value
     width, has no in-tree kernel and needs an external target implementation.
 
+    Ascend 950 supports dense prefill, packed prefill, and dense single-token
+    decode in float16 and bfloat16 for a 64- or 128-wide square state.
+    Ascend prefill limits cached offsets and the per-chunk beta tile to
+    a combined 64 KiB.
+
     ``beta`` contains the already-transformed update strength. This Op does
     not apply a sigmoid or another beta transform.
     """
