@@ -48,9 +48,9 @@ class _DeviceHadamard(Kernel, HadamardTransformFwdInterface):
     def entry_for(cls, call):
         if _device(call).type == "cuda":
             return cls.cuda_type.entry_for(call)
-        from tileops._kernels.ascend.transform.hadamard import AscendHadamardKernel
+        from tileops._kernels.ascend.transform.hadamard import AscendHadamardTransformKernel
 
-        return AscendHadamardKernel.entry_for(call)
+        return AscendHadamardTransformKernel.entry_for(call)
 
     def forward(self, x):
         raise RuntimeError("Device dispatch must select a concrete kernel")
