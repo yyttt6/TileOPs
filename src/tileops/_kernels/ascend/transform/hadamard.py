@@ -12,8 +12,8 @@ into a float32 buffer, one in-place butterfly pass takes each remaining bit, and
 pass scales and rounds (base order 1) or mixes the segments with the base matrix (above 1).
 
 Every program specializes on the element count, as the other Ascend kernels in this
-package do, so none states a dynamic extent.  Each grid divides its task count exactly,
-so no vector region sits inside a branch.
+package do, so none states a dynamic extent.  A block with a tail task executes one extra
+iteration; the vector regions stay outside conditional branches.
 """
 
 import functools
@@ -270,8 +270,7 @@ def _build_row_program(n: int, base: int, dtype: str, total: int, cores: int):
     count = rows_per_task * n
     positions = rows_per_task * m
     tasks = rows // rows_per_task
-    blocks = _largest_divisor_leq(tasks, cores)
-    iterations = tasks // blocks
+    blocks = min(tasks, cores)
     strides = tuple(1 << bit for bit in range(m.bit_length() - 1))
     columns = _base_signs(base) if base > 1 else ()
     scale = 1.0 / math.sqrt(n)
@@ -285,7 +284,7 @@ def _build_row_program(n: int, base: int, dtype: str, total: int, cores: int):
             x_ub = T.alloc_shared((count,), dtype)
             acc = T.alloc_shared((count,), "float32")
             out_ub = T.alloc_shared((count,), dtype)
-            for step in T.serial(iterations):
+            for step in T.serial((tasks + blocks - 1 - bx) // blocks):
                 task = step * blocks + bx
                 begin = task * count
                 T.copy(X[begin : begin + count], x_ub)
@@ -325,8 +324,7 @@ def _build_register_program(n: int, base: int, dtype: str, total: int, cores: in
     rows_per_task = _largest_divisor_leq(rows, max(1, _ROW_ELEMENTS // n))
     count = rows_per_task * n
     tasks = rows // rows_per_task
-    blocks = _largest_divisor_leq(tasks, cores)
-    iterations = tasks // blocks
+    blocks = min(tasks, cores)
     regs = m // _REGISTER_LANES
     # One butterfly segment is ``m`` elements; the tile holds ``count // m`` of them.
     groups = count // m
@@ -344,7 +342,7 @@ def _build_register_program(n: int, base: int, dtype: str, total: int, cores: in
             acc = T.alloc_shared((count,), "float32")
             alt = T.alloc_shared((count,), "float32")
             out_ub = T.alloc_shared((count,), dtype)
-            for step in T.serial(iterations):
+            for step in T.serial((tasks + blocks - 1 - bx) // blocks):
                 task = step * blocks + bx
                 begin = task * count
                 T.copy(X[begin : begin + count], x_ub)
@@ -387,8 +385,7 @@ def _build_chunk_program(n: int, base: int, dtype: str, total: int, cores: int):
     """The pass transforming the low bits of every segment into a float32 copy."""
     tile = min(n // base, _CHUNK_ELEMENTS)
     tasks = total // tile
-    blocks = _largest_divisor_leq(tasks, cores)
-    iterations = tasks // blocks
+    blocks = min(tasks, cores)
     strides = tuple(1 << bit for bit in range(tile.bit_length() - 1))
     threads = _threads(tile)
     half_threads = _threads(tile // 2)
@@ -398,7 +395,7 @@ def _build_chunk_program(n: int, base: int, dtype: str, total: int, cores: int):
         with T.Kernel(blocks) as bx:
             x_ub = T.alloc_shared((tile,), dtype)
             acc = T.alloc_shared((tile,), "float32")
-            for step in T.serial(iterations):
+            for step in T.serial((tasks + blocks - 1 - bx) // blocks):
                 task = step * blocks + bx
                 begin = task * tile
                 T.copy(X[begin : begin + tile], x_ub)
@@ -415,8 +412,7 @@ def _build_inplace_program(total: int, stride: int, tile: int, cores: int):
     """One in-place butterfly pass of *stride* over the float32 rows, *tile* wide a block."""
     pairs_per_group = stride // tile
     tasks = total // (2 * tile)
-    blocks = _largest_divisor_leq(tasks, cores)
-    iterations = tasks // blocks
+    blocks = min(tasks, cores)
     threads = _threads(tile)
 
     @T.prim_func
@@ -424,7 +420,7 @@ def _build_inplace_program(total: int, stride: int, tile: int, cores: int):
         with T.Kernel(blocks) as bx:
             left_ub = T.alloc_shared((tile,), "float32")
             right_ub = T.alloc_shared((tile,), "float32")
-            for step in T.serial(iterations):
+            for step in T.serial((tasks + blocks - 1 - bx) // blocks):
                 task = step * blocks + bx
                 group = task // pairs_per_group
                 slot = task % pairs_per_group
@@ -444,8 +440,7 @@ def _build_final_program(n: int, total: int, stride: int, tile: int, dtype: str,
     """The last butterfly pass of base order 1: scale and round once, into the output."""
     pairs_per_group = stride // tile
     tasks = total // (2 * tile)
-    blocks = _largest_divisor_leq(tasks, cores)
-    iterations = tasks // blocks
+    blocks = min(tasks, cores)
     scale = 1.0 / math.sqrt(n)
     threads = _threads(tile)
 
@@ -456,7 +451,7 @@ def _build_final_program(n: int, total: int, stride: int, tile: int, dtype: str,
             right_ub = T.alloc_shared((tile,), "float32")
             left_out = T.alloc_shared((tile,), dtype)
             right_out = T.alloc_shared((tile,), dtype)
-            for step in T.serial(iterations):
+            for step in T.serial((tasks + blocks - 1 - bx) // blocks):
                 task = step * blocks + bx
                 group = task // pairs_per_group
                 slot = task % pairs_per_group
@@ -479,8 +474,7 @@ def _build_base_program(n: int, base: int, dtype: str, total: int, cores: int):
     parts_per_row = m // tile
     rows = total // n
     tasks = rows * parts_per_row
-    blocks = _largest_divisor_leq(tasks, cores)
-    iterations = tasks // blocks
+    blocks = min(tasks, cores)
     columns = _base_signs(base)
     scale = 1.0 / math.sqrt(n)
     threads = _threads(tile)
@@ -490,7 +484,7 @@ def _build_base_program(n: int, base: int, dtype: str, total: int, cores: int):
         with T.Kernel(blocks) as bx:
             src_ub = T.alloc_shared((base * tile,), "float32")
             out_ub = T.alloc_shared((tile,), dtype)
-            for step in T.serial(iterations):
+            for step in T.serial((tasks + blocks - 1 - bx) // blocks):
                 task = step * blocks + bx
                 row = task // parts_per_row
                 part = task % parts_per_row
