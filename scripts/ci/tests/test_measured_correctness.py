@@ -152,24 +152,38 @@ def test_timer_count_mismatch_fails_closed():
         execute(lambda x: x * 2, repeats=20)
 
 
-def test_device_failure_keeps_receipt_and_does_not_run_next_case(tmp_path, monkeypatch):
-    """Exercise the actual device loop with a CPU timer and fake device discovery."""
+@pytest.mark.parametrize("bad_result", [True, False], ids=["stop-on-failure", "release-before-next"])
+def test_device_loop_failure_and_input_lifetime(tmp_path, monkeypatch, bad_result):
+    """Stop on an incorrect result and release prior case weights before the next allocation."""
     import json
+    from functools import cached_property
 
     released = []
+    previous = []
+
+    class Case(SimpleNamespace):
+        @cached_property
+        def inputs(self):
+            assert all(ref() is None for ref in previous), "previous case weights still live"
+            weight = torch.tensor([1.0])
+            previous.append(weakref.ref(weight))
+            # A caught oracle/control assertion can leave its input reachable from a
+            # reference cycle until GC. A refcount drop alone does not reclaim it.
+            cycle = [weight]
+            cycle.append(cycle)
+            return (weight,)
+
+        def _release(self):
+            self.__dict__.pop("inputs", None)
+            released.append(self.id)
+
     cases = [
-        SimpleNamespace(
-            id=name,
-            params={},
-            arguments={},
-            inputs=(torch.tensor([1.0]),),
-            reference=lambda x: x * 2,
-            verification=Exact(),
-            _release=lambda name=name: released.append(name),
-        )
-        for name in ("bad", "must-not-run")
+        Case(id=name, params={}, arguments={}, reference=lambda x: x * 2, verification=Exact())
+        for name in ("first", "second")
     ]
-    impl = SimpleNamespace(run=lambda x: x * 9, args=None, reset=None, noncomparable_reason=None)
+    impl = SimpleNamespace(
+        run=lambda x: x * (9 if bad_result else 2), args=None, reset=None, noncomparable_reason=None
+    )
     modules = {
         "benchmarks.ascend.guard": SimpleNamespace(require_reservation=lambda: None),
         "benchmarks._cases": SimpleNamespace(
@@ -243,12 +257,17 @@ def test_device_failure_keeps_receipt_and_does_not_run_next_case(tmp_path, monke
     )
     with pytest.raises(SystemExit) as exc:
         device.main()
-    assert exc.value.code == 1
-    assert released == ["bad"]
-    assert json.loads((out / "result.json").read_text())["failed"] == 1
     rows = [json.loads(line) for line in (out / "results.jsonl").read_text().splitlines()]
-    assert len(rows) == 1 and rows[0]["status"] == "failed"
-    assert "measurement" not in rows[0]
+    result = json.loads((out / "result.json").read_text())
+    if bad_result:
+        assert exc.value.code == 1
+        assert released == ["first"] and result["failed"] == 1
+        assert len(rows) == 1 and rows[0]["status"] == "failed"
+        assert "measurement" not in rows[0]
+    else:
+        assert exc.value.code == 0
+        assert released == ["first", "second"] and result["passed"] == 2
+        assert [r["status"] for r in rows] == ["passed", "passed"]
     assert (out / "profiles/0000/session/raw-evidence").exists()
 
 
