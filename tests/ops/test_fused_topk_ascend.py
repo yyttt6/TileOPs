@@ -74,7 +74,7 @@ def test_every_manifest_case_is_served():
         {"num_expert_group": 0},
         {"num_expert_group": 7},
         {"topk_group": 2},
-        {"num_experts": 400},
+        {"num_experts": 0},
     ],
 )
 def test_unsupported_contracts_are_explicitly_refused(changes):
@@ -123,3 +123,42 @@ def test_a_huge_finite_bias_keeps_the_weights_unbiased():
     # Every logit is zero, so every sigmoid score is 0.5 and the renormalized
     # weights are uniform regardless of how large the bias was.
     assert torch.allclose(weights, torch.full_like(weights, 2.5 / 8), atol=1e-6)
+
+
+@pytest.mark.smoke
+def test_partial_warp_selects_only_real_experts_with_negative_bias():
+    """Padding may neither win against negative scores nor contribute to the weights."""
+    device = run_device()
+    if torch.device(device).type != "npu" or not run_device_available():
+        pytest.skip("requires an Ascend NPU")
+    call = dataclasses.replace(
+        _request(_cases()[0]),
+        num_tokens=2,
+        num_experts=34,
+        top_k=4,
+        num_expert_group=2,
+        topk_group=1,
+        dtype=torch.float32,
+        scoring_func="sigmoid",
+        renormalize=True,
+        with_correction_bias=True,
+        routed_scaling_factor=1.5,
+    )
+    logits = torch.linspace(-2, 2, 34, dtype=torch.float32).repeat(2, 1)
+    logits[1].neg_()
+    bias = torch.full((34,), -3.0)
+    bias[17:] += 1.0  # Both rows keep the second 17-expert group.
+    weights, ids = _KERNEL(call)(logits.to(device), bias.to(device))
+    expected, indices = logits[:, 17:].sigmoid().topk(4, dim=1)
+    torch.testing.assert_close(ids.cpu().long(), indices + 17, rtol=0, atol=0)
+    torch.testing.assert_close(weights.cpu(), expected * (1.5 / expected.sum(dim=1, keepdim=True)))
+    # A finite, very negative bias can make both group sums overflow to -inf.
+    # Whichever tied group is kept must still contribute four distinct valid experts.
+    extreme = torch.full_like(bias, torch.finfo(torch.float32).min)
+    weights, ids = _KERNEL(call)(logits.to(device), extreme.to(device))
+    ids_cpu = ids.cpu().long()
+    assert ((ids_cpu >= 0) & (ids_cpu < 34)).all()
+    for row in ids_cpu:
+        assert row.unique().numel() == 4 and (row // 17).unique().numel() == 1
+    selected = logits.sigmoid().gather(1, ids_cpu)
+    torch.testing.assert_close(weights.cpu(), selected * (1.5 / selected.sum(dim=1, keepdim=True)))

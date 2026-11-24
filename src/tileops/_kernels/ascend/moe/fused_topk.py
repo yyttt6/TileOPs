@@ -3,7 +3,7 @@
 Scores each token's router logits, selects its ``top_k`` experts, and returns
 their weights and ids. Supports softmax and sigmoid scoring, an optional
 selection-only correction bias, grouped routing, renormalization and output
-scaling. It serves ``num_experts % 32 == 0``.
+scaling. The last warp masks lanes beyond the expert count.
 """
 
 import functools
@@ -58,8 +58,6 @@ def make_fused_topk(
         raise TypeError(f"FusedTopK supports float16/bfloat16/float32, got {dtype}")
     if top_k > experts:
         raise ValueError(f"top_k={top_k} cannot exceed num_experts={experts}")
-    if experts % 32 != 0:
-        raise ValueError(f"num_experts must be a multiple of 32, got {experts}")
     if num_expert_group < 1 or experts % num_expert_group != 0:
         raise ValueError(
             f"num_expert_group ({num_expert_group}) must be >= 1 and divide num_experts ({experts})"
@@ -74,13 +72,15 @@ def make_fused_topk(
         raise ValueError("a biased group score sums two experts; each group needs two")
 
     tokens_per_block = _pick_tokens_per_block(tokens)
-    elems_per_thread = experts // _WARP_LANES  # exact: E % 32 == 0
+    elems_per_thread = (experts + _WARP_LANES - 1) // _WARP_LANES
     num_blocks = tokens // tokens_per_block
     threads = tokens_per_block * _WARP_LANES
     launch = max(d for d in range(1, min(num_blocks, _NUM_CORES) + 1) if num_blocks % d == 0)
     grid_repeats = num_blocks // launch
     grouped = num_expert_group > 1
     scaled = routed_scaling_factor != 1.0
+    # A padded lane must lose even to the smallest finite selection score.
+    negative = -float("inf") if experts % _WARP_LANES else _NEG
     group_size = experts // num_expert_group
 
     def group_of(j, lane_id):
@@ -121,11 +121,15 @@ def make_fused_topk(
                     sel = T.alloc_local([elems_per_thread], "float32")
 
                     for j in T.serial(elems_per_thread):
-                        my_scores[j] = T.cast(x_ub[warp_id, j * _WARP_LANES + lane_id], "float32")
+                        expert = j * _WARP_LANES + lane_id
+                        if experts % _WARP_LANES == 0 or expert < experts:
+                            my_scores[j] = T.cast(x_ub[warp_id, expert], "float32")
+                        else:
+                            my_scores[j] = -float("inf")
 
                     l_max = T.alloc_var(T.float32)
                     l_sum = T.alloc_var(T.float32)
-                    l_max = _NEG
+                    l_max = negative
                     l_sum = T.float32(0)
                     if scoring_func == "softmax":
                         for j in T.serial(elems_per_thread):
@@ -153,12 +157,15 @@ def make_fused_topk(
                             inv_row_sum = T.alloc_var(T.float32)
                             inv_row_sum = T.float32(routed_scaling_factor if scaled else 1.0)
 
-                    if with_bias:
-                        for j in T.serial(elems_per_thread):
-                            sel[j] = my_scores[j] + bias_ub[j * _WARP_LANES + lane_id]
-                    else:
-                        for j in T.serial(elems_per_thread):
-                            sel[j] = my_scores[j]
+                    for j in T.serial(elems_per_thread):
+                        expert = j * _WARP_LANES + lane_id
+                        if experts % _WARP_LANES == 0 or expert < experts:
+                            if with_bias:
+                                sel[j] = my_scores[j] + bias_ub[expert]
+                            else:
+                                sel[j] = my_scores[j]
+                        else:
+                            sel[j] = negative
 
                     if grouped:
                         group_score = T.alloc_local([num_expert_group], "float32")
@@ -170,8 +177,10 @@ def make_fused_topk(
                                     dup = T.warp_reduce_sum(
                                         T.if_then_else(sel[gidx] == gbest1, 1, 0)
                                     )
-                                    cand = T.if_then_else(sel[gidx] < gbest1, sel[gidx], _NEG)
-                                    second = T.if_then_else(dup >= 2, gbest1, T.warp_reduce_max(cand))
+                                    cand = T.if_then_else(sel[gidx] < gbest1, sel[gidx], negative)
+                                    second = T.if_then_else(
+                                        dup >= 2, gbest1, T.warp_reduce_max(cand)
+                                    )
                                     group_score[gidx] = gbest1 + second
                                 else:
                                     group_score[gidx] = gbest1
@@ -179,8 +188,8 @@ def make_fused_topk(
                             local_best1 = T.alloc_local([num_expert_group], "float32")
                             local_best2 = T.alloc_local([num_expert_group], "float32")
                             for gidx in T.unroll(num_expert_group):
-                                local_best1[gidx] = _NEG
-                                local_best2[gidx] = _NEG
+                                local_best1[gidx] = negative
+                                local_best2[gidx] = negative
                             for j in T.unroll(elems_per_thread):
                                 for gidx in T.unroll(num_expert_group):
                                     if group_of(j, lane_id) == gidx:
@@ -201,7 +210,9 @@ def make_fused_topk(
                                         local_best1[gidx],
                                         local_best2[gidx],
                                     )
-                                    second = T.if_then_else(dup >= 2, gbest1, T.warp_reduce_max(cand))
+                                    second = T.if_then_else(
+                                        dup >= 2, gbest1, T.warp_reduce_max(cand)
+                                    )
                                     group_score[gidx] = gbest1 + second
                                 else:
                                     group_score[gidx] = gbest1
@@ -212,9 +223,12 @@ def make_fused_topk(
                             pick = T.alloc_var(T.int32)
                             pick_val = T.alloc_var(T.float32)
                             pick = T.int32(-1)
-                            pick_val = _NEG
+                            pick_val = negative
                             for gidx in T.unroll(num_expert_group):
-                                if kept[gidx] == 0 and group_score[gidx] > pick_val:
+                                if kept[gidx] == 0 and (
+                                    group_score[gidx] > pick_val
+                                    or (experts % _WARP_LANES != 0 and pick < 0)
+                                ):
                                     pick = gidx
                                     pick_val = group_score[gidx]
                             for gidx in T.unroll(num_expert_group):
@@ -223,7 +237,7 @@ def make_fused_topk(
                         for j in T.unroll(elems_per_thread):
                             for gidx in T.unroll(num_expert_group):
                                 if group_of(j, lane_id) == gidx and kept[gidx] == 0:
-                                    sel[j] = _NEG
+                                    sel[j] = negative
 
                     local_max = T.alloc_var(T.float32)
                     local_idx = T.alloc_var(T.int32)
@@ -236,7 +250,7 @@ def make_fused_topk(
                         sel_sum = T.float32(0)
 
                     for k in T.serial(top_k):
-                        local_max = _NEG
+                        local_max = negative
                         local_idx = T.int32(-1)
                         for j in T.serial(elems_per_thread):
                             if sel[j] > local_max:
@@ -253,7 +267,7 @@ def make_fused_topk(
 
                         for j in T.serial(elems_per_thread):
                             if j * _WARP_LANES + lane_id == l_best_idx:
-                                sel[j] = _NEG
+                                sel[j] = negative
 
                     # The weights are the unbiased scores of the winners. Recomputing
                     # them from the logits keeps that exact for any finite bias, where
@@ -355,8 +369,6 @@ class AscendFusedTopKKernel(Kernel, FusedTopKFwdInterface):
             return f"needs top_k <= num_experts, got {call.top_k} > {call.num_experts}"
         if call.with_correction_bias and call.scoring_func != "sigmoid":
             return "a correction bias requires sigmoid scoring"
-        if call.num_experts % _WARP_LANES:
-            return f"needs num_experts divisible by {_WARP_LANES}, got {call.num_experts}"
         if call.num_expert_group < 1 or call.num_experts % call.num_expert_group:
             return (
                 f"needs num_expert_group >= 1 dividing num_experts, got "
@@ -397,7 +409,9 @@ class AscendFusedTopKKernel(Kernel, FusedTopKFwdInterface):
         )
 
     def forward(
-        self, gating_output: torch.Tensor, correction_bias: Optional[torch.Tensor] = None
+        self,
+        gating_output: torch.Tensor,
+        correction_bias: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         c = self.call
         self._require_devices(gating_output=gating_output, correction_bias=correction_bias)
