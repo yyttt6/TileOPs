@@ -1,6 +1,7 @@
 """Ascend 950 gemm kernels."""
 
 from tileops._kernels.ascend.gemm.bmm import AscendBMMKernel
+from tileops._kernels.ascend.gemm.bmm_fp8 import AscendBMMFP8Kernel, AscendBMMFP8TransposeKernel
 from tileops._kernels.ascend.gemm.fp8 import AscendGEMMFP8Kernel
 from tileops._kernels.ascend.gemm.gemm import AscendGEMMKernel
 from tileops._kernels.ascend.gemm.grouped import AscendGroupedGEMMKernel
@@ -9,6 +10,8 @@ from tileops._kernels.ascend.gemm.w4a8 import AscendGEMMW4A8Kernel, AscendW4A8Re
 from tileops._kernels.ascend.gemm.w4a16 import AscendGEMMW4A16Kernel
 
 __all__ = [
+    "AscendBMMFP8Kernel",
+    "AscendBMMFP8TransposeKernel",
     "AscendBMMKernel",
     "AscendGEMMFP8Kernel",
     "AscendGEMMKernel",
