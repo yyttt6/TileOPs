@@ -3,7 +3,7 @@ import torch
 from workloads.attention.gqa.call_metadata import _dtype, _segments
 from workloads.attention.gqa.rope import apply_dense_rope
 from workloads.attention.paged_cache_write import PagedKVCacheWriteWorkload
-from workloads.attention.paged_kv_cache import make_fragmented_block_table
+from workloads.attention.paged_kv_cache import make_fragmented_block_table, selected_page_rows
 from workloads.device import run_device
 from workloads.sequence_metadata import make_cu_seqlens
 from workloads.workload_base import CallWorkload, WorkloadBase
@@ -229,8 +229,8 @@ class GQAPagedFwdWorkload(WorkloadBase):
             q_len, kv_len = bounds[b + 1] - bounds[b], int(cache_seqlens[b])
             pages = block_table[b, : -(-kv_len // page_size)].long()
             q_b = q[bounds[b] : bounds[b + 1]].float()
-            k_b = k_cache[pages].flatten(0, 1)[:kv_len].float()
-            v_b = v_cache[pages].flatten(0, 1)[:kv_len].float()
+            k_b = selected_page_rows(k_cache, pages, kv_len)
+            v_b = selected_page_rows(v_cache, pages, kv_len)
             if q_scale is not None:
                 q_b = q_b * q_scale[b].repeat_interleave(groups).view(1, -1, 1)
             if k_scale is not None:

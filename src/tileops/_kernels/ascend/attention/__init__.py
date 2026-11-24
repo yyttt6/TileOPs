@@ -6,6 +6,7 @@ from tileops._kernels.ascend.attention.gqa_dense_bwd import (
     AscendGQADenseBwdKernel,
 )
 from tileops._kernels.ascend.attention.gqa_dense_prefill import AscendGQADenseKernel
+from tileops._kernels.ascend.attention.gqa_paged import AscendGQAPagedKernel
 from tileops._kernels.ascend.attention.gqa_varlen import AscendGQAVarlenKernel
 from tileops._kernels.ascend.attention.merge_states import AscendMergeAttentionStatesKernel
 from tileops._kernels.ascend.attention.mha_paged_decode import AscendMHAPagedDecodeKernel
@@ -28,6 +29,7 @@ __all__ = [
     "AscendGQABwdPreprocess",
     "AscendGQADenseBwdKernel",
     "AscendGQADenseKernel",
+    "AscendGQAPagedKernel",
     "AscendGQAVarlenKernel",
     "AscendMHAPagedDecodeKernel",
     "AscendMergeAttentionStatesKernel",

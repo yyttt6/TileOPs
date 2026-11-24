@@ -6,6 +6,16 @@ from workloads.device import run_device
 from workloads.workload_base import WORKLOAD_SEED
 
 
+def selected_page_rows(cache: torch.Tensor, pages: torch.Tensor, length: int) -> torch.Tensor:
+    """Gather E4M3 payloads by byte on backends without FP8 advanced indexing."""
+    if cache.dtype == torch.float8_e4m3fn:
+        rows = cache.view(torch.uint8)[pages].view(cache.dtype)
+    else:
+        rows = cache[pages]
+    return rows.flatten(0, 1)[:length].float()
+
+
+
 def make_interleaved_block_table(batch: int, max_pages_per_req: int) -> torch.Tensor:
     """Block table whose logical pages sit out of order in physical memory.
 

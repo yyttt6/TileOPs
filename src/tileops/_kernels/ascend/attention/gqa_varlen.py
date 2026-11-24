@@ -468,7 +468,10 @@ def _attention(
     raw_kh=0,
     omit_aligned=False,
     packed_kh=0,
+    operand_scales=False,
+    return_dtype=None,
 ):
+    out_type = return_dtype or dtype
     tiles = T.dynamic("output_tiles")
     qcap = T.dynamic("packed_queries")
     kcap = T.dynamic("packed_keys")
@@ -488,7 +491,7 @@ def _attention(
         False,
     )
     direct = ps > 0 and ps % bn == 0 and not fp8kv and not rot and dp == dim
-    narrow_value_tile = bool(packed_kh) and dim > 128
+    narrow_value_tile = (bool(packed_kh) or bool(ps)) and dim > 128
     depth_step = math.gcd(dp, 64)
     value_tile = math.gcd(vp, 128) if narrow_value_tile else vp
     storage_heads = packed_kh or kh
@@ -545,11 +548,11 @@ def _attention(
                     dest[row, col] = 0
 
     @T.macro
-    def unpack_v(buf, dest, table, sc, batch_id, group_id, begin, length, sub):
+    def unpack_v(buf, dest, table, sc, batch_id, group_id, begin, length, sub, start_col):
         # The right operand of PV is staged in transposed order.
         with T.SimtVF(threads=256):
-            for rr, col in T.Parallel(dp // 2, bn):
-                d = sub * (dp // 2) + rr
+            for rr, col in T.Parallel(value_tile // 2, bn):
+                d = start_col + sub * (value_tile // 2) + rr
                 logical = begin + col
                 if logical < length and d < dim:
                     physical = table[batch_id, logical // ps] * ps + logical % ps
@@ -574,7 +577,8 @@ def _attention(
         vs: T.Tensor(scale_shape, "float32") if fp8kv else None,
         cos: T.Tensor((P, rot // 2), dtype) if rot else None,
         sin: T.Tensor((P, rot // 2), dtype) if rot else None,
-        out: T.Tensor((kh, tiles, 2, rows, vp), dtype),
+        factors: T.Tensor((batch, storage_heads, 2), "float32") if operand_scales else None,
+        out: T.Tensor((kh, tiles, 2, rows, vp), out_type),
         lse: T.Tensor((kh, tiles, 2, rows), "float32") if with_lse else None,
     ):
         with T.MixedKernel(32) as (bx, sub):
@@ -582,7 +586,7 @@ def _attention(
                 qu = T.alloc_shared((rows, dp), dtype)
             if ps or raw_kh:
                 ku = T.alloc_shared((bn // 2, dp), dtype)
-                vu = T.alloc_shared((dp // 2, bn), dtype)
+                vu = T.alloc_shared((value_tile // 2, bn), dtype)
             if narrow_value_tile:
                 qa = T.alloc_l0a((bm, depth_step), dtype)
                 kb_l0 = T.alloc_l0b((bn, depth_step), dtype)
@@ -602,7 +606,9 @@ def _attention(
             maxv = T.alloc_shared((rows,), "float32")
             denom = T.alloc_shared((rows,), "float32")
             alpha = T.alloc_shared((rows,), "float32")
-            result = T.alloc_shared((rows, value_tile), dtype)
+            if operand_scales:
+                factor = T.alloc_shared((8,), "float32")
+            result = T.alloc_shared((rows, value_tile), out_type)
             task = T.alloc_var("int32", init=bx)
             for b in T.serial(batch):
                 lq = cq[b + 1] - cq[b]
@@ -615,6 +621,8 @@ def _attention(
                     )
                 while task < jobs:
                     g = task % kh
+                    if operand_scales:
+                        T.copy(factors[b, g // (kh // storage_heads), :], factor[:2])
                     start = task // kh * bm
                     qp = off[b, 0] + start
                     kbase = off[b, 1]
@@ -704,6 +712,8 @@ def _attention(
                                         visible = visible and ki <= qi + offset + wr
                                     if visible:
                                         score_value = su[rr, kk] * scale
+                                        if operand_scales:
+                                            score_value = score_value * factor[0]
                                         if cap:
                                             score_value = cap * T.tanh(score_value / cap)
                                         masked[rr, kk] = score_value
@@ -733,6 +743,10 @@ def _attention(
                                     left = T.simd.vmuls(
                                         T.simd.vld(su[rr, 0]), T.float32(scale), full
                                     )
+                                    if operand_scales:
+                                        left = T.simd.vmul(
+                                            left, T.simd.vld(factor[0], dist="BRC_B32"), full
+                                        )
                                     left = T.simd.vsel(
                                         left,
                                         neg,
@@ -746,6 +760,10 @@ def _attention(
                                         right = T.simd.vmuls(
                                             T.simd.vld(su[rr, 64]), T.float32(scale), full
                                         )
+                                        if operand_scales:
+                                            right = T.simd.vmul(
+                                                right, T.simd.vld(factor[0], dist="BRC_B32"), full
+                                            )
                                         right = T.simd.vsel(
                                             right,
                                             neg,
@@ -829,12 +847,12 @@ def _attention(
                                 if direct and (j + 1) * bn <= lk:
                                     physical = table[b, j * bn // ps] * ps + j * bn % ps
                                     T.copy(
-                                        v[physical : physical + bn, g, :],
+                                        v[physical : physical + bn, g, col : col + value_tile],
                                         vl,
                                         transpose=True,
                                     )
                                 else:
-                                    unpack_v(v, vu, table, vs, b, g, j * bn, lk, sub)
+                                    unpack_v(v, vu, table, vs, b, g, j * bn, lk, sub, col)
                                     T.dual_copy(vu, vl)
                             else:
                                 T.copy(
@@ -887,8 +905,12 @@ def _attention(
                                         val = T.simd.vdiv(
                                             T.simd.vld(acc[rr, col + dd * 64]), divisor, mask
                                         )
+                                        if operand_scales:
+                                            val = T.simd.vmul(
+                                                val, T.simd.vld(factor[1], dist="BRC_B32"), mask
+                                            )
                                         result_vec = T.simd.vcvt(
-                                            val, dtype, round="ROUND_R", sat=False, part=0
+                                            val, out_type, round="ROUND_R", sat=False, part=0
                                         )
                                         T.simd.vsts(
                                             result[rr, dd * 64], result_vec, mask, dist="PK_B32"
@@ -917,14 +939,14 @@ def _attention(
                 task -= jobs
 
     program = tilelang.compile(main, target="ascend", out_idx=[])
-    unpack = _unpack_attention(batch, heads, kh, dv, dtype, bm, with_lse)
+    unpack = _unpack_attention(batch, heads, kh, dv, out_type, bm, with_lse)
 
     def run(*args):
         q = args[0]
         output_count = 2 if with_lse else 1
         tiles_count = (q.shape[0] + bm - 1) // bm + batch if raw_kh else q.shape[1] // bm
         shape = (kh, tiles_count, 2, rows)
-        temp = [q.new_empty((*shape, vp))]
+        temp = [args[-output_count].new_empty((*shape, vp))]
         if with_lse:
             temp.append(q.new_empty(shape, dtype=torch.float32))
         program(*args[:-output_count], *temp)
