@@ -2,6 +2,7 @@
 
 import importlib.util
 import sys
+import weakref
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -295,3 +296,34 @@ def test_unsupported_session_fallback_restores_state_and_checks_final_output(mon
     assert modes == ["session", "isolated"] and len(calls) == 38
     assert check["checked_outputs"] == 1 and result["session_fallback_reason"] == "multiple streams"
     assert torch.equal(x, torch.tensor([1.0, 3.0]))
+
+
+def test_saves_one_copy_and_restores_after_inplace_reference(monkeypatch):
+    from workloads import numerics
+
+    x = torch.tensor([2.0, 3.0])
+    original = numerics._snapshot
+    live = []
+
+    def budgeted(tensors):
+        if any(t is x for t in tensors):
+            if any(w() is not None for w in live):
+                raise torch.OutOfMemoryError("only one pristine weights tensor fits")
+            saved = original(tensors)
+            live.extend(weakref.ref(t) for t in saved)
+            return saved
+        return original(tensors)
+
+    monkeypatch.setattr(numerics, "_snapshot", budgeted)
+    case = SimpleNamespace(
+        inputs=(x,), verification=numerics.Exact(), reference=lambda t: t.add_(1)
+    )
+    impl = SimpleNamespace(run=lambda t: t + 1, args=(x,), reset=None, noncomparable_reason=None)
+
+    def measure(fn):
+        fn(x)
+        return {}
+
+    check, _ = MODULE.measure_and_verify(case, impl, measure, expected_calls=1)
+    assert check["checked_outputs"] == check["total_outputs"] == 1
+    torch.testing.assert_close(x, torch.tensor([2.0, 3.0]))

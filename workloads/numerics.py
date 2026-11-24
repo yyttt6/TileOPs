@@ -534,6 +534,25 @@ def verify(
     included, even where nothing is compared. A failure names its request. Reference OOM
     leaves every request unchecked; request failures always propagate.
     """
+    return _verify_with_input_snapshot(
+        reference,
+        inputs,
+        evidence=evidence,
+        requests=requests,
+        preserve_reference_inputs=preserve_reference_inputs,
+    )
+
+
+def _verify_with_input_snapshot(
+    reference: Callable | None,
+    inputs: tuple,
+    *,
+    evidence: Evidence,
+    requests: dict[str, Request],
+    preserve_reference_inputs: bool = False,
+    snapshot: tuple[list, list] | None = None,
+) -> dict[str, CheckResult]:
+    """Reuse a caller-owned pristine copy if the caller just verified the same input tensors."""
     if evidence.kind not in ("exact", "partial", "custom"):
         if preserve_reference_inputs and reference is not None:
             try:
@@ -547,7 +566,18 @@ def verify(
             "a checked workload must supply ref_program; declare Unestablished explicitly"
         )
     shared = _unique(inputs)
-    pristine = _snapshot(shared)
+    if snapshot is None:
+        pristine = _snapshot(shared)
+    else:
+        owners, saved = snapshot
+        if (
+            len(shared) != len(saved)
+            or len(shared) != len(owners)
+            or any(tensor is not owner for tensor, owner in zip(shared, owners, strict=True))
+        ):
+            raise ValueError("saved inputs must belong to this verification call")
+        # The finally block releases the local list; probes still need the caller's copies.
+        pristine = list(saved)
     try:
         try:
             try:
