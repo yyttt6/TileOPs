@@ -12,8 +12,10 @@ import tilelang
 import tilelang.ascend.language as T
 import torch
 from tilelang.ascend.language import simd as S
+from tilelang.carver.arch.driver import get_num_vector_cores
 from tilelang.layout import make_ascend_compact_nz_layout
 
+from tileops._kernels.ascend.attention.mha_paged_vector import paged_programs
 from tileops._kernels.attention.call_spec import AttentionCall, MHAPagedDecodeFwdInterface
 from tileops._kernels.kernel_base import Kernel
 from tileops.backend._registry import register_kernel_type
@@ -755,14 +757,12 @@ class AscendMHAPagedDecodeKernel(Kernel, MHAPagedDecodeFwdInterface):
 
     @classmethod
     def refusal(cls, call: AttentionCall) -> str | None:
-        if (call.batch, call.heads, call.heads_kv, call.dim, call.page_size) != (1, 1, 1, 128, 128):
-            return "requires B1H1, head dimension 128 and page size 128"
-        if call.is_causal or call.dtype != torch.bfloat16 or call.cache_dtype != torch.bfloat16:
-            return "requires noncausal BF16 Q and KV"
-        if call.max_seqlen_q <= 0 or call.max_pages_per_req <= 0:
-            return "requires non-empty Q and page table"
-        if call.seqlen_kv <= 0 or call.seqlen_kv % 128:
-            return "requires a positive page-aligned KV pool"
+        if call.heads != call.heads_kv or call.dim not in (64, 128):
+            return "requires equal query and KV heads and dimension 64 or 128"
+        if call.dtype not in (torch.float16, torch.bfloat16) or call.cache_dtype != call.dtype:
+            return "requires matching FP16 or BF16 query and cache"
+        if call.page_size <= 0 or call.page_size % 16 or call.seqlen_kv % call.page_size:
+            return "requires whole physical pages of a multiple of 16 tokens"
         return super().refusal(call)
 
     def __init__(self, call: AttentionCall) -> None:
@@ -788,8 +788,28 @@ class AscendMHAPagedDecodeKernel(Kernel, MHAPagedDecodeFwdInterface):
             real_seqlen_kv=real_seqlen_kv,
             block_table=block_table,
         )
-        if getattr(torch.npu.get_device_properties(q.device.index), "cube_core_num", None) != 28:
-            raise ValueError("paged MHA requires a 28-Cube Ascend device")
+        if q.numel() == 0 or self.call.max_pages_per_req == 0 or k_pool.shape[0] == 0:
+            return torch.zeros_like(q)
+        original_geometry = (
+            q.dtype == torch.bfloat16
+            and self.call.batch == self.call.heads == 1
+            and self.call.dim == self.call.page_size == 128
+            and not self.call.is_causal
+            and torch.npu.get_device_properties(q.device.index).cube_core_num == 28
+        )
+        if not original_geometry or real_seqlen_kv.item() % 128:
+            part, merge = paged_programs(
+                self.call, int(get_num_vector_cores(device_id=q.device.index))
+            )
+            return merge(
+                part(
+                    q.contiguous(),
+                    k_pool.contiguous(),
+                    v_pool.contiguous(),
+                    real_seqlen_kv.contiguous(),
+                    block_table.contiguous(),
+                )
+            )
         if real_seqlen_kv.device != q.device:
             raise ValueError("cache length must be on the query device")
         if real_seqlen_kv.shape != (1,) or real_seqlen_kv.dtype != torch.int32:
