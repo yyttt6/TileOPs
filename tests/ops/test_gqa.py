@@ -1527,9 +1527,22 @@ def test_gqa_dense_persistent_masks_the_keys_past_a_narrow_last_tile() -> None:
 
 @pytest.mark.in_tree_kernels
 @pytest.mark.smoke
-def test_gqa_dense_with_lse_fwd_refuses_a_window_by_name() -> None:
-    """No windowed kernel writes the log-sum-exp, so a windowed call is refused, naming it."""
+def test_gqa_dense_with_lse_fwd_window_by_backend() -> None:
+    """Ascend returns the windowed result; CUDA reports its kernel selection limit."""
     q = torch.randn(1, 128, 8, 64, device=run_device(), dtype=torch.bfloat16)
     k = torch.randn(1, 128, 2, 64, device=run_device(), dtype=torch.bfloat16)
-    with pytest.raises(OpNotAvailableError, match="log-sum-exp"):
-        GQADenseWithLSEFwdOp(is_causal=True, window_size_left=32, target=BUILTIN)(q, k, k)
+    op = GQADenseWithLSEFwdOp(is_causal=True, window_size_left=32, target=BUILTIN)
+    if q.device.type == "npu":
+        from workloads.attention.gqa.dense import dense_gqa_logits, dense_gqa_ref
+
+        options = dict(heads=8, heads_kv=2, is_causal=True, window_size_left=32)
+        o, lse = op(q, k, k)
+        q_cpu, k_cpu = q.cpu(), k.cpu()
+        expected = dense_gqa_ref(q_cpu, k_cpu, k_cpu, **options)
+        torch.testing.assert_close(o.cpu().float(), expected.float(), rtol=0.02, atol=0.01)
+        torch.testing.assert_close(
+            lse.cpu(), dense_gqa_logits(q_cpu, k_cpu, **options).logsumexp(-1), rtol=1e-3, atol=3e-3
+        )
+    else:
+        with pytest.raises(OpNotAvailableError, match="log-sum-exp"):
+            op(q, k, k)

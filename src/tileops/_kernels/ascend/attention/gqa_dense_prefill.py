@@ -51,6 +51,14 @@ def select_kernel(call, cube_cores):
         raise ValueError("Cube count must be positive")
     if not (call.batch and call.max_seqlen_q and call.heads):
         return "empty", {}
+    if call.return_lse:
+        if (call.is_causal and not call.softcap and call.dim in (64, 128)
+                and call.max_seqlen_q % 128 == 0 and call.seqlen_kv % 128 == 0
+                and call.seqlen_kv >= call.max_seqlen_q and call.window_size_left in (-1,127)
+                and call.window_size_right == -1):
+            return "prefill-query-major", dict(num_cores=cube_cores)
+        # The general packing path handles ragged lengths, windows and softcap.
+        return "packed-attention", dict(kv_view=False)
     if call.max_seqlen_q == 1:
         return select_decode(call, cube_cores)
     if call.has_sinks:
@@ -1054,6 +1062,7 @@ def prefill_query_major(call, num_cores):
         V: T.Tensor((batch_size, kv_len, num_kv_heads, D0), out_dtype),
         Sinks: T.Tensor((num_heads,), "float32"),
         O: T.Tensor((batch_size, q_len, num_heads, D0), out_dtype),
+        LSE: T.Tensor((batch_size, num_heads, q_len), "float32") if call.return_lse else None,
     ):
         with T.Kernel(num_cores) as cid:
             T.assume(q_len > 0)
@@ -1083,6 +1092,8 @@ def prefill_query_major(call, num_cores):
             old_max = T.alloc_shared((ROWS,), "float32")
             row_sum = T.alloc_shared((ROWS,), "float32")
             output = T.alloc_shared((ROWS, D0), out_dtype)
+            if call.return_lse:
+                row_lse = T.alloc_shared((ROWS,), "float32")
             sink_ub = T.alloc_shared((8 * sink_heads_per_core if cache_sinks else 8,), "float32")
 
             tasks = T.ceildiv(TASKS - cid, num_cores)
@@ -1501,6 +1512,12 @@ def prefill_query_major(call, num_cores):
                             batch = tile // (num_heads * M_TILES)
                             head = tile // HEAD_STRIDE % num_heads
                             mt = tile // TILE_STRIDE % M_TILES
+                            if call.return_lse:
+                                with T.SimdVF():
+                                    full = S.pset(32)
+                                    m = S.vld(maximum[output_task % 3, 0], "NORM")
+                                    d = S.vld(denominator[output_task % 3, 0], "NORM")
+                                    S.vsts(row_lse[0], S.vadd(m, S.vln(d, full), full), full, "NORM_B32")
                             T.ascend_set_flag("V_MTE3", 2)
                             T.ascend_wait_flag("V_MTE3", 2)
                             T.copy(
@@ -1513,6 +1530,8 @@ def prefill_query_major(call, num_cores):
                                 ],
                                 l2_cache_ctrl=0,
                             )
+                            if call.return_lse:
+                                T.copy(row_lse, LSE[batch, head, mt*BR+sid*ROWS:mt*BR+(sid+1)*ROWS])
                             T.ascend_set_flag("MTE3_V", 2)
                             okv = 0
                             output_task += 1
@@ -1807,9 +1826,6 @@ def attention_partial(call, splits):
                     T.gemm(ql, kl, qk, transpose_B=True, clear_accum=True)
                     T.dual_copy(qk, scores)
                     with T.SimtVF(threads=128):
-                        logits = T.alloc_fragment((R, BN), "float32")
-                        mx = T.alloc_reducer((R,), "float32", op="max")
-                        T.reducer_init(mx)
                         for r, j in T.Parallel(R, BN):
                             qi = (mt * BM + sub * R + r) // G
                             pos = qi + SK - SQ
@@ -1824,24 +1840,40 @@ def attention_partial(call, splits):
                             z = scores[r, j] * scale
                             if cap > 0:
                                 z = cap * T.tanh(z / cap)
-                            logits[r, j] = T.if_then_else(visible, z, -T.infinity("float32"))
-                            T.reducer_update(mx[r], logits[r, j])
-                        newmax = T.alloc_fragment((R,), "float32")
-                        T.finalize_reducer(mx, newmax)
-                        for r in T.Parallel(R):
-                            newmax[r] = T.max(maximum[r], newmax[r])
-                            alpha[r] = T.exp(maximum[r] - newmax[r])
-                            maximum[r] = newmax[r]
-                        sm = T.alloc_reducer((R,), "float32", op="sum")
-                        T.reducer_init(sm)
-                        for r, j in T.Parallel(R, BN):
-                            logits[r, j] = T.exp(logits[r, j] - newmax[r])
-                            probs[r, j] = logits[r, j]
-                            T.reducer_update(sm[r], logits[r, j])
-                        sums = T.alloc_fragment((R,), "float32")
-                        T.finalize_reducer(sm, sums)
-                        for r in T.Parallel(R):
-                            denom[r] = denom[r] * alpha[r] + sums[r]
+                            scores[r, j] = T.if_then_else(visible, z, -T.infinity("float32"))
+                    # One SIMD reduction owns each row. Max, sum and rescaling must
+                    # use that same row when merging successive KV tiles.
+                    with T.SimdVF():
+                        full = S.pset(32)
+                        one = S.pset(32, "PAT_VL1")
+                        for r in T.serial(R):
+                            lo = S.vld(scores[r, 0])
+                            hi = S.vld(scores[r, 64])
+                            old = S.vld(maximum[r], "BRC_B32")
+                            peak = S.vdupv(S.vcmax(S.vmax(lo, hi, full), full), full)
+                            peak = S.vmax(old, peak, full)
+                            adjust = S.vexpdif(old, peak, full)
+                            p0 = S.vexpdif(lo, peak, full)
+                            p1 = S.vexpdif(hi, peak, full)
+                            summed = S.vcadd(S.vadd(p0, p1, full), full)
+                            total = S.vadd(
+                                S.vmul(S.vld(denom[r], "BRC_B32"), adjust, full), summed, one
+                            )
+                            S.vsts(maximum[r], peak, one, "ONEPT_B32")
+                            S.vsts(denom[r], total, one, "ONEPT_B32")
+                            S.vsts(alpha[r], adjust, one, "ONEPT_B32")
+                            S.vsts(
+                                probs[r, 0],
+                                S.vcvt(p0, dtype, round="ROUND_R", sat=False, part=0),
+                                full,
+                                "PK_B32",
+                            )
+                            S.vsts(
+                                probs[r, 64],
+                                S.vcvt(p1, dtype, round="ROUND_R", sat=False, part=0),
+                                full,
+                                "PK_B32",
+                            )
                     T.dual_copy(probs, pl)
                     T.copy(V[bh, kv * BN : (kv + 1) * BN, :], vl, transpose=True)
                     T.gemm(pl, vl, pv, transpose_B=True, clear_accum=True)
@@ -1873,6 +1905,7 @@ def attention_merge(call, cube_cores, splits):
         Stats: T.Tensor((B * HK, NS, QR, 2), "float32"),
         Sinks: T.Tensor((H,), "float32"),
         O: T.Tensor((B, SQ, H, D), dtype),
+        LSE: T.Tensor((B, H, SQ), "float32") if call.return_lse else None,
     ):
         with T.Kernel(grid) as bx:
             for batch in T.serial(B):
@@ -1901,6 +1934,12 @@ def attention_merge(call, cube_cores, splits):
                                 O[b, q, h, d] = T.if_then_else(
                                     Sinks[h] == T.infinity("float32"), 0, numerator / denominator
                                 )
+                            elif call.return_lse:
+                                O[b, q, h, d] = T.if_then_else(denominator > 0, numerator / denominator, 0)
+                                if d == 0:
+                                    LSE[b, h, q] = T.if_then_else(
+                                        denominator > 0, m + T.log(denominator), -T.infinity("float32")
+                                    )
                             else:
                                 O[b, q, h, d] = numerator / denominator
 
@@ -1964,7 +2003,7 @@ class AscendGQADenseKernel(Kernel, GQADenseFwdInterface):
             self.fused = tilelang.compile(
                 prefill_query_major(call, **options),
                 target="ascend",
-                out_idx=-1,
+                out_idx=[4,5] if call.return_lse else -1,
                 pass_configs=pass_configs(),
             )
             return
@@ -2009,7 +2048,10 @@ class AscendGQADenseKernel(Kernel, GQADenseFwdInterface):
             raise RuntimeError("cached GQA grid exceeds the current Cube limit")
         variant = self.config["variant"]
         if variant == "empty":
-            return torch.empty_like(q, dtype=call.dtype)
+            output = torch.empty_like(q, dtype=call.dtype)
+            if call.return_lse:
+                return output, q.new_empty((q.shape[0], call.heads, q.shape[1]), dtype=torch.float32)
+            return output
         if variant == "decode-multibuffer":
             if call.has_sinks:
                 return self.fused(q, k, v, sinks)
@@ -2054,8 +2096,13 @@ class AscendGQADenseKernel(Kernel, GQADenseFwdInterface):
             self.pack[2](operands[2], v_scale, dummy_rope, dummy_rope, 0, value)
         partial, stats = self.partial(query, key, value, sq, sk)
         output = torch.empty(q.shape, dtype=call.dtype, device=q.device)
+        if call.return_lse:
+            lse = torch.empty((batch, call.heads, sq), dtype=torch.float32, device=q.device)
+            self.merge(partial, stats, sinks, output, lse)
+            return output, lse
         self.merge(partial, stats, sinks, output)
         return output
 
 
 register_kernel_type("GQADenseFwdOp", "ascend", AscendGQADenseKernel)
+register_kernel_type("GQADenseWithLSEFwdOp", "ascend", AscendGQADenseKernel)
