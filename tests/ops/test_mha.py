@@ -230,3 +230,20 @@ def test_mha_paged_ascend(q_len: int, live_kv: int) -> None:
     op = MHAPagedFwdOp(page_size=128)
     output = op(q, k, v, table, lengths)
     compare_outputs(output, workload.ref_program(q, k, v, table, lengths), workload.verification(q))
+
+
+@pytest.mark.smoke
+def test_mha_paged_empty_request_and_reused_metadata() -> None:
+    """One op consumes new device lengths and page IDs on every invocation."""
+    device = run_device()
+    test = MHADecodePagedTest(2, 8, 4, 512, 64, 128, True, torch.float16)
+    q, k, v, table, lengths = test.gen_inputs()
+    op = MHAPagedFwdOp(page_size=128, is_causal=True)
+    for first, second in ((0, 129), (65, 2)):
+        lengths.copy_(torch.tensor([first, second], dtype=torch.int32, device=device))
+        table.copy_(table.flip([1]))
+        result = op(q, k, v, table, lengths)
+        ref = test.ref_program(q, k, v, table, lengths)
+        torch.testing.assert_close(result.float(), ref.float(), rtol=1e-3, atol=1e-3)
+        if first == 0:
+            assert torch.count_nonzero(result[0]).item() == 0

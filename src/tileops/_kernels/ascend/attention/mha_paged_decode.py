@@ -750,7 +750,7 @@ def build_kernel(sq, kv, pool_rows):
 
 
 class AscendMHAPagedDecodeKernel(Kernel, MHAPagedDecodeFwdInterface):
-    """Paged MHA specialized for B1H1 BF16 on a 28-Cube Ascend device."""
+    """Paged attention with a 28-Cube BF16 schedule and vector split-KV decode."""
 
     devices = frozenset({"npu"})
     supported_archs = None
@@ -797,7 +797,9 @@ class AscendMHAPagedDecodeKernel(Kernel, MHAPagedDecodeFwdInterface):
             and not self.call.is_causal
             and torch.npu.get_device_properties(q.device.index).cube_core_num == 28
         )
-        if not original_geometry or real_seqlen_kv.item() % 128:
+        # Only the specialized Cube plan needs a page-aligned host length.
+        kv = int(real_seqlen_kv.item()) if original_geometry else None
+        if kv is None or kv % 128 or kv > k_pool.shape[0]:
             part, merge = paged_programs(
                 self.call, int(get_num_vector_cores(device_id=q.device.index))
             )
@@ -814,7 +816,6 @@ class AscendMHAPagedDecodeKernel(Kernel, MHAPagedDecodeFwdInterface):
             raise ValueError("cache length must be on the query device")
         if real_seqlen_kv.shape != (1,) or real_seqlen_kv.dtype != torch.int32:
             raise ValueError("cache length must be one int32 value")
-        kv = int(real_seqlen_kv.item())
         if kv == 0:
             return torch.zeros_like(q)
         if kv < 0 or kv % 128 or kv // 128 > block_table.shape[1]:

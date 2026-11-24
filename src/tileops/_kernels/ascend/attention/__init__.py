@@ -20,8 +20,8 @@ from tileops._kernels.ascend.attention.paged_cache_gather import (
 from tileops._kernels.ascend.attention.topk_select import AscendTopKSelectKernel
 
 __all__ = [
-    "AscendMHAPagedDecodeKernel",
     "AscendGQADenseKernel",
+    "AscendMHAPagedDecodeKernel",
     "AscendMergeAttentionStatesKernel",
     "AscendNSACompressedFwdVarlenKernel",
     "AscendNSAFwdVarlenKernel",

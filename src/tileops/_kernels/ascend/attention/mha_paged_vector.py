@@ -107,29 +107,37 @@ def paged_programs(call, cores):
                             Part[row, split, dim] = T.float32(empty_max)
                             Part[row, split, dim + 1] = T.float32(0)
 
+    @T.macro
+    def normalize(parts, output, row, src):
+        with T.SimtVF(threads=dim):
+            col = T.get_thread_binding()
+            mx = T.alloc_var("float32", init=empty_max)
+            for i in T.serial(splits):
+                mx = T.max(mx, parts[src, i, dim])
+            den = T.alloc_var("float32", init=0)
+            val = T.alloc_var("float32", init=0)
+            for i in T.serial(splits):
+                w = T.exp(parts[src, i, dim] - mx)
+                val += w * parts[src, i, col]
+                den += w * parts[src, i, dim + 1]
+            output[row // (heads * qlen), row // heads % qlen, row % heads, col] = T.cast(
+                val / T.max(den, T.float32(1e-30)), dtype
+            )
+
     @T.prim_func
     def paged_merge(
         Part: T.Tensor((rows, splits, stride), "float32"),
         Out: T.Tensor((b, qlen, heads, dim), dtype),
     ):
         with T.Kernel(min(cores, rows)) as block:
-            buf = T.alloc_shared((splits, stride), "float32")
             for row in T.serial(block, rows, min(cores, rows)):
-                T.copy(Part[row, :, :], buf)
-                with T.SimtVF(threads=dim):
-                    col = T.get_thread_binding()
-                    mx = T.alloc_var("float32", init=empty_max)
-                    for i in T.serial(splits):
-                        mx = T.max(mx, buf[i, dim])
-                    den = T.alloc_var("float32", init=0)
-                    val = T.alloc_var("float32", init=0)
-                    for i in T.serial(splits):
-                        w = T.exp(buf[i, dim] - mx)
-                        val += w * buf[i, col]
-                        den += w * buf[i, dim + 1]
-                    Out[row // (heads * qlen), row // heads % qlen, row % heads, col] = T.cast(
-                        val / T.max(den, T.float32(1e-30)), dtype
-                    )
+                # Bound per-core UB regardless of the logical page table width.
+                if splits * stride <= 16384:
+                    buf = T.alloc_shared((1, splits, stride), "float32")
+                    T.copy(Part[row, :, :], buf[0, :, :])
+                    normalize(buf, Out, row, 0)
+                else:
+                    normalize(Part, Out, row, row)
 
     return (
         tilelang.compile(paged_partials, target="ascend", out_idx=[5]),
