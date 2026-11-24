@@ -976,10 +976,13 @@ def test_gqa_bwd_graph_replays_alternate_dq_accumulators(
 
 @pytest.mark.in_tree_kernels
 @pytest.mark.smoke
-def test_gqa_bwd_refuses_a_head_dim_off_the_contraction_before_building() -> None:
-    """Every backward kernel contracts the head dim in steps of 16, so head dim 24 is refused."""
+def test_gqa_bwd_head_dim_off_the_contraction_by_backend() -> None:
+    """Ascend pads this dimension; CUDA rejects it before building a kernel."""
     test = GQABwdTest(1, 8, 2, 128, 24, True, torch.float16)
     op = GQADenseBwdOp(is_causal=True, target=BUILTIN)
+    if torch.device(run_device()).type == "npu":
+        test.check(op, *test.gen_inputs())
+        return
     with pytest.raises(OpNotAvailableError, match="head dim must be a multiple of 16"):
         op(*test.gen_inputs())
     for interface in GQADenseBwdOp.interfaces:
@@ -1373,7 +1376,8 @@ def test_gqa_bwd_gives_a_row_with_lse_minus_inf_zero_gradients() -> None:
 
 
 @pytest.mark.smoke
-def test_gqa_dense_bwd_refuses_what_its_kernels_do_not_serve() -> None:
+@pytest.mark.cuda_only
+def test_cuda_gqa_dense_bwd_refuses_what_its_kernels_do_not_serve() -> None:
     """A window or softcap of the forward is refused by name, not silently dropped."""
     test = GQABwdTest(1, 4, 2, 128, 64, True, torch.bfloat16)
     inputs = [t.detach() for t in test.gen_inputs()]
