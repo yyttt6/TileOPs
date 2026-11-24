@@ -25,6 +25,7 @@ from tileops.gemm import GEMMFP8FwdOp, GEMMFwdOp, GEMMINT8W8A8FwdOp, GEMMW4A8Fwd
 from workloads.gemm import (
     GEMMFP8Workload,
     GEMMWorkload,
+    dequantize_row_major_w4a16_weight,
     dequantize_w4a16_weight,
     matmul_fp32_reduction,
 )
@@ -560,7 +561,7 @@ def test_gemm_w4a16_bench(case) -> None:
     op = GEMMW4A16FwdOp(**case.arguments)
 
     # The torch row multiplies by a weight dequantized once, outside the timed call.
-    weight = dequantize_w4a16_weight(*inputs[1:]).to(workload.dtype)
+    weight = dequantize_row_major_w4a16_weight(*inputs[1:]).to(workload.dtype)
 
     def torch_dequantized_matmul(activation: torch.Tensor, *_: torch.Tensor) -> torch.Tensor:
         return torch.matmul(activation, weight.T)

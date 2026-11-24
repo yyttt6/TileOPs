@@ -85,7 +85,12 @@ def select(root, base):
         "src/tileops/_kernels/ascend/convolution/conv1d_shallow.py": "Conv1dFwdOp",
         "src/tileops/_kernels/ascend/transform/hadamard.py": "HadamardTransformFwdOp",
     }
+    from gemm_selection import REGISTRY, WORKLOADS, select_gemm_harness
+
+    gemm_paths = {REGISTRY, WORKLOADS} & set(changed)
     for path in changed:
+        if path in gemm_paths:
+            continue
         if path in builtin_sources:
             selected.add(builtin_sources[path])
         p = root / path
@@ -145,6 +150,11 @@ def select(root, base):
         else:
             selected.update(ops)
         reasons[path] = sorted(ops)
+    if gemm_paths:
+        gemm_operators = select_gemm_harness(root, base, gemm_paths)
+        selected.update(gemm_operators)
+        for path in gemm_paths:
+            reasons[path] = sorted(gemm_operators)
     for family, ops in families.items():
         selected.update(ops if family in shared_families else (direct.get(family) or ops))
     return dict(
@@ -250,6 +260,7 @@ def main():
                 name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
                 for name in (
                     "pr_performance.py",
+                    "gemm_selection.py",
                     "device_batch.py",
                     "nightly_support/session_profile.py",
                     "baseline_contracts.py",

@@ -3,6 +3,7 @@
 from tileops._kernels.ascend import (
     convolution,
     elementwise,
+    fft,
     gemm,
     linear_attention,
     moe,
@@ -12,11 +13,13 @@ from tileops._kernels.ascend import (
     reduction,
     rope,
     sequence_modeling,
+    transform,
 )
 
 __all__ = [
     "convolution",
     "elementwise",
+    "fft",
     "gemm",
     "moe",
     "pool",
@@ -24,6 +27,7 @@ __all__ = [
     "reduction",
     "rope",
     "sequence_modeling",
+    "transform",
 ]
 
 from tileops._kernels.ascend import attention, mamba, sampling

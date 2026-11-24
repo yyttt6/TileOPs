@@ -178,3 +178,55 @@ def test_manual_target_descendant_has_no_false_revert_changes(repo):
     result = selection(repo, target)
     assert result["operators"] == []
     assert result["comparison_base"] == common
+
+
+@pytest.mark.parametrize(
+    ("edit", "expected"),
+    [
+        ("entry", ["GEMMW4A16FwdOp"]),
+        ("workload", ["GEMMW4A16FwdOp"]),
+        ("shared_binder", ["GEMMW4A8FwdOp", "GEMMW4A16FwdOp"]),
+        ("shared_workload", ["GEMMW4A8FwdOp", "GEMMW4A16FwdOp"]),
+        ("dynamic_entry", ["GEMMW4A8FwdOp", "GEMMW4A16FwdOp"]),
+    ],
+)
+def test_gemm_harness_selection_preserves_shared_coverage(repo, edit, expected):
+    registry = repo / "benchmarks/_cases/gemm.py"
+    registry.parent.mkdir(parents=True)
+    registry.write_text(
+        "from benchmarks._cases import Entry\n"
+        "from workloads.gemm import W4A8, W4A16\n"
+        "def bind(op, case): return op, case\n"
+        'ENTRIES = {"GEMMW4A8FwdOp": Entry(W4A8, binder=bind), '
+        '"GEMMW4A16FwdOp": Entry(W4A16)}\n'
+    )
+    workload = repo / "workloads/gemm.py"
+    workload.parent.mkdir()
+    workload.write_text(
+        "def shared(): return 0\n"
+        "class W4A8:\n    def reference(self): return shared()\n"
+        "class W4A16:\n    def reference(self): return shared()\n"
+    )
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "GEMM harness")
+    base = git(repo, "rev-parse", "HEAD")
+
+    if edit == "entry":
+        registry.write_text(
+            registry.read_text().replace("Entry(W4A16)", "Entry(W4A16, binder=bind)")
+        )
+    elif edit == "workload":
+        workload.write_text(
+            workload.read_text().replace("class W4A16:", "class W4A16:\n    scale = 128")
+        )
+    elif edit == "shared_binder":
+        registry.write_text(
+            registry.read_text().replace("return op, case", "return op, case.inputs")
+        )
+    elif edit == "shared_workload":
+        workload.write_text(workload.read_text().replace("return 0", "return 1"))
+    else:
+        registry.write_text(registry.read_text().replace("Entry(W4A16)", "Entry(factory())"))
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", edit)
+    assert set(selection(repo, base)["operators"]) == set(expected)

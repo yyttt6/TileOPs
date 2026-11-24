@@ -350,8 +350,16 @@ def compare_outputs(produced: Any, expected: Any, evidence: Evidence) -> CheckRe
         raise ValueError(
             f"reference establishes {len(targets)} of {width} outputs; declare Partial explicitly"
         )
+    # Keep complex IsClose and FP64 error diagnostics off devices without those kernels.
+    # _tensor_pairs still checks the original device, shape and dtype before copying.
     pairs = [
-        list(_tensor_pairs(a, b)) for a, b in zip(outputs[:claimed], targets[:claimed], strict=True)
+        [
+            (got.cpu(), target.cpu())
+            if got.device.type == "npu" and got.is_complex()
+            else (got, target)
+            for got, target in _tensor_pairs(a, b)
+        ]
+        for a, b in zip(outputs[:claimed], targets[:claimed], strict=True)
     ]
     if isinstance(evidence, Custom):
         evidence.validator(produced, expected)

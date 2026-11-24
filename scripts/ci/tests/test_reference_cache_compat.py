@@ -106,3 +106,25 @@ def test_real_cache_hit_then_changed_runtime_and_input_miss(unchanged, tmp_path)
     changed_input = cache.GoldenCache(tmp_path, new_identity, min_free_bytes=0)
     assert torch.equal(changed_input.wrap(lambda value: value + 2)(x + 1), x + 3)
     assert changed_input.events[-1]["status"] == "miss"
+
+
+@pytest.mark.parametrize(
+    ("op", "reuse"),
+    [
+        ("GDNFwdOp", True),
+        ("KDAFwdOp", True),
+        ("EngramGateConvFwdOp", False),
+        ("IndexedExpertMLPFwdOp", False),
+    ],
+)
+def test_post_engram_transition_preserves_only_unaffected_oracles(
+    unchanged, monkeypatch, op, reuse
+):
+    monkeypatch.setattr(
+        compat,
+        "reference_source_digest",
+        lambda _: (compat.POST_ENGRAM_SOURCE, "independent-reference"),
+    )
+    current = identity(compat.POST_ENGRAM_SOURCE)
+    result = compat.reuse_unchanged_reference_identity("source", op, current)
+    assert result == (identity(compat.OLD_SOURCE) if reuse else current)

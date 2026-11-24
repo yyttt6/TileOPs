@@ -299,3 +299,14 @@ def test_ci_orchestration_changes_reuse_compiled_runtime(environment):
     git(source, "add", ".")
     git(source, "commit", "-m", "CI orchestration only")
     assert cache_identity(*environment) == before
+
+
+def test_trusted_namespace_reuses_program_cache_across_source_commits(environment):
+    source, lock, report = environment
+    before = cache_identity(*environment, trusted_programs=True)
+    assert before != cache_identity(*environment)
+    (source / "kernel.py").write_text("value = 3\n")
+    git(source, "commit", "-am", "change one kernel")
+    assert cache_identity(*environment, trusted_programs=True) == before
+    lock.write_text(json.dumps({"profile": "test", "compiler": "v2"}))
+    assert cache_identity(source, lock, report, trusted_programs=True) != before

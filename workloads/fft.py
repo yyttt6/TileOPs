@@ -11,10 +11,22 @@ class FFTWorkload(WorkloadBase):
         self.batch_shape = batch_shape
 
     def gen_inputs(self) -> tuple[torch.Tensor]:
-        x = torch.randn(*self.batch_shape, self.n, device=run_device(), dtype=self.dtype)
+        device = run_device()
+        if torch.device(device).type == "npu" and self.dtype == torch.complex64:
+            # Complex normal has independent real components with variance one half.
+            # NPU normal_ accepts FP32 storage, but not a complex64 tensor.
+            parts = torch.randn(*self.batch_shape, self.n, 2, device=device, dtype=torch.float32)
+            x = torch.view_as_complex(parts.mul_(2**-0.5))
+        elif torch.device(device).type == "npu" and self.dtype == torch.complex128:
+            # Construct binary64 values at full precision before moving to the NPU.
+            x = torch.randn(*self.batch_shape, self.n, device="cpu", dtype=self.dtype).to(device)
+        else:
+            x = torch.randn(*self.batch_shape, self.n, device=device, dtype=self.dtype)
         return (x,)
 
     def ref_program(self, x: torch.Tensor) -> torch.Tensor:
+        if x.device.type == "npu" and x.dtype == torch.complex128:
+            return torch.fft.fft(x.cpu(), dim=-1).to(x.device)
         return torch.fft.fft(x, dim=-1)
 
     def verification(self, *inputs):

@@ -27,6 +27,6 @@ ENTRIES = {
     "GEMMFP8FwdOp": Entry(GEMMFP8Workload.from_call, count_copies=True),
     "GEMMINT8W8A8FwdOp": Entry(GEMMINT8W8A8Workload.from_call),
     "GEMMW4A8FwdOp": Entry(GEMMW4A8Workload.from_call, binder=_prepacked_weight),
-    "GEMMW4A16FwdOp": Entry(GEMMW4A16Workload.from_call),
+    "GEMMW4A16FwdOp": Entry(GEMMW4A16Workload.from_call, binder=_prepacked_weight),
     "GroupedGEMMFwdOp": Entry(GroupedGEMMWorkload.from_call),
 }

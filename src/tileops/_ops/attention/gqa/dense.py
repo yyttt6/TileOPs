@@ -127,8 +127,12 @@ class GQADenseFwdOp(_GQADenseFwdOpBase):
     of $p_i$, ``-1`` meaning unlimited. $Q'$ and $K'$ are $Q$ and $K$ times ``q_scale`` and
     ``k_scale`` for FP8 input, rotated under ``pos_encoding_mode="rope"`` at positions $p_i$
     and $j$; $V'$ is $V$ times ``v_scale``. A sink is neither scaled nor capped, and the
-    in-tree kernels serve ``sinks`` on SM90 only. Accumulation is FP32; the output takes the
+    in-tree kernels serve ``sinks`` on SM90 and Ascend950. Accumulation is FP32; the output takes the
     input dtype, or ``out_dtype`` for FP8 input.
+
+    On Ascend950, the general kernel supports varying batch size, query length, KV length
+    and RoPE table capacity within a fixed model geometry and KV split schedule. Tuned
+    prefill and decode schedules specialize selected shapes. Head widths are 64, 128 and 256.
     """
 
     def __init__(
@@ -230,7 +234,7 @@ class GQADenseFwdOp(_GQADenseFwdOpBase):
                 ``rope_cos``.
             sinks: Optional ``float32`` logits, shape ``[H]``, shared across
                 batches and query positions. Each contributes no value.
-                Supported by in-tree kernels on SM90 only, for prefill and decode.
+                Supported on SM90 and Ascend950 for prefill and decode.
 
         Returns:
             Attention output, $[B \times S_q \times H \times D]$, laid out

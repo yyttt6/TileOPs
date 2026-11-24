@@ -1,6 +1,7 @@
 """Ascend attention implementations and registrations."""
 
 from tileops._kernels.ascend.attention import mla_cache_write, paged_cache_write
+from tileops._kernels.ascend.attention.gqa_dense_prefill import AscendGQADenseKernel
 from tileops._kernels.ascend.attention.merge_states import AscendMergeAttentionStatesKernel
 from tileops._kernels.ascend.attention.mha_paged_decode import AscendMHAPagedDecodeKernel
 from tileops._kernels.ascend.attention.nsa_compressed_varlen import (
@@ -20,6 +21,7 @@ from tileops._kernels.ascend.attention.topk_select import AscendTopKSelectKernel
 
 __all__ = [
     "AscendMHAPagedDecodeKernel",
+    "AscendGQADenseKernel",
     "AscendMergeAttentionStatesKernel",
     "AscendNSACompressedFwdVarlenKernel",
     "AscendNSAFwdVarlenKernel",
