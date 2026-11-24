@@ -732,17 +732,17 @@ def prefill_preprocess(call, num_cores, query_block=32, l0_k=64):
 
 
 @functools.lru_cache(maxsize=128)
-def prefill_query_major(call, num_cores):
+def prefill_query_major(call, num_cores, packed=False):
     q_len, kv_len = call.max_seqlen_q, call.seqlen_kv
     batch_size, num_heads, num_kv_heads = call.batch, call.heads, call.heads_kv
     group = num_heads // num_kv_heads
     out_dtype = str(call.dtype).split(".")[-1]
     softmax_scale = call.sm_scale
     assert call.dim in (64, 128) and out_dtype in ("float16", "bfloat16")
-    assert q_len % 128 == 0 and kv_len % 128 == 0 and kv_len >= q_len
+    assert packed or (q_len % 128 == 0 and kv_len % 128 == 0 and kv_len >= q_len)
     assert call.is_causal and call.softcap == 0
     assert not call.is_fp8 and not call.fuse_rope
-    assert call.window_size_left in (-1, 127) and call.window_size_right == -1
+    assert (packed or call.window_size_left in (-1, 127)) and call.window_size_right == -1
     window_left = call.window_size_left
     assert num_cores > 0
     BR, BC, ROWS, VL, D, D0 = 128, 128, 64, 64, call.dim, call.dim
@@ -754,12 +754,12 @@ def prefill_query_major(call, num_cores):
     TASKS = batch_size * num_heads * M_TILES
     # Every launched block must own a Q tile: the bounds assumptions below
     # allow lowering to remove the zero-task path for otherwise idle blocks.
-    num_cores = min(num_cores, TASKS)
+    num_cores = num_cores if packed else min(num_cores, TASKS)
     PREFIX = (kv_len - q_len) // BC + 1
     scale = softmax_scale if softmax_scale is not None else 1.0 / math.sqrt(D)
 
     DIRECT_SCORE = call.has_sinks and window_left < 0 and D == 64 and scale == 0.125
-    VECTOR_UPDATE = DIRECT_SCORE and q_len == kv_len
+    VECTOR_UPDATE = DIRECT_SCORE and not packed and q_len == kv_len
 
     # Consecutive Q tasks on core cid visit head (task * num_cores + cid) % num_heads.
     # Cache that short cycle in aligned UB slots for the lifetime of the kernel.
@@ -845,9 +845,9 @@ def prefill_query_major(call, num_cores):
                     )
                 else:
                     masked00, masked01, masked10, masked11 = s00, s01, s10, s11
-                if window_left >= 0 and not masked:
+                if window_left >= 0 and (packed or not masked):
                     neg = S.vdup(T.float32(float("-inf")), "float32", full)
-                    lo0 = BC + sid * ROWS + r - window_left
+                    lo0 = (qk_offset if packed else BC) + sid * ROWS + r - window_left
                     lo1 = lo0 + 1
                     masked00 = S.vsel(neg, masked00, S.update_mask(T.max(0, T.min(VL, lo0)), 32))
                     masked01 = S.vsel(
@@ -1055,6 +1055,660 @@ def prefill_query_major(call, num_cores):
                     else:
                         S.vsts(accum[r, c], updated, full, "NORM_B32")
 
+    window_blocks = (1 + (window_left + BC - 1) // BC) if packed and window_left >= 0 else 2
+
+    @T.macro
+    def execute(Q, K, V, Sinks, O, LSE, cid, q_origin, kv_origin,
+                q_len, kv_len, M_TILES, HEAD_STRIDE, TASKS, PREFIX):
+        T.assume(q_len > 0)
+        T.assume(kv_len > 0)
+        T.assume(batch_size > 0)
+        T.assume(num_heads > 0)
+        T.assume(q_len % 128 == 0)
+        T.assume(kv_len % 128 == 0)
+        T.assume(kv_len >= q_len)
+        q_l1 = T.alloc_l1((2, BR, D), out_dtype)
+        k_l1 = T.alloc_l1((3, BC, D), out_dtype)
+        v_l1 = T.alloc_l1((3, D0, BC), out_dtype)
+        p_l1 = T.alloc_l1((2, BR, BC), out_dtype)
+        # Shared L0 rings have fixed 32 KiB slots for BOTH GEMMs.
+        a_l0 = T.alloc_l0a((2, BR, BC), out_dtype)
+        b_l0 = T.alloc_l0b((2, BC, BC), out_dtype)
+        qk_l0 = T.alloc_l0c((2, BR, BC), "float32")
+        pv_l0 = T.alloc_l0c((2, BR, D0), "float32")
+        score = T.alloc_shared((3, ROWS, BC), "float32")
+        prob = T.alloc_shared((2, ROWS + 1, BC), out_dtype)
+        T.annotate_layout({prob: make_ascend_compact_nz_layout(prob)})
+        pv = T.alloc_shared((2, ROWS, D0), "float32")
+        accum = T.alloc_shared((ROWS, D0), "float32")
+        maximum = T.alloc_shared((3, ROWS), "float32")
+        denominator = T.alloc_shared((3, ROWS), "float32")
+        alpha = T.alloc_shared((3, ROWS), "float32")
+        old_max = T.alloc_shared((ROWS,), "float32")
+        row_sum = T.alloc_shared((ROWS,), "float32")
+        output = T.alloc_shared((ROWS, D0), out_dtype)
+        if call.return_lse:
+            row_lse = T.alloc_shared((ROWS,), "float32")
+        sink_ub = T.alloc_shared((8 * sink_heads_per_core if cache_sinks else 8,), "float32")
+
+        tasks = T.ceildiv(TASKS - cid, num_cores)
+        total = T.alloc_var("int32", init=0)
+        for task in T.serial(tasks):
+            total += (
+                (task * num_cores + cid) // TILE_STRIDE % M_TILES
+                + PREFIX
+                - (
+                    T.max(0, (task * num_cores + cid) // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                    if window_left >= 0
+                    else 0
+                )
+            )
+        T.assume(total >= 0)
+        T.assume(total <= T.ceildiv(TASKS, num_cores) * (kv_len // BC))
+
+        with T.Cube():
+            for e in T.serial(8):
+                T.ascend_set_flag("MTE1_MTE2", e)
+            for e in T.serial(4):
+                T.ascend_set_flag("FIX_M", e)
+            for e in T.serial(2):
+                T.ascend_set_flag("M_MTE1", e)
+                T.ascend_cross_core_set_flag(4, "PIPE_MTE1", 5 + e * 16)
+                T.ascend_cross_core_set_flag(4, "PIPE_MTE1", 12 + e * 16)
+            tk = T.alloc_var("int32", init=0)
+            kk = T.alloc_var("int32", init=0)
+            tq = T.alloc_var("int32", init=0)
+            kq = T.alloc_var("int32", init=0)
+            tv = T.alloc_var("int32", init=0)
+            kv = T.alloc_var("int32", init=0)
+            l0_sequence = T.alloc_var("int32", init=0)
+
+            # t: load K/Q; t-1: QK; t-2: load V / QK fix;
+            # t-4: PV; t-5: PV fix. Drain once for ALL Q tasks.
+            for step in T.serial(total + 5):
+                # Feed older PV before prefetching future Q/K tiles.
+                if call.has_sinks and window_left < 0:  # noqa: SIM102 - Static specialization guard.
+                    if step >= 2 and step < total + 2:
+                        g = step - 2
+                        tile = tv * num_cores + cid
+                        T.assume(0 <= tile < TASKS)
+                        T.assume(0 <= kv < kv_len // BC)
+                        batch = tile // (num_heads * M_TILES)
+                        head = tile // HEAD_STRIDE % num_heads
+                        T.ascend_wait_flag("MTE1_MTE2", g % 3)
+                        T.copy(
+                            V[
+                                batch,
+                                kv_origin + ((
+                                    kv
+                                    + (
+                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                        if window_left >= 0
+                                        else 0
+                                    )
+                                )
+                                * BC) : kv_origin + ((
+                                    kv
+                                    + (
+                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                        if window_left >= 0
+                                        else 0
+                                    )
+                                    + 1
+                                )
+                                * BC),
+                                head // group,
+                                :,
+                            ],
+                            v_l1[g % 3, :, :],
+                            transpose=True,
+                        )
+                        T.ascend_set_flag("MTE2_MTE1", g % 3)
+                        kv += 1
+                        if kv == (
+                            tile // TILE_STRIDE % M_TILES
+                            + PREFIX
+                            - (
+                                T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                if window_left >= 0
+                                else 0
+                            )
+                        ):
+                            kv = 0
+                            tv += 1
+
+                if step < total:
+                    tile = tk * num_cores + cid
+                    # Cursor invariants: the stream contains exactly the
+                    # valid Q tasks and their visible KV tiles. Expose the
+                    # bounds so OOB lowering need not add dynamic padding.
+                    T.assume(0 <= tile < TASKS)
+                    T.assume(0 <= kk < kv_len // BC)
+                    batch = tile // (num_heads * M_TILES)
+                    head = tile // HEAD_STRIDE % num_heads
+                    mt = tile // TILE_STRIDE % M_TILES
+                    if kk == 0:
+                        T.ascend_wait_flag("MTE1_MTE2", 6 + tk % 2)
+                        T.copy(Q[batch, q_origin + (mt * BR) : q_origin + ((mt + 1) * BR), head, :], q_l1[tk % 2, :, :])
+                        T.ascend_set_flag("MTE2_MTE1", 6 + tk % 2)
+                    T.ascend_wait_flag("MTE1_MTE2", 3 + step % 3)
+                    T.copy(
+                        K[
+                            batch,
+                            kv_origin + ((
+                                kk
+                                + (
+                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                    if window_left >= 0
+                                    else 0
+                                )
+                            )
+                            * BC) : kv_origin + ((
+                                kk
+                                + (
+                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                    if window_left >= 0
+                                    else 0
+                                )
+                                + 1
+                            )
+                            * BC),
+                            head // group,
+                            :,
+                        ],
+                        k_l1[step % 3, :, :],
+                    )
+                    T.ascend_set_flag("MTE2_MTE1", 3 + step % 3)
+                    kk += 1
+                    if kk == (
+                        tile // TILE_STRIDE % M_TILES
+                        + PREFIX
+                        - (
+                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                            if window_left >= 0
+                            else 0
+                        )
+                    ):
+                        kk = 0
+                        tk += 1
+
+                if step >= 1 and step < total + 1:
+                    g = step - 1
+                    tile = tq * num_cores + cid
+                    T.ascend_wait_flag("FIX_M", 2 + g % 2)
+                    if kq == 0:
+                        T.ascend_wait_flag("MTE2_MTE1", 6 + tq % 2)
+                    T.ascend_wait_flag("MTE2_MTE1", 3 + g % 3)
+                    for sk in T.serial(1):
+                        ls = T.floormod(l0_sequence + sk, 2)
+                        T.assume(0 <= ls < 2)
+                        T.ascend_wait_flag("M_MTE1", ls)
+                        T.copy(q_l1[tq % 2, :, sk * D : (sk + 1) * D], a_l0[ls, :, :D])
+                        T.copy(k_l1[g % 3, :, sk * D : (sk + 1) * D], b_l0[ls, :, :D])
+                        T.ascend_set_flag("MTE1_M", ls)
+                        T.ascend_wait_flag("MTE1_M", ls)
+                        T.gemm(
+                            a_l0[ls, :, :D],
+                            b_l0[ls, :, :D],
+                            qk_l0[g % 2, :, :],
+                            transpose_B=True,
+                            clear_accum=sk == 0,
+                        )
+                        T.ascend_set_flag("M_MTE1", ls)
+                    l0_sequence += 1
+                    T.ascend_set_flag("M_FIX", 2 + g % 2)
+                    T.ascend_set_flag("MTE1_MTE2", 3 + g % 3)
+                    kq += 1
+                    if kq == (
+                        tile // TILE_STRIDE % M_TILES
+                        + PREFIX
+                        - (
+                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                            if window_left >= 0
+                            else 0
+                        )
+                    ):
+                        T.ascend_set_flag("MTE1_MTE2", 6 + tq % 2)
+                        kq = 0
+                        tq += 1
+
+                if not call.has_sinks or window_left >= 0:  # noqa: SIM102 - Static specialization guard.
+                    if step >= 2 and step < total + 2:
+                        g = step - 2
+                        tile = tv * num_cores + cid
+                        T.assume(0 <= tile < TASKS)
+                        T.assume(0 <= kv < kv_len // BC)
+                        batch = tile // (num_heads * M_TILES)
+                        head = tile // HEAD_STRIDE % num_heads
+                        T.ascend_wait_flag("MTE1_MTE2", g % 3)
+                        T.copy(
+                            V[
+                                batch,
+                                kv_origin + ((
+                                    kv
+                                    + (
+                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                        if window_left >= 0
+                                        else 0
+                                    )
+                                )
+                                * BC) : kv_origin + ((
+                                    kv
+                                    + (
+                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                        if window_left >= 0
+                                        else 0
+                                    )
+                                    + 1
+                                )
+                                * BC),
+                                head // group,
+                                :,
+                            ],
+                            v_l1[g % 3, :, :],
+                            transpose=True,
+                        )
+                        T.ascend_set_flag("MTE2_MTE1", g % 3)
+                        kv += 1
+                        if kv == (
+                            tile // TILE_STRIDE % M_TILES
+                            + PREFIX
+                            - (
+                                T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                if window_left >= 0
+                                else 0
+                            )
+                        ):
+                            kv = 0
+                            tv += 1
+
+                # Publish ready QK scores before waiting on older PV work.
+                if call.has_sinks and window_left < 0:  # noqa: SIM102 - Static specialization guard.
+                    if step >= 2 and step < total + 2:
+                        g = step - 2
+                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", g % 3)
+                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 16 + g % 3)
+                        T.ascend_wait_flag("M_FIX", 2 + g % 2)
+                        T.dual_copy(qk_l0[g % 2, :, :], score[g % 3, :, :])
+                        T.ascend_cross_core_set_flag(4, "PIPE_FIX", 6 + g % 3)
+                        T.ascend_cross_core_set_flag(4, "PIPE_FIX", 22 + g % 3)
+                        T.ascend_set_flag("FIX_M", 2 + g % 2)
+
+                if step >= 4 and step < total + 4:
+                    g = step - 4
+                    ready = T.if_then_else(g % 2 == 0, 11, 13)
+                    free = T.if_then_else(g % 2 == 0, 5, 12)
+                    T.ascend_wait_flag("FIX_M", g % 2)
+                    T.ascend_wait_flag("MTE2_MTE1", g % 3)
+                    T.ascend_cross_core_wait_flag(4, "PIPE_MTE1", ready)
+                    T.ascend_cross_core_wait_flag(4, "PIPE_MTE1", ready + 16)
+                    ls = T.floormod(l0_sequence, 2)
+                    T.assume(0 <= ls < 2)
+                    T.ascend_wait_flag("M_MTE1", ls)
+                    T.copy(p_l1[g % 2, :, :], a_l0[ls, :, :])
+                    T.copy(v_l1[g % 3, :, :], b_l0[ls, :D0, :])
+                    T.ascend_set_flag("MTE1_M", ls)
+                    T.ascend_wait_flag("MTE1_M", ls)
+                    T.gemm(
+                        a_l0[ls, :, :],
+                        b_l0[ls, :D0, :],
+                        pv_l0[g % 2, :, :],
+                        transpose_B=True,
+                        clear_accum=True,
+                    )
+                    T.ascend_set_flag("M_MTE1", ls)
+                    l0_sequence += 1
+                    T.ascend_set_flag("M_FIX", g % 2)
+                    T.ascend_cross_core_set_flag(4, "PIPE_MTE1", free)
+                    T.ascend_cross_core_set_flag(4, "PIPE_MTE1", free + 16)
+                    T.ascend_set_flag("MTE1_MTE2", g % 3)
+
+                if step >= 5:
+                    g = step - 5
+                    T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 3 + g % 2)
+                    T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 19 + g % 2)
+                    T.ascend_wait_flag("M_FIX", g % 2)
+                    T.dual_copy(pv_l0[g % 2, :, :], pv[g % 2, :, :])
+                    T.ascend_cross_core_set_flag(4, "PIPE_FIX", 9 + g % 2)
+                    T.ascend_cross_core_set_flag(4, "PIPE_FIX", 25 + g % 2)
+                    T.ascend_set_flag("FIX_M", g % 2)
+
+                if not call.has_sinks or window_left >= 0:  # noqa: SIM102 - Static specialization guard.
+                    if step >= 2 and step < total + 2:
+                        g = step - 2
+                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", g % 3)
+                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 16 + g % 3)
+                        T.ascend_wait_flag("M_FIX", 2 + g % 2)
+                        T.dual_copy(qk_l0[g % 2, :, :], score[g % 3, :, :])
+                        T.ascend_cross_core_set_flag(4, "PIPE_FIX", 6 + g % 3)
+                        T.ascend_cross_core_set_flag(4, "PIPE_FIX", 22 + g % 3)
+                        T.ascend_set_flag("FIX_M", 2 + g % 2)
+
+            for e in T.serial(8):
+                T.ascend_wait_flag("MTE1_MTE2", e)
+            for e in T.serial(4):
+                T.ascend_wait_flag("FIX_M", e)
+            for sub in T.serial(2):
+                T.ascend_wait_flag("M_MTE1", sub)
+                for e in T.serial(5):
+                    T.ascend_cross_core_wait_flag(4, "PIPE_FIX", e + sub * 16)
+
+        with T.Vector() as sid:
+            for e in T.serial(5):
+                T.ascend_cross_core_set_flag(4, "PIPE_V", e)
+            for e in T.serial(3):
+                T.ascend_set_flag("MTE3_V", e)
+            if cache_sinks:
+                for slot in T.unroll(sink_heads_per_core):
+                    prefetch_head = cid + slot * num_cores
+                    T.copy(
+                        Sinks[prefetch_head : prefetch_head + 1],
+                        sink_ub[slot * 8 : slot * 8 + 1],
+                    )
+                T.ascend_set_flag("MTE2_V", 0)
+                T.ascend_wait_flag("MTE2_V", 0)
+            st = T.alloc_var("int32", init=0)
+            skv = T.alloc_var("int32", init=0)
+            output_task = T.alloc_var("int32", init=0)
+            okv = T.alloc_var("int32", init=0)
+
+            # Consume g=t-3 BEFORE producing t: alpha has three slots.
+            # Separate Q-task cursors keep the previous denominator live.
+            for step in T.serial(total + 3):
+                if step >= 3:
+                    g = step - 3
+                    tile = output_task * num_cores + cid
+                    last = (
+                        okv
+                        == (
+                            tile // TILE_STRIDE % M_TILES
+                            + PREFIX
+                            - (
+                                T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                if window_left >= 0
+                                else 0
+                            )
+                        )
+                        - 1
+                    )
+                    T.ascend_cross_core_wait_flag(4, "PIPE_V", 9 + g % 2)
+                    if last:
+                        T.ascend_wait_flag("MTE3_V", 2)
+                        if call.has_sinks and not cache_sinks:
+                            head = tile // HEAD_STRIDE % num_heads
+                            T.ascend_set_flag("V_MTE2", 0)
+                            T.ascend_wait_flag("V_MTE2", 0)
+                            T.copy(Sinks[head : head + 1], sink_ub[:1])
+                            T.ascend_set_flag("MTE2_V", 0)
+                            T.ascend_wait_flag("MTE2_V", 0)
+                        if okv == 0:
+                            update_output(
+                                pv,
+                                accum,
+                                output,
+                                alpha,
+                                denominator,
+                                maximum,
+                                sink_ub,
+                                row_sum,
+                                output_task,
+                                g,
+                                True,
+                                True,
+                            )
+                        else:
+                            update_output(
+                                pv,
+                                accum,
+                                output,
+                                alpha,
+                                denominator,
+                                maximum,
+                                sink_ub,
+                                row_sum,
+                                output_task,
+                                g,
+                                False,
+                                True,
+                            )
+                    elif okv == 0:
+                        update_output(
+                            pv,
+                            accum,
+                            output,
+                            alpha,
+                            denominator,
+                            maximum,
+                            sink_ub,
+                            row_sum,
+                            output_task,
+                            g,
+                            True,
+                            False,
+                        )
+                    else:
+                        update_output(
+                            pv,
+                            accum,
+                            output,
+                            alpha,
+                            denominator,
+                            maximum,
+                            sink_ub,
+                            row_sum,
+                            output_task,
+                            g,
+                            False,
+                            False,
+                        )
+                    T.ascend_cross_core_set_flag(4, "PIPE_V", 3 + g % 2)
+                    if last:
+                        T.assume(0 <= tile < TASKS)
+                        batch = tile // (num_heads * M_TILES)
+                        head = tile // HEAD_STRIDE % num_heads
+                        mt = tile // TILE_STRIDE % M_TILES
+                        if call.return_lse:
+                            with T.SimdVF():
+                                full = S.pset(32)
+                                m = S.vld(maximum[output_task % 3, 0], "NORM")
+                                d = S.vld(denominator[output_task % 3, 0], "NORM")
+                                S.vsts(row_lse[0], S.vadd(m, S.vln(d, full), full), full, "NORM_B32")
+                        T.ascend_set_flag("V_MTE3", 2)
+                        T.ascend_wait_flag("V_MTE3", 2)
+                        T.copy(
+                            output,
+                            O[
+                                batch,
+                                q_origin + (mt * BR + sid * ROWS) : q_origin + (mt * BR + (sid + 1) * ROWS),
+                                head,
+                                :,
+                            ],
+                            l2_cache_ctrl=0,
+                        )
+                        if call.return_lse:
+                            T.copy(row_lse, LSE[batch, head, q_origin + (mt*BR+sid*ROWS):q_origin + (mt*BR+(sid+1)*ROWS)])
+                        T.ascend_set_flag("MTE3_V", 2)
+                        okv = 0
+                        output_task += 1
+                    else:
+                        okv += 1
+
+                if step < total:
+                    tile = st * num_cores + cid
+                    last = (
+                        skv
+                        == (
+                            tile // TILE_STRIDE % M_TILES
+                            + PREFIX
+                            - (
+                                T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                if window_left >= 0
+                                else 0
+                            )
+                        )
+                        - 1
+                    )
+                    T.ascend_wait_flag("MTE3_V", step % 2)
+                    T.ascend_cross_core_wait_flag(4, "PIPE_V", 6 + step % 3)
+                    if skv == 0:
+                        if last:
+                            softmax(
+                                score,
+                                prob,
+                                maximum,
+                                denominator,
+                                alpha,
+                                old_max,
+                                row_sum,
+                                st,
+                                step,
+                                sid,
+                                True,
+                                True,
+                                (
+                                    tile // TILE_STRIDE % M_TILES
+                                    + PREFIX
+                                    - 1
+                                    - skv
+                                    - (
+                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                        if window_left >= 0
+                                        else 0
+                                    )
+                                )
+                                * BC,
+                            )
+                        else:
+                            softmax(
+                                score,
+                                prob,
+                                maximum,
+                                denominator,
+                                alpha,
+                                old_max,
+                                row_sum,
+                                st,
+                                step,
+                                sid,
+                                True,
+                                False,
+                                (
+                                    tile // TILE_STRIDE % M_TILES
+                                    + PREFIX
+                                    - 1
+                                    - skv
+                                    - (
+                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                        if window_left >= 0
+                                        else 0
+                                    )
+                                )
+                                * BC,
+                            )
+                    elif last:
+                        softmax(
+                            score,
+                            prob,
+                            maximum,
+                            denominator,
+                            alpha,
+                            old_max,
+                            row_sum,
+                            st,
+                            step,
+                            sid,
+                            False,
+                            True,
+                            (
+                                tile // TILE_STRIDE % M_TILES
+                                + PREFIX
+                                - 1
+                                - skv
+                                - (
+                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                    if window_left >= 0
+                                    else 0
+                                )
+                            )
+                            * BC,
+                        )
+                    else:
+                        softmax(
+                            score,
+                            prob,
+                            maximum,
+                            denominator,
+                            alpha,
+                            old_max,
+                            row_sum,
+                            st,
+                            step,
+                            sid,
+                            False,
+                            False,
+                            (
+                                tile // TILE_STRIDE % M_TILES
+                                + PREFIX
+                                - 1
+                                - skv
+                                - (
+                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - window_blocks)
+                                    if window_left >= 0
+                                    else 0
+                                )
+                            )
+                            * BC,
+                        )
+                    T.ascend_set_flag("V_MTE3", step % 2)
+                    T.ascend_cross_core_set_flag(4, "PIPE_V", step % 3)
+                    T.ascend_cross_core_wait_flag(
+                        4, "PIPE_MTE3", T.if_then_else(step % 2 == 0, 5, 12)
+                    )
+                    T.ascend_wait_flag("V_MTE3", step % 2)
+                    T.dual_copy(prob[step % 2, :ROWS, :], p_l1[step % 2, :, :])
+                    T.ascend_cross_core_set_flag(
+                        4, "PIPE_MTE3", T.if_then_else(step % 2 == 0, 11, 13)
+                    )
+                    T.ascend_set_flag("MTE3_V", step % 2)
+                    if last:
+                        skv = 0
+                        st += 1
+                    else:
+                        skv += 1
+
+            for e in T.serial(3):
+                T.ascend_wait_flag("MTE3_V", e)
+            T.ascend_cross_core_wait_flag(4, "PIPE_MTE3", 5)
+            T.ascend_cross_core_wait_flag(4, "PIPE_MTE3", 12)
+
+    if packed:
+        all_q = T.dynamic("all_q")
+        all_k = T.dynamic("all_k")
+
+        @T.prim_func
+        def ragged(
+            Q: T.Tensor((1, all_q, num_heads, D), out_dtype),
+            K: T.Tensor((1, all_k, num_kv_heads, D), out_dtype),
+            V: T.Tensor((1, all_k, num_kv_heads, D0), out_dtype),
+            Sinks: T.Tensor((num_heads,), "float32"),
+            O: T.Tensor((1, all_q, num_heads, D0), out_dtype),
+            Cq: T.Tensor((call.batch + 1,), "int32"),
+            Ck: T.Tensor((call.batch + 1,), "int32"),
+        ):
+            with T.Kernel(num_cores * call.batch) as block:
+                req = block // num_cores
+                cid = block % num_cores
+                qstart = Cq[req]
+                kstart = Ck[req]
+                sq = Cq[req + 1] - qstart
+                sk = Ck[req + 1] - kstart
+                mt = sq // BR
+                jobs = num_heads * mt
+                if sq > 0 and sk >= sq and sq % BR == 0 and sk % BC == 0 and cid < jobs:
+                    execute(Q, K, V, Sinks, O, None, cid, qstart, kstart, sq, sk,
+                            mt, 1 if call.has_sinks else mt, jobs, (sk - sq) // BC + 1)
+        return ragged
+
     @T.prim_func
     def main(
         Q: T.Tensor((batch_size, q_len, num_heads, D), out_dtype),
@@ -1065,626 +1719,8 @@ def prefill_query_major(call, num_cores):
         LSE: T.Tensor((batch_size, num_heads, q_len), "float32") if call.return_lse else None,
     ):
         with T.Kernel(num_cores) as cid:
-            T.assume(q_len > 0)
-            T.assume(kv_len > 0)
-            T.assume(batch_size > 0)
-            T.assume(num_heads > 0)
-            T.assume(q_len % 128 == 0)
-            T.assume(kv_len % 128 == 0)
-            T.assume(kv_len >= q_len)
-            q_l1 = T.alloc_l1((2, BR, D), out_dtype)
-            k_l1 = T.alloc_l1((3, BC, D), out_dtype)
-            v_l1 = T.alloc_l1((3, D0, BC), out_dtype)
-            p_l1 = T.alloc_l1((2, BR, BC), out_dtype)
-            # Shared L0 rings have fixed 32 KiB slots for BOTH GEMMs.
-            a_l0 = T.alloc_l0a((2, BR, BC), out_dtype)
-            b_l0 = T.alloc_l0b((2, BC, BC), out_dtype)
-            qk_l0 = T.alloc_l0c((2, BR, BC), "float32")
-            pv_l0 = T.alloc_l0c((2, BR, D0), "float32")
-            score = T.alloc_shared((3, ROWS, BC), "float32")
-            prob = T.alloc_shared((2, ROWS + 1, BC), out_dtype)
-            T.annotate_layout({prob: make_ascend_compact_nz_layout(prob)})
-            pv = T.alloc_shared((2, ROWS, D0), "float32")
-            accum = T.alloc_shared((ROWS, D0), "float32")
-            maximum = T.alloc_shared((3, ROWS), "float32")
-            denominator = T.alloc_shared((3, ROWS), "float32")
-            alpha = T.alloc_shared((3, ROWS), "float32")
-            old_max = T.alloc_shared((ROWS,), "float32")
-            row_sum = T.alloc_shared((ROWS,), "float32")
-            output = T.alloc_shared((ROWS, D0), out_dtype)
-            if call.return_lse:
-                row_lse = T.alloc_shared((ROWS,), "float32")
-            sink_ub = T.alloc_shared((8 * sink_heads_per_core if cache_sinks else 8,), "float32")
-
-            tasks = T.ceildiv(TASKS - cid, num_cores)
-            total = T.alloc_var("int32", init=0)
-            for task in T.serial(tasks):
-                total += (
-                    (task * num_cores + cid) // TILE_STRIDE % M_TILES
-                    + PREFIX
-                    - (
-                        T.max(0, (task * num_cores + cid) // TILE_STRIDE % M_TILES + PREFIX - 2)
-                        if window_left >= 0
-                        else 0
-                    )
-                )
-            T.assume(total >= 0)
-            T.assume(total <= T.ceildiv(TASKS, num_cores) * (kv_len // BC))
-
-            with T.Cube():
-                for e in T.serial(8):
-                    T.ascend_set_flag("MTE1_MTE2", e)
-                for e in T.serial(4):
-                    T.ascend_set_flag("FIX_M", e)
-                for e in T.serial(2):
-                    T.ascend_set_flag("M_MTE1", e)
-                    T.ascend_cross_core_set_flag(4, "PIPE_MTE1", 5 + e * 16)
-                    T.ascend_cross_core_set_flag(4, "PIPE_MTE1", 12 + e * 16)
-                tk = T.alloc_var("int32", init=0)
-                kk = T.alloc_var("int32", init=0)
-                tq = T.alloc_var("int32", init=0)
-                kq = T.alloc_var("int32", init=0)
-                tv = T.alloc_var("int32", init=0)
-                kv = T.alloc_var("int32", init=0)
-                l0_sequence = T.alloc_var("int32", init=0)
-
-                # t: load K/Q; t-1: QK; t-2: load V / QK fix;
-                # t-4: PV; t-5: PV fix. Drain once for ALL Q tasks.
-                for step in T.serial(total + 5):
-                    # Feed older PV before prefetching future Q/K tiles.
-                    if call.has_sinks and window_left < 0:  # noqa: SIM102 - Static specialization guard.
-                        if step >= 2 and step < total + 2:
-                            g = step - 2
-                            tile = tv * num_cores + cid
-                            T.assume(0 <= tile < TASKS)
-                            T.assume(0 <= kv < kv_len // BC)
-                            batch = tile // (num_heads * M_TILES)
-                            head = tile // HEAD_STRIDE % num_heads
-                            T.ascend_wait_flag("MTE1_MTE2", g % 3)
-                            T.copy(
-                                V[
-                                    batch,
-                                    (
-                                        kv
-                                        + (
-                                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                            if window_left >= 0
-                                            else 0
-                                        )
-                                    )
-                                    * BC : (
-                                        kv
-                                        + (
-                                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                            if window_left >= 0
-                                            else 0
-                                        )
-                                        + 1
-                                    )
-                                    * BC,
-                                    head // group,
-                                    :,
-                                ],
-                                v_l1[g % 3, :, :],
-                                transpose=True,
-                            )
-                            T.ascend_set_flag("MTE2_MTE1", g % 3)
-                            kv += 1
-                            if kv == (
-                                tile // TILE_STRIDE % M_TILES
-                                + PREFIX
-                                - (
-                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                    if window_left >= 0
-                                    else 0
-                                )
-                            ):
-                                kv = 0
-                                tv += 1
-
-                    if step < total:
-                        tile = tk * num_cores + cid
-                        # Cursor invariants: the stream contains exactly the
-                        # valid Q tasks and their visible KV tiles. Expose the
-                        # bounds so OOB lowering need not add dynamic padding.
-                        T.assume(0 <= tile < TASKS)
-                        T.assume(0 <= kk < kv_len // BC)
-                        batch = tile // (num_heads * M_TILES)
-                        head = tile // HEAD_STRIDE % num_heads
-                        mt = tile // TILE_STRIDE % M_TILES
-                        if kk == 0:
-                            T.ascend_wait_flag("MTE1_MTE2", 6 + tk % 2)
-                            T.copy(Q[batch, mt * BR : (mt + 1) * BR, head, :], q_l1[tk % 2, :, :])
-                            T.ascend_set_flag("MTE2_MTE1", 6 + tk % 2)
-                        T.ascend_wait_flag("MTE1_MTE2", 3 + step % 3)
-                        T.copy(
-                            K[
-                                batch,
-                                (
-                                    kk
-                                    + (
-                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                        if window_left >= 0
-                                        else 0
-                                    )
-                                )
-                                * BC : (
-                                    kk
-                                    + (
-                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                        if window_left >= 0
-                                        else 0
-                                    )
-                                    + 1
-                                )
-                                * BC,
-                                head // group,
-                                :,
-                            ],
-                            k_l1[step % 3, :, :],
-                        )
-                        T.ascend_set_flag("MTE2_MTE1", 3 + step % 3)
-                        kk += 1
-                        if kk == (
-                            tile // TILE_STRIDE % M_TILES
-                            + PREFIX
-                            - (
-                                T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                if window_left >= 0
-                                else 0
-                            )
-                        ):
-                            kk = 0
-                            tk += 1
-
-                    if step >= 1 and step < total + 1:
-                        g = step - 1
-                        tile = tq * num_cores + cid
-                        T.ascend_wait_flag("FIX_M", 2 + g % 2)
-                        if kq == 0:
-                            T.ascend_wait_flag("MTE2_MTE1", 6 + tq % 2)
-                        T.ascend_wait_flag("MTE2_MTE1", 3 + g % 3)
-                        for sk in T.serial(1):
-                            ls = T.floormod(l0_sequence + sk, 2)
-                            T.assume(0 <= ls < 2)
-                            T.ascend_wait_flag("M_MTE1", ls)
-                            T.copy(q_l1[tq % 2, :, sk * D : (sk + 1) * D], a_l0[ls, :, :D])
-                            T.copy(k_l1[g % 3, :, sk * D : (sk + 1) * D], b_l0[ls, :, :D])
-                            T.ascend_set_flag("MTE1_M", ls)
-                            T.ascend_wait_flag("MTE1_M", ls)
-                            T.gemm(
-                                a_l0[ls, :, :D],
-                                b_l0[ls, :, :D],
-                                qk_l0[g % 2, :, :],
-                                transpose_B=True,
-                                clear_accum=sk == 0,
-                            )
-                            T.ascend_set_flag("M_MTE1", ls)
-                        l0_sequence += 1
-                        T.ascend_set_flag("M_FIX", 2 + g % 2)
-                        T.ascend_set_flag("MTE1_MTE2", 3 + g % 3)
-                        kq += 1
-                        if kq == (
-                            tile // TILE_STRIDE % M_TILES
-                            + PREFIX
-                            - (
-                                T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                if window_left >= 0
-                                else 0
-                            )
-                        ):
-                            T.ascend_set_flag("MTE1_MTE2", 6 + tq % 2)
-                            kq = 0
-                            tq += 1
-
-                    if not call.has_sinks or window_left >= 0:  # noqa: SIM102 - Static specialization guard.
-                        if step >= 2 and step < total + 2:
-                            g = step - 2
-                            tile = tv * num_cores + cid
-                            T.assume(0 <= tile < TASKS)
-                            T.assume(0 <= kv < kv_len // BC)
-                            batch = tile // (num_heads * M_TILES)
-                            head = tile // HEAD_STRIDE % num_heads
-                            T.ascend_wait_flag("MTE1_MTE2", g % 3)
-                            T.copy(
-                                V[
-                                    batch,
-                                    (
-                                        kv
-                                        + (
-                                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                            if window_left >= 0
-                                            else 0
-                                        )
-                                    )
-                                    * BC : (
-                                        kv
-                                        + (
-                                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                            if window_left >= 0
-                                            else 0
-                                        )
-                                        + 1
-                                    )
-                                    * BC,
-                                    head // group,
-                                    :,
-                                ],
-                                v_l1[g % 3, :, :],
-                                transpose=True,
-                            )
-                            T.ascend_set_flag("MTE2_MTE1", g % 3)
-                            kv += 1
-                            if kv == (
-                                tile // TILE_STRIDE % M_TILES
-                                + PREFIX
-                                - (
-                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                    if window_left >= 0
-                                    else 0
-                                )
-                            ):
-                                kv = 0
-                                tv += 1
-
-                    # Publish ready QK scores before waiting on older PV work.
-                    if call.has_sinks and window_left < 0:  # noqa: SIM102 - Static specialization guard.
-                        if step >= 2 and step < total + 2:
-                            g = step - 2
-                            T.ascend_cross_core_wait_flag(4, "PIPE_FIX", g % 3)
-                            T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 16 + g % 3)
-                            T.ascend_wait_flag("M_FIX", 2 + g % 2)
-                            T.dual_copy(qk_l0[g % 2, :, :], score[g % 3, :, :])
-                            T.ascend_cross_core_set_flag(4, "PIPE_FIX", 6 + g % 3)
-                            T.ascend_cross_core_set_flag(4, "PIPE_FIX", 22 + g % 3)
-                            T.ascend_set_flag("FIX_M", 2 + g % 2)
-
-                    if step >= 4 and step < total + 4:
-                        g = step - 4
-                        ready = T.if_then_else(g % 2 == 0, 11, 13)
-                        free = T.if_then_else(g % 2 == 0, 5, 12)
-                        T.ascend_wait_flag("FIX_M", g % 2)
-                        T.ascend_wait_flag("MTE2_MTE1", g % 3)
-                        T.ascend_cross_core_wait_flag(4, "PIPE_MTE1", ready)
-                        T.ascend_cross_core_wait_flag(4, "PIPE_MTE1", ready + 16)
-                        ls = T.floormod(l0_sequence, 2)
-                        T.assume(0 <= ls < 2)
-                        T.ascend_wait_flag("M_MTE1", ls)
-                        T.copy(p_l1[g % 2, :, :], a_l0[ls, :, :])
-                        T.copy(v_l1[g % 3, :, :], b_l0[ls, :D0, :])
-                        T.ascend_set_flag("MTE1_M", ls)
-                        T.ascend_wait_flag("MTE1_M", ls)
-                        T.gemm(
-                            a_l0[ls, :, :],
-                            b_l0[ls, :D0, :],
-                            pv_l0[g % 2, :, :],
-                            transpose_B=True,
-                            clear_accum=True,
-                        )
-                        T.ascend_set_flag("M_MTE1", ls)
-                        l0_sequence += 1
-                        T.ascend_set_flag("M_FIX", g % 2)
-                        T.ascend_cross_core_set_flag(4, "PIPE_MTE1", free)
-                        T.ascend_cross_core_set_flag(4, "PIPE_MTE1", free + 16)
-                        T.ascend_set_flag("MTE1_MTE2", g % 3)
-
-                    if step >= 5:
-                        g = step - 5
-                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 3 + g % 2)
-                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 19 + g % 2)
-                        T.ascend_wait_flag("M_FIX", g % 2)
-                        T.dual_copy(pv_l0[g % 2, :, :], pv[g % 2, :, :])
-                        T.ascend_cross_core_set_flag(4, "PIPE_FIX", 9 + g % 2)
-                        T.ascend_cross_core_set_flag(4, "PIPE_FIX", 25 + g % 2)
-                        T.ascend_set_flag("FIX_M", g % 2)
-
-                    if not call.has_sinks or window_left >= 0:  # noqa: SIM102 - Static specialization guard.
-                        if step >= 2 and step < total + 2:
-                            g = step - 2
-                            T.ascend_cross_core_wait_flag(4, "PIPE_FIX", g % 3)
-                            T.ascend_cross_core_wait_flag(4, "PIPE_FIX", 16 + g % 3)
-                            T.ascend_wait_flag("M_FIX", 2 + g % 2)
-                            T.dual_copy(qk_l0[g % 2, :, :], score[g % 3, :, :])
-                            T.ascend_cross_core_set_flag(4, "PIPE_FIX", 6 + g % 3)
-                            T.ascend_cross_core_set_flag(4, "PIPE_FIX", 22 + g % 3)
-                            T.ascend_set_flag("FIX_M", 2 + g % 2)
-
-                for e in T.serial(8):
-                    T.ascend_wait_flag("MTE1_MTE2", e)
-                for e in T.serial(4):
-                    T.ascend_wait_flag("FIX_M", e)
-                for sub in T.serial(2):
-                    T.ascend_wait_flag("M_MTE1", sub)
-                    for e in T.serial(5):
-                        T.ascend_cross_core_wait_flag(4, "PIPE_FIX", e + sub * 16)
-
-            with T.Vector() as sid:
-                for e in T.serial(5):
-                    T.ascend_cross_core_set_flag(4, "PIPE_V", e)
-                for e in T.serial(3):
-                    T.ascend_set_flag("MTE3_V", e)
-                if cache_sinks:
-                    for slot in T.unroll(sink_heads_per_core):
-                        prefetch_head = cid + slot * num_cores
-                        T.copy(
-                            Sinks[prefetch_head : prefetch_head + 1],
-                            sink_ub[slot * 8 : slot * 8 + 1],
-                        )
-                    T.ascend_set_flag("MTE2_V", 0)
-                    T.ascend_wait_flag("MTE2_V", 0)
-                st = T.alloc_var("int32", init=0)
-                skv = T.alloc_var("int32", init=0)
-                output_task = T.alloc_var("int32", init=0)
-                okv = T.alloc_var("int32", init=0)
-
-                # Consume g=t-3 BEFORE producing t: alpha has three slots.
-                # Separate Q-task cursors keep the previous denominator live.
-                for step in T.serial(total + 3):
-                    if step >= 3:
-                        g = step - 3
-                        tile = output_task * num_cores + cid
-                        last = (
-                            okv
-                            == (
-                                tile // TILE_STRIDE % M_TILES
-                                + PREFIX
-                                - (
-                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                    if window_left >= 0
-                                    else 0
-                                )
-                            )
-                            - 1
-                        )
-                        T.ascend_cross_core_wait_flag(4, "PIPE_V", 9 + g % 2)
-                        if last:
-                            T.ascend_wait_flag("MTE3_V", 2)
-                            if call.has_sinks and not cache_sinks:
-                                head = tile // HEAD_STRIDE % num_heads
-                                T.ascend_set_flag("V_MTE2", 0)
-                                T.ascend_wait_flag("V_MTE2", 0)
-                                T.copy(Sinks[head : head + 1], sink_ub[:1])
-                                T.ascend_set_flag("MTE2_V", 0)
-                                T.ascend_wait_flag("MTE2_V", 0)
-                            if okv == 0:
-                                update_output(
-                                    pv,
-                                    accum,
-                                    output,
-                                    alpha,
-                                    denominator,
-                                    maximum,
-                                    sink_ub,
-                                    row_sum,
-                                    output_task,
-                                    g,
-                                    True,
-                                    True,
-                                )
-                            else:
-                                update_output(
-                                    pv,
-                                    accum,
-                                    output,
-                                    alpha,
-                                    denominator,
-                                    maximum,
-                                    sink_ub,
-                                    row_sum,
-                                    output_task,
-                                    g,
-                                    False,
-                                    True,
-                                )
-                        elif okv == 0:
-                            update_output(
-                                pv,
-                                accum,
-                                output,
-                                alpha,
-                                denominator,
-                                maximum,
-                                sink_ub,
-                                row_sum,
-                                output_task,
-                                g,
-                                True,
-                                False,
-                            )
-                        else:
-                            update_output(
-                                pv,
-                                accum,
-                                output,
-                                alpha,
-                                denominator,
-                                maximum,
-                                sink_ub,
-                                row_sum,
-                                output_task,
-                                g,
-                                False,
-                                False,
-                            )
-                        T.ascend_cross_core_set_flag(4, "PIPE_V", 3 + g % 2)
-                        if last:
-                            T.assume(0 <= tile < TASKS)
-                            batch = tile // (num_heads * M_TILES)
-                            head = tile // HEAD_STRIDE % num_heads
-                            mt = tile // TILE_STRIDE % M_TILES
-                            if call.return_lse:
-                                with T.SimdVF():
-                                    full = S.pset(32)
-                                    m = S.vld(maximum[output_task % 3, 0], "NORM")
-                                    d = S.vld(denominator[output_task % 3, 0], "NORM")
-                                    S.vsts(row_lse[0], S.vadd(m, S.vln(d, full), full), full, "NORM_B32")
-                            T.ascend_set_flag("V_MTE3", 2)
-                            T.ascend_wait_flag("V_MTE3", 2)
-                            T.copy(
-                                output,
-                                O[
-                                    batch,
-                                    mt * BR + sid * ROWS : mt * BR + (sid + 1) * ROWS,
-                                    head,
-                                    :,
-                                ],
-                                l2_cache_ctrl=0,
-                            )
-                            if call.return_lse:
-                                T.copy(row_lse, LSE[batch, head, mt*BR+sid*ROWS:mt*BR+(sid+1)*ROWS])
-                            T.ascend_set_flag("MTE3_V", 2)
-                            okv = 0
-                            output_task += 1
-                        else:
-                            okv += 1
-
-                    if step < total:
-                        tile = st * num_cores + cid
-                        last = (
-                            skv
-                            == (
-                                tile // TILE_STRIDE % M_TILES
-                                + PREFIX
-                                - (
-                                    T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                    if window_left >= 0
-                                    else 0
-                                )
-                            )
-                            - 1
-                        )
-                        T.ascend_wait_flag("MTE3_V", step % 2)
-                        T.ascend_cross_core_wait_flag(4, "PIPE_V", 6 + step % 3)
-                        if skv == 0:
-                            if last:
-                                softmax(
-                                    score,
-                                    prob,
-                                    maximum,
-                                    denominator,
-                                    alpha,
-                                    old_max,
-                                    row_sum,
-                                    st,
-                                    step,
-                                    sid,
-                                    True,
-                                    True,
-                                    (
-                                        tile // TILE_STRIDE % M_TILES
-                                        + PREFIX
-                                        - 1
-                                        - skv
-                                        - (
-                                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                            if window_left >= 0
-                                            else 0
-                                        )
-                                    )
-                                    * BC,
-                                )
-                            else:
-                                softmax(
-                                    score,
-                                    prob,
-                                    maximum,
-                                    denominator,
-                                    alpha,
-                                    old_max,
-                                    row_sum,
-                                    st,
-                                    step,
-                                    sid,
-                                    True,
-                                    False,
-                                    (
-                                        tile // TILE_STRIDE % M_TILES
-                                        + PREFIX
-                                        - 1
-                                        - skv
-                                        - (
-                                            T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                            if window_left >= 0
-                                            else 0
-                                        )
-                                    )
-                                    * BC,
-                                )
-                        elif last:
-                            softmax(
-                                score,
-                                prob,
-                                maximum,
-                                denominator,
-                                alpha,
-                                old_max,
-                                row_sum,
-                                st,
-                                step,
-                                sid,
-                                False,
-                                True,
-                                (
-                                    tile // TILE_STRIDE % M_TILES
-                                    + PREFIX
-                                    - 1
-                                    - skv
-                                    - (
-                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                        if window_left >= 0
-                                        else 0
-                                    )
-                                )
-                                * BC,
-                            )
-                        else:
-                            softmax(
-                                score,
-                                prob,
-                                maximum,
-                                denominator,
-                                alpha,
-                                old_max,
-                                row_sum,
-                                st,
-                                step,
-                                sid,
-                                False,
-                                False,
-                                (
-                                    tile // TILE_STRIDE % M_TILES
-                                    + PREFIX
-                                    - 1
-                                    - skv
-                                    - (
-                                        T.max(0, tile // TILE_STRIDE % M_TILES + PREFIX - 2)
-                                        if window_left >= 0
-                                        else 0
-                                    )
-                                )
-                                * BC,
-                            )
-                        T.ascend_set_flag("V_MTE3", step % 2)
-                        T.ascend_cross_core_set_flag(4, "PIPE_V", step % 3)
-                        T.ascend_cross_core_wait_flag(
-                            4, "PIPE_MTE3", T.if_then_else(step % 2 == 0, 5, 12)
-                        )
-                        T.ascend_wait_flag("V_MTE3", step % 2)
-                        T.dual_copy(prob[step % 2, :ROWS, :], p_l1[step % 2, :, :])
-                        T.ascend_cross_core_set_flag(
-                            4, "PIPE_MTE3", T.if_then_else(step % 2 == 0, 11, 13)
-                        )
-                        T.ascend_set_flag("MTE3_V", step % 2)
-                        if last:
-                            skv = 0
-                            st += 1
-                        else:
-                            skv += 1
-
-                for e in T.serial(3):
-                    T.ascend_wait_flag("MTE3_V", e)
-                T.ascend_cross_core_wait_flag(4, "PIPE_MTE3", 5)
-                T.ascend_cross_core_wait_flag(4, "PIPE_MTE3", 12)
+            execute(Q, K, V, Sinks, O, LSE, cid, 0, 0, q_len, kv_len, M_TILES,
+                    HEAD_STRIDE, TASKS, PREFIX)
 
     return main
 
