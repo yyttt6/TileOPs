@@ -3,5 +3,11 @@
 from tileops._kernels.ascend.sequence_modeling import decode
 from tileops._kernels.ascend.sequence_modeling.gate_conv_bwd import AscendEngramGateConvBwdKernel
 from tileops._kernels.ascend.sequence_modeling.gate_conv_fwd import AscendEngramGateConvFwdKernel
+from tileops._kernels.ascend.sequence_modeling.mhc_post import AscendMHCPostKernel
 
-__all__ = ["AscendEngramGateConvBwdKernel", "AscendEngramGateConvFwdKernel", "decode"]
+__all__ = [
+    "AscendEngramGateConvBwdKernel",
+    "AscendEngramGateConvFwdKernel",
+    "AscendMHCPostKernel",
+    "decode",
+]
