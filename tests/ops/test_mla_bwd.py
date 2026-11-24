@@ -10,10 +10,11 @@ from workloads.attention.mla import (
     MLAVarlenBwdWorkload,
     mla_varlen_inputs,
 )
+from workloads.device import run_device
 from workloads.numerics import reference_tolerance
 
-# Both MLA backward kernels are SM90 only.
-pytestmark = pytest.mark.sm90
+# CUDA uses the Hopper kernels; Ascend implements the same backward contracts.
+pytestmark = [] if torch.device(run_device()).type == "npu" else pytest.mark.sm90
 
 
 def _check(workload, op) -> None:

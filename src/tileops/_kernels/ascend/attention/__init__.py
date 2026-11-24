@@ -13,6 +13,10 @@ from tileops._kernels.ascend.attention.gqa_paged import AscendGQAPagedKernel
 from tileops._kernels.ascend.attention.gqa_varlen import AscendGQAVarlenKernel
 from tileops._kernels.ascend.attention.merge_states import AscendMergeAttentionStatesKernel
 from tileops._kernels.ascend.attention.mha_paged_decode import AscendMHAPagedDecodeKernel
+from tileops._kernels.ascend.attention.mla_bwd import (
+    AscendMLADenseBwdKernel,
+    AscendMLAVarlenBwdKernel,
+)
 from tileops._kernels.ascend.attention.mla_varlen_fwd import AscendMLAVarlenKernel
 from tileops._kernels.ascend.attention.nsa_compressed_varlen import (
     AscendNSACompressedFwdVarlenKernel,
@@ -39,6 +43,8 @@ __all__ = [
     "AscendGQAPagedKernel",
     "AscendGQAVarlenKernel",
     "AscendMHAPagedDecodeKernel",
+    "AscendMLADenseBwdKernel",
+    "AscendMLAVarlenBwdKernel",
     "AscendMLAVarlenKernel",
     "AscendMergeAttentionStatesKernel",
     "AscendNSACompressedFwdVarlenKernel",
