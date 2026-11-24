@@ -1,18 +1,20 @@
 """Dense shared-expert projections and their rounded gated activation on Ascend 950."""
 
 import functools
+from dataclasses import replace
 from typing import ClassVar
 
 import tilelang
 import tilelang.ascend.language as T
 import torch
+import torch.nn.functional as F
 from tilelang.carver.arch.driver import get_num_cube_cores
 
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops._kernels.moe.call_spec import SharedExpertMLPCall, SharedExpertMLPFwdInterface
 from tileops.backend._registry import register_kernel_type
 
-__all__ = ["AscendSharedExpertMLPKernel"]
+__all__ = ["AscendPaddedSharedExpertMLPKernel", "AscendSharedExpertMLPKernel"]
 
 
 @T.macro
@@ -607,4 +609,41 @@ class AscendSharedExpertMLPKernel(Kernel, SharedExpertMLPFwdInterface):
         return self._down(activated, w_down)
 
 
+class AscendPaddedSharedExpertMLPKernel(AscendSharedExpertMLPKernel):
+    """Pad each projection's operands when a shared-expert shard ends inside a Cube tile."""
+
+    @staticmethod
+    def _aligned_call(call: SharedExpertMLPCall) -> SharedExpertMLPCall:
+        return replace(
+            call,
+            hidden_size=(call.hidden_size + 15) // 16 * 16,
+            ffn_size=(call.ffn_size + 15) // 16 * 16,
+        )
+
+    @classmethod
+    def refusal(cls, call: SharedExpertMLPCall) -> str | None:
+        if call.hidden_size % 16 == 0 and call.ffn_size % 16 == 0:
+            return "the aligned implementation serves this call"
+        return super().refusal(cls._aligned_call(call))
+
+    def __init__(self, call: SharedExpertMLPCall):
+        padded = self._aligned_call(call)
+        super().__init__(padded)
+        self._hidden_pad = padded.hidden_size - call.hidden_size
+        self._ffn_pad = padded.ffn_size - call.ffn_size
+
+    def forward(self, hidden, w_gate_up, w_down):
+        if hidden.shape[0] == 0:
+            return torch.empty_like(hidden)
+        h = hidden.shape[1]
+        padded_hidden = F.pad(hidden, (0, self._hidden_pad)) if self._hidden_pad else hidden
+        # Gate and up are stacked. Padding the stacked matrix as one would change
+        # the first up row selected by the activation.
+        packed = F.pad(w_gate_up.reshape(2, -1, h), (0, self._hidden_pad, 0, self._ffn_pad))
+        down = F.pad(w_down, (0, self._ffn_pad, 0, self._hidden_pad))
+        result = super().forward(padded_hidden, packed.flatten(0, 1), down)
+        return result[:, :h].contiguous() if self._hidden_pad else result
+
+
 register_kernel_type("SharedExpertMLPFwdOp", "ascend", AscendSharedExpertMLPKernel)
+register_kernel_type("SharedExpertMLPFwdOp", "ascend_padded", AscendPaddedSharedExpertMLPKernel)
