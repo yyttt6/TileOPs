@@ -1,5 +1,6 @@
 """Ascend quantization and dequantization implementations."""
 
+from tileops._kernels.ascend.quantization.fp4_quant import AscendFP4QuantKernel
 from tileops._kernels.ascend.quantization.fp8_quant import (
     AscendFP8QuantPerBlockKernel,
     AscendFP8QuantPerTokenGroupKernel,
@@ -13,6 +14,7 @@ from tileops._kernels.ascend.quantization.int8_dequant import (
 from tileops._kernels.ascend.quantization.int8_quant_tensor import AscendINT8QuantPerTensorKernel
 
 __all__ = [
+    "AscendFP4QuantKernel",
     "AscendFP8QuantPerBlockKernel",
     "AscendFP8QuantPerTokenGroupKernel",
     "AscendINT4QuantPerGroupKernel",

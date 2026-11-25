@@ -14,6 +14,7 @@ from math import prod
 from typing import TYPE_CHECKING
 
 from tileops.manifest._dtype_rules import FLOAT8_DTYPES
+from tileops.manifest.primitives import flat
 
 if TYPE_CHECKING:
     from tileops.manifest._workload import CallView
@@ -1069,3 +1070,139 @@ def top_k_top_p_mask_roofline(call: "CallView") -> tuple[int, int]:
         for k in call.metadata_values("top_k")
     )
     return flops, _derived_bytes(call)
+
+
+def embedding_roofline(call: CallView) -> tuple[int, int]:
+    """Row lookup: the indices, each distinct row they name once, and the output. With
+    ``max_norm``, the ``norm_type`` norm of each distinct row and a compare, priced at the
+    cheaper outcome where no row exceeds it and none is written back: per value 2 (abs or
+    square, accumulate), 3 for a general p (abs, power, accumulate); a root per row except
+    for p = 1 and p = inf."""
+    d, p = call.indices["D"], call.indices["norm_type"]
+    rows = len(set(flat(call.metadata_values("input"))))
+    flops = 0
+    if call.indices["max_norm"] is not None:
+        per_value = 2 if p in (1.0, 2.0, float("inf")) else 3
+        per_row = 1 + (0 if p in (1.0, float("inf")) else 1)
+        flops = rows * (per_value * d + per_row)
+    moved = call.bytes("input") + rows * d * _elem_bytes(call, "weight") + call.bytes("output")
+    return flops, moved
+
+
+def ngram_hash_roofline(call: CallView) -> tuple[int, int]:
+    """Integer hashing only. The context row of each sequence with tokens is read at its N - 1
+    history columns and written at the columns the call rewrites: N - 1, or with
+    ``num_accepted_tokens`` N - 2 plus the sequence's tokens. Every other tensor moves once."""
+    indices = call.indices
+    n = indices["N"]
+    if call.present("cu_seqlens"):
+        bounds = call.metadata_values("cu_seqlens")
+        sequences = sum(1 for a, b in zip(bounds, bounds[1:], strict=False) if b > a)
+        tokens = indices["Tt"]
+    else:
+        sequences = indices["B"] if indices["L"] > 0 else 0
+        tokens = sequences * indices["L"]
+    if call.present("num_accepted_tokens"):
+        written = sequences * (n - 2) + tokens
+    else:
+        written = sequences * (n - 1)
+    moved = sum(call.bytes(t) for t in call.tensors if t != "context")
+    moved += (sequences * (n - 1) + written) * _elem_bytes(call, "context")
+    return 0, moved
+
+
+def _pool_windows(call: CallView) -> list[tuple[int, int, list[int]]]:
+    """``(start, tokens, closing positions)`` of each request of a gated pooling call."""
+    ratio, bounds = call.indices["ratio"], call.metadata_values("cu_seqlens")
+    out = []
+    for a, e, first in zip(bounds[:-1], bounds[1:], call.metadata_values("start_pos"), strict=True):
+        closing = [p for p in range(first, first + e - a) if (p + 1) % ratio == 0]
+        out.append((first, e - a, closing))
+    return out
+
+
+def _rows_read(call: CallView, names: tuple[str, ...], rows: int, stored: int | None = None) -> int:
+    """Bytes of *rows* of the *stored* rows of each tensor in *names*, less the whole tensors.
+    *stored* defaults to the leading axes of ``[.., heads, D]``."""
+    if stored is None:
+        stored = prod(call.tensors[names[0]][0][:-2])
+    whole = sum(call.bytes(name) for name in names)
+    return (rows * whole // stored if stored else 0) - whole
+
+
+def gated_pool_compress_roofline(call: CallView) -> tuple[int, int]:
+    """Gated pooling: per token and channel the ``ape`` add; per closing window and output
+    channel, over each slot it pools, the max, subtract, exponential, sum, the divide that
+    normalizes its weight (rounded before the product), multiply and add. With ``overlap`` a
+    window after the first pools twice ``ratio`` slots.
+
+    ``kv`` and ``score`` are read whole and ``ape`` at the slots the tokens take. The state is
+    read at the earlier positions the windows pool, ``D`` channels per role a position plays
+    (the previous window's first half, the current window's last half), and written at the
+    tokens among each request's last ``C * ratio`` positions. ``entries`` is written at the
+    closing tokens and ``valid`` whole.
+    """
+    indices = call.indices
+    ratio, d, overlap = indices["ratio"], indices["D"], indices["overlap"]
+    c = 2 if overlap else 1
+    windows = _pool_windows(call)
+    slots = sum(
+        ratio * (2 if overlap and p >= ratio else 1) for _f, _n, closing in windows for p in closing
+    )
+    emitted = sum(len(closing) for _f, _n, closing in windows)
+    tokens = sum(n for _f, n, _c in windows)
+    flops = tokens * c * d + 7 * d * slots
+    state_reads = written = 0
+    for first, n, closing in windows:
+        roles = set()
+        for p in closing:
+            roles.update((q, 1) for q in range(p - ratio + 1, p + 1) if q < first)
+            if overlap:
+                roles.update((q, 0) for q in range(p - 2 * ratio + 1, p - ratio + 1))
+        state_reads += sum(1 for q, _role in roles if 0 <= q < first)
+        written += min(n, c * ratio)
+    ape_rows = {(f + j) % ratio for f, n, _c in windows for j in range(min(n, ratio))}
+    state = _elem_bytes(call, "kv_state")
+    moved = _derived_bytes(call) - call.bytes("kv_state") - call.bytes("score_state")
+    moved += _rows_read(call, ("ape",), len(ape_rows), ratio)
+    moved += 2 * (state_reads * d + written * c * d) * state
+    moved += emitted * d * _elem_bytes(call, "entries") - call.bytes("entries")
+    return flops, moved
+
+
+def rope_cos_sin_roofline(call: CallView) -> tuple[int, int]:
+    """3 per rotated value. Out of place every value of x is read and written; in place only
+    the rotated columns. cos and sin are read on the distinct rows the sequences reach: each
+    sequence's rows from its offset, none when there is nothing to rotate."""
+    indices = call.indices
+    rotated = 2 * indices["Rh"]
+    if call.present("cu_seqlens"):
+        bounds = call.metadata_values("cu_seqlens")
+        tokens = indices["Tt"]
+        lengths = [b - a for a, b in zip(bounds, bounds[1:], strict=False)]
+    else:
+        tokens, lengths = indices["B"] * indices["S"], [indices["S"]] * indices["B"]
+    if call.member("seqlen_offsets") == "Tensor":
+        offsets = call.metadata_values("seqlen_offsets")
+    else:
+        offsets = [0] * len(lengths)
+    reached = set()
+    for start, length in zip(offsets, lengths, strict=True):
+        reached.update(range(start, start + length))
+    rows = len(reached) if tokens * indices["H"] else 0
+    width = rotated if indices["inplace"] else indices["D"]
+    moved = 2 * tokens * indices["H"] * width * _elem_bytes(call, "x")
+    moved += rows * indices["Rh"] * (_elem_bytes(call, "cos") + _elem_bytes(call, "sin"))
+    for metadata in ("cu_seqlens", "seqlen_offsets"):
+        if call.member(metadata) == "Tensor":
+            moved += call.bytes(metadata)
+    return 3 * tokens * indices["H"] * rotated, moved
+
+
+def moe_grouped_gemm_block_scaled_roofline(call: CallView) -> tuple[int, int]:
+    """Grouped expert GEMM over the valid rows, with no fused activation; a masked slab moves
+    only its valid rows of ``a``, ``a_scale`` and ``output``, and an expert with no valid row
+    reads neither its weight nor that weight's scale."""
+    indices = call.indices
+    flops = 2 * moe_layout_rows(call) * indices["N"] * indices["K"]
+    return flops, _moe_layout_bytes(call, rows=("a", "a_scale", "output"), weights=("b", "b_scale"))

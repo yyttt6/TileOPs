@@ -8,6 +8,7 @@ from workloads.norm import (
     FusedAddRMSNormPerTokenQuantCall,
     FusedQKNormRoPECall,
     NormCall,
+    RMSNormGatedCall,
     RunningStatsCall,
     batch_norm_forward_result,
     fused_qk_norm_rope_result,
@@ -49,3 +50,9 @@ ENTRIES = {
     "FusedQKNormRoPEFwdOp": Entry(FusedQKNormRoPECall, binder=_fused_qk_norm_rope),
     "FusedAddRMSNormPerTokenQuantFwdOp": Entry(FusedAddRMSNormPerTokenQuantCall),
 }
+
+ENTRIES.update(
+    {
+        "RMSNormGatedFwdOp": Entry(RMSNormGatedCall),
+    }
+)

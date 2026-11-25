@@ -8,6 +8,10 @@ from tileops._kernels.sequence_modeling.engram import (
     EngramGateConvFwdInterface,
     EngramGateConvFwdKernel,
 )
+from tileops._kernels.sequence_modeling.hyper_connection import (
+    HyperConnectionPreCall,
+    HyperConnectionPreKernel,
+)
 from tileops._kernels.sequence_modeling.mhc import (
     MHCPostCall,
     MHCPostFwdInterface,

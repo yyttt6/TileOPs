@@ -2,6 +2,7 @@
 
 from tileops._ops.rope import (
     LongRoPEFwdOp,
+    RoPECosSinFwdOp,
     RoPEFwdOp,
     RoPELlama31FwdOp,
     RoPENeoxPositionIdsFwdOp,
@@ -10,6 +11,7 @@ from tileops._ops.rope import (
 
 __all__ = [
     "LongRoPEFwdOp",
+    "RoPECosSinFwdOp",
     "RoPEFwdOp",
     "RoPELlama31FwdOp",
     "RoPENeoxPositionIdsFwdOp",

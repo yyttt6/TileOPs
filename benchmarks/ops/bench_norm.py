@@ -8,6 +8,7 @@ import torch
 
 from benchmarks import api as bench
 from benchmarks.baselines import (
+    FLA_TAG,
     FLAGGEMS_TAG,
     FLASHINFER_TAG,
     QUACK_TAG,
@@ -15,6 +16,7 @@ from benchmarks.baselines import (
     VLLM_TAG,
     baseline_module,
     compiled_reference,
+    fla_op,
     flaggems_op,
     flashinfer_op,
     private_inputs,
@@ -28,6 +30,7 @@ from tileops._ops.norm.fused_add_rms_norm import FusedAddRMSNormFwdOp
 from tileops._ops.norm.fused_add_rms_norm_per_token_quant import FusedAddRMSNormPerTokenQuantFwdOp
 from tileops._ops.norm.layer_norm import LayerNormFwdOp
 from tileops._ops.norm.rms_norm import RMSNormFwdOp
+from tileops._ops.norm.rms_norm_gated import RMSNormGatedFwdOp
 
 
 def _flaggems_rms_norm(n: int, eps: float):
@@ -271,3 +274,66 @@ def test_ada_layer_norm_bench(case) -> None:
 @pytest.mark.parametrize("case", bench.cases(AdaLayerNormZeroFwdOp), ids=lambda case: case.id)
 def test_ada_layer_norm_zero_bench(case) -> None:
     _bench(AdaLayerNormZeroFwdOp, case)
+
+
+@pytest.mark.parametrize("case", bench.cases(RMSNormGatedFwdOp), ids=lambda case: case.id)
+def test_rms_norm_gated_bench(case) -> None:
+    """vLLM's ``layernorm_guard.rmsnorm_fn`` takes every call; fla's ``rms_norm_gated`` only a
+    gate after one norm over the row; Hugging Face's ``Qwen3_5RMSNormGated`` only a silu gate
+    after one norm over the row, without bias."""
+    p = case.arguments
+    x, _, bias, z = case.inputs
+    one_group = p["group_size"] in (None, x.shape[-1])
+    vllm_rmsnorm = baseline_module(
+        "vllm.third_party.flash_linear_attention.ops.layernorm_guard", "vllm"
+    ).rmsnorm_fn
+
+    def vllm_fn(x, weight, bias, z):
+        return vllm_rmsnorm(
+            x,
+            weight,
+            bias,
+            z=z,
+            eps=p["eps"],
+            group_size=p["group_size"],
+            norm_before_gate=p["norm_before_gate"],
+            activation=p["activation"],
+        )
+
+    library = {VLLM_TAG: vllm_fn}
+    if z is not None and p["norm_before_gate"] and one_group:
+        fla_rmsnorm = fla_op("modules.fused_norm_gate.rms_norm_gated")
+
+        def fla_fn(x, weight, bias, z):
+            return fla_rmsnorm(x, z, weight, bias, activation=p["activation"], eps=p["eps"])
+
+        library[FLA_TAG] = fla_fn
+    if (
+        z is not None
+        and bias is None
+        and p["activation"] == "silu"
+        and p["norm_before_gate"]
+        and one_group
+    ):
+        qwen = (
+            baseline_module("transformers.models.qwen3_5.modeling_qwen3_5", "transformers")
+            .Qwen3_5RMSNormGated(x.shape[-1], eps=p["eps"])
+            .to(x.device)
+            .requires_grad_(False)
+        )
+
+        def hf_fn(x, weight, bias, z):
+            qwen.weight.data = weight
+            return qwen(x, z)
+
+        library["transformers"] = bench.Implementation(
+            hf_fn,
+            noncomparable_reason=(
+                "rounds norm(x) and w * norm(x) to float16 before the gate"
+                if x.dtype == torch.float16
+                else None
+            ),
+        )
+    bench.Runner(RMSNormGatedFwdOp(**p), case).compare(
+        {**library, "torch-ref": case.torch, TORCH_COMPILE_TAG: compiled_reference(case.torch)}
+    )

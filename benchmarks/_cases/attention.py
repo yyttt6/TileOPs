@@ -7,6 +7,10 @@ from benchmarks.api import Implementation
 from benchmarks.baselines import private_inputs
 from workloads.attention.dsa import DSADecodeCall, DSAPagedCall
 from workloads.attention.fp8_lightning_indexer import FP8LightningIndexerCall
+from workloads.attention.gated_pool_compress import (
+    GatedPoolCompressFwdCall,
+    gated_pool_compress_result,
+)
 from workloads.attention.gqa.bwd import GQABwdCall
 from workloads.attention.gqa.dense import (
     GQADenseDecodeCall,
@@ -100,3 +104,17 @@ ENTRIES = {
     "TopKSelectFwdOp": Entry(TopKSelectCall),
     "FP8LightningIndexerFwdOp": Entry(FP8LightningIndexerCall, count_copies=True),
 }
+
+
+def _gated_pool_compress_binder(op: Any, case: Any) -> Implementation:
+    """The op on private rings it writes, returning its entries, valid flags and both rings."""
+    return private_inputs(lambda *args: gated_pool_compress_result(op, *args), case.inputs, 3, 4)
+
+
+ENTRIES.update(
+    {
+        "GatedPoolCompressFwdOp": Entry(
+            GatedPoolCompressFwdCall, binder=_gated_pool_compress_binder
+        ),
+    }
+)

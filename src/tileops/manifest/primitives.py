@@ -787,3 +787,8 @@ PREDICATES = {
     "attn.paged_fits": paged_fits,
     "moe.layout_valid": moe_layout_valid,
 }
+
+
+def flat(values: object) -> list[object]:
+    """The values of a nested list, in order; a value that is not a list is one value."""
+    return [y for x in values for y in flat(x)] if isinstance(values, list) else [values]

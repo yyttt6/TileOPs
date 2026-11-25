@@ -374,3 +374,6 @@ def private_float32_logits(
         private.copy_(logits)
 
     return Implementation(run=run, args=(private, *args), reset=reset, **kwargs)
+
+
+TILEKERNELS_TAG = "tilekernels"

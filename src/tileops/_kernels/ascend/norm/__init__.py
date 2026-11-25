@@ -21,6 +21,7 @@ from tileops._kernels.ascend.norm.instance_norm import (
 from tileops._kernels.ascend.norm.layer_norm import AscendLayerNormKernel
 from tileops._kernels.ascend.norm.qk_norm_rope import AscendQKNormRoPEKernel
 from tileops._kernels.ascend.norm.rms_norm import AscendRMSNormKernel
+from tileops._kernels.ascend.norm.rms_norm_gated import AscendRMSNormGatedKernel
 
 __all__ = [
     "AscendAdaLayerNormKernel",
@@ -37,5 +38,6 @@ __all__ = [
     "AscendInstanceNormTrainKernel",
     "AscendLayerNormKernel",
     "AscendQKNormRoPEKernel",
+    "AscendRMSNormGatedKernel",
     "AscendRMSNormKernel",
 ]

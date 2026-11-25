@@ -36,17 +36,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tileops.manifest import _load_yaml, _types_document  # noqa: E402
 from tileops.manifest._plan import check_adts as _check_adts  # noqa: E402
-from tileops.manifest._plan import check_entry as _check_signature  # noqa: E402
-from tileops.manifest._plan import (  # noqa: E402
-    effect_errors,
-    roofline_plan,
-)
-from tileops.manifest._plan import (  # noqa: E402
-    signature_schema_errors as _signature_schema_errors,
-)
 from tileops.manifest._registry import op_class  # noqa: E402
-from tileops.manifest._signature import parse_signature  # noqa: E402
-from tileops.manifest._workload import check_workloads as _check_workloads  # noqa: E402
 
 MANIFEST_DIR = REPO_ROOT / "src" / "tileops" / "manifest" / "spec"
 
@@ -233,6 +223,16 @@ def _check_bench_files(repo_root: Path) -> list[str]:
     return errors
 
 
+def _manifest_modules(op_name):
+    from tileops.manifest._dialect import TYPED_OPS
+
+    if op_name in TYPED_OPS:
+        from tileops.manifest.typed import _plan, _signature, _workload
+    else:
+        from tileops.manifest import _plan, _signature, _workload
+    return _plan, _signature, _workload
+
+
 def _schema_errors(op_name: str, entry: dict, all_op_names) -> list[str]:
     """Top-level fields of an entry (docs/design/manifest.md § Top-Level Fields)."""
     if not isinstance(op_name, str):
@@ -242,7 +242,10 @@ def _schema_errors(op_name: str, entry: dict, all_op_names) -> list[str]:
         errors.append(f"[schema] {op_name}: the key is not an op class name `<Name>FwdOp`")
     errors += _family_errors(op_name, entry)
     if isinstance(entry.get("signature"), dict):
-        errors += [f"[schema] {op_name}: {e}" for e in _signature_schema_errors(entry["signature"])]
+        errors += [
+            f"[schema] {op_name}: {e}"
+            for e in _manifest_modules(op_name)[0].signature_schema_errors(entry["signature"])
+        ]
     if isinstance(entry.get("composition"), dict):
         errors += _composition_errors(op_name, entry["composition"], all_op_names)
     ref = entry.get("ref_api")
@@ -393,7 +396,7 @@ def _parity_errors(op_name: str, entry: dict) -> list[str]:
         )
         if got is None or got.name != name or got.kind is not kind:
             errors.append(f"{where}: forward parameter {i + 1} must be {name!r}, {what}")
-        elif got.default is not (None if optional else empty):
+        elif got.default != (inputs.get(name, {}).get("default", None if optional else empty)):
             want = "default to None" if optional else "have no default"
             errors.append(f"{where}: forward {name!r} must {want}")
     bounded = bool(inputs) and not entry.get("composition")
@@ -485,22 +488,28 @@ def validate_manifest(
             continue
         if "schema" in levels:
             all_errors.extend(_schema_errors(op_name, entry, ops))
-        signature_errors, signature_warnings = _check_signature(op_name, entry, adts)
-        sig = None if signature_errors else parse_signature(op_name, entry, adts)
+        plan_module, signature_module, workload_module = _manifest_modules(op_name)
+        signature_errors, signature_warnings = plan_module.check_entry(op_name, entry, adts)
+        sig = None if signature_errors else signature_module.parse_signature(op_name, entry, adts)
         implemented = entry.get("status") == "implemented"
         if "schema" in levels:
             all_errors.extend(
                 f"[schema] {op_name}: {e}"
-                for e in roofline_plan(sig, entry.get("roofline"), resolve=implemented)[0]
+                for e in plan_module.roofline_plan(sig, entry.get("roofline"), resolve=implemented)[
+                    0
+                ]
             )
         if "signature" in levels:
             all_errors.extend(f"[signature] {e}" for e in signature_errors)
             all_warnings.extend(f"[signature] {w}" for w in signature_warnings)
             if sig is not None:
                 all_errors.extend(
-                    f"[signature] {e}" for e in _check_workloads(op_name, entry, adts)
+                    f"[signature] {e}"
+                    for e in workload_module.check_workloads(op_name, entry, adts)
                 )
-                all_errors.extend(f"[signature] {op_name}: {e}" for e in effect_errors(sig))
+                all_errors.extend(
+                    f"[signature] {op_name}: {e}" for e in plan_module.effect_errors(sig)
+                )
                 if implemented:
                     all_errors.extend(_parity_errors(op_name, entry))
 
