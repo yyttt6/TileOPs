@@ -24,7 +24,8 @@ def _append(rows, width, total, offset, src_dtype, out_dtype):
         with T.Kernel(blocks) as bx:
             data = T.alloc_shared((chunk,), src_dtype)
             result = T.alloc_shared((chunk,), out_dtype)
-            for step in T.serial(T.ceildiv(rows * parts, blocks)):
+            T.annotate_buffer_versions({data: 2, result: 2})
+            for step in T.Pipelined(T.ceildiv(rows * parts, blocks), num_stages=2):
                 task = step * blocks + bx
                 if task < rows * parts:
                     row = task // parts
@@ -32,12 +33,20 @@ def _append(rows, width, total, offset, src_dtype, out_dtype):
                     count = T.min(width - col, chunk)
                     T.copy(src[row, col : col + count], data[:count])
                     if src_dtype == out_dtype:
-                        T.copy(data[:count], out[row, offset + col : offset + col + count])
+                        T.copy(
+                            data[:count],
+                            out[row, offset + col : offset + col + count],
+                            l2_cache_ctrl=0,
+                        )
                     else:
                         with T.SimtVF(threads=256):
                             for i in T.Parallel(chunk):
                                 result[i] = T.cast(data[i], out_dtype)
-                        T.copy(result[:count], out[row, offset + col : offset + col + count])
+                        T.copy(
+                            result[:count],
+                            out[row, offset + col : offset + col + count],
+                            l2_cache_ctrl=0,
+                        )
 
     return tilelang.compile(main, target="ascend", out_idx=[])
 

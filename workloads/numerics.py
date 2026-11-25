@@ -405,9 +405,16 @@ def _tensors(value: Any):
             yield from _tensors(item)
 
 
+def _copy_tensor(tensor: torch.Tensor) -> torch.Tensor:
+    detached = tensor.detach()
+    if tensor.device.type == "npu" and tensor.dtype == torch.float8_e8m0fnu:
+        return detached.view(torch.uint8).clone().view(tensor.dtype)
+    return detached.clone()
+
+
 def _copy_outputs(value: Any) -> Any:
     if isinstance(value, torch.Tensor):
-        return value.detach().clone()
+        return _copy_tensor(value)
     if isinstance(value, tuple):
         return tuple(_copy_outputs(v) for v in value)
     if isinstance(value, list):
@@ -432,7 +439,7 @@ class Request:
 
 
 def _snapshot(tensors: list) -> list:
-    return [t.detach().clone() for t in tensors]
+    return [_copy_tensor(t) for t in tensors]
 
 
 def _restore(tensors: list, snapshot: list) -> None:
@@ -444,7 +451,10 @@ def _restore(tensors: list, snapshot: list) -> None:
             for axis in range(tensor.ndim - 1, -1, -1):
                 if tensor.stride(axis) == 0 and tensor.shape[axis] > 1:
                     target, source = target.select(axis, 0), source.select(axis, 0)
-            target.copy_(source)
+            if target.device.type == "npu" and target.dtype == torch.float8_e8m0fnu:
+                target.view(torch.uint8).copy_(source.view(torch.uint8))
+            else:
+                target.copy_(source)
 
 
 # FP8 comparisons are missing from the operator build this project validates on, so an
@@ -455,6 +465,7 @@ _BITWISE_DTYPES = frozenset(
     for dtype in (
         getattr(torch, "float8_e4m3fn", None),
         getattr(torch, "float8_e5m2", None),
+        getattr(torch, "float8_e8m0fnu", None),
     )
     if dtype is not None
 )
