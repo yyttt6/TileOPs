@@ -38,39 +38,6 @@ def _lookup(rows, vocab, width, dtype, index_dtype):
     return tilelang.compile(main, target="ascend", out_idx=[2])
 
 
-@lru_cache(maxsize=64)
-def _gather_batch(rows, vocab, width, dtype, index_dtype):
-    batch = max(2, min(1024, 16384 // width))
-    groups = (rows + batch - 1) // batch
-    blocks = min(64, groups)
-
-    @T.prim_func
-    def main(
-        ids: T.Tensor((rows,), index_dtype),
-        weight: T.Tensor((vocab, width), dtype),
-        out: T.Tensor((rows, width), dtype),
-    ):
-        with T.Kernel(blocks) as bx:
-            indices = T.alloc_shared((batch,), index_dtype)
-            gathered = T.alloc_shared((batch, width), dtype)
-            for step in T.serial(T.ceildiv(groups, blocks)):
-                row = (step * blocks + bx) * batch
-                if row < rows:
-                    count = T.min(batch, rows - row)
-                    T.copy(ids[row : row + count], indices[:count])
-                    if width <= 64:
-                        with T.SimtVF(threads=256):
-                            for r, c in T.Parallel(batch, width):
-                                if r < count:
-                                    gathered[r, c] = weight[indices[r], c]
-                    else:
-                        for r in T.serial(count):
-                            T.copy(weight[indices[r], :], gathered[r, :])
-                    T.copy(gathered[:count, :], out[row : row + count, :], l2_cache_ctrl=0)
-
-    return tilelang.compile(main, target="ascend", out_idx=[2])
-
-
 class AscendEmbeddingKernel(Kernel, EmbeddingFwdInterface):
     devices = frozenset({"npu"})
     supported_archs = None
@@ -89,8 +56,7 @@ class AscendEmbeddingKernel(Kernel, EmbeddingFwdInterface):
         shape = (*input.shape, weight.shape[1])
         if not input.numel() or not weight.shape[1]:
             return weight.new_empty(shape)
-        builder = _gather_batch if input.numel() >= 256 and weight.shape[1] <= 8192 else _lookup
-        program = builder(
+        program = _lookup(
             input.numel(), *weight.shape, self.dtype_str, self.dtype_to_str(input.dtype)
         )
         return program(input.reshape(-1), weight).view(shape)
