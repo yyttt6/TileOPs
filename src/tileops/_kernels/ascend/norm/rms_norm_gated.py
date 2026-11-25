@@ -99,6 +99,56 @@ def _normalize(rows, n, group, dtype, weight_type, bias_type, gate_type, eps, be
     return tilelang.compile(main, target="ascend", out_idx=[4])
 
 
+@lru_cache(maxsize=32)
+def _short_rows(rows, dtype, weight_dtype, eps, silu):
+    width = 128
+    batch = 32
+    blocks = min(64, rows // batch)
+
+    @T.prim_func
+    def main(
+        x: T.Tensor((rows, width), dtype),
+        w: T.Tensor((width,), weight_dtype),
+        z: T.Tensor((rows, width), dtype),
+        out: T.Tensor((rows, width), dtype),
+    ):
+        with T.Kernel(blocks) as bx:
+            xv = T.alloc_shared((batch, width), dtype)
+            zv = T.alloc_shared((batch, width), dtype)
+            y = T.alloc_shared((batch, width), dtype)
+            wv = T.alloc_shared((width,), weight_dtype)
+            T.annotate_buffer_versions({xv: 2, zv: 2, y: 2})
+            T.copy(w, wv)
+            for step in T.Pipelined(T.ceildiv(rows, blocks * batch), num_stages=2):
+                start = (step * blocks + bx) * batch
+                if start < rows:
+                    T.copy(x[start : start + batch, :], xv)
+                    T.copy(z[start : start + batch, :], zv)
+                    with T.SimtVF(threads=128):
+                        sums = T.alloc_reducer((batch,), "float32", op="sum")
+                        reduced = T.alloc_fragment((batch,), "float32")
+                        T.reducer_init(sums)
+                        for r, c in T.Parallel(batch, width):
+                            v = T.cast(xv[r, c], "float32")
+                            T.reducer_update(sums[r], v * v)
+                        T.finalize_reducer(sums, reduced)
+                        for r, c in T.Parallel(batch, width):
+                            gate = T.cast(zv[r, c], "float32")
+                            ex = T.exp(-T.abs(gate))
+                            sigmoid = T.if_then_else(gate < 0, ex / (1 + ex), 1 / (1 + ex))
+                            act = T.if_then_else(silu, gate * sigmoid, sigmoid)
+                            result = (
+                                T.cast(xv[r, c], "float32")
+                                * T.rsqrt(reduced[r] / width + eps)
+                                * T.cast(wv[c], "float32")
+                                * act
+                            )
+                            y[r, c] = T.cast(result, dtype)
+                    T.copy(y, out[start : start + batch, :], l2_cache_ctrl=0)
+
+    return tilelang.compile(main, target="ascend", out_idx=[3])
+
+
 class AscendRMSNormGatedKernel(Kernel, RMSNormGatedFwdInterface):
     devices = frozenset({"npu"})
     supported_archs = None
@@ -116,6 +166,19 @@ class AscendRMSNormGatedKernel(Kernel, RMSNormGatedFwdInterface):
         def dtype(t):
             return self.dtype_to_str(t.dtype) if t is not None else None
 
+        if (
+            call.n == call.group == 128
+            and rows % 32 == 0
+            and bias is None
+            and z is not None
+            and z.dtype == x.dtype
+            and weight.dtype == x.dtype
+            and call.norm_before_gate
+        ):
+            program = _short_rows(
+                rows, dtype(x), dtype(weight), call.eps, call.activation == "silu"
+            )
+            return program(x.view(rows, 128), weight, z.view(rows, 128)).view_as(x)
         program = _normalize(
             rows,
             call.n,
