@@ -20,7 +20,7 @@ def measure_and_verify(
         _restore,
         _snapshot,
         _unique,
-        verify,
+        _verify_with_input_snapshot,
     )
 
     if impl.noncomparable_reason:
@@ -59,7 +59,7 @@ def measure_and_verify(
             produced = comparison_transform(produced)
         evidence = case.verification
         comparison = replace(evidence, probe=None) if isinstance(evidence, Custom) else evidence
-        checks = verify(
+        checks = _verify_with_input_snapshot(
             (
                 golden_cache.wrap(case.reference)
                 if golden_cache is not None and case.reference is not None
@@ -67,6 +67,7 @@ def measure_and_verify(
             ),
             inputs,
             evidence=comparison,
+            snapshot=(shared, pristine),
             requests={"tileops": Request(lambda: produced, ())},
         )
         checked = checks["tileops"]

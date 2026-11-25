@@ -1,6 +1,7 @@
 """Measure one frozen registered operator under the shared physical32 reservation."""
 
 import argparse
+import gc
 import hashlib
 import json
 import os
@@ -118,7 +119,9 @@ def main(argv=None):
     count = failed = 0
     started = time.monotonic()
     with (a.output / "results.jsonl").open("x") as stream:
-        for index, case in enumerate(selected_cases):
+        def measure_case(index, case):
+            # Keep the operator, bound arguments, oracle and any custom verification
+            # closures local to one case. Large MoE cases cannot coexist on the device.
             row = dict(
                 op=a.op, case_id=case.id, params=case.params, family=manifest[a.op]["family"]
             )
@@ -197,18 +200,25 @@ def main(argv=None):
                     measurement=measurement,
                     input_preserved=True,
                 )
-                count += 1
             except Exception:
                 row.update(status="failed", error=__import__("traceback").format_exc())
-                failed += 1
             if golden is not None:
                 row["golden_cache"] = golden.events
             row["wall_seconds"] = time.monotonic() - begin
             stream.write(json.dumps(row, default=str) + "\n")
             stream.flush()
             print(a.op, case.id, row["status"], flush=True)
+            return row["status"] == "passed"
+
+        for index, case in enumerate(selected_cases):
+            passed = measure_case(index, case)
+            count += int(passed)
+            failed += int(not passed)
             case._release()
-            if failed and a.verify_measured_output:
+            # Negative-control exceptions can form traceback cycles that still own
+            # weight tensors. Collect before generating the next case's inputs.
+            gc.collect()
+            if not passed and a.verify_measured_output:
                 break
     torch.npu.synchronize()
     changed = before != source_fingerprint()
