@@ -242,6 +242,11 @@ def _tensor(spec: TensorSpec, device: Any) -> Any:
     place = "cpu" if spec.cpu else device
     if spec.values is not None:
         return torch.tensor(spec.values, dtype=dtype, device=place).reshape(spec.shape)
+    if dtype == torch.float8_e8m0fnu and torch.device(place).type == "npu":
+        # This torch_npu cannot cast normals to E8M0. Keep the same sampling
+        # distribution and CPU PyTorch conversion, then transfer the encoded bytes.
+        values = torch.randn(spec.shape, device=place)
+        return values.cpu().to(dtype).view(torch.uint8).to(place).view(dtype)
     if dtype.is_floating_point or dtype.is_complex:
         return torch.randn(spec.shape, device=place, dtype=dtype if dtype.is_complex else None).to(
             dtype

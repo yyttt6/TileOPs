@@ -276,7 +276,12 @@ def fp4_quant_per_group(
         return None, None, x
     pairs = codes.flatten(-2).unflatten(-1, (n // 2, 2))
     packed = (pairs[..., 0] | (pairs[..., 1] << 4)).to(torch.uint8)
-    return packed, scale.squeeze(-1).to(torch.float8_e8m0fnu), None
+    scale = scale.squeeze(-1)
+    if x.device.type == "npu":
+        # The scales are already exact powers of two in the normal float32 range.
+        encoded = ((scale.contiguous().view(torch.int32) >> 23) & 255).to(torch.uint8)
+        return packed, encoded.view(torch.float8_e8m0fnu), None
+    return packed, scale.to(torch.float8_e8m0fnu), None
 
 
 class FP4QuantWorkload(WorkloadBase):

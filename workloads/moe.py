@@ -1102,8 +1102,17 @@ def ref_moe_grouped_gemm_mxfp4(
     """``MoEGroupedGEMMMXFP4FwdOp``'s reference: :func:`ref_moe_grouped_gemm` in float32 over
     ``a`` under its per-128 scales and the e2m1 pairs of ``b`` under their per-32 scales,
     rounded once to bfloat16 (DeepSeek-V4-Flash ``inference/kernel.py`` ``fp4_gemm``)."""
-    a_f = a.float() * a_scale.float().repeat_interleave(128, dim=-1)
-    b_f = unpack_e2m1(b) * b_scale.float().repeat_interleave(32, dim=-1)
+
+    def fp32(scale):
+        if scale.dtype != torch.float8_e8m0fnu or scale.device.type != "npu":
+            return scale.float()
+        # E8M0 is an unsigned binary exponent biased by 127. Code 255 is NaN.
+        exponent = scale.view(torch.uint8).to(torch.int32)
+        power = torch.pow(2.0, (exponent - 127).float())
+        return power.masked_fill(exponent == 255, float("nan"))
+
+    a_f = a.float() * fp32(a_scale).repeat_interleave(128, dim=-1)
+    b_f = unpack_e2m1(b) * fp32(b_scale).repeat_interleave(32, dim=-1)
     return ref_moe_grouped_gemm(a_f, b_f, layout_metadata, layout, torch.bfloat16)
 
 

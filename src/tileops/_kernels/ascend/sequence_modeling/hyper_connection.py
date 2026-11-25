@@ -22,6 +22,7 @@ def _mix(rows, streams, channels, mix_dtype, post):
     tiles = (channels + width - 1) // width
     outputs = streams if post else 1
     tasks = rows * outputs * tiles
+    blocks = min(64, tasks)
 
     @T.prim_func
     def main(
@@ -31,26 +32,29 @@ def _mix(rows, streams, channels, mix_dtype, post):
         scales: T.Tensor((rows, outputs), mix_dtype),
         result: T.Tensor((rows, outputs, channels), "bfloat16"),
     ):
-        with T.Kernel(tasks) as bx:
-            token = bx // (tiles * outputs)
-            dest = bx // tiles % outputs
-            column = bx % tiles * width
-            count = T.min(width, channels - column)
-            with T.SimtVF(threads=128):
-                for lane in T.Parallel(width):
-                    if lane < count:
-                        k = column + lane
-                        acc = T.alloc_local((1,), "float32")
-                        acc[0] = 0
-                        if post:
-                            acc[0] = T.cast(layer[token, k], "float32") * T.cast(
-                                scales[token, dest], "float32"
-                            )
-                        for src in T.serial(streams):
-                            acc[0] += T.cast(residual[token, src, k], "float32") * T.cast(
-                                weights[token, src, dest], "float32"
-                            )
-                        result[token, dest, k] = T.cast(acc[0], "bfloat16")
+        with T.Kernel(blocks) as block:
+            for step in T.serial(T.ceildiv(tasks, blocks)):
+                bx = step * blocks + block
+                if bx < tasks:
+                    token = bx // (tiles * outputs)
+                    dest = bx // tiles % outputs
+                    column = bx % tiles * width
+                    count = T.min(width, channels - column)
+                    with T.SimtVF(threads=128):
+                        for lane in T.Parallel(width):
+                            if lane < count:
+                                k = column + lane
+                                acc = T.alloc_local((1,), "float32")
+                                acc[0] = 0
+                                if post:
+                                    acc[0] = T.cast(layer[token, k], "float32") * T.cast(
+                                        scales[token, dest], "float32"
+                                    )
+                                for src in T.serial(streams):
+                                    acc[0] += T.cast(residual[token, src, k], "float32") * T.cast(
+                                        weights[token, src, dest], "float32"
+                                    )
+                                result[token, dest, k] = T.cast(acc[0], "bfloat16")
 
     return tilelang.compile(main, target="ascend", out_idx=[4])
 
@@ -59,6 +63,16 @@ def _project(residual, fn, eps):
     n, c = residual.shape[-2:]
     rows = residual.numel() // (n * c)
     values = residual.contiguous().view(rows, n * c)
+    if rows >= 256:
+        # Bound intermediate storage for long prefills; the projection and inverse
+        # RMS share the same promoted input, with no change to the stream mixtures.
+        pieces = []
+        for block in values.split(512, dim=0):
+            promoted = block.float()
+            pieces.append(
+                (promoted @ fn.T) * torch.rsqrt(promoted.square().mean(-1, keepdim=True) + eps)
+            )
+        return values.view(rows, n, c), torch.cat(pieces)
     parts = _projection(rows, n * c, fn.shape[0], "bfloat16")(fn.T.contiguous(), values)
     summed = parts.sum(1)
     logits = summed[:, :-1] * torch.rsqrt(summed[:, -1:] / (n * c) + eps)
