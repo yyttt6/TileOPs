@@ -91,6 +91,50 @@ def _collapse(residual, weights):
     )
 
 
+@lru_cache(maxsize=32)
+def _four_stream_post(rows, channels, mix_dtype):
+    # Reuse one input tile for the four destinations; every token owns its output.
+    width = min(1024, channels)
+    tiles = channels // width
+    blocks = min(64, rows * tiles)
+
+    @T.prim_func
+    def main(
+        residual: T.Tensor((rows, 4, channels), "bfloat16"),
+        weights: T.Tensor((rows, 4, 4), mix_dtype),
+        layer: T.Tensor((rows, channels), "bfloat16"),
+        scales: T.Tensor((rows, 4), mix_dtype),
+        result: T.Tensor((rows, 4, channels), "bfloat16"),
+    ):
+        with T.Kernel(blocks) as bx:
+            rv = T.alloc_shared((4, width), "bfloat16")
+            xv = T.alloc_shared((width,), "bfloat16")
+            coeff = T.alloc_shared((4, 4), mix_dtype)
+            scale = T.alloc_shared((4,), mix_dtype)
+            out = T.alloc_shared((4, width), "bfloat16")
+            for step in T.serial(T.ceildiv(rows * tiles, blocks)):
+                task = step * blocks + bx
+                if task < rows * tiles:
+                    token = task // tiles
+                    col = task % tiles * width
+                    T.copy(residual[token, :, col : col + width], rv)
+                    T.copy(layer[token, col : col + width], xv)
+                    T.copy(weights[token, :, :], coeff)
+                    T.copy(scales[token, :], scale)
+                    with T.SimtVF(threads=256):
+                        for dest, k in T.Parallel(4, width):
+                            acc = T.alloc_local((1,), "float32")
+                            acc[0] = T.cast(xv[k], "float32") * T.cast(scale[dest], "float32")
+                            for src in T.unroll(4):
+                                acc[0] += T.cast(rv[src, k], "float32") * T.cast(
+                                    coeff[src, dest], "float32"
+                                )
+                            out[dest, k] = T.cast(acc[0], "bfloat16")
+                    T.copy(out, result[token, :, col : col + width], l2_cache_ctrl=0)
+
+    return tilelang.compile(main, target="ascend", out_idx=[4])
+
+
 class AscendHyperConnectionPostKernel(Kernel, HyperConnectionPostFwdInterface):
     devices = frozenset({"npu"})
     supported_archs = None
@@ -103,7 +147,12 @@ class AscendHyperConnectionPostKernel(Kernel, HyperConnectionPostFwdInterface):
             return torch.empty_like(residual)
         n, c = residual.shape[-2:]
         rows = residual.numel() // (n * c)
-        return _mix(rows, n, c, self.dtype_to_str(comb_res_mix.dtype), True)(
+        mix_dtype = self.dtype_to_str(comb_res_mix.dtype)
+        if n == 4 and rows >= 64 and c % 1024 == 0:
+            program = _four_stream_post(rows, c, mix_dtype)
+        else:
+            program = _mix(rows, n, c, mix_dtype, True)
+        return program(
             residual.reshape(rows, n, c),
             comb_res_mix.reshape(rows, n, n),
             x.reshape(rows, c),
