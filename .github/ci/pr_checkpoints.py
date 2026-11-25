@@ -60,6 +60,11 @@ def source_hashes(root):
     return {p.relative_to(root).as_posix(): digest(p.read_bytes()) for p in paths}
 
 
+def measurement_sources(sources):
+    """CPU-only controller regression tests do not run in device workers."""
+    return {name: sha for name, sha in sources.items() if not name.startswith("scripts/ci/tests/")}
+
+
 def identity(provenance, registration, cache, toolchain, sources):
     if toolchain["status"] != "passed" or toolchain["errors"]:
         raise ValueError("Toolchain verification failed")
@@ -71,7 +76,7 @@ def identity(provenance, registration, cache, toolchain, sources):
         registration=fingerprint(registration),
         cache=fingerprint(cache),
         reference=fingerprint(toolchain["reference_runtime"]),
-        sources=fingerprint(sources),
+        sources=fingerprint(measurement_sources(sources)),
     )
 
 
@@ -162,6 +167,7 @@ def archive_index(archive_path, expected_digest, destination):
                     directory=op,
                     guard=receipt.name,
                     guard_sha256=g["sha256"],
+                    sources_sha256=fingerprint(measured_sources),
                     rows_sha256=digest(raw(op + "/results.jsonl")),
                     scope="all-cases",
                 )
@@ -220,7 +226,13 @@ def verify(record, evidence, cases, sources, hardware, replay, provenance):
         original[field] == provenance[field]
         for field in ("base", "baseline_sha256", "correctness_protocol", "harness_sources")
     )
-    assert read(target / "sources.json") == sources and read(target / "hardware.json") == hardware
+    recorded_sources = read(target / "sources.json")
+    assert fingerprint(recorded_sources) == record["sources_sha256"]
+    if record["commit"] == provenance["commit"]:
+        assert recorded_sources == sources
+    else:
+        assert measurement_sources(recorded_sources) == measurement_sources(sources)
+    assert read(target / "hardware.json") == hardware
     result = read(target / "result.json")
     assert result["status"] == "passed" and not result["failed"] and not result["source_changed"]
     assert result["selection_scope"] == record["scope"]
@@ -465,6 +477,7 @@ def measure(args):
                 directory=str(target.relative_to(out)),
                 guard=Path(report["guard_receipt"]).name,
                 guard_sha256=report["guard_sha256"],
+                sources_sha256=fingerprint(sources),
                 rows_sha256=digest((target / "results.jsonl").read_bytes()),
                 scope="case-sample" if partial else "all-cases",
             )

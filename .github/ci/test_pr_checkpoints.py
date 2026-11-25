@@ -5,10 +5,27 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from pr_checkpoints import archive_index, digest, partitions, save, verify
+from pr_checkpoints import (
+    archive_index,
+    digest,
+    fingerprint,
+    measurement_sources,
+    partitions,
+    save,
+    verify,
+)
 
 
 class ReservationTests(unittest.TestCase):
+    def test_compile_fixture_changes_keep_only_execution_identity(self):
+        old = {"workloads/op.py": "one", "scripts/ci/tests/test_selection.py": "before"}
+        fresh = {**old, "scripts/ci/tests/test_selection.py": "after"}
+        self.assertNotEqual(fingerprint(old), fingerprint(fresh))
+        self.assertEqual(measurement_sources(old), measurement_sources(fresh))
+        self.assertNotEqual(
+            measurement_sources(old), measurement_sources({**fresh, "workloads/op.py": "two"})
+        )
+
     def test_partition_after_a_partial_recovery(self):
         cases = {"a": ["one"], "b": [str(i) for i in range(278)], "c": ["x", "y"]}
         done = {("a", "one"), ("b", "1"), ("b", "45")}
@@ -120,6 +137,7 @@ class ReservationTests(unittest.TestCase):
                 "directory": str(output.relative_to(root)),
                 "guard": receipt.name,
                 "guard_sha256": digest(receipt.read_bytes()),
+                "sources_sha256": fingerprint({"code.py": "hash"}),
                 "rows_sha256": digest(data.read_bytes()),
             }
 
