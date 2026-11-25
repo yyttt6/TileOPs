@@ -80,7 +80,7 @@ def make_fused_topk(
     grouped = num_expert_group > 1
     scaled = routed_scaling_factor != 1.0
     # A padded lane must lose even to the smallest finite selection score.
-    negative = -float("inf") if experts % _WARP_LANES else _NEG
+    negative = -float("inf") if with_bias or experts % _WARP_LANES else _NEG
     group_size = experts // num_expert_group
 
     def group_of(j, lane_id):
@@ -119,6 +119,9 @@ def make_fused_topk(
 
                     my_scores = T.alloc_local([elems_per_thread], "float32")
                     sel = T.alloc_local([elems_per_thread], "float32")
+                    # Track eligibility separately when bias may produce arbitrary scores.
+                    if with_bias:
+                        available = T.alloc_local([elems_per_thread], "int32")
 
                     for j in T.serial(elems_per_thread):
                         expert = j * _WARP_LANES + lane_id
@@ -159,6 +162,8 @@ def make_fused_topk(
 
                     for j in T.serial(elems_per_thread):
                         expert = j * _WARP_LANES + lane_id
+                        if with_bias:
+                            available[j] = T.if_then_else(expert < experts, 1, 0)
                         if experts % _WARP_LANES == 0 or expert < experts:
                             if with_bias:
                                 sel[j] = my_scores[j] + bias_ub[expert]
@@ -225,10 +230,7 @@ def make_fused_topk(
                             pick = T.int32(-1)
                             pick_val = negative
                             for gidx in T.unroll(num_expert_group):
-                                if kept[gidx] == 0 and (
-                                    group_score[gidx] > pick_val
-                                    or (experts % _WARP_LANES != 0 and pick < 0)
-                                ):
+                                if kept[gidx] == 0 and (pick < 0 or group_score[gidx] > pick_val):
                                     pick = gidx
                                     pick_val = group_score[gidx]
                             for gidx in T.unroll(num_expert_group):
@@ -237,7 +239,10 @@ def make_fused_topk(
                         for j in T.unroll(elems_per_thread):
                             for gidx in T.unroll(num_expert_group):
                                 if group_of(j, lane_id) == gidx and kept[gidx] == 0:
-                                    sel[j] = negative
+                                    if with_bias:
+                                        available[j] = 0
+                                    else:
+                                        sel[j] = negative
 
                     local_max = T.alloc_var(T.float32)
                     local_idx = T.alloc_var(T.int32)
@@ -251,11 +256,18 @@ def make_fused_topk(
 
                     for k in T.serial(top_k):
                         local_max = negative
-                        local_idx = T.int32(-1)
+                        local_idx = T.int32(experts)
                         for j in T.serial(elems_per_thread):
-                            if sel[j] > local_max:
-                                local_max = sel[j]
-                                local_idx = j * _WARP_LANES + lane_id
+                            if with_bias:
+                                if available[j] != 0 and (
+                                    local_idx == experts or sel[j] > local_max
+                                ):
+                                    local_max = sel[j]
+                                    local_idx = j * _WARP_LANES + lane_id
+                            else:
+                                if sel[j] > local_max:
+                                    local_max = sel[j]
+                                    local_idx = j * _WARP_LANES + lane_id
 
                         l_best_val = T.warp_reduce_max(local_max)
                         idx_cand = T.if_then_else(local_max == l_best_val, local_idx, experts)
@@ -267,7 +279,10 @@ def make_fused_topk(
 
                         for j in T.serial(elems_per_thread):
                             if j * _WARP_LANES + lane_id == l_best_idx:
-                                sel[j] = negative
+                                if with_bias:
+                                    available[j] = 0
+                                else:
+                                    sel[j] = negative
 
                     # The weights are the unbiased scores of the winners. Recomputing
                     # them from the logits keeps that exact for any finite bias, where
