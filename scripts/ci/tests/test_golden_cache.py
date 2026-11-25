@@ -169,7 +169,7 @@ def test_policy_complete():
 
     p = json.loads((ROOT / "scripts/ci/golden_cache_policy.json").read_text())
     assert set(p["operators"]) == set(load_manifest())
-    assert len(p["operators"]) == 206
+    assert len(p["operators"]) == 218
     assert sum(v in {"high", "medium"} for v in p["operators"].values()) == 49
 
 
