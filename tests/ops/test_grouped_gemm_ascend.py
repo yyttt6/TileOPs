@@ -34,3 +34,17 @@ def test_ascend_grouped_gemm_reloads_offsets_across_shapes():
         )
         got = op(data, weights, ends)
         torch.testing.assert_close(got.cpu(), expected, rtol=1e-3, atol=1e-3)
+
+
+@pytest.mark.smoke
+def test_ascend_grouped_gemm_returns_empty_output_buffer():
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("requires Ascend")
+    op = MoEGroupedGEMMFwdOp(ContiguousLayoutSpec.tight_physical_psum())
+    a = torch.empty((3, 32), device=device, dtype=torch.float16)
+    weights = a.new_empty((2, 0, 32))
+    ends = torch.tensor([1, 3], device=device, dtype=torch.int32)
+    out = a.new_empty((3, 0))
+    assert op(a, weights, ends, out=out) is out
+    assert op(a, weights, ends).shape == out.shape

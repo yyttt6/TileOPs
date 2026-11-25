@@ -217,7 +217,7 @@ class AscendMoEGroupedGEMMKernel(Kernel, MGroupedGEMMFwdInterface):
             ):
                 if ref is not None and tensors_overlap(out, ref):
                     raise ValueError(f"out must not overlap {name} in memory")
-        if m == 0:
+        if m == 0 or cols == 0:
             return out
         dtype = str(call.ab_dtype).removeprefix("torch.")
         dst = str(call.cd_dtype).removeprefix("torch.")
