@@ -17,6 +17,8 @@ from tileops.manifest import load_adts, load_manifest
 from tileops.manifest._plan import entry_plan
 from tileops.manifest._registry import op_class
 from tileops.manifest._workload import instantiate
+from tileops.manifest.typed._workload import Call as TypedCall
+from tileops.manifest.typed._workload import Elements
 
 pytestmark = pytest.mark.smoke
 
@@ -30,20 +32,35 @@ def _from_call(cls: type, name: str, entry: dict) -> tuple:
         for row in entry["workloads"]
         for case in row.get("dtype_cases") or [{}]
     ]
-    call = min(calls, key=lambda c: sum(math.prod(c.tensors[t][0]) for t in c.tensors))
+
+    def elements(tensor):
+        pairs = tensor.items if isinstance(tensor, Elements) else (tensor,)
+        return sum(math.prod(shape) for shape, _ in pairs)
+
+    call = min(calls, key=lambda c: sum(elements(t) for t in c.tensors.values()))
+
+    def empty(spec):
+        return torch.empty(spec.shape, dtype=getattr(torch, spec.dtype))
+
+    typed = isinstance(call, TypedCall)
     tensors = {
-        n: None if spec is None else torch.empty(spec.shape, dtype=getattr(torch, spec.dtype))
+        n: (call.scalars.get(n) if typed else None)
+        if spec is None
+        else [empty(e) for e in spec]
+        if isinstance(spec, tuple)
+        else empty(spec)
         for n, spec in call.specs.items()
     }
     args = [tensors[n] for n in plan.sig.inputs]
     while args and args[-1] is None:
+        if typed and list(plan.sig.inputs.values())[len(args) - 1].default is not None:
+            break
         args.pop()
-    # An output aliasing an input every call writes is that input object.
+    written = (
+        call.written if typed else {n for n, t in plan.sig.inputs.items() if t.mutated is True}
+    )
     outputs = [
-        tensors[t.alias]
-        if t.alias is not None and plan.sig.inputs[t.alias].mutated is True
-        else tensors[o]
-        for o, t in plan.sig.outputs.items()
+        tensors[t.alias] if t.alias in written else tensors[o] for o, t in plan.sig.outputs.items()
     ]
     return cls(**call.arguments(tensors)), tuple(args), outputs
 
@@ -99,7 +116,16 @@ def test_a_target_is_described_and_called_with_the_forward_inputs(name):
     op, args, declared_outputs = _from_call(cls, name, entry)
     declared = tuple(entry["signature"].get("inputs") or {})
     passed = args + (None,) * (len(declared) - len(args))
-    described = tuple(None if t is None else TensorSpec.of(t) for t in passed)
+    described = tuple(
+        None
+        if t is None
+        else tuple(map(TensorSpec.of, t))
+        if isinstance(t, (tuple, list))
+        else TensorSpec.of(t)
+        if isinstance(t, torch.Tensor)
+        else type(t)
+        for t in passed
+    )
     expected_params = op._manifest_params()
     seen, returned = [], []
 
@@ -123,7 +149,14 @@ def test_a_target_is_described_and_called_with_the_forward_inputs(name):
     result = op(*positional, **keywords)
 
     assert len(seen) == 1, "the kernel the target built runs the call"
-    assert all(a is b for a, b in zip(seen[0], passed, strict=True)), (
+
+    # A tensor sequence is the same tensors in order, held in whatever list the call built.
+    def same(a, b):
+        if isinstance(b, (list, tuple)):
+            return type(a) is type(b) and len(a) == len(b) and all(map(same, a, b))
+        return a is b
+
+    assert all(same(a, b) for a, b in zip(seen[0], passed, strict=True)), (
         "called with what it was described"
     )
     outputs = tuple(entry["signature"]["outputs"])
