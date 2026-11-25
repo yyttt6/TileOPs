@@ -35,6 +35,7 @@ from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.constants import MAX_GRID_YZ_BLOCKS, VECTOR_ACCESS_BYTES
 from tileops._kernels.kernel_base import Entry, Kernel, KernelInterface
 from tileops._kernels.streaming_load import load16_evict_last
+from tileops._kernels.typed_call_spec import TypedCallSpec
 
 _FLOAT_DTYPES = (torch.float16, torch.bfloat16, torch.float32)
 
@@ -869,7 +870,7 @@ class RoPENonNeoxKernel(_RoPEKernelBase, RoPENonNeoxFwdInterface):
 
 
 @dataclasses.dataclass(frozen=True)
-class RoPECosSinCall(CallSpec):
+class RoPECosSinCall(TypedCallSpec):
     """One rotation of ``x`` by caller-given per-row ``cos`` and ``sin`` tables.
 
     The token count, the batch and the strides of ``x`` are not facts of the call: a kernel

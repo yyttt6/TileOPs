@@ -6,8 +6,8 @@ from abc import abstractmethod
 
 import torch
 
-from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.kernel_base import KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec as CallSpec
 
 __all__ = [
     "HyperConnectionHeadCall",

@@ -10,6 +10,7 @@ import torch
 
 from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.kernel_base import KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec
 
 __all__ = [
     "AdaLayerNormFwdInterface",
@@ -519,7 +520,7 @@ class FusedQKNormRoPEFwdInterface(KernelInterface):
 
 
 @dataclasses.dataclass(frozen=True)
-class RMSNormGatedCall(CallSpec):
+class RMSNormGatedCall(TypedCallSpec):
     """The facts that select a gated RMS normalization implementation and build it.
 
     ``n`` is the row's element count and ``group`` the element count each norm runs over,

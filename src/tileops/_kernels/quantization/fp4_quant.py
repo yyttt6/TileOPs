@@ -7,7 +7,6 @@ import tilelang.language as T
 import torch
 
 from tileops._kernels.build_target import target_cache
-from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.constants import VECTOR_ACCESS_BYTES
 from tileops._kernels.kernel_base import Entry, Kernel, KernelInterface
 from tileops._kernels.quantization.group_quant import (
@@ -21,6 +20,7 @@ from tileops._kernels.quantization.group_quant import (
     store_groups,
     write_in_place,
 )
+from tileops._kernels.typed_call_spec import TypedCallSpec as CallSpec
 
 __all__ = ["FP4QuantCall", "FP4QuantFwdInterface", "FP4QuantKernel"]
 

@@ -12,10 +12,10 @@ from tvm import DataType
 
 from tileops._csrc import csrc_include
 from tileops._kernels.build_target import target_cache
-from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.constants import MAX_GRID_YZ_BLOCKS, VECTOR_ACCESS_BYTES
 from tileops._kernels.kernel_base import Entry, Kernel, KernelInterface
 from tileops._kernels.streaming_load import load16_evict_last
+from tileops._kernels.typed_call_spec import TypedCallSpec as CallSpec
 
 __all__ = ["ConcatCall", "ConcatFwdInterface", "ConcatKernel"]
 

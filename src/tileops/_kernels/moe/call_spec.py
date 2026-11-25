@@ -9,6 +9,7 @@ import torch
 
 from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.kernel_base import KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec
 
 if TYPE_CHECKING:
     from tileops._ops.moe.contracts import (
@@ -535,7 +536,7 @@ class IndexedWeightedReduceFwdInterface(KernelInterface):
 
 
 @dataclasses.dataclass(frozen=True)
-class _MGroupedLayoutCall(CallSpec):
+class _MGroupedLayoutCall(TypedCallSpec):
     """The expert layout of an M-grouped GEMM call, the first fields of each call record."""
 
     kind: str = ""  # "contiguous" | "masked"

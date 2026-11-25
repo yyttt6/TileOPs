@@ -9,9 +9,9 @@ import tilelang.language as T
 import torch
 
 from tileops._kernels.build_target import target_cache
-from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.constants import MAX_GRID_YZ_BLOCKS, VECTOR_ACCESS_BYTES
 from tileops._kernels.kernel_base import CompiledProgram, Entry, Kernel, KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec as CallSpec
 from tileops._utils import WARP_LANES, WARP_SHUFFLE_STAGES
 
 __all__ = ["MaskedScatterCall", "MaskedScatterFwdInterface", "MaskedScatterKernel", "mask_runs"]

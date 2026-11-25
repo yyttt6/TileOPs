@@ -8,8 +8,8 @@ import tilelang.language as T
 import torch
 
 from tileops._kernels.build_target import target_cache
-from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.kernel_base import Entry, Kernel, KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec as CallSpec
 
 __all__ = ["NGramHashCall", "NGramHashFwdInterface", "NGramHashKernel"]
 

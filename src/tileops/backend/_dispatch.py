@@ -236,8 +236,8 @@ def device_facts_and_tuning(device: torch.device | None) -> tuple[DeviceFacts, T
     Raises:
         BackendError: What `device_facts_of` raises.
     """
-    from tileops._utils import device_facts
     from tileops._utils.device import current_device, on_current_index
+    from tileops._utils.typed_cuda import _device_facts
 
     # A device type nobody registered reports no architecture, compute units or memory.
     no_facts = DeviceFacts(arch=-1, sm_count=0, smem_budget=0)
@@ -255,7 +255,7 @@ def device_facts_and_tuning(device: torch.device | None) -> tuple[DeviceFacts, T
     if device is None:
         return no_facts, no_tuning
     if device.type == "cuda":
-        facts = device_facts(device.index)
+        facts = _device_facts(device.index)
         return (
             DeviceFacts(arch=facts.arch, sm_count=facts.sm_count, smem_budget=facts.smem_budget),
             TuningFacts(

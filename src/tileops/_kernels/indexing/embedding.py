@@ -11,9 +11,9 @@ from tvm import DataType
 
 from tileops._csrc import csrc_include
 from tileops._kernels.build_target import target_cache
-from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.constants import VECTOR_ACCESS_BYTES
 from tileops._kernels.kernel_base import Entry, Kernel, KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec as CallSpec
 from tileops._utils import WARP_LANES
 
 __all__ = ["EmbeddingCall", "EmbeddingFwdInterface", "EmbeddingKernel"]
