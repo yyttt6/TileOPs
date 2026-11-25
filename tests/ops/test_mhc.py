@@ -88,3 +88,27 @@ def test_mhc_post_op_misaligned_storage() -> None:
         for t in (x_layer_out, x_res)
     )
     test.check(MHCPostFwdOp(), x_layer_out, h_post, x_res)
+
+
+@pytest.mark.smoke
+def test_mhc_empty_ascend():
+    from workloads.device import run_device
+
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("requires the Ascend mHC kernels")
+    streams, channels = 4, 8
+    mixes = streams * (streams + 2)
+    x = torch.empty((0, streams * channels), dtype=torch.bfloat16, device=device)
+    phi = torch.empty((streams * channels, mixes), dtype=torch.float32, device=device)
+    bias = phi.new_empty((mixes,))
+    residual, layer, weights = MHCPreFwdOp(1.0, 1.0, 1.0, 1)(phi, x, bias)
+    assert residual.shape == x.shape and residual.dtype == x.dtype
+    assert layer.shape == (0, channels) and layer.dtype == x.dtype
+    assert weights.shape == (0, streams) and weights.dtype == torch.float32
+    for b, n, c in [(0, streams, channels), (2, 0, channels), (2, streams, 0)]:
+        result = MHCPostFwdOp()(
+            x.new_empty((b, c)), weights.new_empty((b, n)), x.new_empty((b, n * c))
+        )
+        assert result.shape == (b, n * c) and result.dtype == x.dtype
+        assert result.device == x.device

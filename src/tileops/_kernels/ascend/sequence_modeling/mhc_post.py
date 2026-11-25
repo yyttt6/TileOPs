@@ -61,9 +61,15 @@ class AscendMHCPostKernel(Kernel, MHCPostFwdInterface):
     def __init__(self, call: MHCPostCall):
         super().__init__(device_index=call.device.index)
         self.dtype = call.dtype
-        self._kernel = _build(call.batch, call.n_expand, call.c_x, self.dtype_str)
+        self._kernel = (
+            _build(call.batch, call.n_expand, call.c_x, self.dtype_str)
+            if call.batch and call.n_expand and call.c_x
+            else None
+        )
 
     def forward(self, x_layer_out, h_post, x_res):
+        if self._kernel is None:
+            return x_res.new_empty(x_res.shape)
         return self._kernel(x_layer_out, h_post, x_res)
 
 

@@ -157,6 +157,9 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
         super().__init__(device_index=call.device.index)
         self.dtype = call.dtype
         b, n, c = call.batch, call.n_expand, call.c_x
+        self.call = call
+        if not b:
+            return
         self.project = _projection(b, n * c, n * n + 2 * n, self.dtype_str)
         self.normalize = _normalize(
             b,
@@ -171,6 +174,12 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
         self.mix = _apply(b, n, c, self.dtype_str)
 
     def forward(self, phi, x, b, alpha_pre, alpha_post, alpha_res, sinkhorn_repeat, sinkhorn_eps):
+        if not self.call.batch:
+            return (
+                x.new_empty(x.shape),
+                x.new_empty((0, self.call.c_x)),
+                b.new_empty((0, self.call.n_expand)),
+            )
         partial = self.project(phi, x)
         coeff, h_post = self.normalize(partial, b)
         x_res, x_layer = self.mix(x, coeff)
