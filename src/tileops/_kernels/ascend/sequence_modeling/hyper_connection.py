@@ -63,11 +63,12 @@ def _project(residual, fn, eps):
     n, c = residual.shape[-2:]
     rows = residual.numel() // (n * c)
     values = residual.contiguous().view(rows, n * c)
-    if rows >= 256:
+    if rows >= 32:
         # Bound intermediate storage for long prefills; the projection and inverse
         # RMS share the same promoted input, with no change to the stream mixtures.
         pieces = []
-        for block in values.split(512, dim=0):
+        block_rows = max(1, min(rows, (64 * 1024 * 1024) // (n * c)))
+        for block in values.split(block_rows, dim=0):
             promoted = block.float()
             pieces.append(
                 (promoted @ fn.T) * torch.rsqrt(promoted.square().mean(-1, keepdim=True) + eps)
@@ -79,8 +80,45 @@ def _project(residual, fn, eps):
     return values.view(rows, n, c), logits
 
 
+@lru_cache(maxsize=32)
+def _collapse_four(rows, channels):
+    width = min(2048, channels)
+    tiles = channels // width
+    blocks = min(64, rows * tiles)
+
+    @T.prim_func
+    def main(
+        residual: T.Tensor((rows, 4, channels), "bfloat16"),
+        weights: T.Tensor((rows, 4), "float32"),
+        result: T.Tensor((rows, channels), "bfloat16"),
+    ):
+        with T.Kernel(blocks) as bx:
+            data = T.alloc_shared((4, width), "bfloat16")
+            coeff = T.alloc_shared((4,), "float32")
+            out = T.alloc_shared((width,), "bfloat16")
+            for step in T.serial(T.ceildiv(rows * tiles, blocks)):
+                tile = step * blocks + bx
+                if tile < rows * tiles:
+                    r = tile // tiles
+                    c = (tile % tiles) * width
+                    T.copy(residual[r, :, c : c + width], data)
+                    T.copy(weights[r, :], coeff)
+                    with T.SimtVF(threads=256):
+                        for k in T.Parallel(width):
+                            acc = T.alloc_local((1,), "float32")
+                            acc[0] = 0
+                            for src in T.unroll(4):
+                                acc[0] += coeff[src] * T.cast(data[src, k], "float32")
+                            out[k] = T.cast(acc[0], "bfloat16")
+                    T.copy(out, result[r, c : c + width], l2_cache_ctrl=0)
+
+    return tilelang.compile(main, target="ascend", out_idx=[2])
+
+
 def _collapse(residual, weights):
     rows, streams, channels = residual.shape
+    if streams == 4 and rows >= 32 and channels > 0 and channels % min(2048, channels) == 0:
+        return _collapse_four(rows, channels)(residual, weights.contiguous().view(rows, streams))
     weights = weights.contiguous().view(rows, streams, 1)
     # The post-only inputs are unused in the collapse specialization.
     return _mix(rows, streams, channels, "float32", False)(
