@@ -127,10 +127,11 @@ def test_shared_expert_reuses_entries_on_a_nondefault_stream(
 
 @pytest.mark.smoke
 @pytest.mark.in_tree_kernels
-def test_shared_expert_refuses_unaligned_cube_inputs(ascend_device):
-    """An unsupported contraction or output stride fails with an alignment reason."""
-    for hidden, ffn in ((17, 16), (16, 17)):
+def test_shared_expert_unaligned_cube_inputs(ascend_device):
+    """Each half of the gate/up matrix keeps its own rows when the shard needs padding."""
+    for hidden, ffn in ((17, 16), (16, 17), (17, 19)):
         call = manifest_call("SharedExpertMLPFwdOp", {"D": "float16"}, T=1, H=hidden, S=ffn)
-        args = SharedExpertMLPWorkload(call).gen_inputs()
-        with pytest.raises(ValueError, match="divisible by 16"):
-            SharedExpertMLPFwdOp()(*args)
+        workload = SharedExpertMLPWorkload(call)
+        args = workload.gen_inputs()
+        actual = SharedExpertMLPFwdOp()(*args)
+        compare_outputs(actual, workload.ref_program(*args), workload.verification(*args))

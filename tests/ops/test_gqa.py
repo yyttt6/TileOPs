@@ -976,10 +976,13 @@ def test_gqa_bwd_graph_replays_alternate_dq_accumulators(
 
 @pytest.mark.in_tree_kernels
 @pytest.mark.smoke
-def test_gqa_bwd_refuses_a_head_dim_off_the_contraction_before_building() -> None:
-    """Every backward kernel contracts the head dim in steps of 16, so head dim 24 is refused."""
+def test_gqa_bwd_head_dim_off_the_contraction_by_backend() -> None:
+    """Ascend pads this dimension; CUDA rejects it before building a kernel."""
     test = GQABwdTest(1, 8, 2, 128, 24, True, torch.float16)
     op = GQADenseBwdOp(is_causal=True, target=BUILTIN)
+    if torch.device(run_device()).type == "npu":
+        test.check(op, *test.gen_inputs())
+        return
     with pytest.raises(OpNotAvailableError, match="head dim must be a multiple of 16"):
         op(*test.gen_inputs())
     for interface in GQADenseBwdOp.interfaces:
@@ -1373,7 +1376,8 @@ def test_gqa_bwd_gives_a_row_with_lse_minus_inf_zero_gradients() -> None:
 
 
 @pytest.mark.smoke
-def test_gqa_dense_bwd_refuses_what_its_kernels_do_not_serve() -> None:
+@pytest.mark.cuda_only
+def test_cuda_gqa_dense_bwd_refuses_what_its_kernels_do_not_serve() -> None:
     """A window or softcap of the forward is refused by name, not silently dropped."""
     test = GQABwdTest(1, 4, 2, 128, 64, True, torch.bfloat16)
     inputs = [t.detach() for t in test.gen_inputs()]
@@ -1527,9 +1531,22 @@ def test_gqa_dense_persistent_masks_the_keys_past_a_narrow_last_tile() -> None:
 
 @pytest.mark.in_tree_kernels
 @pytest.mark.smoke
-def test_gqa_dense_with_lse_fwd_refuses_a_window_by_name() -> None:
-    """No windowed kernel writes the log-sum-exp, so a windowed call is refused, naming it."""
+def test_gqa_dense_with_lse_fwd_window_by_backend() -> None:
+    """Ascend returns the windowed result; CUDA reports its kernel selection limit."""
     q = torch.randn(1, 128, 8, 64, device=run_device(), dtype=torch.bfloat16)
     k = torch.randn(1, 128, 2, 64, device=run_device(), dtype=torch.bfloat16)
-    with pytest.raises(OpNotAvailableError, match="log-sum-exp"):
-        GQADenseWithLSEFwdOp(is_causal=True, window_size_left=32, target=BUILTIN)(q, k, k)
+    op = GQADenseWithLSEFwdOp(is_causal=True, window_size_left=32, target=BUILTIN)
+    if q.device.type == "npu":
+        from workloads.attention.gqa.dense import dense_gqa_logits, dense_gqa_ref
+
+        options = dict(heads=8, heads_kv=2, is_causal=True, window_size_left=32)
+        o, lse = op(q, k, k)
+        q_cpu, k_cpu = q.cpu(), k.cpu()
+        expected = dense_gqa_ref(q_cpu, k_cpu, k_cpu, **options)
+        torch.testing.assert_close(o.cpu().float(), expected.float(), rtol=0.02, atol=0.01)
+        torch.testing.assert_close(
+            lse.cpu(), dense_gqa_logits(q_cpu, k_cpu, **options).logsumexp(-1), rtol=1e-3, atol=3e-3
+        )
+    else:
+        with pytest.raises(OpNotAvailableError, match="log-sum-exp"):
+            op(q, k, k)

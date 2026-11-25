@@ -3,7 +3,7 @@
 import torch
 
 from workloads.device import run_device
-from workloads.numerics import Exact
+from workloads.numerics import Custom, Exact
 from workloads.workload_base import CallWorkload, WorkloadBase
 
 __all__ = [
@@ -17,6 +17,14 @@ def paged_cache_write_result(subject, *inputs):
     """Expose the two declared cache writes as the numeric result of an in-place op."""
     subject(*inputs)
     return inputs[2], inputs[3]
+
+
+def _assert_cache_payloads(actual, expected):
+    for name, value, target in zip(("K", "V"), actual, expected, strict=True):
+        assert value.device == target.device
+        assert torch.equal(value.view(torch.uint8), target.view(torch.uint8)), (
+            f"{name} cache bytes differ"
+        )
 
 
 class PagedKVCacheWriteWorkload(WorkloadBase):
@@ -126,12 +134,20 @@ class PagedKVCacheWriteWorkload(WorkloadBase):
                 # into NaN. torch.clamp preserves NaN while bounding other values.
                 limit = torch.finfo(pages.dtype).max
                 stored = (stored.float() / scale[0]).clamp(-limit, limit).to(pages.dtype)
-            flat[rows] = stored
+            if pages.dtype == torch.float8_e4m3fn:
+                # The converted payload is final. Scatter bytes on devices without FP8 index_put.
+                flat.view(torch.uint8)[rows] = stored.view(torch.uint8)
+            else:
+                flat[rows] = stored
         return k_cache, v_cache
 
     def verification(self, *inputs):
         # The stored bytes are the whole result: a named row is written exactly and a row
         # no slot names must still hold what it held, so no tolerance is owed either way.
+        if self.quantized and inputs[2].device.type == "npu":
+            return Custom(
+                _assert_cache_payloads, "FP8 cache writes and untouched rows match byte for byte"
+            )
         return Exact(rtol=0, atol=0)
 
 

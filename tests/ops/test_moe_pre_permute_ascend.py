@@ -60,7 +60,7 @@ def test_all_seven_manifest_cases_have_an_ascend_candidate():
         {"layout": ContiguousLayoutSpec.aligned_per_row(128)},
         {"layout": ContiguousLayoutSpec.tight_per_row()},
         {"input_dtype": torch.float32},
-        {"num_tokens": 1025},
+        {"num_tokens": 2049},
         {"num_experts": 0},
         {"hidden_size": 127},
     ],

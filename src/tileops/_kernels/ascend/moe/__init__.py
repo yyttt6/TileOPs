@@ -1,6 +1,7 @@
 """Ascend implementations of MoE routing boundaries."""
 
 from tileops._kernels.ascend.moe.fused_topk import AscendFusedTopKKernel
+from tileops._kernels.ascend.moe.grouped_gemm import AscendMoEGroupedGEMMKernel
 from tileops._kernels.ascend.moe.indexed_expert import (
     AscendIndexedExpertDownKernel,
     AscendIndexedExpertGateUpKernel,
@@ -25,8 +26,10 @@ from tileops._kernels.ascend.moe.indexed_expert_packed import (
 from tileops._kernels.ascend.moe.indexed_expert_preload import (
     AscendIndexedExpertGateUpPreloadKernel,
 )
+from tileops._kernels.ascend.moe.large_pre_permute import AscendLargePrePermuteKernel
 from tileops._kernels.ascend.moe.moe_grouped_gemm_fp8 import AscendMoEGroupedGEMMFP8Kernel
 from tileops._kernels.ascend.moe.permute_align import AscendMoEPermuteAlignKernel
+from tileops._kernels.ascend.moe.post_permute import AscendMoEPostPermuteKernel
 from tileops._kernels.ascend.moe.pre_permute import AscendMoEPrePermuteKernel
 from tileops._kernels.ascend.moe.shared_expert_mlp import AscendSharedExpertMLPKernel
 
@@ -46,8 +49,11 @@ __all__ = [
     "AscendIndexedRouteStatsKernel",
     "AscendIndexedRouteStatsParallelKernel",
     "AscendIndexedWeightedReduceKernel",
+    "AscendLargePrePermuteKernel",
     "AscendMoEGroupedGEMMFP8Kernel",
+    "AscendMoEGroupedGEMMKernel",
     "AscendMoEPermuteAlignKernel",
+    "AscendMoEPostPermuteKernel",
     "AscendMoEPrePermuteKernel",
     "AscendSharedExpertMLPKernel",
 ]

@@ -326,12 +326,19 @@ def test_a_replaced_shared_expert_kernel_is_the_one_built():
     """An implementation registered for the shared half's sub-op is the one built."""
     built = []
 
-    class Replacement(SharedExpertMLPKernel):
-        preferred_over = frozenset({"shared_expert_mlp"})
+    if torch.device(run_device()).type == "npu":
+        from tileops._kernels.ascend.moe.shared_expert_mlp import AscendSharedExpertMLPKernel
 
-        def __init__(self, **kwargs):
-            built.append(kwargs)
-            super().__init__(**kwargs)
+        base, key = AscendSharedExpertMLPKernel, "ascend"
+    else:
+        base, key = SharedExpertMLPKernel, "shared_expert_mlp"
+
+    class Replacement(base):
+        preferred_over = frozenset({key})
+
+        def __init__(self, *args, **kwargs):
+            built.append(type(self))
+            super().__init__(*args, **kwargs)
 
     T, E, K, H, F, F_s = 32, 8, 2, 64, 32, 16
     state = registry.snapshot()

@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from einops import einsum, rearrange
 
 from workloads.attention.gqa.call_metadata import _dtype, _segments
+from workloads.attention.paged_kv_cache import selected_page_rows
 from workloads.device import run_device
 from workloads.sequence_metadata import make_cu_seqlens
 from workloads.workload_base import CallWorkload, WorkloadBase
@@ -219,7 +220,7 @@ class MLAPagedWorkload(WorkloadBase):
         for b in range(batch):
             length = int(cache_seqlens[b])
             pages = block_table[b, : -(-length // self.page_size)].long()
-            keys = kv_cache[pages].reshape(-1, dim)[:length].float()
+            keys = selected_page_rows(kv_cache, pages, length).reshape(-1, dim)
             if kv_scale is not None:
                 keys = keys * kv_scale[0]
             scores = torch.einsum("shd,nd->shn", q[b].float(), keys) * scale

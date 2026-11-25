@@ -264,8 +264,8 @@ class GQADenseWithLSEFwdOp(_GQADenseFwdOpBase):
     ``flash_attn_interface._flash_attn_forward``, the forward of FlashAttention-3's
     training path; ``softmax_scale`` is ``sm_scale`` here and ``causal`` is ``is_causal``.
 
-    The in-tree kernels serve it on SM90 for prefill ($S_q > 1$) without a window; any
-    other call is refused when a kernel is selected.
+    The CUDA kernels serve SM90 prefill ($S_q > 1$) without a window. Ascend also serves
+    windowed calls and returns head-major FP32 log-sum-exp values.
     """
 
     _returns_lse: ClassVar[bool] = True

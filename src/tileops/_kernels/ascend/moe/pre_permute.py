@@ -116,8 +116,8 @@ class AscendMoEPrePermuteKernel(Kernel, PrePermuteFwdInterface):
             return "requires float16 or bfloat16"
         if min(call.num_tokens, call.top_k, call.num_experts, call.hidden_size) <= 0:
             return "requires positive token, route, expert and hidden dimensions"
-        if call.num_tokens * call.top_k > 1024 or call.num_experts > 1024:
-            return "supports at most 1024 routes and 1024 experts"
+        if call.num_tokens * call.top_k > 4096 or call.num_experts > 1024:
+            return "supports at most 4096 routes and 1024 experts"
         if call.hidden_size % 16 or call.hidden_size > 16384:
             return "requires hidden_size divisible by 16 and at most 16384"
         return super().refusal(call)

@@ -12,8 +12,21 @@ from tileops._kernels.ascend.attention import gqa_dense_prefill as dense
 pytestmark = pytest.mark.smoke
 
 
+def _mock_npu(monkeypatch, api):
+    """Override the launch planner's device queries while pytest can still use torch.npu."""
+
+    class TorchProxy:
+        npu = api
+
+        def __getattr__(self, name):
+            return getattr(torch, name)
+
+    monkeypatch.setattr(dense, "torch", TorchProxy())
+
+
 @dataclasses.dataclass(frozen=True)
 class LaunchCall:
+    return_lse: bool = False
     batch: int = 1
     heads: int = 32
     heads_kv: int = 4
@@ -259,11 +272,8 @@ def test_device_query_uses_operand_device(monkeypatch):
         assert type(device) is int
         return SimpleNamespace(cube_core_num=24 if device == 1 else 48)
 
-    monkeypatch.setattr(
-        torch,
-        "npu",
-        SimpleNamespace(current_device=lambda: 0, get_device_properties=properties),
-        raising=False,
+    _mock_npu(
+        monkeypatch, SimpleNamespace(current_device=lambda: 0, get_device_properties=properties)
     )
     query = dense.device_cube_cores
     assert query(LaunchCall(device=torch.device("privateuseone:1"))) == 24
@@ -273,14 +283,12 @@ def test_device_query_uses_operand_device(monkeypatch):
 
 @pytest.mark.parametrize("cores", [0, -1])
 def test_invalid_capacity_fails_before_launch(cores, monkeypatch):
-    monkeypatch.setattr(
-        torch,
-        "npu",
+    _mock_npu(
+        monkeypatch,
         SimpleNamespace(
             current_device=lambda: 0,
             get_device_properties=lambda _: SimpleNamespace(cube_core_num=cores),
         ),
-        raising=False,
     )
     with pytest.raises(RuntimeError, match="positive"):
         dense.device_cube_cores(LaunchCall())
@@ -313,7 +321,7 @@ def test_cube_capacity_respects_runtime_limit(monkeypatch, limit, expected, devi
         get_device_properties=lambda device: SimpleNamespace(cube_core_num=36),
         get_device_limit=get_limit,
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
+    _mock_npu(monkeypatch, npu)
     assert dense.device_cube_cores(LaunchCall(device=device)) == expected
     assert queries == [index]
 
@@ -325,27 +333,24 @@ def test_invalid_cube_limit_is_not_ignored(monkeypatch, limit):
         get_device_properties=lambda device: SimpleNamespace(cube_core_num=36),
         get_device_limit=lambda device: {"cube_core_num": limit},
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
+    _mock_npu(monkeypatch, npu)
     with pytest.raises(RuntimeError, match="invalid cube_core_num"):
         dense.device_cube_cores(LaunchCall())
 
 
 @pytest.mark.parametrize("seq_len", [4096, 8192, 32768])
 def test_decode_constructor_publishes_final_config(monkeypatch, seq_len):
-
     def get_limit(device_index):
         assert type(device_index) is int
         return {"cube_core_num": 32}
 
-    monkeypatch.setattr(
-        torch,
-        "npu",
+    _mock_npu(
+        monkeypatch,
         SimpleNamespace(
             current_device=lambda: 0,
             get_device_properties=lambda _: SimpleNamespace(cube_core_num=36),
             get_device_limit=get_limit,
         ),
-        raising=False,
     )
     compiled = []
 
@@ -361,3 +366,11 @@ def test_decode_constructor_publishes_final_config(monkeypatch, seq_len):
     assert kernel.config["multibuffer"] and kernel.config["balanced_vectors"]
     with pytest.raises(TypeError, match="published kernel config"):
         kernel.config["kv_splits"] = 1
+
+
+def test_training_selects_a_route_that_keeps_row_statistics():
+    call = LaunchCall(batch=2, max_seqlen_q=512, seqlen_kv=512, is_causal=True, return_lse=True)
+    assert dense.select_kernel(call, 32)[0] == "prefill-query-major"
+    assert (
+        dense.select_kernel(dataclasses.replace(call, max_seqlen_q=71), 32)[0] == "packed-attention"
+    )

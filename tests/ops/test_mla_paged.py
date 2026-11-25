@@ -198,10 +198,18 @@ def test_mla_paged_ignores_the_cache_past_each_request(page_size, cache_dtype):
     probability times NaN is NaN, so the value rows there are cleared."""
     workload = _workload(64, 1, [100, 65], page_size, BF16, cache_dtype)
     q, kv_cache, table, lens, kv_scale = workload.gen_inputs()
+    # Use the encoded NaN for E4M3 so the test can poison padding on devices
+    # that implement byte indexing but lack FP8 index and index_put kernels.
+    storage = kv_cache
+    poison = float("nan")
+    if storage.dtype == torch.float8_e4m3fn:
+        poison = torch.tensor(poison).to(storage.dtype).view(torch.uint8).item()
+        storage = storage.view(torch.uint8)
     for b, length in enumerate(workload.cache_lens):
-        rows = kv_cache[table[b].long()].view(-1, kv_cache.shape[-1])
-        rows[length:] = float("nan")
-        kv_cache[table[b].long()] = rows.view(-1, page_size, kv_cache.shape[-1])
+        pages = table[b].long()
+        rows = storage[pages].flatten(0, 1)
+        rows[length:] = poison
+        storage[pages] = rows.view(-1, page_size, storage.shape[-1])
     workload.check(MLAPagedFwdOp(512, is_causal=True), q, kv_cache, table, lens, kv_scale)
 
 
