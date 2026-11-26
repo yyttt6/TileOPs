@@ -1,4 +1,5 @@
 """Stable compaction into valid physical KV cache row numbers."""
+
 import functools
 
 import torch
@@ -59,7 +60,12 @@ def metadata_builder(batch, seq, splits, topk, table_width, page_size, num_block
                 with T.SimtVF(threads=min(256, extent)):
                     for r, i in T.Parallel(row_tile, extent):
                         limit = limits[r]
-                        valid = (i < topk) & (ids[r, i] >= 0) & (ids[r, i] < limit) & (ids[r, i] < table_width * page_size)
+                        valid = (
+                            (i < topk)
+                            & (ids[r, i] >= 0)
+                            & (ids[r, i] < limit)
+                            & (ids[r, i] < table_width * page_size)
+                        )
                         flags[r, i] = T.if_then_else(valid, 1, 0)
                         scan[r, i] = T.if_then_else(valid, 1, 0)
                 # Alternate source and destination. Each phase reads a
@@ -109,6 +115,7 @@ def metadata_builder(batch, seq, splits, topk, table_width, page_size, num_block
 @functools.lru_cache(maxsize=64)
 def _compile(batch, seq, splits, part, table_width, page_size, cores, device):
     import tilelang
+
     target = tilelang.tvm.target.Target("ascend")
     with target:
         program = metadata_builder(batch, seq, splits, part, table_width, page_size, cores)
@@ -124,6 +131,14 @@ def metadata(index, limits, table, page_size, splits, vector_cores):
     rows = b * s * splits
     selected = index.new_empty((rows, part))
     counts = index.new_empty((rows, 8))
-    kernel = _compile(b, s, splits, part, table.shape[1], page_size, vector_cores, index.device.index)
-    kernel(index.reshape(rows, part).contiguous(), limits.contiguous(), table.contiguous(), selected, counts)
+    kernel = _compile(
+        b, s, splits, part, table.shape[1], page_size, vector_cores, index.device.index
+    )
+    kernel(
+        index.reshape(rows, part).contiguous(),
+        limits.contiguous(),
+        table.contiguous(),
+        selected,
+        counts,
+    )
     return selected.reshape(rows, 1, 1, part), counts.reshape(rows, 1, 8)

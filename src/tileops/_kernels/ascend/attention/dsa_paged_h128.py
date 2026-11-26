@@ -1,20 +1,16 @@
-"""Paged prototype core: validated tail DMA arithmetic plus online-state LSE.
+"""H128 paged attention with inline FP8 decoding and split-KV reduction.
 
-Experimental D576/BF16 DMA path, derived from the measured D512 program.
-
-DMA and SIMD packing derive from PR #3322, commit
-4c0cb5fcdaf466c2a44e63ef1404553b94909da1 (MIT), adapted by the validated
-kernel_dense_dma.py. This module is additive and is not a measured winner.
+See THIRD_PARTY_NOTICES for the TileLang source attribution.
 """
 
 import functools
 
-import torch
 import tilelang.ascend.language as T
+import torch
 from tilelang.ascend.language import simd as S
 from tilelang.layout import make_ascend_compact_nz_layout, make_ascend_major_mn_layout
 
-from .dsa_paged_indices import metadata
+from tileops._kernels.ascend.attention.dsa_paged_indices import metadata
 
 
 @T.macro
@@ -32,16 +28,21 @@ def decode_shared_kv(raw_codes, raw_scales, raw_rope, nz):
                 even, odd = S.vdintlv(lo, hi)
                 a = S.vcvt(even, "bfloat16", mask, sat=False, part=0)
                 b = S.vcvt(odd, "bfloat16", mask, sat=False, part=1)
-                packed = S.vor(T.reinterpret(a,"uint16x128"), T.reinterpret(b,"uint16x128"), block_mask)
+                packed = S.vor(
+                    T.reinterpret(a, "uint16x128"), T.reinterpret(b, "uint16x128"), block_mask
+                )
                 # Eight 16-BF16 column blocks. Neighboring NZ blocks are 17 rows apart.
-                S.vsstb(T.reinterpret(packed,"bfloat16x128"), nz[r, group * 128],
-                        T.int32(17 << 16), block_mask)
+                S.vsstb(
+                    T.reinterpret(packed, "bfloat16x128"),
+                    nz[r, group * 128],
+                    T.int32(17 << 16),
+                    block_mask,
+                )
             # Byte 512 is aligned; RoPE begins eight uint16 elements later.
             rope_mask = S.pset(16, "PAT_VL64")
             offsets = T.reinterpret(S.vci(T.int16(8), "int16"), "uint16x128")
             bits = S.vgather2(raw_rope[r, 256], offsets, rope_mask)
-            S.vsstb(T.reinterpret(bits, "bfloat16x128"), nz[r, 512],
-                    T.int32(17 << 16), rope_mask)
+            S.vsstb(T.reinterpret(bits, "bfloat16x128"), nz[r, 512], T.int32(17 << 16), rope_mask)
 
 
 @T.macro
@@ -58,19 +59,26 @@ def decode_shared_kv_fast(raw_codes, raw_scales, raw_rope, nz):
                 odd = S.vmul(S.vcvt(codes, "float32", fp8_mask, part=2), sf, mask)
                 a = S.vcvt(even, "bfloat16", mask, sat=False, part=0)
                 b = S.vcvt(odd, "bfloat16", mask, sat=False, part=1)
-                packed = S.vor(T.reinterpret(a,"uint16x128"), T.reinterpret(b,"uint16x128"), block_mask)
+                packed = S.vor(
+                    T.reinterpret(a, "uint16x128"), T.reinterpret(b, "uint16x128"), block_mask
+                )
                 # Eight 16-BF16 column blocks. Neighboring NZ blocks are 17 rows apart.
-                S.vsstb(T.reinterpret(packed,"bfloat16x128"), nz[r, group * 128],
-                        T.int32(17 << 16), block_mask)
+                S.vsstb(
+                    T.reinterpret(packed, "bfloat16x128"),
+                    nz[r, group * 128],
+                    T.int32(17 << 16),
+                    block_mask,
+                )
             # Byte 512 is aligned; RoPE begins eight uint16 elements later.
             rope_mask = S.pset(16, "PAT_VL64")
             offsets = T.reinterpret(S.vci(T.int16(8), "int16"), "uint16x128")
             bits = S.vgather2(raw_rope[r, 256], offsets, rope_mask)
-            S.vsstb(T.reinterpret(bits, "bfloat16x128"), nz[r, 512],
-                    T.int32(17 << 16), rope_mask)
+            S.vsstb(T.reinterpret(bits, "bfloat16x128"), nz[r, 512], T.int32(17 << 16), rope_mask)
 
 
-def paged_attention_inline_split(batch, seq, heads, kv_len, topk, scale, variant, num_blocks, query_splits=1):
+def paged_attention_inline_split(
+    batch, seq, heads, kv_len, topk, scale, variant, num_blocks, query_splits=1
+):
     if heads != 128 or variant != "fused128":
         raise ValueError("expected H128 fused128")
     plan = dict(head_tile=128, wide_pv=False, share_scratch=True, staging_versions=1)
@@ -282,7 +290,7 @@ def paged_attention_inline_split(batch, seq, heads, kv_len, topk, scale, variant
                 T.annotate_buffer_versions({values_c1: 1, values_c2: 1, values_c3: 1})
             tasks = T.ceildiv(jobs - bx, cores)
             # Flatten query/head tasks and KV blocks into one pipeline, as in
-            # PR #3322; the M/L/numerator carry remains a single physical copy.
+            # The M/L/numerator carry remains a single physical copy.
             for work in T.Pipelined(
                 tasks * blocks, num_stages=2, annotations={"enable_offset": True}
             ):
@@ -300,8 +308,20 @@ def paged_attention_inline_split(batch, seq, heads, kv_len, topk, scale, variant
                 valid_slots = Lengths[b, t, 0]
                 count = T.max(T.min(valid_slots - tile * 128, 128), 0)
                 T.copy(Indices[b, t, 0, tile * 128 : (tile + 1) * 128], idx)
-                gather(b, count, sid, KV, idx, kv_nz, kv_l1,
-                       raw, raw_words, raw_codes, raw_scales, raw_rope)
+                gather(
+                    b,
+                    count,
+                    sid,
+                    KV,
+                    idx,
+                    kv_nz,
+                    kv_l1,
+                    raw,
+                    raw_words,
+                    raw_codes,
+                    raw_scales,
+                    raw_rope,
+                )
                 for kd in T.serial(qk_dim // qk_chunk):
                     T.copy(q_l1[:, kd * qk_chunk : (kd + 1) * qk_chunk], qa)
                     T.copy(kv_l1[:, kd * qk_chunk : (kd + 1) * qk_chunk], kb)
@@ -318,7 +338,9 @@ def paged_attention_inline_split(batch, seq, heads, kv_len, topk, scale, variant
                 else:
                     for vd in T.unroll(4):
                         T.copy(kv_l1[:, vd * 128 : (vd + 1) * 128], vb[:128, :])
-                        T.gemm(pa[:128, :], vb[:128, :], values_c, transpose_B=False, clear_accum=True)
+                        T.gemm(
+                            pa[:128, :], vb[:128, :], values_c, transpose_B=False, clear_accum=True
+                        )
                         T.dual_copy(values_c, partial)
                         with T.SimdVF():
                             mask = S.pset(32, "PAT_ALL")
@@ -462,16 +484,12 @@ def merge_builder(rows, splits, heads, cores, first_split_init=False):
                                     value = S.vmul(loaded, weight, mask)
                                 else:
                                     value = S.vmul(S.vld(values[r, col], "NORM"), weight, mask)
-                                value = S.vadd(
-                                    S.vld(accum[r, col], "NORM"), value, mask
-                                )
+                                value = S.vadd(S.vld(accum[r, col], "NORM"), value, mask)
                                 S.vsts(accum[r, col], value, mask, "NORM_B32")
                 with T.SimdVF():
                     mask = S.pset(32, "PAT_ALL")
                     for r in range(tile):
-                        divisor = S.vmaxs(
-                            S.vld(denominator[r], "BRC_B32"), T.float32(1e-30), mask
-                        )
+                        divisor = S.vmaxs(S.vld(denominator[r], "BRC_B32"), T.float32(1e-30), mask)
                         inverse = S.vdiv(S.vdup(T.float32(1), "float32", mask), divisor, mask)
                         for col in range(0, 512, 64):
                             normalized = S.vmul(S.vld(accum[r, col], "NORM"), inverse, mask)
@@ -493,6 +511,7 @@ def compile_merge(rows, splits, heads, cores, device, first_split_init=False):
             merge_builder(rows, splits, heads, cores, first_split_init), target=target, out_idx=[]
         )
 
+
 @functools.lru_cache(maxsize=32)
 def compile_attention(rows, capacity, part, scale, cores, device, splits):
     import tilelang
@@ -505,8 +524,19 @@ def compile_attention(rows, capacity, part, scale, cores, device, splits):
         return tilelang.compile(program, target=target, out_idx=[])
 
 
-def forward_h128(q, cache, table, limits, indices, scale, splits, cube_cores, vector_cores,
-                 *, first_split_init=False):
+def forward_h128(
+    q,
+    cache,
+    table,
+    limits,
+    indices,
+    scale,
+    splits,
+    cube_cores,
+    vector_cores,
+    *,
+    first_split_init=False,
+):
     b, s, heads, depth = q.shape
     rows = b * s
     physical, lengths = metadata(indices, limits, table, cache.shape[1], splits, vector_cores)

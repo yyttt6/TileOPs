@@ -1,22 +1,18 @@
-"""Opt-in D512 split-head and shared-L0B QK256 candidates; hardware validation pending.
+"""D512 BF16 sparse attention with tiled online softmax and index compaction.
 
-DMA and SIMD packing derive from PR #3322, commit
-4c0cb5fcdaf466c2a44e63ef1404553b94909da1 (MIT), adapted by the validated
-kernel_dense_dma.py. This module is additive and is not a measured winner.
+See THIRD_PARTY_NOTICES for the TileLang source attribution.
 """
 
 import functools
 
-import torch
 import tilelang.ascend.language as T
+import torch
 from tilelang.ascend.language import simd as S
 from tilelang.layout import (
     make_ascend_compact_nz_layout,
     make_ascend_major_k_layout,
     make_ascend_major_mn_layout,
 )
-
-
 from tvm import tirx
 
 
@@ -28,7 +24,19 @@ def dense_attention_next(
     if profile == "kv_double_buffer" and heads != 128:
         raise ValueError("KV double buffer candidate serves H128 only")
     plan = tuning_plan(
-        "fused128" if profile in ("paired_pv", "reciprocal", "fma", "registers", "kv_coalesced_dma", "kv_l2_persistent", "kv_double_buffer") and heads == 128 else "wide64",
+        "fused128"
+        if profile
+        in (
+            "paired_pv",
+            "reciprocal",
+            "fma",
+            "registers",
+            "kv_coalesced_dma",
+            "kv_l2_persistent",
+            "kv_double_buffer",
+        )
+        and heads == 128
+        else "wide64",
         heads,
     )
     if min(batch, seq, kv_len, topk) <= 0 or topk % 128:
@@ -42,10 +50,27 @@ def dense_attention_next(
     accum_dtype = "float32"
     WIDE = plan["wide_pv"]
     SHARE = plan["share_scratch"]
-    if profile not in ("split64", "qk256", "paired_pv", "reciprocal", "fma", "registers", "kv_coalesced_dma", "kv_l2_persistent", "kv_double_buffer"):
+    if profile not in (
+        "split64",
+        "qk256",
+        "paired_pv",
+        "reciprocal",
+        "fma",
+        "registers",
+        "kv_coalesced_dma",
+        "kv_l2_persistent",
+        "kv_double_buffer",
+    ):
         raise ValueError("unknown next-generation profile")
     FMA = profile == "fma"
-    RECIPROCAL = profile in ("reciprocal", "fma", "registers", "kv_coalesced_dma", "kv_l2_persistent", "kv_double_buffer")
+    RECIPROCAL = profile in (
+        "reciprocal",
+        "fma",
+        "registers",
+        "kv_coalesced_dma",
+        "kv_l2_persistent",
+        "kv_double_buffer",
+    )
     # Reuse one 128-column PV scratch tile to make room for both KV versions.
     # H128 and the 16-row DMA/format-conversion packet stay intact.
     PAIRED = profile == "paired_pv" or (
@@ -94,16 +119,19 @@ def dense_attention_next(
                         _copy_kv_rows(
                             T.access_ptr(nd[first, 0], "w"),
                             T.access_ptr(KV[batch_id, i0, 0, 0], "r"),
-                            4, stride,
+                            4,
+                            stride,
                         )
                     else:
                         _copy_pair(
                             T.access_ptr(nd[first, 0], "w"),
-                            T.access_ptr(KV[batch_id, i0, 0, 0], "r"), stride,
+                            T.access_ptr(KV[batch_id, i0, 0, 0], "r"),
+                            stride,
                         )
                         _copy_pair(
                             T.access_ptr(nd[first + 2, 0], "w"),
-                            T.access_ptr(KV[batch_id, i2, 0, 0], "r"), i3 - i2,
+                            T.access_ptr(KV[batch_id, i2, 0, 0], "r"),
+                            i3 - i2,
                         )
                 rest = (rows // 4) * 4
                 if rows % 4 >= 2:
@@ -114,7 +142,8 @@ def dense_attention_next(
                     T.assume(i1 < kv_len)
                     _copy_pair(
                         T.access_ptr(nd[rest, 0], "w"),
-                        T.access_ptr(KV[batch_id, i0, 0, 0], "r"), i1 - i0,
+                        T.access_ptr(KV[batch_id, i0, 0, 0], "r"),
+                        i1 - i0,
                     )
                 if rows % 2 != 0:
                     tail = rows - 1
@@ -133,7 +162,9 @@ def dense_attention_next(
                         _copy_kv_rows(
                             T.access_ptr(nd[2 * pair, 0], "w"),
                             T.access_ptr(KV[batch_id, i0, 0, 0], "r"),
-                            2, i1 - i0, 2,
+                            2,
+                            i1 - i0,
+                            2,
                         )
                     else:
                         _copy_pair(
@@ -293,8 +324,8 @@ def dense_attention_next(
                 alpha = S.vexpdif(old_max, row_max, fp32_mask)
                 S.vsts(alpha_ub[head], alpha, scalar_mask, "ONEPT_B32")
                 denominator = S.vadd(
-                    S.vmul(S.vld(l_ub[head], "BRC_B32"), alpha, fp32_mask),
-                    prob_sum, scalar_mask)
+                    S.vmul(S.vld(l_ub[head], "BRC_B32"), alpha, fp32_mask), prob_sum, scalar_mask
+                )
                 S.vsts(l_ub[head], denominator, scalar_mask, "ONEPT_B32")
 
     @T.macro
@@ -317,11 +348,11 @@ def dense_attention_next(
             p_l1 = T.alloc_l1((M, 128), dtype)
             qa = T.alloc_l0a((M, QK_WIDTH), dtype)
             kb = T.alloc_l0b((128, QK_WIDTH), dtype)
-            if wide_qk:
+            if wide_qk:  # noqa: SIM108 - keep buffer declarations in separate DSL branches.
                 pa = T.view(qa, (QK_WIDTH, M), dtype=dtype)
             else:
                 pa = T.alloc_l0a((M, 128), dtype)
-            if QK_WIDTH == 256:
+            if QK_WIDTH == 256:  # noqa: SIM108 - select the L0B view or allocate storage.
                 # Separate layout views share exactly 64 KiB of L0B storage.
                 vb = T.view(kb, (QK_WIDTH, 128))
             else:
@@ -393,7 +424,7 @@ def dense_attention_next(
                 T.annotate_buffer_versions({values_c2: 1, values_c3: 1})
             tasks = T.ceildiv(jobs - bx, cores)
             # Flatten query/head tasks and KV blocks into one pipeline, as in
-            # PR #3322; the M/L/numerator carry remains a single physical copy.
+            # The M/L/numerator carry remains a single physical copy.
             for work in T.Pipelined(
                 tasks * blocks, num_stages=2, annotations={"enable_offset": True}
             ):
@@ -436,13 +467,25 @@ def dense_attention_next(
                     for pair in T.unroll(2):
                         T.copy(kv_l1[:, pair * 256 : pair * 256 + 128], vb[:128, :])
                         if wide_qk:
-                            T.gemm(pa[:128, :], vb[:128, :], values_c, transpose_B=False, clear_accum=True)
+                            T.gemm(
+                                pa[:128, :],
+                                vb[:128, :],
+                                values_c,
+                                transpose_B=False,
+                                clear_accum=True,
+                            )
                         else:
                             T.gemm(pa, vb, values_c, transpose_B=False, clear_accum=True)
                         T.dual_copy(values_c, partial[:, :128])
                         T.copy(kv_l1[:, pair * 256 + 128 : (pair + 1) * 256], vb[:128, :])
                         if wide_qk:
-                            T.gemm(pa[:128, :], vb[:128, :], values_c1, transpose_B=False, clear_accum=True)
+                            T.gemm(
+                                pa[:128, :],
+                                vb[:128, :],
+                                values_c1,
+                                transpose_B=False,
+                                clear_accum=True,
+                            )
                         else:
                             T.gemm(pa, vb, values_c1, transpose_B=False, clear_accum=True)
                         T.dual_copy(values_c1, partial[:, 128:256])
@@ -621,7 +664,9 @@ def build(rows, seq, width, kv_len, start, cores):
                     T.fill(packed, T.int32(kv_len))
                 for r in T.Serial(row_tile):
                     # Compute in int64 before clamping to the index dtype.
-                    bound = T.cast(T.max(-1, T.min(kv_len - 1, T.int64(start) + (base + r) % seq)), "int32")
+                    bound = T.cast(
+                        T.max(-1, T.min(kv_len - 1, T.int64(start) + (base + r) % seq)), "int32"
+                    )
                     with T.SimdVF():
                         full = S.pset(32)
                         first_lane = S.pset(32, "PAT_VL1")
@@ -638,12 +683,19 @@ def build(rows, seq, width, kv_len, start, cores):
                             neighbors = S.vselr(values, T.reinterpret(preceding, "uint32x64"))
                             neighbors = S.vsel(previous, neighbors, first_lane)
                             distinct = S.vcmp(values, neighbors, full, "gt")
-                            valid = S.pand(S.vcmps(values, T.int32(0), full, "ge"),
-                                           S.vcmps(values, bound, full, "le"), full)
+                            valid = S.pand(
+                                S.vcmps(values, T.int32(0), full, "ge"),
+                                S.vcmps(values, bound, full, "le"),
+                                full,
+                            )
                             keep = S.pand(distinct, valid, full)
                             ranks = S.vadd(count, S.vusqz(keep, "int32"), full)
-                            S.vscatter(values, T.access_ptr(packed[r, 0], "w", extent=width),
-                                       T.reinterpret(ranks, "uint32x64"), keep)
+                            S.vscatter(
+                                values,
+                                T.access_ptr(packed[r, 0], "w", extent=width),
+                                T.reinterpret(ranks, "uint32x64"),
+                                keep,
+                            )
                             subtotal = S.vcadd(S.vsel(one, zero, keep), full)
                             count = S.vadd(count, S.vdupv(subtotal, full, pos="POS_LOWEST"), full)
                             previous = S.vdupv(values, full, pos="POS_HIGHEST")
@@ -657,10 +709,12 @@ def build(rows, seq, width, kv_len, start, cores):
 @functools.lru_cache(maxsize=32)
 def compile_program(rows, seq, width, kv_len, start, cores, device):
     import tilelang
+
     target = tilelang.tvm.target.Target("ascend")
     with target:
-        return tilelang.compile(build(rows, seq, width, kv_len, start, cores),
-                                target=target, out_idx=[])
+        return tilelang.compile(
+            build(rows, seq, width, kv_len, start, cores), target=target, out_idx=[]
+        )
 
 
 def compact(indices, kv_len, start, cores):
@@ -674,6 +728,7 @@ def compact(indices, kv_len, start, cores):
     fn = compile_program(rows, seq, width, kv_len, start, cores, indices.device.index)
     fn(ordered, selected, lengths)
     return selected.reshape_as(indices), lengths.reshape(batch, seq, 1)
+
 
 def compact_builder(rows, seq, topk, kv_len, start, num_blocks):
     import tilelang.ascend.language as T
@@ -775,7 +830,9 @@ def compile_attention(batch, seq, heads, kv_len, topk, scale, cores, device, wid
 
     target = tilelang.tvm.target.Target("ascend")
     with target:
-        program = dense_attention_next(batch, seq, heads, kv_len, topk, scale, cores, "reciprocal", wide_qk=wide_qk)
+        program = dense_attention_next(
+            batch, seq, heads, kv_len, topk, scale, cores, "reciprocal", wide_qk=wide_qk
+        )
         return tilelang.compile(program, target=target, out_idx=[])
 
 
@@ -788,7 +845,8 @@ def forward_d512(q, kv, indices, start, scale, cube_cores, vector_cores):
         selected, lengths = compact_indices(indices, kv_len, start, vector_cores)
     out = q.new_empty((batch, seq, heads, 512))
     wide_qk = heads == 128
-    attention = compile_attention(batch, seq, heads, kv_len, selected.shape[-1], scale,
-                                  cube_cores, q.device.index, wide_qk)
+    attention = compile_attention(
+        batch, seq, heads, kv_len, selected.shape[-1], scale, cube_cores, q.device.index, wide_qk
+    )
     attention(q.contiguous(), kv.contiguous(), selected, lengths, out)
     return out

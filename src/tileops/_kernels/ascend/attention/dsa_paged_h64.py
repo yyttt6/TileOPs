@@ -1,20 +1,16 @@
-"""Paged prototype core: validated tail DMA arithmetic plus online-state LSE.
+"""H64 paged attention with compact FP8 gather and active KV tile traversal.
 
-Experimental D576/BF16 DMA path, derived from the measured D512 program.
-
-DMA and SIMD packing derive from PR #3322, commit
-4c0cb5fcdaf466c2a44e63ef1404553b94909da1 (MIT), adapted by the validated
-kernel_dense_dma.py. This module is additive and is not a measured winner.
+See THIRD_PARTY_NOTICES for the TileLang source attribution.
 """
 
 import functools
 
-import torch
 import tilelang.ascend.language as T
+import torch
 from tilelang.ascend.language import simd as S
 from tilelang.layout import make_ascend_compact_nz_layout, make_ascend_major_mn_layout
 
-from .dsa_paged_indices import metadata
+from tileops._kernels.ascend.attention.dsa_paged_indices import metadata
 
 
 def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_blocks):
@@ -203,7 +199,6 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
                     qa: 1,
                     kb: 1,
                     pa: 1,
-
                     score_c: 1,
                     values_c: 1,
                     kv_nd: STAGING,
@@ -261,7 +256,9 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
                                 for col in range(0, 512, 64):
                                     previous = S.vld(accum[r, col], "NORM")
                                     contribution = S.vld(partial[r, col], "NORM")
-                                    updated = S.vadd(S.vmul(previous, factor, mask), contribution, mask)
+                                    updated = S.vadd(
+                                        S.vmul(previous, factor, mask), contribution, mask
+                                    )
                                     S.vsts(accum[r, col], updated, mask, "NORM_B32")
                 with T.SimdVF():
                     mask = S.pset(32, "PAT_ALL")
@@ -290,9 +287,7 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
                         S.vsts(lse[0], value, lse_mask, "NORM_B32")
                 T.dual_copy(
                     lse[:HEADS_PER_AIV],
-                    LSE_flat[
-                        (b * seq + t) * heads + ht * M : (b * seq + t) * heads + (ht + 1) * M
-                    ],
+                    LSE_flat[(b * seq + t) * heads + ht * M : (b * seq + t) * heads + (ht + 1) * M],
                 )
 
     return main
@@ -388,7 +383,9 @@ def builder(b, s, k, capacity, cores):
                 ):
                     if balanced:
                         tile_index = T.if_then_else(
-                            primary, step + T.if_then_else(step < base_tiles, 0, shared_tiles), base_tiles + step
+                            primary,
+                            step + T.if_then_else(step < base_tiles, 0, shared_tiles),
+                            base_tiles + step,
                         )
                         slot_begin = tile_index * tile
                     else:
@@ -440,6 +437,7 @@ def gather(cache, index, lens, batch, seq, vector_cores):
     native = compile_gather(batch, seq, k, packed.shape[0], vector_cores, index.device.index)
     native(packed, index.reshape(batch * seq, k), lens.reshape(batch * seq, 8), output)
     return output.reshape(batch * seq, k, 1, 576)
+
 
 @functools.lru_cache(maxsize=32)
 def compile_attention(rows, topk, scale, cores, device):

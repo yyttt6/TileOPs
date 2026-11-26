@@ -86,11 +86,12 @@ def _gather(batch, seq, k, pages, page_size, table_width):
 
 def choose_split_count(rows, topk, cube_cores, table_width):
     """Balance KV tiles across Cube waves and prefer fewer merges for ties."""
-    from .dsa_paged_indices import metadata_row_tile
+    from tileops._kernels.ascend.attention.dsa_paged_indices import metadata_row_tile
 
     tiles = topk // 128
     candidates = (
-        splits for splits in (2, 4)
+        splits
+        for splits in (2, 4)
         if tiles % splits == 0 and metadata_row_tile(rows * splits, topk // splits, table_width)
     )
 
@@ -102,14 +103,19 @@ def choose_split_count(rows, topk, cube_cores, table_width):
 
 
 def optimized_route(q, cache, table, indices, cube_cores):
-    from .dsa_paged_indices import metadata_row_tile
+    from tileops._kernels.ascend.attention.dsa_paged_indices import metadata_row_tile
 
     batch, seq, heads, depth = q.shape
     topk = indices.shape[-1]
     if (
-        q.dtype != torch.bfloat16 or cache.dtype != torch.uint8
-        or cache.ndim != 3 or cache.shape[-1] != 656 or depth != 576
-        or not 0 < topk <= 4096 or topk % 128 or cube_cores <= 0
+        q.dtype != torch.bfloat16
+        or cache.dtype != torch.uint8
+        or cache.ndim != 3
+        or cache.shape[-1] != 656
+        or depth != 576
+        or not 0 < topk <= 4096
+        or topk % 128
+        or cube_cores <= 0
     ):
         return 0
     rows, table_width = batch * seq, table.shape[-1]
@@ -142,15 +148,26 @@ class AscendDSAPagedKernel(Kernel, DSAPagedFwdInterface):
         splits = optimized_route(q, kv_cache, block_table, indices, cube_cores)
         scale = d**-0.5 if self.call.sm_scale is None else self.call.sm_scale
         if splits == 1:
-            from .dsa_paged_h64 import forward_h64
+            from tileops._kernels.ascend.attention.dsa_paged_h64 import forward_h64
 
-            return forward_h64(q, kv_cache, block_table, cache_seqlens, indices, scale, cube_cores, vector_cores)
+            return forward_h64(
+                q, kv_cache, block_table, cache_seqlens, indices, scale, cube_cores, vector_cores
+            )
         if splits > 1:
-            from .dsa_paged_h128 import forward_h128
+            from tileops._kernels.ascend.attention.dsa_paged_h128 import forward_h128
 
-            return forward_h128(q, kv_cache, block_table, cache_seqlens, indices,
-                                scale, splits, cube_cores, vector_cores,
-                                first_split_init=(splits == 2))
+            return forward_h128(
+                q,
+                kv_cache,
+                block_table,
+                cache_seqlens,
+                indices,
+                scale,
+                splits,
+                cube_cores,
+                vector_cores,
+                first_split_init=(splits == 2),
+            )
         bm = 32 if h <= 32 else 64
         q = q.reshape(b * s, 1, 1, h, 576)
         if h % bm:

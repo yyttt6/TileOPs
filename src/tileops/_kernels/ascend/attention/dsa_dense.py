@@ -263,6 +263,8 @@ def device_core_counts(device):
         device_index = torch.npu.current_device()
     properties = torch.npu.get_device_properties(device_index)
     get_limit = getattr(torch.npu, "get_device_limit", None)
+    if get_limit is not None and not callable(get_limit):
+        raise RuntimeError("NPU get_device_limit is not callable")
     limits = get_limit(device_index) if get_limit is not None else {}
     if not isinstance(limits, dict):
         raise RuntimeError("invalid Ascend device limits")
@@ -280,12 +282,17 @@ def uses_d512_schedule(call, q, kv, indices):
     """Select the tiled BF16 path when the call meets its buffer contract."""
     topk = indices.shape[-1]
     return (
-        q.dtype == torch.bfloat16 and kv.dtype == q.dtype
+        q.dtype == torch.bfloat16
+        and kv.dtype == q.dtype
         and q.shape[2] in (64, 128)
-        and call.kv_group == 1 and call.kv_stride == 1 and call.is_causal
-        and call.dim == 512 and call.tail_dim == 0
+        and call.kv_group == 1
+        and call.kv_stride == 1
+        and call.is_causal
+        and call.dim == 512
+        and call.tail_dim == 0
         and isinstance(call.q_start_index_s, int)
-        and 0 < topk <= 4096 and topk % 128 == 0
+        and 0 < topk <= 4096
+        and topk % 128 == 0
     )
 
 
@@ -321,12 +328,11 @@ class AscendDSADenseKernel(Kernel, SparseMLADecodeFwdInterface):
                 )
             return out
         if uses_d512_schedule(c, q, kv, indices):
-            from .dsa_dense_d512 import forward_d512
+            from tileops._kernels.ascend.attention.dsa_dense_d512 import forward_d512
 
             cube_cores, vector_cores = device_core_counts(q.device)
             scale = 512**-0.5 if c.sm_scale is None else c.sm_scale
-            return forward_d512(q, kv, indices, c.q_start_index_s, scale,
-                                cube_cores, vector_cores)
+            return forward_d512(q, kv, indices, c.q_start_index_s, scale, cube_cores, vector_cores)
         cap = min(c.seq_len_kv, max(1, (c.q_start_index_s + seq) // c.kv_stride))
         slots = (cap + 63) // 64 * 64
         dense = (
