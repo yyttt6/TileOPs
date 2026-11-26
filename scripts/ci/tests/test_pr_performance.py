@@ -108,3 +108,49 @@ def test_legacy_snapshot_without_retirement_metadata_keeps_admitted_history():
     assert MODULE.matching_baselines(
         dict(rows=[], historical_rows=[saved]), "ExampleOp", "case", {}
     ) == [saved]
+
+
+def test_registry_edit_selects_only_affected_entries(tmp_path):
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    git("init")
+    git("config", "user.email", "ci@example.invalid")
+    git("config", "user.name", "CI")
+    path = tmp_path / "benchmarks/_cases/example.py"
+    path.parent.mkdir(parents=True)
+    path.write_text('ENTRIES = {"OldOp": Entry(old)}\n')
+    git("add", ".")
+    git("commit", "-m", "base")
+    base = git("rev-parse", "HEAD")
+    path.write_text('ENTRIES = {"OldOp": Entry(old), "NewOp": Entry(new)}\n')
+    git("commit", "-am", "entry")
+    assert MODULE.select(tmp_path, base)["operators"] == ["NewOp"]
+    path.write_text('new = build()\nENTRIES = {"OldOp": Entry(old), "NewOp": Entry(new)}\n')
+    git("commit", "-am", "module initialization changed")
+    assert MODULE.select(tmp_path, base)["operators"] == ["NewOp", "OldOp"]
+
+
+def test_shared_manifest_entry_diff_and_unknown_parser_edit(tmp_path):
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
+
+    git("init")
+    git("config", "user.email", "ci@example.invalid")
+    git("config", "user.name", "CI")
+    spec = tmp_path / "src/tileops/manifest/spec/example.yaml"
+    spec.parent.mkdir(parents=True)
+    spec.write_text("OldOp: {x: 1}\nOtherOp: {x: 2}\n")
+    kernel = tmp_path / "src/tileops/_kernels/ascend/a/old.py"
+    kernel.parent.mkdir(parents=True)
+    kernel.write_text('register("OldOp")\nregister("OtherOp")\n')
+    git("add", ".")
+    git("commit", "-m", "base")
+    base = git("rev-parse", "HEAD")
+    spec.write_text("OldOp: {x: 1}\nOtherOp: {x: 3}\n")
+    git("commit", "-am", "one contract")
+    assert MODULE.select(tmp_path, base)["operators"] == ["OtherOp"]
+    (spec.parent.parent / "parser.py").write_text("def shared(): return 42\n")
+    git("add", ".")
+    git("commit", "-m", "unknown shared parser")
+    assert MODULE.select(tmp_path, base)["operators"] == ["OldOp", "OtherOp"]

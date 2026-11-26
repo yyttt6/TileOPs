@@ -128,3 +128,21 @@ def test_post_engram_transition_preserves_only_unaffected_oracles(
     current = identity(compat.POST_ENGRAM_SOURCE)
     result = compat.reuse_unchanged_reference_identity("source", op, current)
     assert result == (identity(compat.OLD_SOURCE) if reuse else current)
+
+
+def test_additive_release_uses_production_source_only_for_qualified_operators(monkeypatch):
+    monkeypatch.delenv("ASCEND950_REFERENCE_ROOT", raising=False)
+
+    def resolve(digest, op):
+        monkeypatch.setattr(
+            compat, "reference_source_digest", lambda _: (digest, "independent-reference")
+        )
+        return compat.reuse_unchanged_reference_identity("unused", op, identity(digest))
+
+    for op in compat.UPSTREAM12_REUSE:
+        assert resolve(compat.UPSTREAM12_SOURCE, op) == resolve(compat.FINAL21_SOURCE, op)
+    assert resolve(compat.UPSTREAM12_SOURCE, "RMSNormGatedFwdOp") == identity(
+        compat.UPSTREAM12_SOURCE
+    )
+    unknown = "ab" * 32
+    assert resolve(unknown, "GDNFwdOp") == identity(unknown)
