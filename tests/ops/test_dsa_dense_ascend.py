@@ -127,9 +127,11 @@ def test_ascend_dsa_dense_tiled_attention_at_variable_query_length(heads, topk, 
     ids[:, 1] = kv_len
     inputs = tuple(tensor.to(device) for tensor in (q, kv, ids))
     op = DSADenseFwdOp(dim_tail=0, stride_kv=1, q_start_index_s=start, sm_scale=scale)
-    verify(
+    checks = verify(
         workload.ref_program,
         inputs,
         evidence=workload.verification(*inputs),
         requests={"tileops": Request(op, inputs)},
     )
+    result = checks["tileops"]
+    assert result.checked_outputs == result.total_outputs == 1, result.unchecked_reason

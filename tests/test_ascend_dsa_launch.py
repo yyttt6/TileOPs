@@ -54,6 +54,18 @@ def test_ascend_dsa_paged_split_schedule_uses_cube_count(queries, expected_28, e
 
 
 @pytest.mark.smoke
+@pytest.mark.parametrize(
+    ("queries", "expected_28", "expected_32"), [(4, 4, 4), (32, 4, 2), (64, 2, 2)]
+)
+def test_ascend_dsa_paged_split_schedule_for_smoke_shapes(queries, expected_28, expected_32):
+    pytest.importorskip("tilelang.ascend.language")
+    from tileops._kernels.ascend.attention.dsa_paged import choose_split_count
+
+    assert choose_split_count(queries, 512, 28, 8) == expected_28
+    assert choose_split_count(queries, 512, 32, 8) == expected_32
+
+
+@pytest.mark.smoke
 @pytest.mark.parametrize(("queries", "aivs"), [(48, 56), (48, 64), (47, 64), (65, 56)])
 def test_ascend_dsa_paged_gather_schedule_covers_live_tiles(queries, aivs):
     pytest.importorskip("tilelang.ascend.language")
