@@ -136,3 +136,44 @@ def test_unqualified_named_aicpu_uses_isolated_backend(kind):
             dict(full_decode=dict(tasks=[dict(type=kind, name="Cast")]))
         )
     session.require_qualified_topology(dict(full_decode=dict(tasks=[dict(type=1, name="main")])))
+
+
+def test_names_and_hardware_join_on_full_task_id(tmp_path, monkeypatch):
+    import json
+    import struct
+
+    monkeypatch.syspath_prepend(str(SUPPORT))
+    from complete_profile import decode
+    from tools.measure_baselines import _parse_ffts_profile
+
+    data = tmp_path / "device_0/data"
+    data.mkdir(parents=True)
+    (data.parent / "info.json.0").write_text(
+        json.dumps({"platform_version": "15", "DeviceInfo": [{"hwts_frequency": 1000}]})
+    )
+    (data / "hash_dic.slice_0").write_text("1:main\n2:LeftShift\n")
+
+    def track(task, stream, name):
+        return struct.pack("<8Q", 0, 0, 0, (task << 32) | (stream << 16), 0, name, 0, 0)
+
+    (data / "task_track.slice_0").write_bytes(track(73, 3, 1) + track(65609, 4, 2))
+    a = [0] * 16
+    a[0] = (73 << 32) | 0x2A
+    a[1] = 100
+    a[14:16] = [1000, 2000]
+    (data / "ffts_profile.data.0.slice_0").write_bytes(struct.pack("<16q", *a))
+
+    def event(func, ticks):
+        return struct.pack("<4HQHH3L", (5 << 10) | func, 0x6BD3, 73, 1, ticks, 0, 0, 0, 0, 0)
+
+    stars = data / "stars_soc.data.0.slice_0"
+    stars.write_bytes(event(0, 3000) + event(1, 6000))
+    decoded = decode(tmp_path)
+    assert [(t["name"], t["seq"], t["duration_us"]) for t in decoded["added_aicpu"]] == [
+        ("LeftShift", 65609, 3.0)
+    ]
+    (task,) = _parse_ffts_profile(tmp_path, 1)["profile_kernel_tasks"]
+    assert (task["name"], task["task_id"], task["stream_ids"]) == ("main", 73, [3])
+    stars.write_bytes(b"")
+    with pytest.raises(AssertionError, match="uncovered tracked kernels"):
+        decode(tmp_path)

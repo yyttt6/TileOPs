@@ -33,7 +33,7 @@ def decode(path):
         assert len(data) % 128 == 0
         for v in struct.iter_unpack("<16q", data):
             if v[1] and v[15] >= v[14]:
-                ffts.add((v[0] >> 32) & 65535)
+                ffts.add((v[0] >> 32) & 0xFFFFFFFF)
     tasks = []
     for f in path.rglob("stars_soc.data.*.slice_*"):
         if f.name.endswith(".done"):
