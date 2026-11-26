@@ -99,7 +99,7 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact/zip" > "$RUNNER_TEMP/prior-checkpoints.zip"
             CHECKPOINTS=ci-harness/.github/ci/pr_checkpoints.py
             if [[ ! -f "$CHECKPOINTS" ]]; then CHECKPOINTS=.github/ci/pr_checkpoints.py; fi
-            echo "ea37b4678dd85477db413930fd4cdc2806ea425ab7ad3dc03ad70c81c389870d  $CHECKPOINTS" | sha256sum --check
+            echo "8a04d3288f594be05c2986966d0c93c9bc19c3873c99f6b71eb98a8ee3075df2  $CHECKPOINTS" | sha256sum --check
             env -u GH_TOKEN python -I -S "$CHECKPOINTS" index "$RUNNER_TEMP/prior-checkpoints.zip" "$sha" "$RUNNER_TEMP/prior-checkpoints.json"
             echo "Prepared checkpoint index from run $id, artifact $artifact"
             break
@@ -341,7 +341,7 @@ jobs:
           python ci-harness/scripts/ci/seed_pr_cache.py --cache-root /opt/tileops-ci/server2-20261030/cache --report "$RUNNER_TEMP/pr-cache.json"
           CHECKPOINTS=ci-harness/.github/ci/pr_checkpoints.py
           if [[ ! -f "$CHECKPOINTS" ]]; then CHECKPOINTS=.github/ci/pr_checkpoints.py; fi
-          echo "ea37b4678dd85477db413930fd4cdc2806ea425ab7ad3dc03ad70c81c389870d  $CHECKPOINTS" | sha256sum --check
+          echo "8a04d3288f594be05c2986966d0c93c9bc19c3873c99f6b71eb98a8ee3075df2  $CHECKPOINTS" | sha256sum --check
           python -I "$CHECKPOINTS" measure --cache "$RUNNER_TEMP/pr-cache.json" --toolchain "$RUNNER_TEMP/pr-toolchain.json" --prior baseline-cache/data/baseline-cache/prior-checkpoints.json --operators "$MANUAL_OPERATORS" --base "$PR_BASE" --baseline baseline-cache/data/baseline-cache/snapshot.json --output "/opt/tileops-ci/server2-20261030/pr-evidence-v010/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - uses: actions/upload-artifact@v4
         if: always()

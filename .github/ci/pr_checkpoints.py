@@ -292,6 +292,20 @@ def partitions(ops, registered_cases, satisfied):
         yield group
 
 
+# This decoder-only recovery is qualified by replay of all original 900 windows.
+# Bind the signed-off records, the original environment and the entire new
+# measurement identity. Other changes continue to use the normal equality check.
+TASK_ID_REPLAY_INDEX = "296d7157bc51971c4dc416435cec09273033aeaed92c9536fb6ecb8df1d2400d"
+TASK_ID_REPLAY_IDENTITY = "68427ad22d759cb1ce17960f31c2e0359ffb16d4e3d53333a8cb4aa0472c9293"
+
+
+def task_id_replay(prior, current):
+    return (
+        fingerprint(prior) == TASK_ID_REPLAY_INDEX
+        and fingerprint(current) == TASK_ID_REPLAY_IDENTITY
+    )
+
+
 def measure(args):
     root = Path.cwd().resolve()
     harness = (root / "ci-harness/scripts/ci").resolve()
@@ -389,10 +403,27 @@ def measure(args):
         save(out / "checkpoint-index.json", dict(schema=1, identity=key, records=records))
         save(out / "comparisons.json", comparisons)
 
-    def admit(record):
+    def admit(record, *, verified_decoder_transition=False):
         op = record["op"]
+        record_sources, record_provenance = sources, prov
+        if verified_decoder_transition:
+            # The exact index binds guard/source/row hashes and original run.
+            # Check the original source signature and the original receipt, but
+            # always replay all 15 windows with the current, corrected decoder.
+            original = safe_child(out.parent, record["origin"])
+            record_sources = read(safe_child(original, record["directory"]) / "sources.json")
+            record_provenance = read(original / "provenance.json")
+            assert fingerprint(measurement_sources(record_sources)) == prior["identity"]["sources"]
+            for field in ("base", "baseline_sha256", "correctness_protocol", "harness_sources"):
+                assert record_provenance[field] == prior["identity"][field]
         rows = verify(
-            record, out.parent, cases[op], sources, reg["hardware"], replay_coverage, prov
+            record,
+            out.parent,
+            cases[op],
+            record_sources,
+            reg["hardware"],
+            replay_coverage,
+            record_provenance,
         )
         keys = {(op, row["case_id"]) for row in rows}
         assert not (keys & satisfied)
@@ -426,13 +457,16 @@ def measure(args):
 
     if args.prior and args.prior.is_file():
         prior = read(args.prior)
-        if prior["identity"] == key:
+        transition = task_id_replay(prior, key)
+        if prior["identity"] == key or transition:
             for record in prior["records"]:
                 if record["op"] not in ops:
                     continue
                 try:
-                    admit(record)
+                    admit(record, verified_decoder_transition=transition)
                 except (AssertionError, OSError, ValueError, KeyError) as exc:
+                    if transition:
+                        raise
                     print(
                         f"Rejected checkpoint for {record['op']}: {type(exc).__name__}: {exc}",
                         flush=True,

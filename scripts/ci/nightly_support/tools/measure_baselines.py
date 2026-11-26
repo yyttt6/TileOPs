@@ -283,10 +283,13 @@ def _resolve_kernel_names(prof_path: Path) -> dict[int, str]:
         data = path.read_bytes()
         for offset in range(0, len(data) - (len(data) % 64), 64):
             values = struct.unpack_from("<8q", data, offset)
-            seq = (values[3] >> 32) & 0xFFFF
+            seq = (values[3] >> 32) & 0xFFFFFFFF
             name_hash = values[5]
             if name_hash != 0:
-                seq_to_name[seq] = hash_to_name.get(name_hash, f"<unknown {name_hash}>")
+                name = hash_to_name.get(name_hash, f"<unknown {name_hash}>")
+                if seq in seq_to_name and seq_to_name[seq] != name:
+                    raise ValueError(f"Conflicting kernel names for device task {seq}")
+                seq_to_name[seq] = name
     return seq_to_name
 
 

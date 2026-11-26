@@ -30,7 +30,7 @@ def partition(path, repeats):
         key=lambda t: t["start_ns"],
     )
     assert len(markers) == repeats * 2, ("marker count", len(markers), repeats)
-    seqs = [t["task_id"] & 65535 for t in markers]
+    seqs = [t["task_id"] for t in markers]
     assert seqs == sorted(set(seqs)), "wrapped/reused task IDs unsupported"
     assert all(
         len(t["stream_ids"]) == 1 and t["name"] and not t["name"].startswith("<unknown")
@@ -44,7 +44,7 @@ def partition(path, repeats):
             continue
         for v in struct.iter_unpack("<16q", p.read_bytes()):
             if v[1]:
-                cycles[(v[0] >> 32) & 65535][int(v[2] >= 1 << 31)] += v[1]
+                cycles[(v[0] >> 32) & 0xFFFFFFFF][int(v[2] >= 1 << 31)] += v[1]
     star_by_seq = collections.defaultdict(list)
     for t in extra["tasks"]:
         star_by_seq[t["seq"]].append(t)
@@ -53,7 +53,7 @@ def partition(path, repeats):
     for i in range(repeats):
         left, right = markers[2 * i : 2 * i + 2]
         lo, hi = seqs[2 * i : 2 * i + 2]
-        body = [t for t in tasks if lo < (t["task_id"] & 65535) < hi]
+        body = [t for t in tasks if lo < t["task_id"] < hi]
         assert all(
             left["end_ns"] <= t["start_ns"] <= t["end_ns"] <= right["start_ns"] for t in body
         ), "timestamp/sequence disagreement"
@@ -70,7 +70,7 @@ def partition(path, repeats):
             )
         us = sum(t["duration_us"] for t in body + added)
         assert us > 0 and body + added, "empty measurement window"
-        ids = {t["task_id"] & 65535 for t in body} | {t["seq"] for t in added}
+        ids = {t["task_id"] for t in body} | {t["seq"] for t in added}
         assert not assigned & ids
         assigned |= ids
         samples.append(
@@ -87,7 +87,7 @@ def partition(path, repeats):
                 boundary=dict(start=left, end=right),
             )
         )
-    excluded = [t for t in tasks if (t["task_id"] & 65535) not in assigned]
+    excluded = [t for t in tasks if t["task_id"] not in assigned]
     # Every non-body task is retained as preparation/marker evidence, never name-filtered from a body.
     return samples, dict(samples=samples, preparation_and_markers=excluded, full_decode=extra)
 
