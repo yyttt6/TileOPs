@@ -45,7 +45,7 @@ def parse_profile(
             raise ValueError("Truncated task track: " + str(p))
         for offset in range(0, len(raw), 64):
             v = struct.unpack_from("<8q", raw, offset)
-            streams[(v[3] >> 32) & 65535].add((v[3] >> 16) & 65535)
+            streams[(v[3] >> 32) & 0xFFFFFFFF].add((v[3] >> 16) & 65535)
     groups = collections.defaultdict(list)
     aic_cycles = aiv_cycles = raw_count = 0
     for p in root.rglob("ffts_profile*"):
@@ -82,7 +82,7 @@ def parse_profile(
     excluded_count = excluded_ns = 0
     marker_seen = False
     for (task_id, context), records in groups.items():
-        seq = task_id & 65535
+        seq = task_id
         roles = {r[0] for r in records}
         if len(streams[seq]) > 1:
             raise ValueError("Ambiguous multi-stream task ID; retain trace for full decoding")
