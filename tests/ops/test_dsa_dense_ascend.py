@@ -135,3 +135,31 @@ def test_ascend_dsa_dense_tiled_attention_at_variable_query_length(heads, topk, 
     )
     result = checks["tileops"]
     assert result.checked_outputs == result.total_outputs == 1, result.unchecked_reason
+
+
+@pytest.mark.smoke
+def test_ascend_dsa_dense_d576_dma_with_empty_and_partial_tiles():
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("Ascend D576 DMA")
+    generator = torch.Generator().manual_seed(181)
+    start, kv_len, topk = 163, 256, 256
+    workload = DSADecodeWorkload(
+        1, 128, 4, kv_len, 512, 64, topk, 1, 1, start, dtype=torch.bfloat16
+    )
+    q = torch.randn(1, 4, 128, 576, generator=generator).bfloat16()
+    kv = torch.randn(1, kv_len, 1, 576, generator=generator).bfloat16()
+    ids = torch.arange(topk, dtype=torch.int32).repeat(1, 4, 1, 1)
+    ids[:, 1] = kv_len
+    ids[0, 2, 0, :9] = torch.tensor([1, 3, 3, 5, 8, 13, 21, start + 2, start + 3])
+    ids[0, 2, 0, 9:] = kv_len
+    inputs = tuple(tensor.to(device) for tensor in (q, kv, ids))
+    op = DSADenseFwdOp(dim_tail=64, stride_kv=1, q_start_index_s=start)
+    checks = verify(
+        workload.ref_program,
+        inputs,
+        evidence=workload.verification(*inputs),
+        requests={"tileops": Request(op, inputs)},
+    )
+    result = checks["tileops"]
+    assert result.checked_outputs == result.total_outputs == 1, result.unchecked_reason

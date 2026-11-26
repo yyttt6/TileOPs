@@ -296,6 +296,24 @@ def uses_d512_schedule(call, q, kv, indices):
     )
 
 
+def uses_d576_schedule(call, q, kv, indices):
+    """Select the fused H128 DMA path for aligned BF16 calls with a RoPE tail."""
+    topk = indices.shape[-1]
+    return (
+        q.dtype == torch.bfloat16
+        and kv.dtype == q.dtype
+        and q.shape[2] == 128
+        and call.kv_group == 1
+        and call.kv_stride == 1
+        and call.is_causal
+        and call.dim == 512
+        and call.tail_dim == 64
+        and isinstance(call.q_start_index_s, int)
+        and 0 < topk <= 4096
+        and topk % 128 == 0
+    )
+
+
 class AscendDSADenseKernel(Kernel, SparseMLADecodeFwdInterface):
     devices = frozenset({"npu"})
 
@@ -333,6 +351,12 @@ class AscendDSADenseKernel(Kernel, SparseMLADecodeFwdInterface):
             cube_cores, vector_cores = device_core_counts(q.device)
             scale = 512**-0.5 if c.sm_scale is None else c.sm_scale
             return forward_d512(q, kv, indices, c.q_start_index_s, scale, cube_cores, vector_cores)
+        if uses_d576_schedule(c, q, kv, indices):
+            from tileops._kernels.ascend.attention.dsa_dense_d576 import forward_d576
+
+            cube_cores, _ = device_core_counts(q.device)
+            scale = dim**-0.5 if c.sm_scale is None else c.sm_scale
+            return forward_d576(q, kv, indices, c.q_start_index_s, scale, cube_cores)
         cap = min(c.seq_len_kv, max(1, (c.q_start_index_s + seq) // c.kv_stride))
         slots = (cap + 63) // 64 * 64
         dense = (

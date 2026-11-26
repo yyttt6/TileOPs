@@ -32,6 +32,7 @@ TileLang Ascend causal sparse attention (DMA and SIMD packing patterns)
 Source: https://github.com/tile-ai/tilelang/blob/4c0cb5fcdaf466c2a44e63ef1404553b94909da1/examples/ascend/sparse_attention/example_dsa.py
 Commit: 4c0cb5fcdaf466c2a44e63ef1404553b94909da1
 Files: src/tileops/_kernels/ascend/attention/dsa_dense_d512.py
+       src/tileops/_kernels/ascend/attention/dsa_dense_d576.py
        src/tileops/_kernels/ascend/attention/dsa_paged_h64.py
        src/tileops/_kernels/ascend/attention/dsa_paged_h128.py
 
