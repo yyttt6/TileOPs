@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -56,6 +57,94 @@ def matching_baselines(baseline, op, case, params):
     return list(providers.values())
 
 
+# Reviewed additive runtime transitions. Bind both complete product trees rather
+# than a PR number, branch, or a candidate-supplied list. Any further product
+# change falls back to ordinary impact analysis, including transitive delegates.
+# The upstream12 conformance audit compares all 2,267 legacy cases and the
+# existing dispatch and workload definitions on this exact pair.
+REVIEWED_ADDITIONS = {
+    (
+        "af323b414b4de7c99661a2316efd3cea5e80b1c6841257d27b1a1f91f1b48977",
+        "f7c0f8da1715e4e5bcaa2d28e1417f41b92154b680c6180708b6a0d52f1b6efe",
+    ),
+}
+
+
+def declared_ops(root, revision, paths):
+    """Read top-level operator declarations in the reviewed block-style specs."""
+    names = set()
+    for path in paths:
+        blob = subprocess.run(["git", "show", f"{revision}:{path}"], cwd=root, capture_output=True)
+        if blob.returncode:
+            continue
+        names.update(re.findall(r"^([A-Za-z_][A-Za-z0-9_]*Op):[ \t]*$", blob.stdout.decode(), re.M))
+    return names
+
+
+def product_tree(root, revision):
+    entries = subprocess.check_output(["git", "ls-tree", "-rz", "--full-tree", revision], cwd=root)
+    return hashlib.sha256(
+        b"\0".join(
+            entry
+            for entry in entries.split(b"\0")
+            if entry
+            and not entry.split(b"\t", 1)[1].startswith((b"docs/", b".github/", b"scripts/ci/"))
+        )
+    ).hexdigest()
+
+
+def registry_delta(root, base, path, current):
+    """A literal registry edit with identical surrounding code affects just its changed entries."""
+    from gemm_selection import _read, _registry, _signature
+
+    old = _registry(_read(root, base, path))
+    new = _registry(current)
+    if old is None or new is None or _signature(old[1]) != _signature(new[1]):
+        return None
+    dynamic_names = {"ENTRIES", "globals", "locals", "eval", "exec", "__import__"}
+    if any(
+        isinstance(node, ast.Name) and node.id in dynamic_names
+        for statement in new[1]
+        for node in ast.walk(statement)
+    ):
+        return None
+    before, after = old[0], new[0]
+    if [k for k in before if k in after] != [k for k in after if k in before]:
+        return None
+    return (before.keys() ^ after.keys()) | {
+        name
+        for name in before.keys() & after.keys()
+        if ast.dump(before[name]) != ast.dump(after[name])
+    }
+
+
+def manifest_entry_delta(root, base, path):
+    """Resolve YAML aliases before comparing entries; global type changes take the broad path."""
+    if Path(path).name == "types.yaml":
+        return None
+    try:
+        import yaml
+    except ImportError:
+        return None
+    entries = []
+    for rev in (base, "HEAD"):
+        result = subprocess.run(["git", "show", f"{rev}:{path}"], cwd=root, capture_output=True)
+        if result.returncode:
+            entries.append({})
+            continue
+        try:
+            data = yaml.safe_load(result.stdout)
+        except yaml.YAMLError:
+            return None
+        if not isinstance(data, dict) or not all(
+            isinstance(k, str) and k.isidentifier() and k.endswith("Op") for k in data
+        ):
+            return None
+        entries.append(data)
+    old, new = entries
+    return (old.keys() ^ new.keys()) | {op for op in old.keys() & new.keys() if old[op] != new[op]}
+
+
 def select(root, base):
     # An old PR tree can lag behind the target branch. A two-tree diff would
     # count target-only changes as PR changes and may select the entire library.
@@ -71,6 +160,31 @@ def select(root, base):
     changed = subprocess.check_output(
         ["git", "diff", "--name-only", base, "HEAD"], cwd=root, text=True
     ).splitlines()
+    shared = any(
+        path.startswith(("src/tileops/backend/", "src/tileops/manifest/")) for path in changed
+    )
+    if shared:
+        if (product_tree(root, base), product_tree(root, "HEAD")) in REVIEWED_ADDITIONS:
+            specs = [
+                p
+                for p in changed
+                if p.startswith("src/tileops/manifest/spec/") and p.endswith(".yaml")
+            ]
+            old_ops = declared_ops(root, base, specs)
+            new_ops = declared_ops(root, "HEAD", specs)
+            if not old_ops < new_ops:
+                raise ValueError(
+                    "Reviewed additive transition no longer describes a manifest addition"
+                )
+            added = sorted(new_ops - old_ops)
+            return dict(
+                changed=changed,
+                operators=added,
+                reasons={"reviewed-additive-transition": added},
+                target_base=target_base,
+                comparison_base=base,
+                target_is_ancestor=base == target_base,
+            )
     kernels = root / "src/tileops/_kernels/ascend"
     files = list(kernels.rglob("*.py"))
     selected = set()
@@ -94,9 +208,17 @@ def select(root, base):
         if path in builtin_sources:
             selected.add(builtin_sources[path])
         p = root / path
-        if not p.exists() or p.suffix != ".py" or p.name == "__init__.py":
+        if path.startswith("src/tileops/manifest/spec/") and path.endswith(".yaml"):
+            delta = manifest_entry_delta(root, base, path)
+            if delta is not None:
+                selected.update(delta)
+                reasons[path] = sorted(delta)
+                continue
+            selected.update(builtin_sources.values())
+            candidates = files
+        elif not p.exists() or p.suffix != ".py" or p.name == "__init__.py":
             continue
-        if path.startswith("src/tileops/_kernels/ascend/"):
+        elif path.startswith("src/tileops/_kernels/ascend/"):
             # Include the kernel family for helper/template changes: dependencies may be dynamic.
             tree = ast.parse(p.read_text())
             family = path.split("/")[4]
@@ -110,9 +232,22 @@ def select(root, base):
             )
             family = path.split("/")[4]
             candidates = list((kernels / family).rglob("*.py"))
-        elif path.startswith(("src/tileops/_ops/", "workloads/", "benchmarks/_cases/")):
+        elif path.startswith("benchmarks/_cases/"):
+            delta = registry_delta(root, base, path, ast.parse(p.read_text()))
+            if delta is not None:
+                selected.update(delta)
+                reasons[path] = sorted(delta)
+                continue
+            candidates = [p]
+        elif path.startswith(("src/tileops/_ops/", "workloads/")):
             candidates = [p]
         elif path.startswith(("src/tileops/backend/", "src/tileops/manifest/")):
+            # Formatting and comments in a shared parser cannot affect device programs.
+            old = subprocess.run(["git", "show", f"{base}:{path}"], cwd=root, capture_output=True)
+            if old.returncode == 0 and ast.dump(ast.parse(old.stdout)) == ast.dump(
+                ast.parse(p.read_text())
+            ):
+                continue
             candidates = files
         else:
             continue

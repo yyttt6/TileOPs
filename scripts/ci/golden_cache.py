@@ -20,6 +20,7 @@ POLICY = Path(__file__).with_name("golden_cache_policy.json")
 # Reviewed prior implementations stored finite outputs or validated TopK masks.
 # Reuse only with every other source/runtime/toolchain/op/case/input identity exact.
 FINITE_LEGACY_IMPLEMENTATIONS = (
+    "04ef19e74c50fb5d526895ab3e3eff207d22c7ce2739297669631195b1aef390",
     "1efcc047f57c649de7e34d6f2dabb1b28ea512face30cf2532c9dcabb00359ef",
     "07ec4df408c1ec7dbe7df587f68ed2257be3d6ebd6e862ef2094bf6a70c29d4f",
 )
@@ -191,6 +192,26 @@ def contract_identity(source):
     )
 
 
+def valid_indexer_logits(logits, starts, ends):
+    """Only keys outside the query's half-open interval may have minus infinity."""
+    import torch
+
+    if logits.ndim != 4 or logits.dtype != torch.float32:
+        return False
+    _, queries, keys, _ = logits.shape
+    if starts.shape != (queries,) or ends.shape != (queries,):
+        return False
+    positions = torch.arange(keys, device=logits.device)[None, :]
+    # Bound temporary predicates for the 4096-query / 131072-key workload.
+    for first in range(0, queries, 16):
+        last = min(first + 16, queries)
+        live = (positions >= starts[first:last, None]) & (positions < ends[first:last, None])
+        part = logits[:, first:last]
+        if not torch.where(live[None, :, :, None], torch.isfinite(part), torch.isneginf(part)).all().item():
+            return False
+    return True
+
+
 class GoldenCache:
     def __init__(self, root, identity, *, max_bytes=128 << 30, min_free_bytes=200 << 30):
         self.root = Path(root)
@@ -275,7 +296,10 @@ class GoldenCache:
                 def capture(t):
                     import torch
 
-                    if t.is_floating_point() or t.is_complex():
+                    if self.identity.get("op") == "FP8LightningIndexerFwdOp":
+                        if devices or len(args) != 6 or not valid_indexer_logits(t, args[3], args[4]):
+                            raise ValueError("Invalid Lightning Indexer window or score")
+                    elif t.is_floating_point() or t.is_complex():
                         allowed_mask = self.identity.get("op") in NEGATIVE_INFINITY_MASK_OPS
                         # Compression has no visible block at early tokens: its
                         # second output is a head-major FP32 LSE of exactly -inf.
