@@ -7,6 +7,11 @@ from workloads.sequence_modeling.engram import (
     engram_gate_conv_fwd_torch,
     ref_engram_gate_conv_bwd,
 )
+from workloads.sequence_modeling.hyper_connection import (
+    HyperConnectionHeadWorkload,
+    HyperConnectionPostWorkload,
+    HyperConnectionPreCall,
+)
 from workloads.sequence_modeling.mhc import MHCPostWorkload, MHCPreWorkload, mhc_pre_ref
 
 __all__ = [

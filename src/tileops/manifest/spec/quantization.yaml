@@ -258,3 +258,43 @@ FP8QuantPerBlockFwdOp:
     # Per element: abs, the max, the scaling and the saturating cast; per tile: the scale and
     # its zero guard.
     flops: "4 * N * K + 2 * ceil_div(N, 128) * ceil_div(K, 128)"
+
+
+FP4QuantPerGroupFwdOp:
+  # Per block_size elements along the last axis, scale = 2 ** ceil(log2(max(amax, 6 * 2 ** -126) / 6))
+  # and q = e2m1(clamp(x / scale, -6, 6)), rounded to nearest even; q holds two codes per byte,
+  # the even element in the low nibble; its logical dtype is float4_e2m1fn_x2. With inplace,
+  # x is overwritten with q * scale and returned as output, and neither q nor scale is
+  # produced. As DeepSeek-V4-Flash fp4_act_quant.
+  family: quantization
+  status: implemented
+  ref_api: workloads.quantization.quantize.fp4_quant_per_group
+  signature:
+    forall: {S: Shape, N: Dim}
+    params:
+      block_size: {type: int, default: 32}
+      inplace: {type: bool, default: false}
+    inputs:
+      x: {dtype: bfloat16, shape: "[*S, N]", mutated: inplace}
+    outputs:
+      q: {dtype: uint8, shape: "[*S, N // 2]", nullable: "not inplace"}
+      scale: {dtype: float8_e8m0fnu, shape: "[*S, N // block_size]", nullable: "not inplace"}
+      output: {dtype: bfloat16, shape: "[*S, N]", nullable: inplace, alias: x}
+    shape_rules:
+    - "block_size > 0"
+    - "N % block_size == 0"
+    # q packs two codes per byte.
+    - "inplace or N % 2 == 0"
+  workloads:
+  # DeepSeek-V4-Flash indexer: 64 query heads of 128 and the compressed keys, fake-quantized.
+  - {S: [1, 64], N: 128, inplace: true, label: dsv4-flash-idx-q-t1}
+  - {S: [4096, 64], N: 128, inplace: true, label: dsv4-flash-idx-q-4k}
+  - {S: [32768, 64], N: 128, inplace: true, label: dsv4-flash-idx-q-32k}
+  - {S: [1024], N: 128, inplace: true, label: dsv4-flash-idx-k-1k}
+  - {S: [3000], N: 128, inplace: true, label: dsv4-flash-idx-k-3000}
+  - {S: [4096, 64], N: 128, label: dsv4-flash-q-4k-quant}
+  roofline:
+    # Per element: abs, the group-max comparison, the scaling and the clamp, and the multiply
+    # back in place; per group: the amax floor, the divide by 6, and the log2, ceil and exp2
+    # that round it to a power of two.
+    flops: "(5 if inplace else 4) * prod(S) * N + 5 * prod(S) * (N // block_size)"

@@ -1,5 +1,6 @@
 """Ascend Rotary Position Embedding implementations."""
 
+from tileops._kernels.ascend.rope.cos_sin import AscendRoPECosSinKernel
 from tileops._kernels.ascend.rope.rotation import (
     AscendRoPEInterleavedKernel,
     AscendRoPENeoxKernel,
@@ -7,6 +8,7 @@ from tileops._kernels.ascend.rope.rotation import (
 )
 
 __all__ = [
+    "AscendRoPECosSinKernel",
     "AscendRoPEInterleavedKernel",
     "AscendRoPENeoxKernel",
     "AscendRoPEPositionsKernel",

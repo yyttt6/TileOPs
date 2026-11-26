@@ -411,6 +411,12 @@ def instantiate(plan: EntryPlan, row: dict, dtype_case: dict, *, metadata: bool 
     With `metadata=False`, describe tensor shapes and dtypes without generating or
     validating their contents. Shape refinements and inference are still checked.
     """
+    from tileops.manifest._dialect import TYPED_OPS
+
+    if plan.sig.name in TYPED_OPS:
+        from tileops.manifest.typed._workload import instantiate as typed_call
+
+        return typed_call(plan, row, dtype_case, metadata=metadata)
     return _instantiate(plan, row, dtype_case, metadata=metadata)
 
 
@@ -772,6 +778,12 @@ def _row_errors(sig: Signature, row: object) -> list[str]:
 
 def check_workloads(name: str, entry: dict, adts: dict) -> list[str]:
     """Row diagnostics for one entry, each prefixed with its op name."""
+    from tileops.manifest._dialect import TYPED_OPS
+
+    if name in TYPED_OPS:
+        from tileops.manifest.typed._workload import check_workloads as typed_check
+
+        return typed_check(name, entry, adts)
     try:
         plan = entry_plan(name, entry, adts, resolve=False)
     except SignatureError as exc:

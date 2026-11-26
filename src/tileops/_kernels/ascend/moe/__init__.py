@@ -2,6 +2,7 @@
 
 from tileops._kernels.ascend.moe.fused_topk import AscendFusedTopKKernel
 from tileops._kernels.ascend.moe.grouped_gemm import AscendMoEGroupedGEMMKernel
+from tileops._kernels.ascend.moe.grouped_mxfp4 import AscendMoEGroupedMXFP4Kernel
 from tileops._kernels.ascend.moe.indexed_expert import (
     AscendIndexedExpertDownKernel,
     AscendIndexedExpertGateUpKernel,
@@ -52,6 +53,7 @@ __all__ = [
     "AscendLargePrePermuteKernel",
     "AscendMoEGroupedGEMMFP8Kernel",
     "AscendMoEGroupedGEMMKernel",
+    "AscendMoEGroupedMXFP4Kernel",
     "AscendMoEPermuteAlignKernel",
     "AscendMoEPostPermuteKernel",
     "AscendMoEPrePermuteKernel",

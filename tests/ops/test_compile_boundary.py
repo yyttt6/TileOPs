@@ -23,6 +23,7 @@ from tests.compile_contract import (
 )
 from tileops._ops.attention.dsa import DSADenseFwdOp, DSAPagedFwdOp
 from tileops._ops.attention.fp8_lightning_indexer import FP8LightningIndexerFwdOp
+from tileops._ops.attention.gated_pool_compress import GatedPoolCompressFwdOp
 from tileops._ops.attention.gqa.bwd import GQADenseBwdOp
 from tileops._ops.attention.gqa.dense import GQADenseFwdOp, GQADenseWithLSEFwdOp
 from tileops._ops.attention.gqa.paged import GQAPagedFwdOp
@@ -98,6 +99,14 @@ from tileops._ops.sequence_modeling.engram import EngramGateConvBwdOp, EngramGat
 from tileops._ops.sequence_modeling.engram_decode import EngramDecodeFwdOp
 from tileops._ops.sequence_modeling.mhc import MHCPostFwdOp, MHCPreFwdOp
 from tileops._ops.transform import HadamardTransformFwdOp
+from tileops.indexing import EmbeddingFwdOp, MaskedScatterFwdOp
+from tileops.quantization import FP4QuantPerGroupFwdOp
+from tileops.rope import RoPECosSinFwdOp
+from tileops.sequence_modeling import (
+    HyperConnectionHeadFwdOp,
+    HyperConnectionPostFwdOp,
+    HyperConnectionPreFwdOp,
+)
 from workloads.attention.dsa import DSADecodeWorkload, DSAPagedCall
 from workloads.attention.fp8_lightning_indexer import FP8LightningIndexerWorkload
 from workloads.attention.gqa.bwd import GQABwdWorkload
@@ -234,7 +243,28 @@ def _attention_cases():
         ends = torch.full((1, 256), 512, dtype=torch.int32, device=run_device())
         return TopKSelectFwdOp(top_k=64), (score, starts, ends)
 
+    def gated_pool_compress():
+        kv = torch.randn(33, 256, dtype=torch.float32, device=run_device())
+        score = torch.randn(33, 256, dtype=torch.float32, device=run_device())
+        ape = torch.randn(4, 256, dtype=torch.float32, device=run_device())
+        kv_state = torch.randn(4, 8, 256, dtype=torch.float32, device=run_device())
+        score_state = torch.randn(4, 8, 256, dtype=torch.float32, device=run_device())
+        cu_seqlens = torch.tensor([0, 1, 33], dtype=torch.int32, device=run_device())
+        start_pos = torch.tensor([11, 0], dtype=torch.int32, device=run_device())
+        state_slots = torch.tensor([2, 0], dtype=torch.int32, device=run_device())
+        return GatedPoolCompressFwdOp(4, True), (
+            kv,
+            score,
+            ape,
+            kv_state,
+            score_state,
+            cu_seqlens,
+            start_pos,
+            state_slots,
+        )
+
     return (
+        ("gated-pool-compress", gated_pool_compress, False),
         ("gqa-dense", gqa_dense),
         # Only the SM90 kernel serves it.
         ("gqa-dense-with-lse", gqa_dense_with_lse, True, (pytest.mark.sm90,)),
@@ -650,7 +680,30 @@ def _other_cases():
         p = torch.tensor([0.9, 0.7], dtype=torch.float32, device=run_device())
         return TopKTopPMaskFwdOp(), (logits, k, p)
 
+    def embedding():
+        weight = torch.randn(100, 64, dtype=torch.bfloat16, device=run_device())
+        index = torch.randint(0, 100, (3, 5), device=run_device())
+        return EmbeddingFwdOp(), (index, weight)
+
+    def masked_scatter():
+        x = torch.randn(6, 64, dtype=torch.bfloat16, device=run_device())
+        mask = torch.rand(6, 1, device=run_device()) < 0.5
+        source = torch.randn(6, 64, dtype=torch.bfloat16, device=run_device())
+        return MaskedScatterFwdOp(), (x, mask, source)
+
+    def fp4_quant():
+        x = torch.randn(4, 64, 128, dtype=torch.bfloat16, device=run_device())
+        return FP4QuantPerGroupFwdOp(), (x,)
+
+    def fp4_quant_inplace():
+        x = torch.randn(4, 64, 128, dtype=torch.bfloat16, device=run_device())
+        return FP4QuantPerGroupFwdOp(inplace=True), (x,)
+
     return (
+        ("embedding", embedding),
+        ("masked-scatter", masked_scatter),
+        ("fp4-quant", fp4_quant),
+        ("fp4-quant-inplace", fp4_quant_inplace),
         ("fft-c2c", fft_c2c),
         ("hadamard-transform", hadamard_transform),
         ("fp8-quant", fp8_quant),
@@ -779,7 +832,41 @@ def _sequence_modeling_cases():
             _x(batch, n_expand * c_x),
         )
 
+    def hyper_connection_pre():
+        n, c = 4, 256
+        op = HyperConnectionPreFwdOp(1e-6, 1e-6, 1e-6, 2.0, 20)
+        q = n * n + 2 * n
+        return op, (
+            _x(3, n, c),
+            _x(q, n * c, dtype=torch.float32) / (n * c) ** 0.5,
+            _x(3, dtype=torch.float32),
+            _x(q, dtype=torch.float32),
+        )
+
+    def hyper_connection_post():
+        streams = 4
+        f32 = dict(dtype=torch.float32)
+        return HyperConnectionPostFwdOp(), (
+            _x(_M, _SEQ_LEN, _D),
+            _x(_M, _SEQ_LEN, streams, _D),
+            _x(_M, _SEQ_LEN, streams, 1, **f32),
+            _x(_M, _SEQ_LEN, streams, streams, **f32),
+        )
+
+    def hyper_connection_head():
+        streams = 4
+        f32 = dict(dtype=torch.float32)
+        return HyperConnectionHeadFwdOp(1e-6, 1e-6), (
+            _x(_M, _SEQ_LEN, streams, _D),
+            _x(streams, streams * _D, **f32),
+            _x(1, **f32),
+            _x(streams, **f32),
+        )
+
     return (
+        ("hyper-connection-pre", hyper_connection_pre),
+        ("hyper-connection-post", hyper_connection_post),
+        ("hyper-connection-head", hyper_connection_head),
         ("engram-gate-conv-fwd", engram_gate_conv_fwd),
         ("engram-gate-conv-bwd", engram_gate_conv_bwd),
         ("engram-decode", engram_decode),
@@ -811,7 +898,25 @@ def _rope_cases():
         positions = torch.arange(_SEQ_LEN, device=run_device(), dtype=torch.int32)
         return op, (_x(_SEQ_LEN, _HEADS, _D), positions)
 
+    _TOKENS = 64
+
+    def cos_sin():
+        x = torch.randn(2, _TOKENS, _HEADS, _D, dtype=_DTYPE, device=run_device())
+        cos, sin = torch.randn(2, 128, _D // 2, device=run_device()).unbind(0)
+        return RoPECosSinFwdOp(), (x, cos, sin)
+
+    def cos_sin_packed_inplace():
+        # Packed, in place, each sequence at its own offset.
+        x = torch.randn(_TOKENS, _HEADS, _D, dtype=_DTYPE, device=run_device())
+        cos, sin = torch.randn(2, 128, _D // 2, device=run_device()).unbind(0)
+        cu_seqlens = torch.tensor([0, 20, _TOKENS], dtype=torch.int32, device=run_device())
+        offsets = torch.tensor([3, 50], device=run_device())
+        op = RoPECosSinFwdOp(interleaved=True, inplace=True, max_seqlen=_TOKENS - 20)
+        return op, (x, cos, sin, cu_seqlens, offsets)
+
     return (
+        ("rope-cos-sin", cos_sin),
+        ("rope-cos-sin-packed-inplace", cos_sin_packed_inplace),
         ("rope-neox", one_d(RoPEFwdOp)),
         (
             "rope-interleaved",
@@ -865,6 +970,14 @@ def _cases():
 # A spec-only entry's case runs but is not registered: only an implemented entry's
 # declaration is contract evidence.
 for _op_cls in (
+    RoPECosSinFwdOp,
+    HyperConnectionPreFwdOp,
+    HyperConnectionPostFwdOp,
+    HyperConnectionHeadFwdOp,
+    EmbeddingFwdOp,
+    MaskedScatterFwdOp,
+    FP4QuantPerGroupFwdOp,
+    GatedPoolCompressFwdOp,
     GQADenseFwdOp,
     GQADenseWithLSEFwdOp,
     GQADenseBwdOp,

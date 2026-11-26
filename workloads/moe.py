@@ -4,6 +4,7 @@ from collections.abc import Iterable
 
 import torch
 
+from workloads.quantization.quantize import unpack_e2m1
 from workloads.workload_base import CallWorkload
 
 
@@ -1088,3 +1089,64 @@ def moe_verification(gate_up_index):
         f"elementwise atol/rtol {tol} and normalized squared error <= {bound}",
         controls=(_gate_up_swapped(gate_up_index),),
     )
+
+
+def ref_moe_grouped_gemm_mxfp4(
+    a: torch.Tensor,
+    a_scale: torch.Tensor,
+    b: torch.Tensor,
+    b_scale: torch.Tensor,
+    layout_metadata: torch.Tensor,
+    layout,
+) -> torch.Tensor:
+    """``MoEGroupedGEMMMXFP4FwdOp``'s reference: :func:`ref_moe_grouped_gemm` in float32 over
+    ``a`` under its per-128 scales and the e2m1 pairs of ``b`` under their per-32 scales,
+    rounded once to bfloat16 (DeepSeek-V4-Flash ``inference/kernel.py`` ``fp4_gemm``)."""
+
+    def fp32(scale):
+        if scale.dtype != torch.float8_e8m0fnu or scale.device.type != "npu":
+            return scale.float()
+        # E8M0 is an unsigned binary exponent biased by 127. Code 255 is NaN.
+        exponent = scale.view(torch.uint8).to(torch.int32)
+        power = torch.pow(2.0, (exponent - 127).float())
+        return power.masked_fill(exponent == 255, float("nan"))
+
+    a_f = a.float() * fp32(a_scale).repeat_interleave(128, dim=-1)
+    b_f = unpack_e2m1(b) * fp32(b_scale).repeat_interleave(32, dim=-1)
+    return ref_moe_grouped_gemm(a_f, b_f, layout_metadata, layout, torch.bfloat16)
+
+
+class MoEGroupedGEMMMXFP4Workload(MoEGroupedGEMMFP8Workload):
+    """FP8 expert rows under per-128 scales, packed e2m1 weights under per-32 scales, and
+    generated layout metadata; checked on the valid rows under the fp8 matmul bound."""
+
+    def gen_inputs(self) -> tuple[torch.Tensor, ...]:
+        a, a_scale, b, b_scale, metadata = CallWorkload.gen_inputs(self)
+        # Every byte, so each nibble takes all 16 e2m1 codes, the signed zero among them.
+        b = torch.randint(0, 256, b.shape, dtype=torch.uint8, device=b.device)
+
+        def scales(like: torch.Tensor, low: int) -> torch.Tensor:
+            if like.dtype == torch.float8_e8m0fnu:
+                # Six powers of two from 2 ** (low - 127): a quantizer's spread.
+                codes = torch.randint(
+                    low, low + 6, like.shape, dtype=torch.uint8, device=like.device
+                )
+                return codes.view(torch.float8_e8m0fnu)
+            return torch.rand_like(like).add_(0.5) * 2.0 ** (low - 124)
+
+        # Scales that bring the dequantized operands to the FP8 workload's magnitudes (e2m1
+        # codes reach 6, fp8 rows are unscaled normals), so its outputs sit where the fp8
+        # matmul bound was set.
+        return a, scales(a_scale, 120), b, scales(b_scale, 121), metadata
+
+    def ref_program(
+        self,
+        a: torch.Tensor,
+        a_scale: torch.Tensor,
+        b: torch.Tensor,
+        b_scale: torch.Tensor,
+        layout_metadata: torch.Tensor,
+    ) -> torch.Tensor:
+        return ref_moe_grouped_gemm_mxfp4(
+            a, a_scale, b, b_scale, layout_metadata, self.call.params["layout"]
+        )

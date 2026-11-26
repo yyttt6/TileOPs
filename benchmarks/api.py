@@ -143,8 +143,13 @@ class Case:
     @functools.cached_property
     def params(self) -> dict:
         """The report parameters: each tensor's shape and dtype, and the manifest parameters."""
+        from tileops.manifest.typed._workload import Elements
+
         tensors = {
-            name: (tuple(shape), dtype) for name, (shape, dtype) in self._call.tensors.items()
+            name: tuple((tuple(shape), dtype) for shape, dtype in value.items)
+            if isinstance(value, Elements)
+            else (tuple(value[0]), value[1])
+            for name, value in self._call.tensors.items()
         }
         return tensors | {name: _report_value(v) for name, v in self._call.params.items()}
 

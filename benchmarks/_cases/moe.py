@@ -12,6 +12,7 @@ from workloads.moe import (
     MoEExpertMLPWorkload,
     MoEExpertsWorkload,
     MoEGroupedGEMMFP8Workload,
+    MoEGroupedGEMMMXFP4Workload,
     MoEGroupedGEMMWorkload,
     MoEPermuteAlignWorkload,
     MoEPostPermuteWorkload,
@@ -52,3 +53,9 @@ ENTRIES = {
     "FusedMoESharedExpertFwdOp": Entry(FusedMoESharedExpertWorkload, count_copies=True),
     "SharedExpertMLPFwdOp": Entry(SharedExpertMLPWorkload, count_copies=True),
 }
+
+ENTRIES.update(
+    {
+        "MoEGroupedGEMMMXFP4FwdOp": Entry(MoEGroupedGEMMMXFP4Workload),
+    }
+)

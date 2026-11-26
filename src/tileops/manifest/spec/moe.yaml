@@ -657,3 +657,79 @@ MoEGroupedGEMMFP8FwdOp:
     - {N: 7168, K: 2048, E: 48, T: 64, layout: {masked: {max_m: 64}}, label: kimi-k2-dec-b64-down}
     - {N: 4096, K: 7168, E: 48, T: 256, layout: {masked: {max_m: 256}}, label: kimi-k2-dec-b256-up}
     - {N: 7168, K: 2048, E: 48, T: 256, layout: {masked: {max_m: 256}}, label: kimi-k2-dec-b256-down}
+
+
+MoEGroupedGEMMMXFP4FwdOp:
+  # MoEGroupedGEMMFP8FwdOp with MXFP4 weights, as DeepSeek-V4-Flash fp4_gemm per expert:
+  # output = a * a_scale @ (e2m1(b) * b_scale)^T in float32, rounded once to bfloat16; a_scale
+  # per 128 and b_scale per 32 elements along K, both of one dtype S. b packs two e2m1 codes per
+  # byte along K, the even k in the low nibble.
+  family: moe
+  status: implemented
+  ref_api: workloads.moe.ref_moe_grouped_gemm_mxfp4
+  signature:
+    types:
+      Rows:
+        params: {layout: MGroupedLayout, E: Dim, P: Dim, C: Dim}
+        match: layout
+        cases:
+        - {when: {masked: "_"}, is: "[E, layout.max_m, C]"}
+        - {when: {contiguous: "_"}, is: "[P, C]"}
+      LayoutMetadata:
+        params: {layout: MGroupedLayout, E: Dim, P: Dim}
+        match: layout
+        cases:
+        - {when: {masked: "_"}, is: "[E]"}
+        - {when: {contiguous: {metadata_kind: physical_psum}}, is: "[E]"}
+        - {when: {contiguous: {metadata_kind: per_row}}, is: "[P]"}
+    forall:
+      P: Dim
+      K: Dim
+      N: Dim
+      E: Dim
+      # Routed rows a masked shard receives, spread over its E experts; read only by `values`.
+      T: Dim
+      # Each expert's rows in a contiguous layout; read only by `values`.
+      sizes: "Seq[Int]"
+      S: "DType[float8_e8m0fnu | float32]"
+    params:
+      layout: {type: MGroupedLayout}
+    inputs:
+      a: {dtype: float8_e4m3fn, shape: "Rows[layout, E, P, K]", contiguous: true}
+      a_scale: {dtype: S, shape: "Rows[layout, E, P, K // 128]", contiguous: true}
+      b: {dtype: uint8, shape: "[E, N, K // 2]", contiguous: true}
+      b_scale: {dtype: S, shape: "[E, N, K // 32]", contiguous: true}
+      layout_metadata:
+        dtype: int32
+        shape: "LayoutMetadata[layout, E, P]"
+        contiguous: true
+        values: "moe.routed_metadata(layout, E, (T,) if layout.kind == 'masked' else sizes)"
+        requires: ["moe.layout_valid(layout, R, E)"]
+    let:
+      # Materialized rows of `a`.
+      R: "E * layout.max_m if layout.kind == 'masked' else P"
+    shape_rules:
+    - "E > 0"
+    # The activation scales tile K in exact 128-element blocks.
+    - "K % 128 == 0"
+    # An aligned layout materializes whole runs.
+    - "layout.kind == 'masked' or layout.packing == 'tight' or P % layout.alignment == 0"
+    outputs:
+      output: {dtype: bfloat16, shape: "Rows[layout, E, P, N]", buffer: out, contiguous: true}
+  workloads:
+  # DeepSeek-V4-Flash under EP8: 32 local experts, hidden 4096, intermediate 2048, top 6.
+  # The up row is gate and up together, N = 2 * 2048 over K = 4096; the down row N = 4096
+  # over K = 2048. Decode, one token per request: a shard receives T = batch rows, and
+  # max_m = batch is the slab one expert taking every token needs.
+  - {N: 4096, K: 4096, E: 32, T: 64, layout: {masked: {max_m: 64}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-dec-b64-up}
+  - {N: 4096, K: 2048, E: 32, T: 64, layout: {masked: {max_m: 64}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-dec-b64-down}
+  - {N: 4096, K: 4096, E: 32, T: 256, layout: {masked: {max_m: 256}}, dtype_cases: [{S: float8_e8m0fnu}, {S: float32}], label: dsv4-dec-b256-up}
+  - {N: 4096, K: 2048, E: 32, T: 256, layout: {masked: {max_m: 256}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-dec-b256-down}
+  # Prefill in the contiguous layout, each expert's run padded to 128 rows: 4096 and 32768
+  # tokens at top 6 spread evenly over the 256 experts, a shard taking an eighth.
+  - {N: 4096, K: 4096, E: 32, sizes: 'balanced_sizes(3072, 32)', layout: {contiguous: {packing: aligned, metadata_kind: per_row, alignment: 128}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-ep8-4k-up}
+  - {N: 4096, K: 2048, E: 32, sizes: 'balanced_sizes(3072, 32)', layout: {contiguous: {packing: aligned, metadata_kind: per_row, alignment: 128}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-ep8-4k-down}
+  - {N: 4096, K: 4096, E: 32, sizes: 'balanced_sizes(24576, 32)', layout: {contiguous: {packing: aligned, metadata_kind: per_row, alignment: 128}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-ep8-32k-up}
+  - {N: 4096, K: 2048, E: 32, sizes: 'balanced_sizes(24576, 32)', layout: {contiguous: {packing: aligned, metadata_kind: per_row, alignment: 128}}, dtype_cases: [{S: float8_e8m0fnu}], label: dsv4-ep8-32k-down}
+  roofline:
+    func: tileops._perf.formulas.moe_grouped_gemm_block_scaled_roofline

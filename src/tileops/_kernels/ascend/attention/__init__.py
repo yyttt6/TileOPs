@@ -4,6 +4,7 @@ from tileops._kernels.ascend.attention import mla_cache_write, paged_cache_write
 from tileops._kernels.ascend.attention.dsa_dense import AscendDSADenseKernel
 from tileops._kernels.ascend.attention.dsa_paged import AscendDSAPagedKernel
 from tileops._kernels.ascend.attention.fp8_lightning import AscendFP8LightningIndexerKernel
+from tileops._kernels.ascend.attention.gated_pool_compress import AscendGatedPoolCompressKernel
 from tileops._kernels.ascend.attention.gqa_dense_bwd import (
     AscendGQABwdPreprocess,
     AscendGQADenseBwdKernel,
@@ -46,6 +47,7 @@ __all__ = [
     "AscendGQADenseKernel",
     "AscendGQAPagedKernel",
     "AscendGQAVarlenKernel",
+    "AscendGatedPoolCompressKernel",
     "AscendMHAPagedDecodeKernel",
     "AscendMLADenseBwdKernel",
     "AscendMLADenseDecodeKernel",

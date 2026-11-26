@@ -384,6 +384,10 @@ def compare_outputs(produced: Any, expected: Any, evidence: Evidence) -> CheckRe
             for a, b in zip(
                 got.reshape(-1).split(1 << 20), target.reshape(-1).split(1 << 20), strict=True
             ):
+                if a.device.type == "npu" and a.dtype == torch.float8_e8m0fnu:
+                    # Ascend can transfer the exponent bytes but cannot cast E8M0 to FP64.
+                    a = a.view(torch.uint8).cpu().view(torch.float8_e8m0fnu)
+                    b = b.view(torch.uint8).cpu().view(torch.float8_e8m0fnu)
                 a, b = a.to(dtype), b.to(dtype)
                 finite = torch.isfinite(a) & torch.isfinite(b)
                 if finite.any():
@@ -455,6 +459,7 @@ _BITWISE_DTYPES = frozenset(
     for dtype in (
         getattr(torch, "float8_e4m3fn", None),
         getattr(torch, "float8_e5m2", None),
+        getattr(torch, "float8_e8m0fnu", None),
     )
     if dtype is not None
 )

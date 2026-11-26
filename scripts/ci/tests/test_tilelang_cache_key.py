@@ -180,6 +180,7 @@ def test_workflow_cache_setup_supports_old_revisions_and_fails_closed(
     body = next(
         s["run"] for s in steps if s.get("name", "").startswith("Changed operator performance")
     )
+    # Exercise exactly the cache setup, independently of the performance controller that follows.
     last = 'mkdir -p "$TILELANG_CACHE_DIR"'
     first = body.index("CACHE_KEY_SCRIPT=")
     body = body[first : body.index(last, first) + len(last)]

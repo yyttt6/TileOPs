@@ -19,3 +19,11 @@ class OpNotAvailableError(BackendError, ValueError):
     """No implementation serves this call: the selected target cannot serve the op, or no
     kernel accepts the call's arguments. A `ValueError`, as arguments no kernel accepts are.
     """
+
+
+class OpNotServedError(OpNotAvailableError):
+    """The selected target registers no kernel builder for this op, named by ``target``."""
+
+    def __init__(self, *args: object, target: str | None = None) -> None:
+        super().__init__(*args)
+        self.target = target

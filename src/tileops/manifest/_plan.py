@@ -188,6 +188,12 @@ class EntryPlan:
 def entry_plan(name: str, entry: dict, adts: dict, resolve: bool = True) -> EntryPlan:
     """The plan of an entry; `SignatureError` on a malformed signature. A roofline with
     diagnostics leaves the plan without one."""
+    from tileops.manifest._dialect import TYPED_OPS
+
+    if name in TYPED_OPS:
+        from tileops.manifest.typed._plan import entry_plan as typed_plan
+
+        return typed_plan(name, entry, adts, resolve)
     sig = parse_signature(name, entry, adts)
     errors, roofline = roofline_plan(sig, entry.get("roofline"), resolve=resolve)
     return EntryPlan(sig, None if errors else roofline)
@@ -644,6 +650,12 @@ def check_entry(name: str, entry: dict, adts: dict) -> tuple[list[str], list[str
 
     *adts* are the ADTs `check_adts` accepts.
     """
+    from tileops.manifest._dialect import TYPED_OPS
+
+    if name in TYPED_OPS:
+        from tileops.manifest.typed._plan import check_entry as typed_check
+
+        return typed_check(name, entry, adts)
     try:
         sig, problems = read_signature(name, entry, adts)
     except SignatureError as exc:

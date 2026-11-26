@@ -10,6 +10,7 @@ import torch
 
 from tileops._kernels.call_spec import CallSpec
 from tileops._kernels.kernel_base import KernelInterface
+from tileops._kernels.typed_call_spec import TypedCallSpec
 
 __all__ = [
     "AdaLayerNormFwdInterface",
@@ -515,4 +516,55 @@ class FusedQKNormRoPEFwdInterface(KernelInterface):
             k_weight: ``(call.dim,)`` in ``call.dtype``.
             cos_sin_cache: ``(positions, call.rot)`` in ``call.cache_dtype``, cosines then sines.
             positions: ``int64`` ``(tokens,)``, each a row of *cos_sin_cache*.
+        """
+
+
+@dataclasses.dataclass(frozen=True)
+class RMSNormGatedCall(TypedCallSpec):
+    """The facts that select a gated RMS normalization implementation and build it.
+
+    ``n`` is the row's element count and ``group`` the element count each norm runs over,
+    which divides ``n``. ``eps``, ``norm_before_gate`` and ``activation`` are the op's
+    construction parameters, which the programs compile in. ``bias_dtype`` and ``z_dtype``
+    are ``None`` where the call passes no ``bias`` or no ``z``.
+    """
+
+    n: int = 0
+    group: int = 0
+    eps: float = 1e-6
+    norm_before_gate: bool = True
+    activation: str = "silu"
+    dtype: torch.dtype = torch.bfloat16
+    weight_dtype: torch.dtype = torch.bfloat16
+    bias_dtype: torch.dtype | None = None
+    z_dtype: torch.dtype | None = None
+
+
+class RMSNormGatedFwdInterface(KernelInterface):
+    """RMS normalization of each group of ``call.group`` trailing elements, gated by
+    ``act(z)``."""
+
+    request = RMSNormGatedCall
+
+    @abstractmethod
+    def forward(
+        self,
+        x: torch.Tensor,
+        weight: torch.Tensor,
+        bias: torch.Tensor | None,
+        z: torch.Tensor | None,
+    ) -> torch.Tensor:
+        """Normalize, scale, shift and gate each row; nothing is written in place.
+
+        Every tensor is contiguous on ``call.device``. A tensor is passed exactly where
+        ``call`` names its dtype.
+
+        Args:
+            x: ``(*leading, call.n)`` in ``call.dtype``.
+            weight: ``(call.n,)`` scale in ``call.weight_dtype``.
+            bias: ``(call.n,)`` shift in ``call.bias_dtype``, or ``None``.
+            z: Shaped like *x*, in ``call.z_dtype``, or ``None`` for no gate.
+
+        Returns:
+            A new output shaped like *x*, in ``call.dtype``.
         """

@@ -20,6 +20,7 @@ from tileops._ops.norm import (
     InstanceNormFwdOp,
     LayerNormFwdOp,
 )
+from tileops.norm import RMSNormGatedFwdOp
 from workloads.device import run_device
 
 _DTYPE = torch.float16
@@ -98,9 +99,14 @@ def _cases():
             {"weight": _x(4, **f32)},
         )
 
+    def rms_norm_gated():
+        n = 256
+        return RMSNormGatedFwdOp(), (_x(8, n), _x(n), None, _x(8, n))
+
     return [
         pytest.param(builder, id=name)
         for name, builder in (
+            ("rms-norm-gated", rms_norm_gated),
             ("layer-norm", layer_norm),
             ("ada-layer-norm", ada_layer_norm),
             ("ada-layer-norm-zero", ada_layer_norm_zero),
@@ -118,6 +124,7 @@ def _cases():
 
 
 for _op_cls in (
+    RMSNormGatedFwdOp,
     LayerNormFwdOp,
     AdaLayerNormFwdOp,
     AdaLayerNormZeroFwdOp,

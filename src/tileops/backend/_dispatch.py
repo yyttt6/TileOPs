@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+# What a device reports when nobody registered its type: no architecture, compute units or
+# shared memory.
+from typing import NamedTuple
+
 import torch
 
 from tileops.backend import _registry as registry
 from tileops.backend._errors import AmbiguousTargetError, BackendError, UnknownTargetError
 from tileops.backend._protocol import BUILTIN, BuildKernel, DetectFn, DeviceFacts, Target
 
-# What a device reports when nobody registered its type: no architecture, compute units or
-# shared memory.
 _NO_DEVICE_FACTS = DeviceFacts(arch=-1, sm_count=0, smem_budget=0)
 
 
@@ -206,3 +208,82 @@ def load_failures() -> tuple[str, ...]:
     """
     registry.ensure_loaded()
     return tuple(registry.LOAD_FAILURES)
+
+
+class TuningFacts(NamedTuple):
+    """The facts TileOPs' own CUDA kernels tune by, beside `.protocol.DeviceFacts`.
+
+    Only in-tree call specs and build targets read them, so a backend never supplies them;
+    a device other than CUDA reports zeros and no calibration.
+    """
+
+    # The key of the calibrated board (``tileops._utils.calibration_key``), or ``None``.
+    calibration: str | None
+    threads_per_sm: int
+    regs_per_sm: int
+    # Shared memory of one SM, in bytes.
+    smem_per_sm: int
+    l2_bytes: int
+    # The GPU profile's calibrated rates and launch latency (``tileops._utils.CudaFacts``).
+    tensor_core_rates: tuple[tuple[str, float], ...]
+    hbm_rate: float
+    launch_latency: float
+
+
+def device_facts_and_tuning(device: torch.device | None) -> tuple[DeviceFacts, TuningFacts]:
+    """Return `device_facts_of` *device*, and its `TuningFacts`.
+
+    Raises:
+        BackendError: What `device_facts_of` raises.
+    """
+    from tileops._utils.device import current_device, on_current_index
+    from tileops._utils.typed_cuda import _device_facts
+
+    # A device type nobody registered reports no architecture, compute units or memory.
+    no_facts = DeviceFacts(arch=-1, sm_count=0, smem_budget=0)
+    no_tuning = TuningFacts(
+        calibration=None,
+        threads_per_sm=0,
+        regs_per_sm=0,
+        smem_per_sm=0,
+        l2_bytes=0,
+        tensor_core_rates=(),
+        hbm_rate=0.0,
+        launch_latency=0.0,
+    )
+    device = current_device() if device is None else on_current_index(device)
+    if device is None:
+        return no_facts, no_tuning
+    if device.type == "cuda":
+        facts = _device_facts(device.index)
+        return (
+            DeviceFacts(arch=facts.arch, sm_count=facts.sm_count, smem_budget=facts.smem_budget),
+            TuningFacts(
+                calibration=facts.calibration,
+                threads_per_sm=facts.threads_per_sm,
+                regs_per_sm=facts.regs_per_sm,
+                smem_per_sm=facts.smem_per_sm,
+                l2_bytes=facts.l2_bytes,
+                tensor_core_rates=facts.tensor_core_rates,
+                hbm_rate=facts.hbm_rate,
+                launch_latency=facts.launch_latency,
+            ),
+        )
+    registry.ensure_loaded()
+    read = registry.DEVICE_FACTS.get(device.type)
+    if read is None:
+        return no_facts, no_tuning
+    try:
+        facts = read(device)
+    except Exception as exc:
+        raise BackendError(
+            f"device facts reader {registry.describe(read)} raised on {device}: "
+            f"{exc!r}{registry.load_failure_suffix()}"
+        ) from exc
+    problem = _invalid_facts(facts)
+    if problem is not None:
+        raise BackendError(
+            f"device facts reader {registry.describe(read)} returned {facts!r} for "
+            f"{device}: {problem}"
+        )
+    return facts, no_tuning

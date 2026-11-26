@@ -135,3 +135,16 @@ class RoutingEpilogueSpec:
     @property
     def accumulation_dtype(self) -> torch.dtype:
         return torch.float32
+
+
+def layout_call_fields(layout: MGroupedLayoutSpec) -> dict:
+    """The layout fields an M-grouped GEMM call record opens with: ``kind``, ``packing``,
+    ``metadata_kind``, ``alignment`` and ``max_m``."""
+    contiguous = isinstance(layout, ContiguousLayoutSpec)
+    return {
+        "kind": layout.kind,
+        "packing": layout.packing.value if contiguous else None,
+        "metadata_kind": layout.metadata_kind.value if contiguous else None,
+        "alignment": layout.alignment if contiguous else 1,
+        "max_m": layout.max_m,
+    }
