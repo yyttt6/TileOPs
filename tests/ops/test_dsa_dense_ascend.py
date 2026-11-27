@@ -163,3 +163,54 @@ def test_ascend_dsa_dense_d576_dma_with_empty_and_partial_tiles():
     )
     result = checks["tileops"]
     assert result.checked_outputs == result.total_outputs == 1, result.unchecked_reason
+
+
+@pytest.mark.smoke
+def test_ascend_dsa_dense_d576_counts_and_repeated_strided_launch():
+    device = torch.device(run_device())
+    if device.type != "npu":
+        pytest.skip("Ascend D576 DMA")
+    generator = torch.Generator().manual_seed(193)
+    # Thirty-eight query jobs give both 28 and 32 Cube configurations a partial wave.
+    batch, seq, kv_len, topk, start, scale = 2, 19, 256, 256, 220, 0.03125
+    workload = DSADecodeWorkload(
+        batch,
+        128,
+        seq,
+        kv_len,
+        512,
+        64,
+        topk,
+        1,
+        1,
+        start,
+        sm_scale=scale,
+        dtype=torch.bfloat16,
+    )
+    q_cpu = torch.randn(batch, seq, 128, 576, generator=generator).bfloat16()
+    kv_cpu = torch.randn(batch, kv_len, 1, 576, generator=generator).bfloat16()
+    ids_cpu = torch.full((batch, seq, 1, topk), kv_len, dtype=torch.int32)
+    for row, count in enumerate((0, 64, 65, 127, 128, 129)):
+        ids_cpu[:, row, 0, :count] = torch.arange(count, dtype=torch.int32)
+    # Slot 129 repeats slot 127 in a different 128-slot source block.
+    ids_cpu[0, 5, 0, 129] = ids_cpu[0, 5, 0, 127]
+
+    def strided_copy(tensor):
+        result = torch.empty((*tensor.shape, 2), dtype=tensor.dtype, device=device)[..., 0]
+        result.copy_(tensor.to(device))
+        assert not result.is_contiguous()
+        return result
+
+    inputs = tuple(strided_copy(tensor) for tensor in (q_cpu, kv_cpu, ids_cpu))
+    op = DSADenseFwdOp(dim_tail=64, stride_kv=1, q_start_index_s=start, sm_scale=scale)
+    for changed_kv, changed_ids in ((kv_cpu, ids_cpu), (-kv_cpu, ids_cpu.roll(1, 1))):
+        inputs[1].copy_(changed_kv.to(device))
+        inputs[2].copy_(changed_ids.to(device))
+        checks = verify(
+            workload.ref_program,
+            inputs,
+            evidence=workload.verification(*inputs),
+            requests={"tileops": Request(op, inputs)},
+        )
+        result = checks["tileops"]
+        assert result.checked_outputs == result.total_outputs == 1, result.unchecked_reason

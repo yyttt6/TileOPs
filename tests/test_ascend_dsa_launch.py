@@ -117,3 +117,28 @@ def test_ascend_dsa_rejects_invalid_reported_limits(monkeypatch, getter, message
         runtime_patch.setattr(torch, "npu", npu, raising=False)
         with pytest.raises(RuntimeError, match=message):
             device_core_counts(SimpleNamespace(index=1))
+
+
+@pytest.mark.smoke
+@pytest.mark.parametrize(
+    ("dtype", "heads", "topk", "eligible"),
+    [
+        pytest.param(torch.bfloat16, 128, 256, True, id="bf16-h128-aligned"),
+        pytest.param(torch.float16, 128, 256, False, id="fp16-fallback"),
+        pytest.param(torch.bfloat16, 64, 256, False, id="h64-fallback"),
+        pytest.param(torch.bfloat16, 128, 255, False, id="unaligned-fallback"),
+    ],
+)
+def test_ascend_dsa_d576_dma_route(dtype, heads, topk, eligible):
+    from types import SimpleNamespace
+
+    pytest.importorskip("tilelang.ascend.language")
+    from tileops._kernels.ascend.attention.dsa_dense import uses_d576_schedule
+
+    call = SimpleNamespace(
+        kv_group=1, kv_stride=1, is_causal=True, dim=512, tail_dim=64, q_start_index_s=220
+    )
+    q = torch.empty((2, 19, heads, 576), device="meta", dtype=dtype)
+    kv = torch.empty((2, 256, 1, 576), device="meta", dtype=dtype)
+    ids = torch.empty((2, 19, 1, topk), device="meta", dtype=torch.int32)
+    assert uses_d576_schedule(call, q, kv, ids) is eligible
