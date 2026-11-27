@@ -720,8 +720,10 @@ def compile_program(rows, seq, width, kv_len, start, cores, device):
 def compact(indices, kv_len, start, cores):
     batch, seq, groups, width = indices.shape
     rows = batch * seq
-    if groups != 1 or rows % 8 or width != 1024:
-        raise ValueError("vector compaction requires one KV head, aligned rows, and TopK 1024")
+    if groups != 1 or rows % 8 or width not in (1024, 2048):
+        raise ValueError(
+            "vector compaction requires one KV head, aligned rows, and TopK 1024 or 2048"
+        )
     ordered = indices.reshape(rows, width).sort(dim=-1).values
     selected = torch.empty_like(ordered)
     lengths = indices.new_empty((rows,))

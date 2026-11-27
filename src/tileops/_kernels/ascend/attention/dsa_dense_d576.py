@@ -12,6 +12,8 @@ from tilelang.ascend.language import simd as S
 from tilelang.layout import make_ascend_compact_nz_layout, make_ascend_major_mn_layout
 from tvm import tirx
 
+from tileops._kernels.ascend.attention.dsa_dense_d512 import compact
+
 
 def dense_attention_tail(batch, seq, heads, kv_len, topk, scale, num_blocks):
     qk_dim = 576
@@ -282,8 +284,9 @@ def dense_attention_tail(batch, seq, heads, kv_len, topk, scale, num_blocks):
                         mask = S.pset(32, "PAT_ALL")
                         for r in range(HEADS_PER_AIV):
                             divisor = S.vmaxs(S.vld(denom[r], "BRC_B32"), T.float32(1e-30), mask)
+                            inverse = S.vdiv(S.vdup(T.float32(1), accum_dtype, mask), divisor, mask)
                             for col in range(0, 512, 64):
-                                normalized = S.vdiv(S.vld(accum[r, col], "NORM"), divisor, mask)
+                                normalized = S.vmul(S.vld(accum[r, col], "NORM"), inverse, mask)
                                 packed = S.vcvt(normalized, dtype, mask, sat=False)
                                 S.vsts(output[r, col], packed, mask, "PK_B32")
                     T.dual_copy(
@@ -317,9 +320,12 @@ def compile_tail(batch, seq, heads, kv_len, topk, scale, cube_cores, device):
         return tilelang.compile(program, target=target, out_idx=[])
 
 
-def forward_d576(q, kv, indices, start, scale, cube_cores):
+def forward_d576(q, kv, indices, start, scale, cube_cores, vector_cores):
     batch, seq, heads, _ = q.shape
-    selected, lengths = prepare_indices(indices, kv.shape[1], start)
+    if indices.shape[-1] in (1024, 2048) and (batch * seq) % 8 == 0:
+        selected, lengths = compact(indices.contiguous(), kv.shape[1], start, vector_cores)
+    else:
+        selected, lengths = prepare_indices(indices, kv.shape[1], start)
     result = q.new_empty((batch, seq, heads, 512))
     kernel = compile_tail(
         batch, seq, heads, kv.shape[1], selected.shape[-1], scale, cube_cores, q.device.index

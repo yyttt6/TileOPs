@@ -166,13 +166,18 @@ def test_ascend_dsa_dense_d576_dma_with_empty_and_partial_tiles():
 
 
 @pytest.mark.smoke
-def test_ascend_dsa_dense_d576_counts_and_repeated_strided_launch():
+@pytest.mark.parametrize(
+    ("seq", "topk"),
+    [(19, 256), (20, 1024), (20, 2048)],
+    ids=["unaligned-rows", "simd-k1024", "simd-k2048"],
+)
+def test_ascend_dsa_dense_d576_counts_and_repeated_strided_launch(seq, topk):
     device = torch.device(run_device())
     if device.type != "npu":
         pytest.skip("Ascend D576 DMA")
     generator = torch.Generator().manual_seed(193)
-    # Thirty-eight query jobs give both 28 and 32 Cube configurations a partial wave.
-    batch, seq, kv_len, topk, start, scale = 2, 19, 256, 256, 220, 0.03125
+    # Both row counts leave a partial wave on 28 and 32 Cube configurations.
+    batch, kv_len, start, scale = 2, 256, 220, 0.03125
     workload = DSADecodeWorkload(
         batch,
         128,

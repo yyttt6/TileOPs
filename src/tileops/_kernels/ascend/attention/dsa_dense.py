@@ -354,9 +354,9 @@ class AscendDSADenseKernel(Kernel, SparseMLADecodeFwdInterface):
         if uses_d576_schedule(c, q, kv, indices):
             from tileops._kernels.ascend.attention.dsa_dense_d576 import forward_d576
 
-            cube_cores, _ = device_core_counts(q.device)
+            cube_cores, vector_cores = device_core_counts(q.device)
             scale = dim**-0.5 if c.sm_scale is None else c.sm_scale
-            return forward_d576(q, kv, indices, c.q_start_index_s, scale, cube_cores)
+            return forward_d576(q, kv, indices, c.q_start_index_s, scale, cube_cores, vector_cores)
         cap = min(c.seq_len_kv, max(1, (c.q_start_index_s + seq) // c.kv_stride))
         slots = (cap + 63) // 64 * 64
         dense = (
