@@ -4,6 +4,9 @@ import functools
 
 import tilelang
 import tilelang.ascend.language as T
+import torch
+
+from tileops._kernels.ascend.sequence_modeling import _mhc_fused
 
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops._kernels.sequence_modeling.mhc.call_spec import MHCPostCall, MHCPostFwdInterface
@@ -61,6 +64,14 @@ class AscendMHCPostKernel(Kernel, MHCPostFwdInterface):
     def __init__(self, call: MHCPostCall):
         super().__init__(device_index=call.device.index)
         self.dtype = call.dtype
+        self._fused = None
+        batch, hidden = call.batch, call.c_x
+        if call.n_expand == 4 and (batch, hidden) in _mhc_fused.MANIFEST_SHAPES and call.dtype == torch.bfloat16:
+            self._fused_shape = (batch, 4, hidden)
+            cores = batch * ((hidden + 255) // 256)
+            kernel = _mhc_fused.post.compile(batch=batch, hidden=hidden, cores=cores)
+            self._fused = _mhc_fused.export_launcher(kernel, call.device)
+            return
         self._kernel = (
             _build(call.batch, call.n_expand, call.c_x, self.dtype_str)
             if call.batch and call.n_expand and call.c_x
@@ -68,6 +79,10 @@ class AscendMHCPostKernel(Kernel, MHCPostFwdInterface):
         )
 
     def forward(self, x_layer_out, h_post, x_res):
+        if self._fused is not None:
+            output = x_res.new_empty(self._fused_shape)
+            self._fused(x_layer_out, h_post, x_res.view(self._fused_shape), output)
+            return output.view_as(x_res)
         if self._kernel is None:
             return x_res.new_empty(x_res.shape)
         return self._kernel(x_layer_out, h_post, x_res)

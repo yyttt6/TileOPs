@@ -5,6 +5,9 @@ import math
 
 import tilelang
 import tilelang.ascend.language as T
+import torch
+
+from tileops._kernels.ascend.sequence_modeling import _mhc_fused
 
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops._kernels.sequence_modeling.mhc.call_spec import MHCPreCall, MHCPreFwdInterface
@@ -158,6 +161,18 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
         self.dtype = call.dtype
         b, n, c = call.batch, call.n_expand, call.c_x
         self.call = call
+        self._fused = None
+        if n == 4 and (b, c) in _mhc_fused.MANIFEST_SHAPES and call.dtype == torch.bfloat16:
+            splits = c * 4 // 256
+            cores = next(k for k in range(min(splits, 28), 0, -1) if splits % k == 0)
+            self._fused_shapes = (splits, b, c)
+            kernel = _mhc_fused.project_cube_fused.compile(
+                batch=b, hidden=c, cores=cores,
+                repeat=call.sinkhorn_repeat, eps=call.sinkhorn_eps, alpha_pre=call.alpha_pre,
+                alpha_post=call.alpha_post, alpha_res=call.alpha_res,
+            )
+            self._fused = _mhc_fused.export_launcher(kernel, call.device)
+            return
         if not b:
             return
         self.project = _projection(b, n * c, n * n + 2 * n, self.dtype_str)
@@ -180,6 +195,15 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
                 x.new_empty((0, self.call.c_x)),
                 b.new_empty((0, self.call.n_expand)),
             )
+        if self._fused is not None:
+            splits, batch, hidden = self._fused_shapes
+            partial = b.new_empty((splits, 16, 32))
+            squares = b.new_empty((splits, 16, 8))
+            residual = x.new_empty((batch, 4, hidden))
+            layer = x.new_empty((batch, hidden))
+            post = b.new_empty((batch, 4))
+            self._fused(x, phi, partial, squares, partial, squares, b, post, residual, layer)
+            return residual.view_as(x), layer, post
         partial = self.project(phi, x)
         coeff, h_post = self.normalize(partial, b)
         x_res, x_layer = self.mix(x, coeff)
