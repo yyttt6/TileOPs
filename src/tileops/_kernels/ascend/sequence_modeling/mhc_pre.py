@@ -162,8 +162,12 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
         b, n, c = call.batch, call.n_expand, call.c_x
         self.call = call
         self._fused = None
-        if (b, n, c) == (4, 4, 2560) and call.dtype == torch.bfloat16:
+        if n == 4 and (b, c) in _mhc_fused.MANIFEST_SHAPES and call.dtype == torch.bfloat16:
+            splits = c * 4 // 256
+            cores = next(k for k in range(min(splits, 28), 0, -1) if splits % k == 0)
+            self._fused_shapes = (splits, b, c)
             kernel = _mhc_fused.project_cube_fused.compile(
+                batch=b, hidden=c, cores=cores,
                 repeat=call.sinkhorn_repeat, eps=call.sinkhorn_eps, alpha_pre=call.alpha_pre,
                 alpha_post=call.alpha_post, alpha_res=call.alpha_res,
             )
@@ -192,13 +196,14 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
                 b.new_empty((0, self.call.n_expand)),
             )
         if self._fused is not None:
-            partial = b.new_empty((40, 16, 32))
-            squares = b.new_empty((40, 16, 8))
-            residual = x.new_empty((4, 4, 2560))
-            layer = x.new_empty((4, 2560))
-            post = b.new_empty((4, 4))
+            splits, batch, hidden = self._fused_shapes
+            partial = b.new_empty((splits, 16, 32))
+            squares = b.new_empty((splits, 16, 8))
+            residual = x.new_empty((batch, 4, hidden))
+            layer = x.new_empty((batch, hidden))
+            post = b.new_empty((batch, 4))
             self._fused(x, phi, partial, squares, partial, squares, b, post, residual, layer)
-            return residual.view(4, 10240), layer, post
+            return residual.view_as(x), layer, post
         partial = self.project(phi, x)
         coeff, h_post = self.normalize(partial, b)
         x_res, x_layer = self.mix(x, coeff)

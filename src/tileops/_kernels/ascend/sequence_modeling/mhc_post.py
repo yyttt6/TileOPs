@@ -65,8 +65,12 @@ class AscendMHCPostKernel(Kernel, MHCPostFwdInterface):
         super().__init__(device_index=call.device.index)
         self.dtype = call.dtype
         self._fused = None
-        if (call.batch, call.n_expand, call.c_x) == (4, 4, 2560) and call.dtype == torch.bfloat16:
-            self._fused = _mhc_fused.export_launcher(_mhc_fused.post.compile(), call.device)
+        batch, hidden = call.batch, call.c_x
+        if call.n_expand == 4 and (batch, hidden) in _mhc_fused.MANIFEST_SHAPES and call.dtype == torch.bfloat16:
+            self._fused_shape = (batch, 4, hidden)
+            cores = batch * ((hidden + 255) // 256)
+            kernel = _mhc_fused.post.compile(batch=batch, hidden=hidden, cores=cores)
+            self._fused = _mhc_fused.export_launcher(kernel, call.device)
             return
         self._kernel = (
             _build(call.batch, call.n_expand, call.c_x, self.dtype_str)
@@ -76,9 +80,9 @@ class AscendMHCPostKernel(Kernel, MHCPostFwdInterface):
 
     def forward(self, x_layer_out, h_post, x_res):
         if self._fused is not None:
-            output = x_res.new_empty((4, 4, 2560))
-            self._fused(x_layer_out, h_post, x_res.view(4, 4, 2560), output)
-            return output.view(4, 10240)
+            output = x_res.new_empty(self._fused_shape)
+            self._fused(x_layer_out, h_post, x_res.view(self._fused_shape), output)
+            return output.view_as(x_res)
         if self._kernel is None:
             return x_res.new_empty(x_res.shape)
         return self._kernel(x_layer_out, h_post, x_res)

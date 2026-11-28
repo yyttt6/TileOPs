@@ -1,9 +1,12 @@
-"""Fused four-stream BF16 mHC for B=4 and H=2560."""
+"""Fused four-stream BF16 mHC for the Ascend manifest workloads."""
 
 import tilelang
 import tilelang.ascend.language as T
 from tilelang.ascend.language import simd as S
 from tilelang.layout import make_ascend_compact_nz_layout
+
+
+MANIFEST_SHAPES = frozenset({(1, 1280), (2, 1920), (4, 2560)})
 
 
 def export_launcher(kernel, device):
@@ -80,9 +83,10 @@ def _normalize_token(
 @tilelang.jit(target="ascend", execution_backend="tvm_ffi")
 def project_cube_fused(
     x, phi, partial, squares, partial_read, squares_read, bias, h_post, x_res, x_layer, *,
+    batch: int, hidden: int, cores: int,
     repeat: int, eps: float, alpha_pre: float, alpha_post: float, alpha_res: float,
 ):
-    batch, width, chunk, cores, tile = 4, 10240, 256, 20, 2560
+    width, chunk, tile = hidden * 4, 256, hidden
     splits = width // chunk
     rows = 16
     half = rows // 2
@@ -100,7 +104,6 @@ def project_cube_fused(
     bias: T.Tensor[(24,), T.float32]
     h_post: T.Tensor[(batch, 4), T.float32]
 
-    hidden = width // 4
     x_res: T.Tensor[(batch, 4, hidden), T.bfloat16]
     x_layer: T.Tensor[(batch, hidden), T.bfloat16]
 
@@ -218,8 +221,8 @@ def project_cube_fused(
 
 
 @tilelang.jit(target="ascend", execution_backend="tvm_ffi")
-def post(x_layer, h_post, x_res, out):
-    batch, hidden, tile, cores, stages, streams, total_streams = 4, 2560, 256, 40, 0, 4, 4
+def post(x_layer, h_post, x_res, out, *, batch: int, hidden: int, cores: int):
+    tile, stages, streams, total_streams = 256, 0, 4, 4
     tiles = (hidden + tile - 1) // tile
     groups = total_streams // streams
     x_layer: T.Tensor[(batch, hidden), T.bfloat16]
