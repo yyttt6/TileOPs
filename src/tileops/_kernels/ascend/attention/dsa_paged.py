@@ -126,6 +126,34 @@ def optimized_route(q, cache, table, indices, cube_cores):
     return 0
 
 
+def use_inline_paged_h64(batch, seq, topk, page_size, table_width):
+    """Use the fused paged decode path for the measured TP2 workload."""
+    return (batch, seq, topk, page_size, table_width) == (48, 1, 2048, 64, 22)
+
+
+def paged_h128_schedule(batch, seq, topk, page_size, table_width, splits, cube_cores):
+    """Select the measured H128 schedules and retain the general H128 path."""
+    from tileops._kernels.ascend.attention.dsa_paged_indices import metadata_row_tile
+
+    if topk != 2048 or page_size != 64:
+        return "base"
+    if (batch, seq, table_width) == (64, 1, 512):
+        # For this workload, each five-job core must own exactly four
+        # short parts to balance the long parts across the other cores.
+        five_job_cores = 2 * batch - 4 * cube_cores
+        if (
+            splits == 2
+            and 0 < five_job_cores < cube_cores
+            and 4 * five_job_cores == batch
+            and metadata_row_tile(batch, topk, table_width)
+        ):
+            return "balanced_split"
+        return "overlap"
+    if (batch, seq, table_width) == (16, 2, 2048):
+        return "overlap"
+    return "base"
+
+
 class AscendDSAPagedKernel(Kernel, DSAPagedFwdInterface):
     devices = frozenset({"npu"})
 
@@ -151,7 +179,15 @@ class AscendDSAPagedKernel(Kernel, DSAPagedFwdInterface):
             from tileops._kernels.ascend.attention.dsa_paged_h64 import forward_h64
 
             return forward_h64(
-                q, kv_cache, block_table, cache_seqlens, indices, scale, cube_cores, vector_cores
+                q,
+                kv_cache,
+                block_table,
+                cache_seqlens,
+                indices,
+                scale,
+                cube_cores,
+                vector_cores,
+                inline_kv=use_inline_paged_h64(b, s, topk, kv_cache.shape[1], block_table.shape[1]),
             )
         if splits > 1:
             from tileops._kernels.ascend.attention.dsa_paged_h128 import forward_h128
@@ -167,6 +203,9 @@ class AscendDSAPagedKernel(Kernel, DSAPagedFwdInterface):
                 cube_cores,
                 vector_cores,
                 first_split_init=(splits == 2),
+                schedule=paged_h128_schedule(
+                    b, s, topk, kv_cache.shape[1], block_table.shape[1], splits, cube_cores
+                ),
             )
         bm = 32 if h <= 32 else 64
         q = q.reshape(b * s, 1, 1, h, 576)

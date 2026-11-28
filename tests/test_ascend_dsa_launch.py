@@ -66,6 +66,26 @@ def test_ascend_dsa_paged_split_schedule_for_smoke_shapes(queries, expected_28, 
 
 
 @pytest.mark.smoke
+def test_ascend_dsa_paged_workload_fast_paths():
+    pytest.importorskip("tilelang.ascend.language")
+    from tileops._kernels.ascend.attention.dsa_paged import (
+        paged_h128_schedule,
+        use_inline_paged_h64,
+    )
+
+    assert paged_h128_schedule(64, 1, 2048, 64, 512, 2, 28) == "balanced_split"
+    assert paged_h128_schedule(64, 1, 2048, 64, 512, 2, 32) == "overlap"
+    assert paged_h128_schedule(16, 2, 2048, 64, 2048, 4, 28) == "overlap"
+    assert paged_h128_schedule(16, 2, 2048, 64, 2048, 2, 32) == "overlap"
+    assert paged_h128_schedule(64, 1, 1920, 64, 512, 2, 28) == "base"
+    assert paged_h128_schedule(64, 1, 2048, 32, 512, 2, 28) == "base"
+    assert paged_h128_schedule(63, 1, 2048, 64, 512, 2, 28) == "base"
+    assert use_inline_paged_h64(48, 1, 2048, 64, 22)
+    assert not use_inline_paged_h64(48, 1, 2048, 64, 23)
+    assert not use_inline_paged_h64(47, 1, 2048, 64, 22)
+
+
+@pytest.mark.smoke
 @pytest.mark.parametrize(("queries", "aivs"), [(48, 56), (48, 64), (47, 64), (65, 56)])
 def test_ascend_dsa_paged_gather_schedule_covers_live_tiles(queries, aivs):
     pytest.importorskip("tilelang.ascend.language")

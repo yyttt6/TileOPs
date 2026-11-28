@@ -10,10 +10,13 @@ import torch
 from tilelang.ascend.language import simd as S
 from tilelang.layout import make_ascend_compact_nz_layout, make_ascend_major_mn_layout
 
+from tileops._kernels.ascend.attention.dsa_paged_h128 import decode_shared_kv
 from tileops._kernels.ascend.attention.dsa_paged_indices import metadata
 
 
-def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_blocks):
+def paged_attention_core(
+    batch, seq, heads, kv_len, topk, scale, variant, num_blocks, inline_kv=False
+):
     if heads != 64:
         raise ValueError("expected H64")
     plan = dict(head_tile=64, wide_pv=True, share_scratch=False, staging_versions=1)
@@ -50,6 +53,20 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
             if rows > 0:
                 T.copy(KV[batch_id, begin : begin + rows, 0, :], nd[:rows, :])
             T.copy(nd, nz[:16, :])
+            T.copy(nz[:16, :], l1[row_start : row_start + 16, :])
+
+    @T.macro
+    def gather_packed(count, sid, KV, idx, nz, l1, raw, raw_words, raw_codes, raw_scales, raw_rope):
+        for chunk in T.Serial(4):
+            row_start = sid * 64 + chunk * 16
+            rows = T.max(T.min(count - row_start, 16), 0)
+            if rows < 16:
+                with T.SimdVF():
+                    T.fill(raw_words, T.uint32(0))
+            for r in T.Serial(rows):
+                physical = T.int32(idx[row_start + r])
+                T.copy(KV[physical, :], raw[r, :656])
+            decode_shared_kv(raw_codes, raw_scales, raw_rope, nz)
             T.copy(nz[:16, :], l1[row_start : row_start + 16, :])
 
     @T.macro
@@ -146,10 +163,14 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
         T.copy(kv_l1[:, offset : offset + qk_chunk], kb[:, :192])
         T.gemm(qa, kb[:, :192], score_c, transpose_B=True, clear_accum=clear)
 
+    kv_shape = (kv_len, 656) if inline_kv else (batch, kv_len, 1, qk_dim)
+    kv_dtype = "uint8" if inline_kv else dtype
+
     @T.prim_func
     def main(
         Q: T.Tensor((batch, seq, heads, qk_dim), dtype),
-        KV: T.Tensor((batch, kv_len, 1, qk_dim), dtype),
+        KV: T.Tensor(kv_shape, kv_dtype),
+        Indices: T.Tensor((batch, seq, 1, topk), "int32"),
         Lengths: T.Tensor((batch, seq, 8), "int32"),
         Output: T.Tensor((batch, seq, heads, 512), dtype),
         LSE: T.Tensor((batch, seq, heads), accum_dtype),
@@ -169,7 +190,15 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
             values_c = T.alloc_l0c((M, 256), accum_dtype)
             if WIDE:
                 values_c1 = T.alloc_l0c((M, 256), accum_dtype)
-            kv_nd = T.alloc_shared((16, qk_dim), dtype)
+            if inline_kv:
+                raw = T.alloc_shared((16, 672), "uint8")
+                raw_words = T.view(raw, (16, 168), dtype="uint32")
+                raw_codes = T.view(raw, dtype="float8_e4m3fn")
+                raw_scales = T.view(raw, (16, 168), dtype="float32")
+                raw_rope = T.view(raw, (16, 336), dtype="uint16")
+                idx = T.alloc_shared((128,), "int32")
+            else:
+                kv_nd = T.alloc_shared((16, qk_dim), dtype)
             kv_nz = T.alloc_shared((17, qk_dim), dtype)
             partial = T.alloc_shared((HEADS_PER_AIV, 512 if WIDE else 128), accum_dtype)
             if SHARE:
@@ -201,7 +230,6 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
                     pa: 1,
                     score_c: 1,
                     values_c: 1,
-                    kv_nd: STAGING,
                     kv_nz: STAGING,
                     prob: STAGING,
                     scores: 1,
@@ -215,6 +243,10 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
                     old_m: 1,
                 }
             )
+            if inline_kv:
+                T.annotate_buffer_versions({raw: STAGING, idx: STAGING})
+            else:
+                T.annotate_buffer_versions({kv_nd: STAGING})
             if WIDE:
                 T.annotate_buffer_versions({values_c1: 1})
             tasks = T.ceildiv(jobs - bx, cores)
@@ -234,7 +266,22 @@ def paged_attention_core(batch, seq, heads, kv_len, topk, scale, variant, num_bl
                     active_tiles, num_stages=2, annotations={"enable_offset": True}
                 ):
                     count = T.max(T.min(live - tile * 128, 128), 0)
-                    if count == 128:
+                    if inline_kv:
+                        T.copy(Indices[b, t, 0, tile * 128 : (tile + 1) * 128], idx)
+                        gather_packed(
+                            count,
+                            sid,
+                            KV,
+                            idx,
+                            kv_nz,
+                            kv_l1,
+                            raw,
+                            raw_words,
+                            raw_codes,
+                            raw_scales,
+                            raw_rope,
+                        )
+                    elif count == 128:
                         T.copy(KV[b, tile * 128 : (tile + 1) * 128, 0, :], kv_l1)
                     else:
                         gather(b, tile, count, sid, KV, kv_nd, kv_nz, kv_l1)
@@ -440,23 +487,31 @@ def gather(cache, index, lens, batch, seq, vector_cores):
 
 
 @functools.lru_cache(maxsize=32)
-def compile_attention(rows, topk, scale, cores, device):
+def compile_attention(rows, kv_len, topk, scale, cores, device, inline_kv):
     import tilelang
 
     target = tilelang.tvm.target.Target("ascend")
     with target:
-        program = paged_attention_core(rows, 1, 64, topk, topk, scale, "wide64", cores)
+        program = paged_attention_core(rows, 1, 64, kv_len, topk, scale, "wide64", cores, inline_kv)
         return tilelang.compile(program, target=target, out_idx=[])
 
 
-def forward_h64(q, cache, table, limits, indices, scale, cube_cores, vector_cores):
+def forward_h64(
+    q, cache, table, limits, indices, scale, cube_cores, vector_cores, *, inline_kv=False
+):
     b, s, heads, depth = q.shape
     rows = b * s
     physical, lengths = metadata(indices, limits, table, cache.shape[1], 1, vector_cores)
-    kv = gather(cache, physical, lengths, b, s, vector_cores)
+    topk = physical.shape[-1]
+    if inline_kv:
+        kv = cache.reshape(-1, 656).contiguous()
+        kv_len = kv.shape[0]
+    else:
+        kv = gather(cache, physical, lengths, b, s, vector_cores)
+        kv_len = topk
     query = q.reshape(rows, 1, heads, depth).contiguous()
     out = q.new_empty((rows, 1, heads, 512))
     lse = torch.empty((rows, 1, heads), dtype=torch.float32, device=q.device)
-    attention = compile_attention(rows, kv.shape[1], scale, cube_cores, q.device.index)
-    attention(query, kv, lengths, out, lse)
+    attention = compile_attention(rows, kv_len, topk, scale, cube_cores, q.device.index, inline_kv)
+    attention(query, kv, physical, lengths, out, lse)
     return out.reshape(b, s, heads, 512), lse.reshape(b, s, heads).transpose(1, 2).contiguous()
