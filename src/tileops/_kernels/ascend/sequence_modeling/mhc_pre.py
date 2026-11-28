@@ -5,6 +5,9 @@ import math
 
 import tilelang
 import tilelang.ascend.language as T
+import torch
+
+from tileops._kernels.ascend.sequence_modeling import _mhc_fused
 
 from tileops._kernels.kernel_base import Entry, Kernel
 from tileops._kernels.sequence_modeling.mhc.call_spec import MHCPreCall, MHCPreFwdInterface
@@ -158,6 +161,14 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
         self.dtype = call.dtype
         b, n, c = call.batch, call.n_expand, call.c_x
         self.call = call
+        self._fused = None
+        if (b, n, c) == (4, 4, 2560) and call.dtype == torch.bfloat16:
+            kernel = _mhc_fused.project_cube_fused.compile(
+                repeat=call.sinkhorn_repeat, eps=call.sinkhorn_eps, alpha_pre=call.alpha_pre,
+                alpha_post=call.alpha_post, alpha_res=call.alpha_res,
+            )
+            self._fused = _mhc_fused.export_launcher(kernel, call.device)
+            return
         if not b:
             return
         self.project = _projection(b, n * c, n * n + 2 * n, self.dtype_str)
@@ -180,6 +191,14 @@ class AscendMHCPreKernel(Kernel, MHCPreFwdInterface):
                 x.new_empty((0, self.call.c_x)),
                 b.new_empty((0, self.call.n_expand)),
             )
+        if self._fused is not None:
+            partial = b.new_empty((40, 16, 32))
+            squares = b.new_empty((40, 16, 8))
+            residual = x.new_empty((4, 4, 2560))
+            layer = x.new_empty((4, 2560))
+            post = b.new_empty((4, 4))
+            self._fused(x, phi, partial, squares, partial, squares, b, post, residual, layer)
+            return residual.view(4, 10240), layer, post
         partial = self.project(phi, x)
         coeff, h_post = self.normalize(partial, b)
         x_res, x_layer = self.mix(x, coeff)
