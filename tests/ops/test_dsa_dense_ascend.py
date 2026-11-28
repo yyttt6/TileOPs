@@ -177,7 +177,8 @@ def test_ascend_dsa_dense_d576_counts_and_repeated_strided_launch(seq, topk):
         pytest.skip("Ascend D576 DMA")
     generator = torch.Generator().manual_seed(193)
     # Both row counts leave a partial wave on 28 and 32 Cube configurations.
-    batch, kv_len, start, scale = 2, 256, 220, 0.03125
+    batch, scale = 2, 0.03125
+    kv_len, start = (2080, 2048) if topk == 2048 else (256, 220)
     workload = DSADecodeWorkload(
         batch,
         128,
@@ -195,7 +196,10 @@ def test_ascend_dsa_dense_d576_counts_and_repeated_strided_launch(seq, topk):
     q_cpu = torch.randn(batch, seq, 128, 576, generator=generator).bfloat16()
     kv_cpu = torch.randn(batch, kv_len, 1, 576, generator=generator).bfloat16()
     ids_cpu = torch.full((batch, seq, 1, topk), kv_len, dtype=torch.int32)
-    for row, count in enumerate((0, 64, 65, 127, 128, 129)):
+    counts = (0, 64, 65, 127, 128, 129)
+    if topk == 2048:
+        counts += (1023, 1024, 1025, 2047, 2048)
+    for row, count in enumerate(counts):
         ids_cpu[:, row, 0, :count] = torch.arange(count, dtype=torch.int32)
     # Slot 129 repeats slot 127 in a different 128-slot source block.
     ids_cpu[0, 5, 0, 129] = ids_cpu[0, 5, 0, 127]
