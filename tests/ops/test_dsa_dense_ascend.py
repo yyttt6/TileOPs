@@ -119,10 +119,12 @@ def test_ascend_dsa_schedules_respect_device_core_limits(monkeypatch):
         get_device_properties=lambda device: SimpleNamespace(cube_core_num=36, vector_core_num=72),
         get_device_limit=lambda device: {"cube_core_num": 32, "vector_core_num": 64},
     )
-    monkeypatch.setattr(torch, "npu", npu, raising=False)
-    assert device_core_counts(SimpleNamespace(index=1)) == (32, 64)
-    del npu.get_device_limit
-    assert device_core_counts(SimpleNamespace(index=1)) == (36, 72)
+    # Restore the runtime before the suite's teardown hook accesses its allocator.
+    with monkeypatch.context() as runtime_patch:
+        runtime_patch.setattr(torch, "npu", npu, raising=False)
+        assert device_core_counts(SimpleNamespace(index=1)) == (32, 64)
+        del npu.get_device_limit
+        assert device_core_counts(SimpleNamespace(index=1)) == (36, 72)
 
 
 @pytest.mark.smoke
