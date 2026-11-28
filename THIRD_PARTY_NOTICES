@@ -26,3 +26,36 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+------------------------------------------------------------------------------
+TileLang Ascend causal sparse attention (DMA and SIMD packing patterns)
+Source: https://github.com/tile-ai/tilelang/blob/4c0cb5fcdaf466c2a44e63ef1404553b94909da1/examples/ascend/sparse_attention/example_dsa.py
+Commit: 4c0cb5fcdaf466c2a44e63ef1404553b94909da1
+Files: src/tileops/_kernels/ascend/attention/dsa_dense_d512.py
+       src/tileops/_kernels/ascend/attention/dsa_dense_d576.py
+       src/tileops/_kernels/ascend/attention/dsa_paged_h64.py
+       src/tileops/_kernels/ascend/attention/dsa_paged_h128.py
+
+MIT License
+
+Copyright (c) Tile-AI.
+**During the period from December 1, 2024, to Mar 14, 2025, this project is
+subject to additional collaboration terms with Microsoft Corporation.**
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE
